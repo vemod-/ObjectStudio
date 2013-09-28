@@ -4,12 +4,11 @@
 #include <QWidget>
 #include <softsynthsclasses.h>
 #include <cmidifileplayer.h>
-#include <csf2player.h>
-#include <cvsthost.h>
 #include <cstereomixer.h>
 #include <cmixerwidget.h>
 #include <cmasterwidget.h>
 #include <QGridLayout>
+#include <cdevicecontainer.h>
 
 class CDeviceListLite
 {
@@ -81,8 +80,8 @@ private:
     {jnOut};
     CMIDIFileReader MFR;
     QList<IDevice*> Effects;
-    QList<IDevice*> MFPs;
-    QList<IDevice*> SF2s;
+    QList<IDevice*> MIDIFilePlayers;
+    QList<IDevice*> Instruments;
     void LoadFile(QString filename);
     void LoadEffect(int index, QString filename);
     CStereoMixer* Mx;

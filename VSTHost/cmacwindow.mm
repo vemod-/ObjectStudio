@@ -4,11 +4,8 @@
 #include <QPainter>
 #include <QApplication>
 #include <QDesktopWidget>
-#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
-#include <qmacfunctions.h>
-#endif
 
-CMacWindow::CMacWindow(QWidget* parent):QWidget(parent)
+CMacWindow::CMacWindow(QWidget* parent):QMacCocoaViewContainer(0,parent)
 {
     cocoaWin=0;
 }
@@ -19,7 +16,7 @@ CMacWindow::~CMacWindow()
     qDebug() << "Exit CMacWindow";
 }
 
-void* CMacWindow::CreateMacWindow()
+void CMacWindow::CreateMacWindow()
 {
     QRect r(rect());
     r.translate(mapToGlobal(QPoint(0,0)));
@@ -29,26 +26,19 @@ void* CMacWindow::CreateMacWindow()
     r1.right=r.right();
     r1.bottom=r.bottom();
 
-    WindowRef testwindow;
+    WindowRef carbonWindow;
     CreateNewWindow(kFloatingWindowClass,
                     kWindowStandardHandlerAttribute | kWindowCompositingAttribute |
-                    kWindowOpaqueForEventsAttribute | kWindowNoTitleBarAttribute | kWindowNoShadowAttribute, &r1, &testwindow);
+                    kWindowOpaqueForEventsAttribute | kWindowNoTitleBarAttribute | kWindowNoShadowAttribute, &r1, &carbonWindow);
 
-    NSWindow *mixedWindow = [[[NSWindow alloc] initWithWindowRef:testwindow] retain];
-    NSView* hostView = (NSView*) effectiveWinId();
-    NSWindow* cocoaWindow = [hostView window];
-    [cocoaWindow addChildWindow:mixedWindow ordered:NSWindowAbove];
-    /*
-    HIViewRef embeddedView = attachView (testwindow, HIViewGetRoot (testwindow));
-    HIRect r2;
-                    r2.origin.x = 0;
-                    r2.origin.y = 0;
-                    r2.size.width = r.width();
-                    r2.size.height = r.height();
-                    HIViewSetFrame (embeddedView, &r2);
-                    */
-    qDebug() << "MacWindow Created" << testwindow;
-    return mixedWindow;
+    NSWindow *mixedWindow = [[NSWindow alloc] initWithWindowRef:carbonWindow];
+    NSView* cocoaView = [[NSView alloc] initWithFrame:NSMakeRect(0,0,r.width(),r.height())];
+    setCocoaView(cocoaView);
+    hostView=cocoaView;
+    NSWindow* hostWindow = [cocoaView window];
+    [hostWindow addChildWindow:mixedWindow ordered:NSWindowAbove];
+    cocoaWin=mixedWindow;
+    qDebug() << "MacWindow Created" << carbonWindow << mixedWindow;
 }
 
 void* CMacWindow::WindowReference()
@@ -60,6 +50,16 @@ void CMacWindow::DestroyMacWindow()
 {
     if (cocoaWin)
     {
+        NSWindow* hostWindow = [(NSView*)hostView window];
+        [hostWindow removeChildWindow:(NSWindow*)cocoaWin];
+        [(NSView*)hostView release];
+        if (cocoaView() != NULL)
+        {
+            NSView* v=(NSView*)cocoaView();
+            qDebug() << [v retainCount];
+            setCocoaView(NULL);
+            qDebug() << [v retainCount];
+        }
         DisposeWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]));
         [(NSWindow*)cocoaWin release];
         cocoaWin=0;
@@ -70,139 +70,63 @@ void CMacWindow::DestroyMacWindow()
 void CMacWindow::Init()
 {
     DestroyMacWindow();
-    pixmap=QPixmap(size());
-    cocoaWin=CreateMacWindow();
+    CreateMacWindow();
 }
 
-void CMacWindow::Move()
+QRect NSRectToQRect(NSRect r)
 {
-    if (cocoaWin)
-    {
-        QRect r(rect());
-        r.translate(mapToGlobal(QPoint(0,0)));
-        MoveWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]),r.left(),r.top(),true);
-    }
+    return QRect(r.origin.x,[[NSScreen mainScreen] frame].size.height - (r.origin.y + r.size.height),r.size.width,r.size.height);
 }
 
-void CMacWindow::Size()
+NSRect QRectToNSRect(QRect r)
 {
-    if (cocoaWin)
-    {
-        SizeWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]),width(),height(),true);
-        Grab();
-    }
+    return NSMakeRect(r.left(),[[NSScreen mainScreen] frame].size.height - r.bottom(),r.width(),r.height());
 }
 
 void CMacWindow::resizeEvent(QResizeEvent *e)
 {
-    QWidget::resizeEvent(e);
-    Size();
-}
-
-void CMacWindow::showEvent(QShowEvent *e)
-{
-    QWidget::showEvent(e);
-    Show();
+    QMacCocoaViewContainer::resizeEvent(e);
+    if (cocoaWin)
+    {
+        QRect r(rect().translated(mapToGlobal(QPoint(0,0))));
+        if (r.size() != NSRectToQRect([(NSWindow*)cocoaWin frame]).size())
+        {
+            //[(NSWindow*)cocoaWin setFrame:QRectToNSRect(r) display:YES];
+            SizeWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]),r.width(),r.height(),true);
+        }
+    }
+    //qDebug() << "resizeevent";
 }
 
 void CMacWindow::paintEvent(QPaintEvent* e)
 {
+    QMacCocoaViewContainer::paintEvent(e);
     if (cocoaWin)
     {
-        if (this->isVisible())
+        NSWindow* hostWindow = [(NSView*)hostView window];
+        //qDebug() << "levels" << [(NSWindow*)cocoaWin level] << [hostWindow level];
+        if ([(NSWindow*)cocoaWin level]==[hostWindow level])
         {
-            if ([(NSWindow*)cocoaWin isVisible])
+            QRect r(rect().translated(mapToGlobal(QPoint(0,0))));
+            if (r.topLeft() != NSRectToQRect([(NSWindow*)cocoaWin frame]).topLeft())
             {
-                NSView* hostView = (NSView*) effectiveWinId();
-                NSWindow* cocoaWindow = [hostView window];
-
-                qDebug() << "levels" << [(NSWindow*)cocoaWin level] << [cocoaWindow level];
-                if ([(NSWindow*)cocoaWin level]==[cocoaWindow level])
-                {
-                    ToFront();
-                }
+                //[(NSWindow*)cocoaWin setFrame:QRectToNSRect(r) display:YES];
+                //[(NSWindow*)cocoaWin setFrameTopLeftPoint:NSMakePoint(r.left(),r.top())];
+                MoveWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]),r.left(),r.top(),true);
+                //[(NSWindow*)cocoaWin setFrameOrigin:NSMakePoint(r.left(),[[NSScreen mainScreen] frame].size.height - r.bottom())];
+                //[(NSWindow*)cocoaWin display];
             }
-            else
-            {
-                QPainter p(this);
-                //p.setOpacity(0.5);
-                p.drawPixmap(e->rect(),pixmap,e->rect());
-            }
+            [hostWindow setLevel:[hostWindow level]];
+            [hostWindow addChildWindow:(NSWindow*)cocoaWin ordered:NSWindowAbove];
+            [(NSWindow*)cocoaWin orderWindow:NSWindowAbove relativeTo:[hostWindow windowNumber]];
         }
     }
-}
-
-void CMacWindow::Grab()
-{
-    QRect r(rect());
-    r.translate(mapToGlobal(QPoint(0,0)));
-    if (cocoaWin)
-    {
-        CGRect rect;
-        rect.origin.x=r.left();
-        rect.origin.y=r.top();
-        rect.size.width=r.width();
-        rect.size.height=r.height();
-
-        ToFront();
-        CGWindowID wid = (CGWindowID)([(NSWindow*)cocoaWin windowNumber]);
-
-        CGImageRef windowImage =  CGWindowListCreateImage( rect, kCGWindowListOptionIncludingWindow, wid, kCGWindowImageDefault );
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-        pixmap = QPixmap::fromMacCGImageRef(windowImage);
-#else
-        pixmap = QtMacExtras::fromCGImageRef(windowImage);
-#endif
-    }
-    update();
+    //qDebug() << "paintevent";
 }
 
 void CMacWindow::hideEvent(QHideEvent *e)
 {
-    Hide();
-    QWidget::hideEvent(e);
-}
-
-void CMacWindow::Activate()
-{
-    if (cocoaWin)
-    {
-        ActivateWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]),false);
-    }
-}
-
-void CMacWindow::Hide()
-{
-    if (cocoaWin)
-    {
-        if ([(NSWindow*)cocoaWin isVisible])
-        {
-            Grab();
-            [(NSWindow*)cocoaWin orderOut:nil];
-        }
-    }
-}
-
-void CMacWindow::Show()
-{
-    if (cocoaWin)
-    {
-        if (![(NSWindow*)cocoaWin isVisible])
-        {
-            ToFront();
-        }
-    }
-    Activate();
-}
-
-void CMacWindow::ToFront()
-{
-    Move();
-    if (cocoaWin)
-    {
-        NSView* hostView = (NSView*) effectiveWinId();
-        NSWindow* cocoaWindow = [hostView window];
-        [(NSWindow*)cocoaWin orderWindow:NSWindowAbove relativeTo:[cocoaWindow windowNumber]];
-    }
+    if (cocoaWin) [(NSWindow*)cocoaWin orderOut:nil];
+    QMacCocoaViewContainer::hideEvent(e);
+    //qDebug() << "hideevent";
 }

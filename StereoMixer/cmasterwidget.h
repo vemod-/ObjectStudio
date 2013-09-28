@@ -4,8 +4,10 @@
 #include <QFrame>
 #include <cstereomixer.h>
 #include <softsynthsclasses.h>
-#include <QDial>
+#include <qsynthknob.h>
 #include <QToolButton>
+#include "qlcdlabel.h"
+#include <qsignalmenu.h>
 
 namespace Ui {
 class CMasterWidget;
@@ -29,16 +31,25 @@ private:
     Ui::CMasterWidget *ui;
     CStereoMixer* m_Mx;
     QList<IDevice*>* m_Fx;
-    QList<QToolButton*> m_Buttons;
+    QList<QLCDLabel*> m_Buttons;
     QStringList m_Names;
-    QSignalMapper* mapper;
+    QSignalMapper* effMenuMapper;
+    QSignalMapper* effShowMapper;
     QSignalMapper* dialMapper;
-    QList<QDial*> dials;
+    QList<QSynthKnob*> dials;
+    IDevice* currentEffect;
+    QSignalMenu* effectMenu;
+    QAction* unloadAction;
+    QAction* showUIAction;
 private slots:
     void setVolL(int vol);
     void setVolR(int vol);
+    void showEffectMenu(int eff);
     void showEffect(int eff);
     void effectVol(int eff);
+    void selectEffect(QString DeviceType);
+protected:
+    void showEvent(QShowEvent *);
 };
 
 #endif // CMASTERWIDGET_H

@@ -25,6 +25,7 @@ public:
     int Freq[8];
     void SetLevel(int Index, int Level);
     void SetFreq(int Index, int Freq);
+    void Play(const bool FromStart);
 };
 
 

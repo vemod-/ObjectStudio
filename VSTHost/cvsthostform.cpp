@@ -2,8 +2,8 @@
 #include "ui_cvsthostform.h"
 #include <QFileDialog>
 #include <QDesktopWidget>
-//#include "qt_mac_p.h"
 #include "cmacwindow.h"
+#include <macstrings.h>
 #include <mouseevents.h>
 
 CVSTHostForm::CVSTHostForm(IDevice* Device, QWidget *parent) :
@@ -11,7 +11,7 @@ CVSTHostForm::CVSTHostForm(IDevice* Device, QWidget *parent) :
     ui(new Ui::CVSTHostForm)
 {
     ui->setupUi(this);
-    m_Effect=NULL;
+    //m_Effect=NULL;
     Popup=new QMenu(this);
     PresetAction=Popup->addAction("Presets",this,SLOT(TogglePresets()));
     PresetAction->setCheckable(true);
@@ -38,12 +38,11 @@ CVSTHostForm::CVSTHostForm(IDevice* Device, QWidget *parent) :
     MouseEvents* e=new MouseEvents;
     ui->PresetList->viewport()->installEventFilter(e);
     ui->StatusEdit->viewport()->installEventFilter(e);
-    connect(e,SIGNAL(MousePress(QMouseEvent*)),ui->View,SLOT(update()));
+    connect(e,SIGNAL(MouseRelease(QMouseEvent*)),ui->View,SLOT(update()));
 
     m_MD=false;
     HasEditor=false;
     EffRect=QRect(0,0,400,300);
-    wasActivated=false;
     startTimer(0);
 }
 
@@ -53,15 +52,13 @@ CVSTHostForm::~CVSTHostForm()
     qDebug() << "Exit CVSTHostForm";
 }
 
+/*
 void CVSTHostForm::Init(AEffect *E, TVSTHost *OwnerClass)
 {
     ui->PresetList->setVisible(false);
     ui->ParameterList->setVisible(false);
     ui->StatusEdit->setVisible(false);
-    ui->PresetList->setVisible(false);
-    ui->dial->setVisible(false);
-    ui->Label1->setVisible(false);
-    ui->Label2->setVisible(false);
+    ui->customView->setVisible(false);
     ui->View->setVisible(false);
 
     m_Effect=E;
@@ -70,7 +67,7 @@ void CVSTHostForm::Init(AEffect *E, TVSTHost *OwnerClass)
     {
         ui->View->setVisible(true);
         HasEditor=true;
-        EffRect=GetEffRect();
+        EffRect=m_OwnerClass->GetEffRect();
         resize(EffRect.size());
         ui->View->setGeometry(EffRect);
         ui->View->Init();
@@ -80,38 +77,23 @@ void CVSTHostForm::Init(AEffect *E, TVSTHost *OwnerClass)
     {
         HasEditor=false;
         EffRect=QRect(0,0,400,300);
-        ui->PresetList->setVisible(true);
         ui->ParameterList->setVisible(true);
         ui->StatusEdit->setVisible(true);
         ui->PresetList->setVisible(true);
-        ui->dial->setVisible(true);
-        ui->Label1->setVisible(true);
-        ui->Label2->setVisible(true);
-        for (int i=0;i<m_Effect->numParams;i++)
+        ui->customView->setVisible(true);
+        for (int i=0;i<m_OwnerClass->ParameterCount();i++)
         {
-            char strName[24];
-            m_Effect->dispatcher(m_Effect,effGetParamName,i,0,strName,0.0f);
-            ui->ParameterList->addItem(strName);
+            ui->ParameterList->addItem(m_OwnerClass->ParameterName(i));
         }
         ui->ParameterList->setCurrentRow(0);
         CurrentParameter=0;
         UpdateParam();
-        ViewResized();
     }
+    //ui->PresetList->setCurrentRow(0);
 
-    long nPrograms=m_Effect->numPrograms;
-    for (long i=0;i<nPrograms;i++)
-    {
-        char strProgramName[24+2];
-        m_Effect->dispatcher(m_Effect,effSetProgram,0,i,NULL,0.0f);
-        m_Effect->dispatcher(m_Effect,effGetProgramName,0,0,strProgramName,0.0f);
-
-        ui->PresetList->addItem(strProgramName);
-    }
-    m_Effect->dispatcher(m_Effect,effSetProgram,0,0,NULL,0.0f);
-    ui->PresetList->setCurrentRow(0);
+    ViewResized();
 }
-
+*/
 void CVSTHostForm::TogglePresets()
 {
     ui->PresetList->setVisible(!ui->PresetList->isVisible());
@@ -124,13 +106,24 @@ void CVSTHostForm::ToggleStatus()
     ViewResized();
 }
 
+void CVSTHostForm::SetProgram(int index)
+{
+    m_OwnerClass->SetProgram(index);
+    ProgramName=m_OwnerClass->ProgramName();
+    if (ui->PresetList->count() > index)
+    {
+        ui->PresetList->blockSignals(true);
+        ui->PresetList->setCurrentRow(index);
+        ui->PresetList->blockSignals(false);
+    }
+}
+
 void CVSTHostForm::PresetChange(int Index)
 {
-    long i = m_Effect->dispatcher(m_Effect,effGetProgram,0,0,NULL,0.0f);
+    long i = m_OwnerClass->CurrentProgram();
     if (i != Index && Index>-1)
     {
-        i=Index;
-        m_Effect->dispatcher(m_Effect,effSetProgram,0,i,NULL,0.0f);
+        SetProgram(Index);
         if (ui->ParameterList->isVisible())
         {
             UpdateParam();
@@ -153,14 +146,13 @@ const QString CVSTHostForm::Save()
     RelPath=QDir(CPresets::Presets.VSTPath).relativeFilePath(m_OwnerClass->CurrentPreset);
 
     xml.setAttribute("PresetPath",RelPath);
-    int p = m_Effect->dispatcher(m_Effect,effGetProgram,0,0,NULL,0.0f);
+    int p = m_OwnerClass->CurrentProgram();
     xml.setAttribute("Preset",p);
-    xml.setAttribute("NumParams",m_Effect->numParams);
+    xml.setAttribute("NumParams",m_OwnerClass->ParameterCount());
     QDomLiteElement* Params = xml.appendChild("Parameters");
-    for (int i=0;i<m_Effect->numParams;i++)
+    for (int i=0;i<m_OwnerClass->ParameterCount();i++)
     {
-        float newval=m_Effect->getParameter(m_Effect,i);
-        Params->setAttribute("Param" + QString::number(i),newval);
+        Params->setAttribute("Param" + QString::number(i),m_OwnerClass->GetParameter(i));
     }
 
     QDomLiteElement* Position=xml.appendChild("Position");
@@ -211,7 +203,7 @@ void CVSTHostForm::Load(const QString &XML)
         }
         int nParams=xml.attributeValue("NumParams");
         int p=xml.attributeValue("Preset");
-        m_Effect->dispatcher(m_Effect,effSetProgram,0,p,NULL,0.0f);
+        m_OwnerClass->SetProgram(p);
         ui->PresetList->setCurrentRow(p);
         QDomLiteElement* Params = xml.elementByTag("Parameters");
         if (Params)
@@ -219,11 +211,8 @@ void CVSTHostForm::Load(const QString &XML)
             for (int i=nParams-1;i>-1;i--)
             {
                 float Param=Params->attributeValue("Param" + QString::number(i));
-                m_Effect->setParameter(m_Effect,i,Param);
-                char strLabel[24];
-                m_Effect->dispatcher(m_Effect,effGetParamName,i,0,strLabel,0.0f);
-
-                qDebug() << i << Param << m_Effect->getParameter(m_Effect,0) << strLabel;
+                m_OwnerClass->SetParameter(i,Param);
+                qDebug() << i << Param << m_OwnerClass->GetParameter(i) << m_OwnerClass->ParameterName(i) << m_OwnerClass->ParameterValue(i);
             }
         }
         QDomLiteElement* Position = xml.elementByTag("Position");
@@ -235,10 +224,10 @@ void CVSTHostForm::Load(const QString &XML)
             ui->StatusEdit->setVisible(Position->attributeValue("Status"));
         }
     }
-    if (m_Effect)
-    {
+    //if (m_Effect)
+    //{
         ViewResized();
-    }
+    //}
 }
 
 void CVSTHostForm::ParameterIndexChange(int Index)
@@ -262,21 +251,17 @@ void CVSTHostForm::ParameterChange(int Value)
     {
         newval=1;
     }
-    m_Effect->setParameter(m_Effect,CurrentParameter,newval);
+    m_OwnerClass->SetParameter(CurrentParameter,newval);
     UpdateParam();
 }
 
 void inline CVSTHostForm::UpdateParam()
 {
     ui->dial->blockSignals(true);
-    ui->dial->setValue(m_Effect->getParameter(m_Effect,CurrentParameter)*10000);
+    ui->dial->setValue(m_OwnerClass->GetParameter(CurrentParameter)*10000);
     ui->dial->blockSignals(false);
-    char strDisplay[24];
-    char strLabel[24];
-    m_Effect->dispatcher(m_Effect,effGetParamLabel,CurrentParameter,0,strLabel,0.0f);
-    m_Effect->dispatcher(m_Effect,effGetParamDisplay,CurrentParameter,0,strDisplay,0.0f);
-    ui->Label1->setText(QString(strDisplay).trimmed());
-    ui->Label2->setText(QString(strLabel).trimmed());
+    ui->Label1->setText(m_OwnerClass->ParameterName(CurrentParameter));
+    ui->Label2->setText(m_OwnerClass->ParameterValue(CurrentParameter));
 }
 
 void CVSTHostForm::LoadBank()
@@ -322,17 +307,21 @@ bool CVSTHostForm::event(QEvent *e)
         if (e->type()==QEvent::Move)
         {
             ui->View->Move();
+            qDebug() << "form move event";
         }
     }
     if (e->type()==QEvent::Show)
     {
+        qDebug() << "form show event";
         m_MD=false;
     }
     if (e->type()==QEvent::NonClientAreaMouseButtonPress)
     {
         if (((QMouseEvent*)e)->button()==Qt::RightButton)
         {
+            ui->View->Hide();
             Popup->popup(mapToGlobal(((QMouseEvent*)e)->pos()));
+            ui->View->Show();
         }
         else
         {
@@ -343,6 +332,7 @@ bool CVSTHostForm::event(QEvent *e)
                 qDebug() << "Press" << pos() << CursorStart;
                 m_MD=true;
                 ui->View->Hide();
+                return false;
             }
         }
     }
@@ -353,6 +343,7 @@ bool CVSTHostForm::event(QEvent *e)
             if (m_MD)
             {
                 ui->View->Move();
+                return false;
             }
         }
     }
@@ -376,66 +367,32 @@ bool CVSTHostForm::event(QEvent *e)
 
 void CVSTHostForm::timerEvent(QTimerEvent* /*e*/)
 {
-    //m_Effect->dispatcher(m_Effect,effEditIdle,0,0,NULL,0.0f);
     if (HasEditor)
     {
         if (!m_MD)
         {
-            if (EffRect.size() != GetEffRect().size())
+            if (EffRect.size() != m_OwnerClass->GetEffRect().size()) ViewResized();
+            if (ui->PresetList->count())
             {
-                ViewResized();
-            }
-            /*
-            else
-            {
-                if (ui->PresetList->hasFocus())
+                long i = m_OwnerClass->CurrentProgram();
+                if (i != ui->PresetList->currentRow())
                 {
-                    ui->View->setFocus();
-                    ui->View->repaint();
+                    SetProgram(i);
                 }
             }
-            */
         }
     }
-
-}
-
-QRect CVSTHostForm::GetEffRect()
-{
-    VSTRect* FormRect;
-    m_Effect->dispatcher(m_Effect,effEditGetRect,0,0,&FormRect,0.0f);
-    return QRect(0,0,FormRect->right-FormRect->left,FormRect->bottom-FormRect->top);
 }
 
 void CVSTHostForm::ViewResized()
 {
     if (HasEditor)
     {
-        EffRect=GetEffRect();
-        ui->View->resize(EffRect.size());
+        EffRect=m_OwnerClass->GetEffRect();
+        ui->View->setFixedSize(EffRect.size());
     }
-    else
-    {
-        ui->ParameterList->setGeometry(0,0,EffRect.width()/2,EffRect.height());
-        ui->Label1->setGeometry(EffRect.width()/2,0,EffRect.width()/2,ui->Label1->height());
-        ui->dial->setGeometry(EffRect.width()/2+((EffRect.width()/2-ui->dial->width())/2),ui->Label1->height(),ui->dial->width(),ui->dial->height());
-        ui->Label1->setGeometry(EffRect.width()/2,ui->Label1->height()+ui->dial->height(),EffRect.width()/2,ui->Label2->height());
-    }
-    QRect r(EffRect);
     StatusAction->setChecked(ui->StatusEdit->isVisible());
     PresetAction->setChecked(ui->PresetList->isVisible());
-    if (ui->StatusEdit->isVisible())
-    {
-        r.adjust(0,0,0,ui->StatusEdit->height());
-    }
-    if (ui->PresetList->isVisible())
-    {
-        r.adjust(0,0,ui->PresetList->width(),0);
-    }
-    ui->PresetList->setGeometry(EffRect.width(),0,ui->PresetList->width(),r.height());
-    ui->StatusEdit->setGeometry(0,EffRect.height(),EffRect.width(),ui->StatusEdit->height());
-    this->setFixedSize(r.size());
-    ui->View->update();
 }
 
 void CVSTHostForm::StopTimer()
@@ -452,4 +409,9 @@ void CVSTHostForm::Unload()
     qDebug() << "CVSTHostForm Unload 3";
     this->deleteLater();
     qDebug() << "CVSTHostForm Unload 4";
+}
+
+const QStringList CVSTHostForm::ProgramNames()
+{
+    return m_OwnerClass->ProgramNames();
 }

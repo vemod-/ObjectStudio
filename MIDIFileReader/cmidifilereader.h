@@ -13,6 +13,8 @@ enum MessageType
 
 #pragma pack(push,1)
 
+typedef QPair<char*,size_t> MIDIMemoryID;
+
 class MIDIFileMemoryData
 {
 public:
@@ -28,6 +30,21 @@ public:
     }
     char* data;
     int refcount;
+};
+
+class SingleMIDIMap : public QMap<MIDIMemoryID, MIDIFileMemoryData*>
+{
+    public:
+        static SingleMIDIMap* getInstance()
+        {
+            static SingleMIDIMap    instance; // Guaranteed to be destroyed.
+                                  // Instantiated on first use.
+            return &instance;
+        }
+    private:
+        SingleMIDIMap() {}                   // Constructor? (the {} brackets) are needed here.
+        SingleMIDIMap(SingleMIDIMap const&);              // Don't Implement
+        void operator=(SingleMIDIMap const&); // Don't implement
 };
 
 struct chunk
@@ -102,7 +119,8 @@ private:
     void GetDuration();
     unsigned long m_MilliSeconds;
     unsigned long m_Ticks;
-    char* m_Pnt;
+    //char* m_Pnt;
+    MIDIMemoryID m_ID;
 public:
     CMIDIFileReader();
     ~CMIDIFileReader();
@@ -116,8 +134,7 @@ public:
     const unsigned long Duration(const int Track=-1);
     const unsigned long NoteCount(const int Track);
     void Reset();
-protected:
-    static QMap<const char*,MIDIFileMemoryData*> MIDIFiles;
+    SingleMIDIMap* MIDIFiles;
 };
 
 #pragma pack(pop)

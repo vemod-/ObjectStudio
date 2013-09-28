@@ -24,3 +24,10 @@ void CStereoPeak::Reset()
     ui->PeakL->Reset();
     ui->PeakR->Reset();
 }
+
+void CStereoPeak::setMargin(int margin)
+{
+    ui->PeakL->setMargin(margin);
+    ui->PeakR->setMargin(margin);
+    ui->Scale->setMargin(margin);
+}

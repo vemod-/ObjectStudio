@@ -20,10 +20,13 @@ CCoreMainBuffers::CCoreMainBuffers()
     PeakL=0;
     PeakR=0;
 
-    BufferState=Ready;
+    BufferState=Stopped;
 
     outputVol=1;
     m_Recording=false;
+
+    ActivityCount=0;
+    ActivityLimit=m_SampleRate*30;
 }
 
 void CCoreMainBuffers::Init(const int Index, void *MainWindow, IHost* Host)
@@ -32,11 +35,11 @@ void CCoreMainBuffers::Init(const int Index, void *MainWindow, IHost* Host)
     IDevice::Init(Index, MainWindow);
     IDevice::SetHost(Host);
 
-    OutAudio=(COutJack*)AddJack("In",IJack::Stereo,IJack::Out,jnIn);
-    OutMIDI=(COutJack*)AddJack("MIDI In",IJack::MIDI,IJack::Out,jnMIDIIn);
+    OutAudio=AddJackStereoOut(jnIn,"In");
+    OutMIDI=AddJackMIDIOut(jnMIDIIn,"MIDI In");
 
-    InAudio=(CInJack*)AddJack("Out",IJack::Stereo,IJack::In,jnOut);
-    InMIDI=(CInJack*)AddJack("MIDI Out",IJack::MIDI,IJack::In,jnMIDIOut);
+    InAudio=AddJackStereoIn("Out");
+    InMIDI=AddJackMIDIIn("MIDI Out");
 
     CStereoBuffer* Buffer=(CStereoBuffer*)AudioBuffers[jnIn];
     InBufferL=Buffer->Buffer;
@@ -122,6 +125,12 @@ void CCoreMainBuffers::MainAudioLoop(float* OutBuffer, float* InBuffer, const in
             }
             TickCount++;
         }
+        ActivityCount+=BufferSize;
+        if (ActivityCount>ActivityLimit)
+        {
+            UpdateSystemActivity(OverallAct);
+            ActivityCount=0;
+        }
         BufferState =(BufferStates)(BufferState & (!Working));
     }
 }
@@ -172,7 +181,6 @@ void CCoreMainBuffers::CreateBuffer()
     oParams.deviceId = m_Audio.getDefaultOutputDevice(); // first available device
     oParams.nChannels = 2;
     oParams.firstChannel = 0;
-
     try
     {
         m_Audio.openStream( &oParams, &iParams, RTAUDIO_FLOAT32, m_SampleRate, &m_BufferSize, &AudioCallback, this );
@@ -195,9 +203,9 @@ void CCoreMainBuffers::CreateBuffer()
     {
         qDebug() << e.what();
     }
-
     m_MidiIn.openVirtualPort("Object Studio MIDI In");
     m_MidiIn.ignoreTypes( true, true, true );
+    BufferState=Ready;
 }
 
 void CCoreMainBuffers::Panic()
@@ -216,6 +224,8 @@ void CCoreMainBuffers::Panic()
 void CCoreMainBuffers::Finish()
 {
     Panic();
+    Wait();
+    BufferState=Stopped;
     m_Audio.stopStream();
     m_MidiOut.closePort();
     m_MidiIn.closePort();
@@ -273,3 +283,4 @@ QStringList CCoreMainBuffers::DeviceList(int Direction)
     }
     return retVal;
 }
+

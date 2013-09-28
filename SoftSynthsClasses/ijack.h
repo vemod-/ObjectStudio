@@ -86,14 +86,14 @@ public:
     inline float* GetNextA(void)
     {
         if (m_OutJackCount==0) return NULL;
-        if (m_OutJackCount==1) return AudioBuffer->FromBuffer(FetchA(0, this),((COutJack*)m_OutJacks[0])->AttachMode);
+        if (m_OutJackCount==1) return AudioBuffer->WriteBuffer(FetchA(0, this),((COutJack*)m_OutJacks[0])->AttachMode);
         int FetchCount=0;
         for (int lTemp1=0;lTemp1<m_OutJackCount;lTemp1++)
         {
             float* B=FetchA(lTemp1, this);
             if (B != NULL)
             {
-                if (FetchCount==0) AudioBuffer->FromBuffer(B,((COutJack*)m_OutJacks[lTemp1])->AttachMode);
+                if (FetchCount==0) AudioBuffer->WriteBuffer(B,((COutJack*)m_OutJacks[lTemp1])->AttachMode);
                 else AudioBuffer->AddBuffer(B,((COutJack*)m_OutJacks[lTemp1])->AttachMode);
                 FetchCount++;
             }

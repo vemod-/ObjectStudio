@@ -9,8 +9,8 @@ void CWaveRecorder::Init(const int Index,void* MainWindow)
 {
      m_Name=devicename;
      IDevice::Init(Index,MainWindow);
-     AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
-     AddJack("In",IJack::Wave,IJack::In,jnIn);
+     AddJackStereoOut(jnOut);
+     AddJackStereoIn();
      m_Form=new CWaveRecorderForm(this,(QWidget*)MainWindow);
      Playing=false;
 }

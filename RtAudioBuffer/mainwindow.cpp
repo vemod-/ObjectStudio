@@ -9,7 +9,9 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     m_Playing=false;
-    //this->setStyleSheet("QSlider{background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(60, 60, 60, 255), stop:0.8 rgba(0, 0, 0, 255));}");
+    ui->dial->setKnobStyle(QSynthKnob::AluminiumStyle);
+    ui->dial->setNotchStyle(QSynthKnob::LEDNotch);
+
     ui->DesktopContainer->Desktop->MainWindow=this;
     ui->DesktopContainer->Desktop->SetFileMenu(ui->menuFile);
     connect(ui->actionNew,SIGNAL(triggered()),ui->DesktopContainer->Desktop,SLOT(New()));
@@ -17,25 +19,29 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionSave,SIGNAL(triggered()),ui->DesktopContainer->Desktop,SLOT(Save()));
     connect(ui->actionSave_as,SIGNAL(triggered()),ui->DesktopContainer->Desktop,SLOT(SaveAs()));
 
-    //connect(ui->PlayButton,SIGNAL(clicked()),this,SLOT(Play()));
-    //connect(ui->StopButton,SIGNAL(clicked()),this,SLOT(Stop()));
-    //connect(ui->RecordButton,SIGNAL(clicked()),this,SLOT(Record()));
-    //connect(ui->StopRecordButton,SIGNAL(clicked()),this,SLOT(StopRecording()));
     connect(ui->TogglePlayButton,SIGNAL(toggled(bool)),this,SLOT(TogglePlay(bool)));
     connect(ui->ToggleRecordButton,SIGNAL(toggled(bool)),this,SLOT(ToggleRecord(bool)));
     connect(ui->DesktopContainer->Desktop,SIGNAL(StopPlaying()),this,SLOT(Stop()));
-
+    connect(ui->dial,SIGNAL(valueChanged(int)),this,SLOT(SetVolume(int)));
     startTimer(50);
 
     MainBuffers.Init(0,this,ui->DesktopContainer->Desktop);
-    for (int i=0;i<MainBuffers.JackCount();i++) ui->DesktopContainer->Desktop->AddJack(MainBuffers.GetJack(i),0);
+    for (int i=0;i<MainBuffers.JackCount();i++)
+    {
+        ui->DesktopContainer->Desktop->AddJack(MainBuffers.GetJack(i),0);
+        qDebug() << i;
+    }
 
     ui->AudioInDriverCombo->addItems(MainBuffers.DeviceList(1));
     ui->AudioInDriverCombo->setAttribute(Qt::WA_MacShowFocusRect,false);
     ui->AudioOutDriverCombo->addItems(MainBuffers.DeviceList(0));
     ui->AudioOutDriverCombo->setAttribute(Qt::WA_MacShowFocusRect,false);
 
+    qDebug() << "Create main buffer";
+
     MainBuffers.CreateBuffer();
+
+    qDebug() << "Create buffer finished";
 }
 
 MainWindow::~MainWindow()
@@ -126,4 +132,9 @@ void MainWindow::ToggleRecord(bool value)
     {
         StopRecording();
     }
+}
+
+void MainWindow::SetVolume(int vol)
+{
+    MainBuffers.outputVol=vol*0.01;
 }

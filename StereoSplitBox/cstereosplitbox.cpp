@@ -20,8 +20,8 @@ void CStereoSplitBox::Init(const int Index, void *MainWindow)
     IDevice::Init(Index,MainWindow);
     m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
     CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
-    AddJack("In",IJack::Stereo,IJack::In,jnIn);
+    AddJackStereoOut(jnOut);
+    AddJackStereoIn();
 
     WaveOutL=new CInJack("Out Left","This",IJack::Wave,IJack::In,this);
     JacksCreated.push_back(d->AddJack(WaveOutL,0));

@@ -169,21 +169,16 @@ void CMIDIFile2Wave::LoadFile(QString filename)
 
 void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
 {
-    //QPicFrame* pf=new QPicFrame(m_Form);
-    //pf->setFixedSize(m_Form->size());
-    //pf->grabWidget(MW,m_Form->rect());
     if (Mx != NULL) Mx->Disabled=true;
     MW->stop();
     DeviceList.DisconnectAll();
 
     for (int i=Effects.count();i<MIDIFile2Wave::effectCount;i++)
     {
-        CVSTHost* VSTH=new CVSTHost;
+        CDeviceContainer* VSTH=new CDeviceContainer("Effect");
         DeviceList.AddDevice(VSTH,i+1,m_MainWindow);
         Effects.append(VSTH);
     }
-    LoadEffect(0,"/Library/Audio/Plug-Ins/VST/LexHall.vst");
-
     MFR.OpenPtr(Pnt,Length);
     int MFPCount=1;
     int channelcount=16;
@@ -202,24 +197,24 @@ void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
     for (int i=0;i<MFPCount;i++)
     {
         CMIDIFilePlayer* MFP;
-        if (i>=MFPs.count())
+        if (i>=MIDIFilePlayers.count())
         {
             MFP=new CMIDIFilePlayer;
             DeviceList.AddDevice(MFP,i+1,m_MainWindow);
-            MFPs.append(MFP);
+            MIDIFilePlayers.append(MFP);
         }
         else
         {
-            MFP=(CMIDIFilePlayer*)MFPs[i];
+            MFP=(CMIDIFilePlayer*)MIDIFilePlayers[i];
         }
         MFP->OpenPtr(Pnt,Length);
-        MFP->SetParameterValue(0,0);
-        if (MFR.FileType() != 0) MFP->SetParameterValue(0,i+1);
+        MFP->SetParameterValue("Track",0);
+        if (MFR.FileType() != 0) MFP->SetParameterValue("Track",i+1);
     }
-    for (int i=MFPs.count()-1;i>=MFPCount;i--)
+    for (int i=MIDIFilePlayers.count()-1;i>=MFPCount;i--)
     {
-        IDevice* d=MFPs[i];
-        MFPs.removeOne(d);
+        IDevice* d=MIDIFilePlayers[i];
+        MIDIFilePlayers.removeOne(d);
         DeviceList.RemoveDevice(d);
     }
     if (Mx != NULL)
@@ -236,12 +231,6 @@ void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
         Mx=new CStereoMixer(channelcount,MIDIFile2Wave::effectCount);
         DeviceList.AddDevice(Mx,1,m_MainWindow);
     }
-    //if (m_Form->isVisible())
-    //{
-        //pf->move(0,0);
-        //pf->show();
-        //pf->raise();
-    //}
     m_Form->setUpdatesEnabled(false);
     if (!m_Form->isVisible())
     {
@@ -250,18 +239,18 @@ void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
     }
     for (int i =0;i<channelcount;i++)
     {
-        CSF2Player* SF2P;
+        CDeviceContainer* SF2P;
         CSF2ChannelWidget* ch;
         if (i>=MW->channels.count())
         {
-            SF2P=new CSF2Player;
+            SF2P=new CDeviceContainer("Instrument");
             DeviceList.AddDevice(SF2P,i+1,m_MainWindow);
-            SF2s.append(SF2P);
+            Instruments.append(SF2P);
             ch=MW->appendChannel(i);
         }
         else
         {
-            SF2P=(CSF2Player*)SF2s[i];
+            SF2P=(CDeviceContainer*)Instruments[i];
             ch=MW->channels[i];
         }
         bool chVisible=true;
@@ -272,16 +261,16 @@ void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
         }
         if (chVisible)
         {
-            DeviceList.ConnectJacks("StereoMixer 1 In "+QString::number(i+1),"SF2Player "+ QString::number(i+1) +" Out");
+            DeviceList.ConnectJacks("StereoMixer 1 In "+QString::number(i+1),"Instrument "+ QString::number(i+1) +" Out");
         }
         if (MFR.FileType() == 0)
         {
-            DeviceList.ConnectJacks("SF2Player "+ QString::number(i+1) +" MIDI In","MIDIFile 1 MIDI Out");
+            DeviceList.ConnectJacks("Instrument "+ QString::number(i+1) +" MIDI In","MIDIFile 1 MIDI Out");
             ch->Init(Mx->channels[i], SF2P, i, "Channel "+QString::number(i+1));
         }
         else
         {
-            if (chVisible) DeviceList.ConnectJacks("SF2Player "+ QString::number(i+1) +" MIDI In","MIDIFile "+ QString::number(i+1) +" MIDI Out");
+            if (chVisible) DeviceList.ConnectJacks("Instrument "+ QString::number(i+1) +" MIDI In","MIDIFile "+ QString::number(i+1) +" MIDI Out");
             ch->Init(Mx->channels[i], SF2P, -1, "Track "+QString::number(i+1));
         }
         //qDebug() << QFileInfo(":/028.5mg Masterpiece GM Bank.sf2").size();
@@ -292,16 +281,16 @@ void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
     }
     for (int i=MW->channels.count()-1;i>=channelcount;i--)
     {
-        IDevice* d=SF2s[i];
-        SF2s.removeOne(d);
+        IDevice* d=Instruments[i];
+        Instruments.removeOne(d);
         DeviceList.RemoveDevice(d);
         MW->removeChannel(i);
     }
     MW->showMaster(Mx,Effects);
     for (int i=0;i<MIDIFile2Wave::effectCount;i++)
     {
-        DeviceList.ConnectJacks("VSTHost "+ QString::number(i+1) +" In","StereoMixer 1 Send "+ QString::number(i+1));
-        DeviceList.ConnectJacks("StereoMixer 1 Return","VSTHost "+ QString::number(i+1) +" Out 0");
+        DeviceList.ConnectJacks("Effect "+ QString::number(i+1) +" In","StereoMixer 1 Send "+ QString::number(i+1));
+        DeviceList.ConnectJacks("StereoMixer 1 Return "+ QString::number(i+1),"Effect "+ QString::number(i+1) +" Out");
     }
     //delete pf;
     m_Form->adjustSize();
@@ -346,13 +335,26 @@ void CMIDIFile2Wave::Load(const QString &XML)
             QDomLiteElement* e=Mixer->elementByTag("Effect"+QString::number(i));
             if (e != 0)
             {
-                Effects[i]->Load(e->firstChild()->toString());
+                QDomLiteElement* eff=e->firstChild();
+                if (eff)
+                {
+                    QString DeviceType=eff->attribute("DeviceType");
+                    if (DeviceType.isEmpty()) eff->setAttribute("DeviceType","VSTHost");
+                    Effects[i]->Load(eff->toString());
+                }
             }
         }
         QDomLiteElement* Master=Mixer->elementByTag("Master");
         if (Master != 0)
         {
             MW->master->Load(Master->toString());
+        }
+    }
+    else
+    {
+        for (int i=0;i<Effects.count();i++)
+        {
+            Effects[i]->OpenFile("Unload");
         }
     }
     m_Form->Load(XML);
@@ -431,14 +433,14 @@ void CMIDIFile2Wave::Init(const int Index, void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
+    AddJackStereoOut(jnOut);
     m_Form=new CMIDI2WavForm(this,(QWidget*)MainWindow);
     MW=((CMIDI2WavForm*)m_Form)->MW;
 }
 
 bool CMIDIFile2Wave::isEmpty()
 {
-    return MFPs.isEmpty();
+    return MIDIFilePlayers.isEmpty();
 }
 
 bool CMIDIFile2Wave::isVisible()
@@ -459,18 +461,18 @@ void CMIDIFile2Wave::clear()
 
 void CMIDIFile2Wave::LoadEffect(int index, QString filename)
 {
-    if (Effects[index]->FileName() != filename) Effects[index]->Load("<Custom File=\""+filename+"\"/>");
+    if (Effects[index]->FileName() != filename) Effects[index]->Load("<Custom DeviceType=\"VSTHost\" File=\""+filename+"\"/>");
 }
 
 bool CMIDIFile2Wave::IsPlaying()
 {
-    if (!MFPs.isEmpty()) return ((CMIDIFilePlayer*)MFPs[0])->IsPlaying();
+    if (!MIDIFilePlayers.isEmpty()) return ((CMIDIFilePlayer*)MIDIFilePlayers[0])->IsPlaying();
     return false;
 }
 
 unsigned long CMIDIFile2Wave::CurrentTick()
 {
-    if (MFPs.count()) return ((CMIDIFilePlayer*)MFPs[0])->CurrentTick;
+    if (MIDIFilePlayers.count()) return ((CMIDIFilePlayer*)MIDIFilePlayers[0])->CurrentTick;
     return 0;
 }
 
@@ -481,7 +483,7 @@ unsigned long CMIDIFile2Wave::Duration()
 
 unsigned long CMIDIFile2Wave::CurrentmSec()
 {
-    if (MFPs.count()) return ((CMIDIFilePlayer*)MFPs[0])->CurrentMilliSecond;
+    if (MIDIFilePlayers.count()) return ((CMIDIFilePlayer*)MIDIFilePlayers[0])->CurrentMilliSecond;
     return 0;
 }
 

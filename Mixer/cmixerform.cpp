@@ -18,7 +18,6 @@ CMixerForm::CMixerForm(IDevice* Device, QWidget *parent) :
     connect(ui->RightSlider,SIGNAL(valueChanged(int)),this,SLOT(RightChanged(int)));
     ui->LeftSlider->setValue(((CMixer*)m_Device)->MasterLeft*100);
     ui->RightSlider->setValue(((CMixer*)m_Device)->MasterRight*100);
-
 }
 
 CMixerForm::~CMixerForm()
@@ -145,4 +144,9 @@ void CMixerForm::SoloClicked(bool Pressed, int Index)
     {
         ((CMixer*)m_Device)->SoloChannel=-1;
     }
+}
+
+void CMixerForm::showEvent(QShowEvent *)
+{
+    ui->StereoPeak->setMargin(ui->LeftSlider->grooveMargin());
 }

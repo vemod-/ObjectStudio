@@ -2,7 +2,6 @@
 #define CPARAMETERSCOMPONENT_H
 
 #include <QWidget>
-#include <QGridLayout>
 #include "softsynthsclasses.h"
 #include "cknobcontrol.h"
 

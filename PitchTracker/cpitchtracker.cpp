@@ -20,13 +20,13 @@ void CPitchTracker::Init(const int Index, void *MainWindow) {
     BufferDivide=2;
     NewBufferDivide=2;
     IDevice::Init(Index,MainWindow);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddJack("Frequency Out",IJack::Frequency,IJack::Out,1);
-    AddJack("MIDI Frequency Out",IJack::Frequency,IJack::Out,2);
-    AddJack("MIDI Out",IJack::MIDI,IJack::Out,3);
-    AddJack("Difference Out",IJack::Pitch,IJack::Out,4);
-    AddParameter(ParameterType::Numeric,"Threshold","%",0,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"Tune","Hz",43600,44800,100,"",44000);
+    AddJackWaveIn();
+    AddJack("Frequency Out",IJack::Frequency,IJack::Out,jnFrequencyOut);
+    AddJack("MIDI Frequency Out",IJack::Frequency,IJack::Out,jnMIDIFreqOut);
+    AddJackMIDIOut(jnMIDIOut);
+    AddJack("Difference Out",IJack::Pitch,IJack::Out,jnDiffOut);
+    AddParameterPercent("Threshold");
+    AddParameterTune();
     AddParameter(ParameterType::SelectBox,"Range Priority","",0,3,0,"Very High§High§Low§Very Low",1);
     CalcParams();
 }

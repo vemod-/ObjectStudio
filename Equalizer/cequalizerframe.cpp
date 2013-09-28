@@ -70,3 +70,19 @@ void CEqualizerFrame::Load(const QString& XML)
         m_Device->SetFreq(Index,ui->dial->value());
     }
 }
+
+void CEqualizerFrame::showEvent(QShowEvent *)
+{
+    ui->dBScale->setMargin(ui->VolSlider->grooveMargin());
+    ui->Peak->setMargin(ui->VolSlider->grooveMargin());
+}
+
+void CEqualizerFrame::Reset()
+{
+    ui->Peak->Reset();
+}
+
+void CEqualizerFrame::Peak(const float val)
+{
+    ui->Peak->SetValue(val);
+}

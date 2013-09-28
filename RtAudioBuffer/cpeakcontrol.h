@@ -16,6 +16,7 @@ public:
     ~CPeakControl();
     void SetValue(const float Value);
     void Reset();
+    void setMargin(int margin);
 protected:
     void resizeEvent(QResizeEvent *event);
 private:
@@ -33,6 +34,8 @@ private:
     const QLinearGradient y2col(const int y, const int height);
     static const int Border=4;
     static const int HalfBorder=2;
+    int m_Margin;
+    int m_HalfMargin;
 };
 
 #endif // CPEAKCONTROL_H

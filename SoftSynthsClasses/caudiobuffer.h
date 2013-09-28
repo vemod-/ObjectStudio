@@ -17,23 +17,23 @@ public:
         ZeroMemory(Buffer,m_WaveBufferSize*sizeof(float));
         return Buffer;
     }
-    inline float* FromBuffer(float* b) {
+    inline float* WriteBuffer(float* b) {
         if (!b) return NULL;
         CopyMemory(Buffer,b,m_WaveBufferSize*sizeof(float));
         return Buffer;
     }
-    inline float* FromBuffer(float *b, float factor) {
+    inline float* WriteBuffer(float *b, float factor) {
         if (!b) return NULL;
         if (factor==0) return ZeroBuffer();
         CopyMemory(Buffer,b,m_WaveBufferSize*sizeof(float));
         return Multiply(factor);
     }
-    inline float* FromBuffer(float* b, IJackBase::AttachModes a) {
+    inline float* WriteBuffer(float* b, IJackBase::AttachModes a) {
         if (!b) return NULL;
-        if (a==AttachMode) return FromBuffer(b);
+        if (a==AttachMode) return WriteBuffer(b);
         if (AttachMode==IJackBase::Wave)
         {
-            FromBuffer(b);
+            WriteBuffer(b);
             AddBuffer(b+m_BufferSize);
             return Multiply(SQRT2MULTIPLY);
         }
@@ -83,7 +83,7 @@ public:
     CMonoBuffer() : CAudioBuffer(IJackBase::Wave){}
     inline float* FromStereo(float* b) {
         if (!b) return NULL;
-        FromBuffer(b);
+        WriteBuffer(b);
         AddBuffer(b+m_BufferSize);
         return Multiply(SQRT2MULTIPLY);
     }
@@ -97,12 +97,16 @@ class CStereoBuffer : public CAudioBuffer
 {
 public:
     CStereoBuffer() : CAudioBuffer(IJackBase::Stereo), BufferR(Buffer+m_BufferSize){}
-    inline float* FromBuffer(float* b) { return CAudioBuffer::FromBuffer(b); }
-    inline float* FromBuffer(float* b, float factor) { return CAudioBuffer::FromBuffer(b,factor); }
-    inline float* FromBuffer(float* b, float factorL, float factorR) {
+    inline float* WriteBuffer(float* b) { return CAudioBuffer::WriteBuffer(b); }
+    inline float* WriteBuffer(float* b, float factor) { return CAudioBuffer::WriteBuffer(b,factor); }
+    inline float* WriteBuffer(float* b, float factorL, float factorR) {
         if (!b) return NULL;
         CopyMemory(Buffer,b,m_WaveBufferSize*sizeof(float));
         return Multiply(factorL,factorR);
+    }
+    inline float* FromMono(float* L, float* R, float factor) {
+        FromMono(L,R);
+        return Multiply(factor);
     }
     inline float* FromMono(float* L, float* R) {
         if (L) CopyMemory(Buffer,L,m_BufferSize*sizeof(float));

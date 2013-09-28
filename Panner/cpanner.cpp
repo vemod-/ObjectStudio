@@ -8,13 +8,12 @@ void CPanner::Init(const int Index, void *MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("In",IJack::Wave,IJack::In,jnIn);
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
-    AddJack("Out Left",IJack::Wave,IJack::Out,jnOutLeft);
-    AddJack("Out Right",IJack::Wave,IJack::Out,jnOutRight);
-    AddJack("Modulation In",(IJack::AttachModes)(IJack::Pitch | IJack::Amplitude),IJack::In,jnModulation);
+    AddJackWaveIn();
+    AddJackStereoOut(jnOut);
+    AddJackDualMonoOut(jnOutLeft);
+    AddJack("Modulation In",(IJack::AttachModes)(IJack::Pitch | IJack::Amplitude),IJack::In);
     AddParameter(ParameterType::Numeric,"Pan","%",-100,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"Modulation","%",0,100,0,"",0);
+    AddParameterPercent();
     LastMod=0;
     CurrentMod=0;
     LeftModFactor=1;

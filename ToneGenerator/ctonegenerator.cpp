@@ -7,19 +7,19 @@ CToneGenerator::CToneGenerator():WavePosition(0),DetunePosition(0),CurrentMod(0)
 void CToneGenerator::Init(const int Index, void *MainWindow) {
     m_Name="ToneGenerator";
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
+    AddJackWaveOut(0);
     AddJack("Frequency",IJack::Frequency,IJack::In,0);
     AddJack("Modulation",IJack::Pitch,IJack::In,0);
     AddJack("Pulse Modulation",IJack::Pitch,IJack::In,0);
     AddParameter(ParameterType::Numeric,"Frequency","Hz",100,m_Presets.HalfRate*100,100,"",44000);
-    AddParameter(ParameterType::Numeric,"Glide","%",0,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"Modulation","%",0,100,0,"",0);
+    AddParameterPercent("Glide");
+    AddParameterPercent();
     AddParameter(ParameterType::Numeric,"Tuning","%",-100,100,0,"",0);
     AddParameter(ParameterType::Numeric,"Detune","%",-100,100,0,"",0);
     AddParameter(ParameterType::SelectBox,"WaveForm","",0,5,0,"Sine§Square§Triangle§Sawtooth§Noise§Sample and Hold",0);
     AddParameter(ParameterType::Numeric,"PulseWave","",-100,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"PulseWave Modulation","",0,100,0,"",0);
-    AddParameter(ParameterType::dB,"Volume","dB",0,200,0,"",100);
+    AddParameterPercent("PulseWave Modulation");
+    AddParameterVolume();
     CalcParams();
 }
 

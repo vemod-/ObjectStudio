@@ -63,8 +63,8 @@ void CScope::Init(const int Index,void* MainWindow)
     NullBuffers=0;
     m_Form=new CScopeForm(this,(QWidget*)MainWindow);
     //m_Form=new TfrmScope(CallingApp,this,AnsiString(m_Name) + " " + AnsiString(Index));
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddParameter(ParameterType::dB,"Input Volume","dB",0,200,0,"",100);
+    AddJackWaveIn();
+    AddParameterVolume("Gain");
     AddParameter(ParameterType::Numeric,"Scope Frequency","Hz",100,100000,100,"",44000);
     AddParameter(ParameterType::SelectBox,"Spectrum Mode","",0,2,0,"Circular§Continuous§Diagram",0);
     Reset();

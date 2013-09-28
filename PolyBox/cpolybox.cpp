@@ -20,8 +20,8 @@ void CPolyBox::Init(const int Index, void *MainWindow)
     IDevice::Init(Index,MainWindow);
     m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
     CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("MIDI In",IJack::MIDI,IJack::In,1);
+    AddJackWaveOut(jnOut);
+    AddJackMIDIIn();
 
     d->SetPoly(CVDevice::CVVoices-1);
 
@@ -34,9 +34,9 @@ void CPolyBox::Init(const int Index, void *MainWindow)
         JacksCreated.push_back(d->AddJack(new COutJack("Frequency In","This",IJack::Frequency,IJack::Out,this,2+i),i));
         JacksCreated.push_back(d->AddJack(new COutJack("Trigger In","This",IJack::Amplitude,IJack::Out,this,2+i+CVDevice::CVVoices),i));
     }
-    AddParameter(ParameterType::SelectBox,"MIDI Channel","",0,16,0,"All§1§2§3§4§5§6§7§8§9§10§11§12§13§14§15§16",0);
-    AddParameter(ParameterType::Numeric,"Transpose","Half tones",-24,24,0,"",0);
-    AddParameter(ParameterType::Numeric,"Tune","Hz",43600,44800,100,"",44000);
+    AddParameterMIDIChannel();
+    AddParameterTranspose();
+    AddParameterTune();
     CalcParams();
 }
 
@@ -57,7 +57,7 @@ const float CPolyBox::GetNext(const int ProcIndex)
     if (m_Process)
     {
         m_Process=false;
-        CVDevice.parseMIDI((CMIDIBuffer*)FetchP(1));
+        CVDevice.parseMIDI((CMIDIBuffer*)FetchP(jnMIDIIn));
     }
     if ((ProcIndex>=2) & (ProcIndex<(2+CVDevice::CVVoices)))
     {
@@ -77,7 +77,7 @@ void* CPolyBox::GetNextP(int /*ProcIndex*/)
 
 float* CPolyBox::GetNextA(const int ProcIndex)
 {
-    if (ProcIndex==0) return WaveOut->GetNextA();
+    if (ProcIndex==jnOut) return WaveOut->GetNextA();
     return NULL;
 }
 

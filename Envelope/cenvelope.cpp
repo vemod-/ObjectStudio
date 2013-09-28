@@ -13,9 +13,9 @@ void CEnvelope::Init(const int Index,void* MainWindow)
     AddJack("Out",IJack::Amplitude,IJack::Out,0);
     AddParameter(ParameterType::Numeric,"Attack Time","mSec",0,2000,0,"",0);
     AddParameter(ParameterType::Numeric,"Decay Time","mSec",0,2000,0,"",0);
-    AddParameter(ParameterType::Numeric,"Sustain Level","%",0,100,0,"",100);
+    AddParameterPercent("Sustain Level",100);
     AddParameter(ParameterType::Numeric,"Release Time","mSec",0,2000,0,"",0);
-    AddParameter(ParameterType::dB,"Volume","dB",0,200,0,"",100);
+    AddParameterVolume();
     AddParameter(ParameterType::SelectBox,"Input Mode","",0,1,0,"Analog§Binary",0);
     m_Form=new CEnvelopeForm(this,(QWidget*)MainWindow);
     CalcParams();

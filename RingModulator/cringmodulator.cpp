@@ -8,10 +8,10 @@ CRingModulator::CRingModulator():ModulationFactor(0)
 void CRingModulator::Init(const int Index, void *MainWindow) {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddJack("Modulation",IJack::Wave,IJack::In,0);
-    AddParameter(ParameterType::Numeric,"Modulation","%",0,100,0,"",0);
+    AddJackWaveOut(jnOut);
+    AddJackWaveIn();
+    AddJack("Modulation",IJack::Wave,IJack::In);
+    AddParameterPercent();
     CalcParams();
 }
 

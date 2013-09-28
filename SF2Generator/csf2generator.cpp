@@ -1,25 +1,12 @@
 #include "csf2generator.h"
 #include "softsynthsclasses.h"
 
-QMap<QString, CSF2File*> CSF2Generator::SF2Files=QMap<QString, CSF2File*>();
-
 bool CSF2Generator::LoadFile(const QString& Path)
 {
     QString m_Path=QFileInfo(Path).absoluteFilePath();
     Ready=false;
-    if (SFFile!=NULL)
-    {
-        qDebug() << SFFile->ReferenceCount << SF2Files.count();
-        if (--SFFile->ReferenceCount==0)
-        {
-            sfUnloadSFBank(SFFile->BankID);
-            SF2Files.remove(SFFile->Path.toLower());
-            qDebug() << SF2Files.count();
-            delete SFFile;
-        }
-        SFFile=NULL;
-    }
-    if (!SF2Files.contains(m_Path.toLower()))
+    Unref();
+    if (!SF2Files->contains(m_Path.toLower()))
     {
         if (!QFileInfo(m_Path).exists())
         {
@@ -32,11 +19,11 @@ bool CSF2Generator::LoadFile(const QString& Path)
             SFFile=NULL;
             return false;
         }
-        SF2Files.insert(m_Path.toLower(),SFFile);
+        SF2Files->insert(m_Path.toLower(),SFFile);
     }
     else
     {
-        SFFile=SF2Files[m_Path.toLower()];
+        SFFile=SF2Files->value(m_Path.toLower());
     }
     MidiBank=0;
     MidiPreset=0;
@@ -52,6 +39,7 @@ bool CSF2Generator::LoadFile(const QString& Path)
 
 CSF2Generator::CSF2Generator()
 {
+    SF2Files=SingleSF2Map::getInstance();
     Ready=false;
     SFFile=NULL;
     OscCount=0;
@@ -70,20 +58,24 @@ CSF2Generator::CSF2Generator()
 
 CSF2Generator::~CSF2Generator()
 {
+    Unref();
     delete [] AudioL;
+    qDeleteAll(Osc);
+}
+
+void CSF2Generator::Unref()
+{
     if (SFFile!=NULL)
     {
-        qDebug() << SFFile->ReferenceCount << SF2Files.count();
         if (--SFFile->ReferenceCount==0)
         {
             sfUnloadSFBank(SFFile->BankID);
-            SF2Files.remove(SFFile->Path.toLower());
-            qDebug() << SF2Files.count();
+            SF2Files->remove(SFFile->Path.toLower());
+            qDebug() << "SF2Generator destructor" << SF2Files->count();
             delete SFFile;
         }
         SFFile=NULL;
     }
-    qDeleteAll(Osc);
 }
 
 void CSF2Generator::setPitchWheel(int cent)

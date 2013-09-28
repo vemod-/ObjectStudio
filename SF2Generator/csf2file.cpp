@@ -1,6 +1,5 @@
 #include "csf2file.h"
 #include "softsynthsclasses.h"
-#include "softsynthsdefines.h"
 
 CSF2File::CSF2File()
 {
@@ -389,6 +388,7 @@ void SFLFO::Init(const int Freq, const int Delay, const int /*KeyNum*/, const fl
 SFLFO::SFLFO()
 {
     //LFO=new TWaveBank();
+    WavePosition=0;
 }
 
 SFLFO::~SFLFO()
@@ -412,10 +412,8 @@ const float inline SFLFO::GetNext()
         CurrentAction=SFEnvelope::evAttack;
     }
     WavePosition+=FreqValue;
-    while (WavePosition>=SampleRate)
-    {
-        WavePosition=WavePosition-SampleRate;
-    }
+    while (WavePosition >= SampleRate) WavePosition-=SampleRate;
+    //qDebug() << WavePosition;
     return LFO.GetNext(WavePosition,CWaveBank::Triangle);
 }
 

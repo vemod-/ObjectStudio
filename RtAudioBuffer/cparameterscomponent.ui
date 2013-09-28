@@ -95,7 +95,7 @@
         <x>0</x>
         <y>0</y>
         <width>339</width>
-        <height>90</height>
+        <height>98</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -107,13 +107,13 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>90</height>
+        <height>98</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>90</height>
+        <height>98</height>
        </size>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -124,7 +124,7 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QFrame" name="DialsFrame">
+        <widget class="QSynthPanel" name="DialsFrame">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -134,23 +134,14 @@
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>90</height>
+           <height>98</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
            <width>16777215</width>
-           <height>90</height>
+           <height>98</height>
           </size>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">#DialsFrame, #CKnobControl{background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(230, 230, 230, 255), stop:0.8 rgba(200, 200, 200, 255));}</string>
-         </property>
-         <property name="frameShape">
-          <enum>QFrame::Panel</enum>
-         </property>
-         <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <property name="spacing">
@@ -159,7 +150,16 @@
           <property name="sizeConstraint">
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
-          <property name="margin">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>1</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
            <number>0</number>
           </property>
          </layout>
@@ -172,6 +172,12 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>QSynthPanel</class>
+   <extends>QFrame</extends>
+   <header>qsynthpanel.h</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>EffectLabel</class>
    <extends>QLabel</extends>

@@ -422,8 +422,8 @@ void CAudacityProject::Init(const int Index,void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Stereo,IJack::Out,0);
-    AddParameter(ParameterType::dB,"Volume","dB",0,200,0,"",100);
+    AddJackStereoOut(jnOut);
+    AddParameterVolume();
     CalcParams();
     TimeAdd=(float)CPresets::Presets.ModulationRate / (float)CPresets::Presets.SampleRate;
     Time=0;
@@ -462,32 +462,20 @@ void CAudacityProject::Process()
         if (AT->Playing)
         {
             float* auBuffer=AT->GetNext();
-            //float volL=AT->FactorL*ModFactor;
-            //float volR=AT->FactorR*ModFactor;
-            //float* BufferL=AudioBuffers[jnOut]->Buffer;
-            //float* BufferR=AudioBuffers[jnOut]->BufferR;
-
             if (auBuffer)
             {
                 if (AT->Linked)
                 {
                     OutBuffer->AddLeftBuffer(auBuffer,AT->FactorL*ModFactor);
-                    //for (int i=0;i<m_BufferSize;i++) BufferL[i]+=auBuffer[i]*volL;
                 }
                 else if (AT->Channel==1)
                 {
                     OutBuffer->AddRightBuffer(auBuffer,AT->FactorR*ModFactor);
-                    //for (int i=0;i<m_BufferSize;i++) BufferR[i]+=auBuffer[i]*volR;
                 }
                 else
                 {
-                    for (int i=0;i<m_BufferSize;i++)
-                    {
-                        OutBuffer->AddLeftBuffer(auBuffer,AT->FactorL*ModFactor);
-                        OutBuffer->AddRightBuffer(auBuffer,AT->FactorR*ModFactor);
-                        //BufferL[i]+=auBuffer[i]*volL;
-                        //BufferR[i]+=auBuffer[i]*volR;
-                    }
+                    OutBuffer->AddLeftBuffer(auBuffer,AT->FactorL*ModFactor);
+                    OutBuffer->AddRightBuffer(auBuffer,AT->FactorR*ModFactor);
                 }
             }
         }

@@ -9,47 +9,25 @@ TEMPLATE = lib
 DEFINES += STEREOMIXER_LIBRARY
 
 include(../SoftSynthsIncludes.pri)
+include(../../EffectLabel/EffectLabel.pri)
+include(../../SynthKnob/QSynthKnob.pri)
+include(../../SynthSlider/QSynthSlider.pri)
+include(../../SynthPanel/QSynthPanel.pri)
 
-INCLUDEPATH += ../WaveRecorder
-INCLUDEPATH += ../MIDIFile2Wave
-INCLUDEPATH += ../RtAudioBuffer
+include(../../QSignalMenu/QSignalMenu.pri)
+include(../RtAudioBuffer/PeakMeter.pri)
+include(../../LCDLabel/QLCDLabel.pri)
 
-SOURCES += ../RtAudioBuffer/cstereopeak.cpp \
-    ../RtAudioBuffer/cpeakcontrol.cpp \
-    ../RtAudioBuffer/cdbscale.cpp \
-    cstereomixer.cpp \
-    ../WaveRecorder/qcanvas.cpp \
+SOURCES += cstereomixer.cpp \
     cstereomixerform.cpp \
     cstereochannelwidget.cpp \
-    ../MIDIFile2Wave/EffectLabel.cpp \
     cmasterwidget.cpp
-HEADERS += ../RtAudioBuffer/cstereopeak.h \
-    ../RtAudioBuffer/cpeakcontrol.h \
-    ../RtAudioBuffer/cdbscale.h \
-    cstereomixer.h \
-    ../WaveRecorder/qcanvas.h \
+HEADERS += cstereomixer.h \
     cstereomixerform.h \
     cstereochannelwidget.h \
-    ../MIDIFile2Wave/EffectLabel.h \
     cmasterwidget.h
 
-SOURCES +=
-
-HEADERS +=
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
-
 FORMS += \
-    ../RtAudioBuffer/cstereopeak.ui \
-    ../RtAudioBuffer/cpeakcontrol.ui \
-    ../RtAudioBuffer/cdbscale.ui \
     cstereomixerform.ui \
     cstereochannelwidget.ui \
     cmasterwidget.ui

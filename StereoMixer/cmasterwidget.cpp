@@ -6,21 +6,31 @@ CMasterWidget::CMasterWidget(QWidget *parent) :
     ui(new Ui::CMasterWidget)
 {
     ui->setupUi(this);
-    mapper=new QSignalMapper(this);
+    effMenuMapper=new QSignalMapper(this);
+    effShowMapper=new QSignalMapper(this);
     dialMapper=new QSignalMapper(this);
     ui->label->setEffect(EffectLabel::Raised);
-    ui->label->setShadowColor(Qt::darkGray);
-    ui->VolLabelL->setEffect(EffectLabel::Raised);
-    ui->VolLabelL->setShadowColor(Qt::darkGray);
-    ui->VolLabelR->setEffect(EffectLabel::Raised);
-    ui->VolLabelR->setShadowColor(Qt::darkGray);
+    ui->label->setShadowColor(Qt::white);
+    //ui->VolLabelL->setEffect(EffectLabel::Raised);
+    //ui->VolLabelL->setShadowColor(Qt::darkGray);
+    //ui->VolLabelR->setEffect(EffectLabel::Raised);
+    //ui->VolLabelR->setShadowColor(Qt::darkGray);
 
     ui->VolLabelL->setText("0.00 dB");
     ui->VolLabelR->setText("0.00 dB");
     connect(ui->VolL,SIGNAL(valueChanged(int)),this,SLOT(setVolL(int)));
     connect(ui->VolR,SIGNAL(valueChanged(int)),this,SLOT(setVolR(int)));
     connect(dialMapper,SIGNAL(mapped(int)),this,SLOT(effectVol(int)));
-    connect(mapper,SIGNAL(mapped(int)),this,SLOT(showEffect(int)));
+    connect(effMenuMapper,SIGNAL(mapped(int)),this,SLOT(showEffectMenu(int)));
+    connect(effShowMapper,SIGNAL(mapped(int)),this,SLOT(showEffect(int)));
+
+    effectMenu=new QSignalMenu(this);
+    showUIAction=effectMenu->addAction("Show UI","Show UI");
+    effectMenu->addAction("VST","VSTHost");
+    effectMenu->addAction("AU","AudioUnitHost");
+    unloadAction=effectMenu->addAction("Unload","Unload");
+    connect(effectMenu,SIGNAL(menuClicked(QString)),this,SLOT(selectEffect(QString)));
+
 }
 
 CMasterWidget::~CMasterWidget()
@@ -34,13 +44,14 @@ void CMasterWidget::Init(CStereoMixer *mx, QList<IDevice *>* effects)
     m_Fx=effects;
     for (int i=dials.count();i<m_Mx->sendCount;i++)
     {
-        QDial* d=new QDial(this);
-        d->setMaximumSize(36,36);
+        QSynthKnob* d=new QSynthKnob(this);
+        d->setMaximumSize(28,28);
+        d->setKnobStyle(QSynthKnob::SimpleStyle);
         d->setMaximum(200);
         d->setValue(100);
         d->setNotchesVisible(true);
         dials.append(d);
-        connect(d,SIGNAL(sliderReleased()),dialMapper,SLOT(map()));
+        connect(d,SIGNAL(valueChanged(int)),dialMapper,SLOT(map()));
         dialMapper->setMapping(d,i);
         ui->EffectLayout->addWidget(d,0,Qt::AlignHCenter);
         if (m_Fx==NULL)
@@ -48,7 +59,7 @@ void CMasterWidget::Init(CStereoMixer *mx, QList<IDevice *>* effects)
             EffectLabel* e=new EffectLabel(this);
             e->setEffect(EffectLabel::Raised);
             e->setShadowColor(Qt::white);
-            e->setStyleSheet("background:transparent;");
+            //e->setStyleSheet("background:transparent;");
             e->setText("Effect "+QString::number(i+1));
             e->setMaximumHeight(13);
             QFont f=e->font();
@@ -58,25 +69,30 @@ void CMasterWidget::Init(CStereoMixer *mx, QList<IDevice *>* effects)
         }
         else
         {
-            QToolButton* b=new QToolButton(this);
+            QLCDLabel* b=new QLCDLabel(this);
             m_Buttons.append(b);
             m_Names.append(m_Fx->at(i)->FileName());
             b->setText("Effect "+QString::number(i+1));
-            b->setMaximumHeight(13);
+            b->setFixedHeight(13);
+            b->setAlignment(Qt::AlignHCenter);
+            //b->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
+            b->setMinimumWidth(this->width()-6);
             //b->setFlat(true);
-            b->setStyleSheet("background:transparent;color:blue;");
-            b->setCursor(Qt::PointingHandCursor);
+            //b->setStyleSheet("color: rgb(255, 244, 105);background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(100, 100, 100, 255), stop:0.8 rgba(0, 0, 0, 255));border:1px solid #AAA;border-style:inset;border-radius:5px;");
+            //b->setCursor(Qt::PointingHandCursor);
             QFont f=b->font();
             f.setPixelSize(9);
-            f.setUnderline(true);
+            //f.setUnderline(true);
             b->setFont(f);
             if (i<m_Fx->count())
             {
                 b->setText(QFileInfo(m_Fx->at(i)->FileName()).completeBaseName());
             }
             if (b->text().isEmpty()) b->setText("Effect "+QString::number(i+1));
-            connect(b,SIGNAL(clicked()),mapper,SLOT(map()));
-            mapper->setMapping(b,i);
+            connect(b,SIGNAL(rightClick()),effMenuMapper,SLOT(map()));
+            connect(b,SIGNAL(leftClick()),effShowMapper,SLOT(map()));
+            effMenuMapper->setMapping(b,i);
+            effShowMapper->setMapping(b,i);
             ui->EffectLayout->addWidget(b,0,Qt::AlignHCenter);
         }
     }
@@ -87,8 +103,33 @@ void CMasterWidget::Init(CStereoMixer *mx, QList<IDevice *>* effects)
 
 void CMasterWidget::showEffect(int eff)
 {
-    m_Fx->at(eff)->Execute(true);
-    m_Fx->at(eff)->RaiseForm();
+    currentEffect=m_Fx->at(eff);
+    selectEffect("Show UI");
+}
+
+void CMasterWidget::showEffectMenu(int eff)
+{
+    showUIAction->setVisible(!m_Fx->at(eff)->FileName().isEmpty());
+    unloadAction->setVisible(!m_Fx->at(eff)->FileName().isEmpty());
+    currentEffect=m_Fx->at(eff);
+    //effectMenu->popup(this->cursor().pos());
+    effectMenu->popup(ui->verticalFrame->mapToGlobal(m_Buttons.at(eff)->geometry().bottomLeft()));
+}
+
+void CMasterWidget::selectEffect(QString DeviceType)
+{
+    if (DeviceType=="Show UI")
+    {
+        currentEffect->Execute(true);
+        currentEffect->RaiseForm();
+        return;
+    }
+    if (currentEffect->OpenFile(DeviceType)==DeviceType)
+    {
+        currentEffect->OpenFile(QString());
+        currentEffect->OpenFile(DeviceType);
+    }
+    currentEffect->Execute(true);
 }
 
 void CMasterWidget::effectVol(int eff)
@@ -173,5 +214,13 @@ void CMasterWidget::Load(const QString& XML)
     ui->Lock->setChecked(Master.attributeValue("Lock"));
     ui->VolL->setValue(Master.attributeValue("Volume Left"));
     ui->VolR->setValue(Master.attributeValue("Volume Right"));
-    for (int i=0;i<dials.count();i++) dials[i]->setValue(Master.attributeValue("Effect "+QString::number(i+1),100));
+    for (int i=0;i<dials.count();i++)
+    {
+        dials[i]->setValue(Master.attributeValue("Effect "+QString::number(i+1),100));
+    }
+}
+
+void CMasterWidget::showEvent(QShowEvent *)
+{
+    ui->Peak->setMargin(ui->VolL->grooveMargin());
 }

@@ -9,7 +9,7 @@ void CSequenser::Init(const int Index,void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("MIDI Out",IJack::MIDI,IJack::Out,0);
+    AddJackMIDIOut(jnMIDIOut);
     AddParameter(ParameterType::Numeric,"Tempo","BPM",20,300,0,"",100);
     AddParameter(ParameterType::Numeric,"MIDI Channel","",1,16,0,"",1);
     MIDIBuffer=new CMIDIBuffer();

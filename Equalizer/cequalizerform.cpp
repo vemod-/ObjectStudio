@@ -10,6 +10,7 @@ CEqualizerForm::CEqualizerForm(IDevice* Device, QWidget *parent) :
     m_Device=NULL;
     connect(ui->GraphFrame,SIGNAL(RefreshMe()),this,SLOT(Draw()));
     Canvas=ui->GraphFrame;
+    startTimer(50);
 }
 
 CEqualizerForm::~CEqualizerForm()
@@ -120,7 +121,7 @@ void CEqualizerForm::DrawGraph()
         for (int i=0;i<512;i++)
         {
             WPos=WPos+F;
-            while (WPos>SR)
+            while (WPos>=SR)
             {
                 WPos-=SR;
             }
@@ -155,4 +156,36 @@ void CEqualizerForm::DrawGraph()
         }
     }
     ui->GraphFrame->update();
+}
+
+void CEqualizerForm::Reset()
+{
+    for (int i=0;i<8;i++)
+    {
+        PeakVal[i]=0;
+            CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
+            f->Reset();
+    }
+}
+
+void CEqualizerForm::Peak()
+{
+    for (int i=0;i<8;i++)
+    {
+        CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
+        f->Peak(PeakVal[i]);
+    }
+}
+
+void CEqualizerForm::timerEvent(QTimerEvent *)
+{
+    if (isVisible())
+    {
+    for (int i=0;i<8;i++)
+    {
+        CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
+        f->Peak(PeakVal[i]);
+        PeakVal[i]=0;
+    }
+    }
 }

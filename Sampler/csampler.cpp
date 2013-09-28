@@ -9,14 +9,14 @@ void CSampler::Init(const int Index,void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("MIDI In",IJack::MIDI,IJack::In,jnMIDIIn);
+    AddJackMIDIIn();
     AddJack("Modulation",IJack::Pitch,IJack::In,jnModulation);
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
+    AddJackStereoOut(jnOut);
 
-    AddParameter(ParameterType::SelectBox,"MIDI Channel","",0,16,0,"All§1§2§3§4§5§6§7§8§9§10§11§12§13§14§15§16",0);
-    AddParameter(ParameterType::Numeric,"Transpose","Half tones",-24,24,0,"",0);
-    AddParameter(ParameterType::Numeric,"Tune","Hz",43600,44800,100,"",44000);
-    AddParameter(ParameterType::Numeric,"Modulation","%",0,100,0,"",0);
+    AddParameterMIDIChannel();
+    AddParameterTranspose();
+    AddParameterTune();
+    AddParameterPercent();
     VolumeFactor=1.0*(1.0/sqrtf(Sampler::samplervoices));
     LastMod=0;
     CurrentMod=1;
@@ -51,7 +51,7 @@ void CSampler::Process()
                 if (First)
                 {
                     First=false;
-                    OutBuffer->FromBuffer(BufferL,volL,volR);
+                    OutBuffer->WriteBuffer(BufferL,volL,volR);
                 }
                 else
                 {

@@ -13,7 +13,7 @@ void CLFO::Init(const int Index, void *MainWindow) {
     AddJack("Out Amplitude",IJack::Amplitude,IJack::Out,jnOutAmplitude);
     AddParameter(ParameterType::Numeric,"Frequency","Hz",1,10000,100,"",400);
     AddParameter(ParameterType::SelectBox,"WaveForm","",0,5,0,"Sine§Square§Triangle§Sawtooth§Noise§Sample and Hold",0);
-    AddParameter(ParameterType::dB,"Volume","dB",0,200,0,"",100);
+    AddParameterVolume();
     CalcParams();
 }
 

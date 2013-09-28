@@ -23,10 +23,10 @@ void CMIDI2CV::Init(const int Index,void* MainWindow)
     {
         AddJack("Velocity Out " + QString::number(i+1),IJack::Amplitude,IJack::Out,jnVelocity+i);
     }
-    AddJack("MIDI In",IJack::MIDI,IJack::In,0);
-    AddParameter(ParameterType::SelectBox,"MIDI Channel","",0,16,0,"All§1§2§3§4§5§6§7§8§9§10§11§12§13§14§15§16",0);
-    AddParameter(ParameterType::Numeric,"Transpose","Half tones",-24,24,0,"",0);
-    AddParameter(ParameterType::Numeric,"Tune","Hz",43600,44800,100,"",44000);
+    AddJackMIDIIn();
+    AddParameterMIDIChannel();
+    AddParameterTranspose();
+    AddParameterTune();
     CalcParams();
 }
 const float CMIDI2CV::GetNext(const int ProcIndex)

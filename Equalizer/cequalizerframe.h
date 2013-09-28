@@ -18,6 +18,8 @@ public:
     void Init(CEqualizer* EQ, int BandIndex, int FqMin, int FqMax, int FqDefault);
     const QString Save();
     void Load(const QString& XML);
+    void Reset();
+    void Peak(const float val);
 private:
     Ui::CEqualizerFrame *ui;
     CEqualizer* m_Device;
@@ -25,6 +27,8 @@ private:
 private slots:
     void VolChanged(int Value);
     void FreqChanged(int Freq);
+protected:
+    void showEvent(QShowEvent *);
 };
 
 #endif // CEQUALIZERFRAME_H

@@ -45,7 +45,7 @@ void CMP3File::Init()
     memset(&MP3DP[1],0,sizeof(MPEG_DECODE_PARAM));
 }
 
-const bool CMP3File::Open(unsigned char* pSrc, const int Size)
+const bool CMP3File::Open(BYTE* pSrc, const size_t Size)
 {
     pSrcFile=pSrc;
     FileSize = Size;//GetFileSize(FileHandle,NULL);
@@ -84,7 +84,7 @@ const bool CMP3File::Open(unsigned char* pSrc, const int Size)
             long lNet=*(long*)pSrcFile+16;
             size+= ntohl(lNet)+6;
         }
-        int xSize=size;//StrToSize(pSrcFile+6);
+        size_t xSize=size;//StrToSize(pSrcFile+6);
 
         if (pSrcFile[xSize+10]==0xFF)
         {
@@ -93,7 +93,7 @@ const bool CMP3File::Open(unsigned char* pSrc, const int Size)
         else
         {
             //int maxsize=GetFileSize(FileHandle,NULL);
-            for (int i = xSize+10; i <Size-1; i++)
+            for (size_t i = xSize+10; i <Size-1; i++)
             {
                 if (pSrcFile[i]==0xFF)
                 {
@@ -112,7 +112,7 @@ const bool CMP3File::Open(unsigned char* pSrc, const int Size)
         pFrameData = pSrcFile;
     }
 
-    FileSize -= (unsigned int)(pFrameData - pSrcFile);
+    FileSize -= (size_t)(pFrameData - pSrcFile);
     if((pSrcFile[FileSize - 128] == 'T') && (pSrcFile[FileSize - 127] == 'A') && (pSrcFile[FileSize - 126] == 'G'))
     {
         FileSize -= 128;

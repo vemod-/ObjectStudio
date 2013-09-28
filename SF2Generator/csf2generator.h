@@ -3,11 +3,25 @@
 
 #include "csf2file.h"
 
+class SingleSF2Map : public QMap<QString, CSF2File*>
+{
+    public:
+        static SingleSF2Map* getInstance()
+        {
+            static SingleSF2Map    instance; // Guaranteed to be destroyed.
+                                  // Instantiated on first use.
+            return &instance;
+        }
+    private:
+        SingleSF2Map() {}                   // Constructor? (the {} brackets) are needed here.
+        SingleSF2Map(SingleSF2Map const&);              // Don't Implement
+        void operator=(SingleSF2Map const&); // Don't implement
+};
+
 class CSF2Generator
 {
 
 private:
-
     bool PlayEnd;
     bool Ready;
     std::vector<OscType*> Osc;
@@ -18,6 +32,7 @@ private:
     unsigned int m_ModulationRate;
     int pitchWheel;
     int transpose;
+    void Unref();
 public:
     CSF2Generator();
     ~CSF2Generator();
@@ -36,8 +51,7 @@ public:
     void setAftertouch(short value);
     void resetTranspose();
     SFPRESETHDRPTR Preset(short Index);
-protected:
-    static QMap<QString, CSF2File*> SF2Files;
+    SingleSF2Map* SF2Files;
 };
 
 

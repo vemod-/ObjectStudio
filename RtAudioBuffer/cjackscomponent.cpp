@@ -20,14 +20,12 @@ CJacksComponent::CJacksComponent(QWidget *parent) :
     setFrameStyle(0);
     setLineWidth(0);
     m_D=NULL;
-    JackPopup=new QMenu(this);
-    mapper=new QSignalMapper(this);
-    connect(mapper,SIGNAL(mapped(QString)),this,SLOT(ToggleConnection(QString)));
+    JackPopup=new QSignalMenu(this);
+    connect(JackPopup,SIGNAL(menuClicked(QString)),this,SLOT(ToggleConnection(QString)));
 }
 
 CJacksComponent::~CJacksComponent()
 {
-    delete JackPopup;
     delete ui;
 }
 
@@ -171,11 +169,9 @@ void CJacksComponent::mousePressEvent(QMouseEvent *event)
             IJack* J=m_DL->Jacks(i);
             if (m_DL->CanConnect(Jack,J))
             {
-                QAction* a=JackPopup->addAction(m_DL->JackID(J));
+                QAction* a=JackPopup->addAction(m_DL->JackID(J),m_DL->JackID(J));
                 a->setCheckable(true);
                 a->setChecked(m_DL->IsConnected(Jack,J));
-                connect(a,SIGNAL(triggered()),mapper,SLOT(map()));
-                mapper->setMapping(a,m_DL->JackID(J));
             }
         }
         if (JackPopup->actions().count()==0)

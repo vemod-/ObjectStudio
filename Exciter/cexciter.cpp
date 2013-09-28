@@ -172,14 +172,14 @@ void CExciter::Init(const int Index, void *MainWindow)
     int Maxcutoff=m_Presets.SampleRate * 0.425;
     m_Name="Exciter";
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("Effect Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
+    AddJackWaveOut(jnOut);
+    AddJack("Effect Out",IJack::Wave,IJack::Out,jnEffOut);
+    AddJackWaveIn();
     AddParameter(ParameterType::SelectBox,"Type","",0,1,0,"Soft§Clipping",0);
-    AddParameter(ParameterType::dB,"In Volume","dB",0,200,0,"",100);
-    AddParameter(ParameterType::Numeric,"Amount","%",0,100,0,"",100);
+    AddParameterVolume("Gain");
+    AddParameterPercent("Amount",100);
     AddParameter(ParameterType::Numeric,"Cutoff Frequency","Hz",20,Maxcutoff,0,"",Maxcutoff/2);
-    AddParameter(ParameterType::Numeric,"Effect","%",0,100,0,"",50);
+    AddParameterPercent("Effect",50);
     CalcParams();
 }
 

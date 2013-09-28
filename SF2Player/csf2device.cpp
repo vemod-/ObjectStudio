@@ -250,6 +250,7 @@ const bool CSF2Device::loadFile(const QString& filename)
     allNotesOff();
     loaded=false;
     CSF2Generator* sf=&SF2Generator[0];
+    qDebug() << "SF2Device load" << filename;
     if (sf->LoadFile(filename))
     {
         for (int i=1;i<SF2Device::sf2voices;i++)

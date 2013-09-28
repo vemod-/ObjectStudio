@@ -3,7 +3,7 @@
 
 #include <QFrame>
 #include "cstereomixer.h"
-#include <QDial>
+#include <qsynthknob.h>
 
 namespace Ui {
 class CStereoChannelWidget;
@@ -25,7 +25,7 @@ public:
 private:
     Ui::CStereoChannelWidget *ui;
     CStereoMixerChannel* m_Ch;
-    QList<QDial*> Effect;
+    QList<QSynthKnob*> Effect;
     QSignalMapper* mapper;
 private slots:
     void setVolume(int Vol);
@@ -35,6 +35,8 @@ private slots:
     void setEffect(int effNumber);
 signals:
     void solo();
+protected:
+    void showEvent(QShowEvent *);
 };
 
 #endif // CSTEREOCHANNELWIDGET_H

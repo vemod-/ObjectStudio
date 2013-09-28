@@ -28,6 +28,7 @@ public slots:
     void StopRecording();
     void TogglePlay(bool value);
     void ToggleRecord(bool value);
+    void SetVolume(int vol);
 protected:
     void timerEvent(QTimerEvent *event);
 private:
@@ -43,6 +44,7 @@ class CObjectStudioApplication : public QApplication
 public:
     MainWindow w;
     CObjectStudioApplication( int argc, char * argv[] ) : QApplication( argc, argv ) {}
+    /*
     bool event( QEvent * pEvent )
     {
         if ( pEvent->type() == QEvent::ApplicationActivate )
@@ -56,6 +58,7 @@ public:
         }
         return QApplication::event( pEvent );
     }
+    */
 };
 
 #endif // MAINWINDOW_H

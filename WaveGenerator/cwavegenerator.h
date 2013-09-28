@@ -3,6 +3,21 @@
 
 #include "cwavefile.h"
 
+class SingleWaveMap : public QMap<QString, CWaveFile*>
+{
+    public:
+        static SingleWaveMap* getInstance()
+        {
+            static SingleWaveMap    instance; // Guaranteed to be destroyed.
+                                  // Instantiated on first use.
+            return &instance;
+        }
+    private:
+        SingleWaveMap() {}                   // Constructor? (the {} brackets) are needed here.
+        SingleWaveMap(SingleWaveMap const&);              // Don't Implement
+        void operator=(SingleWaveMap const&); // Don't implement
+};
+
 class CWaveGenerator
 {
 public:
@@ -57,8 +72,7 @@ private:
     SampleStates SampleState;
     void inline Init(void);
     float* Audio;
-protected:
-    static QMap<QString, CWaveFile*> WaveFiles;
+    SingleWaveMap* WaveFiles;
 };
 
 #endif // CWAVEGENERATOR_H

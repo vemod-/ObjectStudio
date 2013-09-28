@@ -18,7 +18,6 @@ namespace Ui {
 class CKnobControl : public QWidget
 {
     Q_OBJECT
-
 public:
     explicit CKnobControl(QWidget *parent = 0);
     ~CKnobControl();

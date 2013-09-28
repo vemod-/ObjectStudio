@@ -172,16 +172,16 @@ void CUnifilter::Init(const int Index, void *MainWindow) {
     int Maxcutoff=m_Presets.SampleRate * 0.425;
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddJack("Modulation",(IJack::AttachModes)(IJack::Amplitude | IJack::Pitch),IJack::In,0);
+    AddJackWaveOut(jnOut);
+    AddJackWaveIn();
+    AddJack("Modulation",(IJack::AttachModes)(IJack::Amplitude | IJack::Pitch),IJack::In);
     AddParameter(ParameterType::SelectBox,"Filter Type","",0,8,0,"Low pass§Hi pass§Band pass 1§Band pass 2§Notch§All pass§Peaking§Low shelf§Hi shelf",0);
-    AddParameter(ParameterType::dB,"In Volume","dB",0,200,0,"",100);
-    AddParameter(ParameterType::Numeric,"Cutoff Modulation","%",0,100,0,"",0);
+    AddParameterVolume("Gain");
+    AddParameterPercent("Cutoff Modulation");
     AddParameter(ParameterType::Numeric,"Cutoff Frequency","Hz",20,Maxcutoff,0,"",Maxcutoff);
     //AddParameter(Numeric,"Response Time","%",0,100,0,"",50);
-    AddParameter(ParameterType::Numeric,"Resonance","%",0,100,0,"",0);
-    AddParameter(ParameterType::dB,"Out Volume","dB",0,200,0,"",100);
+    AddParameterPercent("Resonance");
+    AddParameterVolume();
     CalcParams();
 }
 

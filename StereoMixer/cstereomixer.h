@@ -24,7 +24,9 @@ class CStereoMixer : public IDevice
 {
 public:
     enum JackNames
-    {jnReturn,jnOut,jnSend};
+    {jnOut,jnSend};
+    int jnIn;
+    int jnReturn;
     CStereoMixer(int channels=12, int sends=3);
     ~CStereoMixer();
     void Init(const int Index, void *MainWindow);

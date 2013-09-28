@@ -5,24 +5,36 @@
 
 CSF2Player::CSF2Player()
 {
+    m_Loading=false;
 }
 
 void CSF2Player::Init(const int Index,void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("MIDI In",IJack::MIDI,IJack::In,jnIn);
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
-    AddParameter(ParameterType::SelectBox,"MIDI Channel","",0,16,0,"All§1§2§3§4§5§6§7§8§9§10§11§12§13§14§15§16",0);
-    AddParameter(ParameterType::dB,"Volume","dB",0,200,0,"",100);
-    AddParameter(ParameterType::Numeric,"Transpose","Semitones",-24,24,0,"",0);
+    AddJackMIDIIn();
+    AddJackStereoOut(jnOut);
+    AddParameterMIDIChannel();
+    AddParameterVolume();
+    AddParameterTranspose();
     AddParameter(ParameterType::SelectBox,"Patch Change","",0,1,0,"Off§On",0);
     LastTrigger=0;
     LastFreq=0;
-    VolumeFactor=1.0*(1.0/sqrtf(SF2Device::sf2voices));
-    CalcParams();
-    SF2Device.reset();
     m_Form=new CSF2PlayerForm(this,(QWidget*)MainWindow);
+    VolumeFactor=1.0*(1.0/sqrtf(SF2Device::sf2voices));
+    SF2Device.reset();
+    CalcParams();
+}
+
+float* CSF2Player::GetNextA(const int ProcIndex)
+{
+    if (m_Loading) return NULL;
+    if (m_Process)
+    {
+        m_Process=false;
+        Process();
+    }
+    return AudioBuffers[ProcIndex]->Buffer;
 }
 
 void CSF2Player::Process()
@@ -40,7 +52,7 @@ void CSF2Player::Process()
             if (First)
             {
                 First=false;
-                OutBuffer->FromBuffer(BufferL,volL,volR);
+                OutBuffer->WriteBuffer(BufferL,volL,volR);
             }
             else
             {
@@ -64,8 +76,13 @@ void CSF2Player::Play(const bool FromStart)
 
 void inline CSF2Player::CalcParams()
 {
+    CSF2PlayerForm* f=(CSF2PlayerForm*)m_Form;
+    float oldVol=VolumeFactor;
     VolumeFactor=(float)m_ParameterValues[pnVolume]*0.01*(1.0/sqrtf(SF2Device::sf2voices));
+    if (oldVol != VolumeFactor) f->setVolume(m_ParameterValues[pnVolume]);
+    bool oldPatch=SF2Device.patchResponse;
     SF2Device.patchResponse=m_ParameterValues[pnPatchChange];
+    if (oldPatch != SF2Device.patchResponse) f->SetPatchResponse(m_ParameterValues[pnPatchChange]);
     SF2Device.setTranspose(m_ParameterValues[pnTranspose]);
     SF2Device.setChannel(m_ParameterValues[pnMIDIChannel]);
 }
@@ -73,4 +90,17 @@ void inline CSF2Player::CalcParams()
 void CSF2Player::SetFilename(const QString &FileName)
 {
     m_FileName=FileName;
+}
+
+void CSF2Player::Load(const QString &XML)
+{
+    m_Loading=true;
+    if (m_Form) m_Form->Load(XML);
+    m_Loading=false;
+}
+
+void CSF2Player::SetProgram(const int Bank, const int Preset)
+{
+    CSF2PlayerForm* f=(CSF2PlayerForm*)m_Form;
+    f->SetProgram(Bank,Preset);
 }

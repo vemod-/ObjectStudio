@@ -75,13 +75,13 @@ float Phaser::AllpassDelay::Update(float inSamp) {
 void CPhaser::Init(const int Index, void *MainWindow) {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
+    AddJackWaveOut(jnOut);
+    AddJackWaveIn();
     AddParameter(ParameterType::Numeric,"Range Min","Hz",20,m_Presets.SampleRate / 2.f,0,"",440);
     AddParameter(ParameterType::Numeric,"Range Max","Hz",20,m_Presets.SampleRate / 2.f,0,"",1600);
     AddParameter(ParameterType::Numeric,"Rate","Sweeps/sec",5,200,100,"",50);
-    AddParameter(ParameterType::Numeric,"Feedback","%",0,100,0,"",70);
-    AddParameter(ParameterType::Numeric,"Depth","%",0,100,0,"",100);
+    AddParameterPercent("Feedback",70);
+    AddParameterPercent("Depth",100);
     CalcParams();
 }
 

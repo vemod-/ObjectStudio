@@ -8,6 +8,8 @@ CdBScale::CdBScale(QWidget *parent) :
     ui(new Ui::CdBScale)
 {
     ui->setupUi(this);
+    m_Margin=Border;
+    m_HalfMargin=HalfBorder;
     //SetSize();
 }
 
@@ -33,30 +35,33 @@ void CdBScale::SetSize()
     Rectangle(rect());
 
     SetPenBrush(Qt::gray);
-    SetFont(QFont(QString(),10));
-    int HalfHeight=(height()/2)-Border;
+    SetFont(QFont(QString(),9));
+    int HalfHeight=(height()/2.0)-m_Margin;
     int Left=Border;
     int Right=width()-Border;
     int Width=Right-Left;
 
-    QList<int>LinVals;
-    LinVals << -30 << -15 << -10 << -5 << 0 << 3;
+    static QList<int>LinVals=QList<int>() << -30 << -15 << -10 << -5 << 0 << 3;
     foreach(int i,LinVals)
     {
         float dbVal=db2lin(i);
-        int val=val2y(dbVal,HalfHeight)+HalfBorder;
-        if (val<HalfBorder) val=HalfBorder;
-        Rectangle(Left,val*2,Width,1);
-        QFontMetrics fm(QFont(QString(),10));
+        int val=val2y(dbVal,HalfHeight)+m_HalfMargin;
+        if (val<m_HalfMargin) val=m_HalfMargin;
+        SetPen(QPen(Qt::gray,0));
+        Line(Left,val*2,Left+Width,val*2);
+        //Rectangle(Left,val*2,Width,1);
+        QFontMetrics fm(QFont(QString(),9));
         int L=(width()-fm.width(QString::number(i)))/2;
-        Text(L-1,(val*2)+1,QString::number(i));
+        Text(L-1,(val*2)-1,QString::number(i));
     }
     for (int i=-5;i<5;i++)
     {
         float dbVal=db2lin(i);
-        int val=val2y(dbVal,HalfHeight)+HalfBorder;
-        if (val<HalfBorder) break;
-        Rectangle(Left,val*2,Width,1);
+        int val=val2y(dbVal,HalfHeight)+m_HalfMargin;
+        if (val<m_HalfMargin) break;
+        //Rectangle(Left,val*2,Width,1);
+        SetPen(QPen(Qt::gray,0));
+        Line(Left,val*2,Left+Width,val*2);
     }
     update();
 }
@@ -67,3 +72,13 @@ void CdBScale::resizeEvent(QResizeEvent* event)
     SetSize();
 }
 
+void CdBScale::setMargin(int margin)
+{
+    int hm=margin*0.5;
+    if (hm != m_HalfMargin)
+    {
+        m_HalfMargin=hm;
+        m_Margin=hm*2;
+        SetSize();
+    }
+}

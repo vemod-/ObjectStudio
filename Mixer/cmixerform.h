@@ -23,6 +23,7 @@ private:
     QList<CMixerFrame*> MF;
 protected:
     void timerEvent(QTimerEvent *event);
+    void showEvent(QShowEvent *);
 private slots:
     void LeftChanged(int Value);
     void RightChanged(int Value);

@@ -41,10 +41,10 @@ void CStereoMixerChannel::MixChannel(float *Signal, CStereoBuffer *Out, CStereoB
     {
         if (Level != 0)
         {
-            Out->FromBuffer(Signal,Level*PanL,Level*PanR);
+            Out->WriteBuffer(Signal,Level*PanL,Level*PanR);
             if (!EffectMute)
             {
-                for (int j=0;j<sendCount;j++) Send[j]->FromBuffer(Out->Buffer,Effect[j]);
+                for (int j=0;j<sendCount;j++) Send[j]->WriteBuffer(Out->Buffer,Effect[j]);
             }
             else
             {
@@ -66,7 +66,7 @@ void CStereoMixerChannel::MixChannel(float *Signal, CStereoBuffer *Out, CStereoB
     }
     else
     {
-        WorkBuffer->FromBuffer(Signal,Level*PanL,Level*PanR);
+        WorkBuffer->WriteBuffer(Signal,Level*PanL,Level*PanR);
         if (Level != 0)
         {
             Out->AddBuffer(WorkBuffer->Buffer);
@@ -97,6 +97,8 @@ CStereoMixer::CStereoMixer(int channels, int sends)
     {
         this->channels[i]=new CStereoMixerChannel(sends);
     }
+    jnIn=jnSend+sendCount;
+    jnReturn=jnIn+channelCount;
 }
 
 CStereoMixer::~CStereoMixer()
@@ -121,7 +123,7 @@ void CStereoMixer::Process()
     for (int i =0; i < channelCount; i++)
     {
         CStereoMixerChannel* ch=channels[i];
-        float* TempBuffer=FetchA(jnSend+sendCount+i);
+        float* TempBuffer=FetchA(jnIn+i);
         if (TempBuffer != NULL)
         {
             if (SoloChannel>-1)
@@ -156,10 +158,11 @@ void CStereoMixer::Process()
     }
     for (int j=0;j<sendCount;j++)
     {
-        float SendVol=MixFactor*Sends[j];
-        SendBuffers[j]->Multiply(SendVol);
+        //float SendVol=MixFactor*Sends[j];
+        //SendBuffers[j]->Multiply(SendVol);
+        OutBuffer->AddBuffer(FetchA(jnReturn+j),Sends[j]);
     }
-    OutBuffer->AddBuffer(FetchA(jnReturn));
+    //OutBuffer->AddBuffer(FetchA(jnReturn));
     OutBuffer->Multiply(MasterLeft*MixFactor,MasterRight*MixFactor);
     for (int i = 0; i < m_BufferSize; i++)
     {
@@ -172,24 +175,25 @@ void CStereoMixer::Init(const int Index, void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Return",IJack::Stereo,IJack::In,jnReturn);
-
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
+    AddJackStereoOut(jnOut);
     for (int i=0;i<sendCount;i++)
     {
-        AddJack("Send " + QString::number(i+1),IJack::Stereo,IJack::Out,jnSend + i);
+        AddJackStereoOut(jnSend+i,"Send " + QString::number(i+1));
     }
-
     for (int i=0;i<channelCount;i++)
     {
-        AddJack("In " + QString::number(i+1),IJack::Stereo,IJack::In,jnSend+sendCount+i);
+        AddJackStereoIn("In " + QString::number(i+1));
+    }
+    for (int i=0;i<sendCount;i++)
+    {
+        AddJackStereoIn("Return " + QString::number(i+1));
     }
     PeakL=0;
     PeakR=0;
     SoloChannel=-1;
     MasterLeft=1;
     MasterRight=1;
-    MixFactor=1.0/sqrtf(channelCount);
+    MixFactor=1.0/sqrtf(channelCount+sendCount);
     CalcParams();
 #ifdef STEREOMIXER_LIBRARY
     m_Form=new CStereoMixerForm(this,(QWidget*)MainWindow);

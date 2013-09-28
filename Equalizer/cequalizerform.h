@@ -20,6 +20,9 @@ public:
     void Init(CEqualizer* EQ);
     const QString CustomSave();
     void CustomLoad(const QString& XML);
+    void Reset();
+    void Peak();
+    float PeakVal[8];
 public slots:
     void Draw();
     void DrawGraph();
@@ -30,6 +33,8 @@ private:
     biquad Fi[8];
     QCanvas* Canvas;
     void DrawBg();
+protected:
+    void timerEvent(QTimerEvent *);
 };
 
 #endif // CEQUALIZERFORM_H

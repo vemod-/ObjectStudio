@@ -79,7 +79,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QDial" name="dial">
+    <widget class="QSynthKnob" name="dial">
      <property name="maximumSize">
       <size>
        <width>50</width>
@@ -112,19 +112,29 @@
       <number>0</number>
      </property>
      <property name="leftMargin">
-      <number>4</number>
+      <number>0</number>
      </property>
      <property name="topMargin">
-      <number>4</number>
+      <number>0</number>
      </property>
      <property name="rightMargin">
-      <number>4</number>
+      <number>0</number>
      </property>
      <property name="bottomMargin">
-      <number>4</number>
+      <number>0</number>
      </property>
      <item>
-      <widget class="QSlider" name="VolSlider">
+      <widget class="CdBScale" name="dBScale">
+       <property name="frameShape">
+        <enum>QFrame::StyledPanel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Raised</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSynthSlider" name="VolSlider">
        <property name="minimum">
         <number>1</number>
        </property>
@@ -140,13 +150,7 @@
       </widget>
      </item>
      <item>
-      <widget class="CdBScale" name="dBScale">
-       <property name="maximumSize">
-        <size>
-         <width>24</width>
-         <height>16777215</height>
-        </size>
-       </property>
+      <widget class="CPeakControl" name="Peak">
        <property name="frameShape">
         <enum>QFrame::StyledPanel</enum>
        </property>
@@ -175,6 +179,22 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>QSynthSlider</class>
+   <extends>QSlider</extends>
+   <header>qsynthslider.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QSynthKnob</class>
+   <extends>QDial</extends>
+   <header>qsynthknob.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPeakControl</class>
+   <extends>QFrame</extends>
+   <header>cpeakcontrol.h</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>CdBScale</class>
    <extends>QFrame</extends>

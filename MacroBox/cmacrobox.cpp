@@ -20,20 +20,18 @@ void CMacroBox::Init(const int Index, void *MainWindow)
     IDevice::Init(Index,MainWindow);
     m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
     CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJack("Out Left",IJack::Wave,IJack::Out,0);
-    AddJack("Out Right",IJack::Wave,IJack::Out,1);
-    AddJack("MIDI Out",IJack::MIDI,IJack::Out,2);
+    AddJackDualMonoOut(0);
+    AddJackMIDIOut(2);
     AddJack("Amplitude Modulation Out",IJack::Amplitude,IJack::Out,3);
     AddJack("Pitch Modulation Out",IJack::Pitch,IJack::Out,4);
     AddJack("Frequency Out",IJack::Frequency,IJack::Out,5);
     AddJack("Trigger Out",IJack::Trigger,IJack::Out,6);
-    AddJack("In Left",IJack::Wave,IJack::In,6);
-    AddJack("In Right",IJack::Wave,IJack::In,7);
-    AddJack("MIDI In",IJack::MIDI,IJack::In,8);
-    AddJack("Amplitude Modulation In",IJack::Amplitude,IJack::In,9);
-    AddJack("Pitch Modulation In",IJack::Pitch,IJack::In, 10);
-    AddJack("Frequency In",IJack::Frequency,IJack::In,11);
-    AddJack("Trigger In",IJack::Trigger,IJack::In,12);
+    AddJackDualMonoIn();
+    AddJackMIDIIn();
+    AddJack("Amplitude Modulation In",IJack::Amplitude,IJack::In);
+    AddJack("Pitch Modulation In",IJack::Pitch,IJack::In);
+    AddJack("Frequency In",IJack::Frequency,IJack::In);
+    AddJack("Trigger In",IJack::Trigger,IJack::In);
     for (unsigned int i=0;i<m_Jacks.size();i++)
     {
         IJack* J=(IJack*)m_Jacks[i];

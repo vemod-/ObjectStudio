@@ -35,7 +35,9 @@ const QString IDevice::OpenFile(const QString& Filter)
     QFileDialog d((QWidget*)m_MainWindow);
     d.setFileMode(QFileDialog::ExistingFile);
     d.setNameFilter(Filter);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
     d.setDirectory(QStandardPaths::writableLocation(QStandardPaths::MusicLocation));
+#endif
     if (!m_FileName.isEmpty()) d.selectFile(m_FileName);
     if (d.exec()!=QDialog::Accepted) return QString();
     return d.selectedFiles().first();

@@ -8,15 +8,13 @@ TARGET = Envelope
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
+include(../../QCanvas/QCanvas.pri)
 
 DEFINES += ENVELOPE_LIBRARY
 
-INCLUDEPATH += ../WaveRecorder
+SOURCES += cadsrwidget.cpp
 
-SOURCES += cadsrwidget.cpp \
-    ../WaveRecorder/qcanvas.cpp
-HEADERS += cadsrwidget.h \
-    ../WaveRecorder/qcanvas.h
+HEADERS += cadsrwidget.h
 
 SOURCES += cenvelope.cpp \
     cadsr.cpp \

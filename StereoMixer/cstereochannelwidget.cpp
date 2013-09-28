@@ -12,9 +12,10 @@ CStereoChannelWidget::CStereoChannelWidget(QWidget *parent) :
     ui->label_3->setEffect(EffectLabel::Raised);
     ui->label_3->setShadowColor(Qt::white);
     ui->Name->setEffect(EffectLabel::Raised);
-    ui->Name->setShadowColor(Qt::darkGray);
-    ui->VolLabel->setEffect(EffectLabel::Raised);
-    ui->VolLabel->setShadowColor(Qt::darkGray);
+    ui->Name->setShadowColor(Qt::white);
+    //ui->VolLabel->setEffect(EffectLabel::Raised);
+    //ui->VolLabel->setShadowColor(Qt::darkGray);
+    ui->Pan->setKnobStyle(QSynthKnob::SimpleStyle);
     connect(ui->verticalSlider,SIGNAL(valueChanged(int)),this,SLOT(setVolume(int)));
     connect(ui->Pan,SIGNAL(valueChanged(int)),this,SLOT(setPan(int)));
     connect(ui->Bypass,SIGNAL(toggled(bool)),this,SLOT(setBypass(bool)));
@@ -32,11 +33,13 @@ void CStereoChannelWidget::Init(CStereoMixerChannel *ch, const QString &Name)
 {
     ui->Name->setText(Name);
     m_Ch=ch;
+    QVBoxLayout* lo=(QVBoxLayout*)ui->EffectLayout->layout();
     for (int i=Effect.count();i<ch->sendCount;i++)
     {
-        QDial* d=new QDial(this);
+        QSynthKnob* d=new QSynthKnob(this);
         Effect.append(d);
-        d->setMaximumSize(36,36);
+        d->setMaximumSize(28,28);
+        d->setKnobStyle(QSynthKnob::SimpleStyle);
         d->setMaximum(100);
         d->setValue(100);
         d->setNotchesVisible(true);
@@ -45,16 +48,28 @@ void CStereoChannelWidget::Init(CStereoMixerChannel *ch, const QString &Name)
         l->setShadowColor(Qt::white);
         l->setMaximumHeight(13);
         QFont f=l->font();
-        f.setPointSize(9);
+        f.setPointSize(8);
         l->setFont(f);
-        l->setText("Effect "+QString::number(i+1));
+        l->setText("AUX "+QString::number(i+1));
         l->setStyleSheet("background:transparent;");
-        ui->EffectLayout->addWidget(d,0,Qt::AlignHCenter);
-        ui->EffectLayout->addWidget(l,0,Qt::AlignHCenter);
-        connect(d,SIGNAL(sliderReleased()),mapper,SLOT(map()));
+        QHBoxLayout* hlo=new QHBoxLayout();
+        hlo->setMargin(0);
+        hlo->setSpacing(0);
+        lo->addLayout(hlo);
+        if (i & 1)
+        {
+            hlo->addWidget(d,0,Qt::AlignHCenter);
+            hlo->addWidget(l,0,Qt::AlignHCenter);
+        }
+        else
+        {
+            hlo->addWidget(l,0,Qt::AlignHCenter);
+            hlo->addWidget(d,0,Qt::AlignHCenter);
+        }
+        connect(d,SIGNAL(valueChanged(int)),mapper,SLOT(map()));
         mapper->setMapping(d,i);
     }
-    this->setMinimumHeight(424+(50*ch->sendCount));
+    this->setMinimumHeight(424+(42*ch->sendCount));
     ui->verticalSlider->setValue(100);
     ui->Pan->setValue(100);
     ui->Mute->setChecked(false);
@@ -147,4 +162,11 @@ void CStereoChannelWidget::Load(const QString& XML)
     //ui->SF2->setText(QFileInfo(m_SF2->FileName()).completeBaseName());
     for (int i=0;i<Effect.count();i++) Effect[i]->setValue(Channel.attributeValue("Effect"+QString::number(i+1),100));
     checkPeak();
+}
+
+void CStereoChannelWidget::showEvent(QShowEvent *)
+{
+    ui->frame->setMargin(ui->verticalSlider->grooveMargin());
+    ui->PeakLeft->setMargin(ui->verticalSlider->grooveMargin());
+    ui->PeakRight->setMargin(ui->verticalSlider->grooveMargin());
 }

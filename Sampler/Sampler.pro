@@ -8,17 +8,16 @@ TARGET = Sampler
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
+include(../../QCanvas/QCanvas.pri)
 
 LIBS += -lWaveGenerator
 LIBS += -L../ -lWaveBank
 
-INCLUDEPATH += ../wavegenerator
-INCLUDEPATH += ../wavebank
+INCLUDEPATH += ../WaveGenerator
+INCLUDEPATH += ../WaveBank
+INCLUDEPATH += ../Envelope
+INCLUDEPATH += ../PitchTracker
 INCLUDEPATH += ../WaveRecorder
-
-INCLUDEPATH += ../envelope
-INCLUDEPATH += ../WaveRecorder
-INCLUDEPATH += ../pitchtracker
 
 SOURCES += csamplerform.cpp \
     cwavelayers.cpp \
@@ -35,7 +34,6 @@ SOURCES += csamplerform.cpp \
     csamplergenerator.cpp \
     csamplerdevice.cpp \
     ckeylayerscontrol.cpp \
-    ../WaveRecorder/qcanvas.cpp \
     cmidinoteedit.cpp
 HEADERS += csamplerform.h \
     cwavelayers.h \
@@ -52,7 +50,6 @@ HEADERS += csamplerform.h \
     csamplergenerator.h \
     csamplerdevice.h \
     ckeylayerscontrol.h \
-    ../WaveRecorder/qcanvas.h \
     cmidinoteedit.h
 
 DEFINES += SAMPLER_LIBRARY

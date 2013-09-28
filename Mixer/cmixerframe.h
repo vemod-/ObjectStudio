@@ -34,6 +34,8 @@ private slots:
     void MuteButtonClicked(bool Value);
     void SoloButtonClicked(bool Value);
     void BypassButtonClicked(bool Value);
+protected:
+    void showEvent(QShowEvent *);
 };
 
 #endif // CMIXERFRAME_H

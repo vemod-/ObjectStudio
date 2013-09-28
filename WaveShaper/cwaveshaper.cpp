@@ -47,10 +47,10 @@ float CWaveShaper::clip(float x, float a, float b) {
 void CWaveShaper::Init(const int Index, void *MainWindow) {
     m_Name="WaveShaper";
     IDevice::Init(Index,MainWindow);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddParameter(ParameterType::Numeric,"Gain","%",0,200,0,"",100);
-    AddParameter(ParameterType::Numeric,"Amount","%",1,100,0,"",1);
+    AddJackWaveIn();
+    AddJackWaveOut(jnOut);
+    AddParameterVolume("Gain");
+    AddParameterPercent("Amount",1);
     AddParameter(ParameterType::SelectBox,"Type","",0,4,0,"Hard§Softer§Sinus§Gloubi-boulga§Clipping",0);
     CalcParams();
 }

@@ -3,10 +3,10 @@
 
 #include <QGraphicsView>
 #include <QMouseEvent>
-#include <QMenu>
 #include "softsynthsclasses.h"
 #include "cdevicelist.h"
 #include "qiphotorubberband.h"
+#include <qsignalmenu.h>
 
 class JackRect : public QRect
 {
@@ -132,8 +132,7 @@ private:
     CJackBar JackBar1;
     CJackBar JackBar2;
 
-    QMenu* PluginsPopup;
-    QSignalMapper* pluginmapper;
+    QSignalMenu* PluginsPopup;
 
     void DisconnectJackBar(CJackBar& JackBar);
     const int DeviceIndex(const QPoint& Pos);
@@ -144,7 +143,6 @@ private:
     QList<QGraphicsItem*> DrawArrow(const QPoint& OutPoint, const QPoint& InPoint, QColor Color);
     void DrawConnections();
     QList<QGraphicsItem*> DrawDeviceConnections(CDeviceComponent& Device,QList<CJackContainer*>& paintedContainers);
-    const bool XMLCompare(QDomLiteElement* xml1,QDomLiteElement* xml2);
     void ShowParameters(IDevice* Device);
     void LoadParameters(QDomLiteElement* Device,IDevice* D);
     Qt::CursorShape CanConnect(IJack* J1,IJack* J2);
@@ -165,25 +163,21 @@ private:
     QPoint StartPoint;
     QPoint MousePos;
     QRect CopyRect;
-    QMenu* JackPopup;
+    QSignalMenu* JackPopup;
     QString MenuJackID;
-    QSignalMapper* mapper;
     QString FileName;
     QMenu* ParametersMenu;
-    QMenu* ParameterPresetsMenu;
-    QSignalMapper* ParameterPresetsMapper;
+    QSignalMenu* ParameterPresetsMenu;
     QMenu* DesktopMenu;
     QMenu* DeviceMenu;
     QMenu* MarkMenu;
-    QMenu* RecentMenu;
-    QMenu* RecentPopup;
+    QSignalMenu* RecentMenu;
+    QSignalMenu* RecentPopup;
     QAction* actionPaste;
     QAction* actionPasteParameters;
 
-    QSignalMapper* RecentMapper;
-    QSignalMapper* RecentPopupMapper;
     void AddRecentFile(const QString& Path);
-    void CreateRecentMenu(QMenu* m, QSignalMapper* sm);
+    void CreateRecentMenu(QSignalMenu* m);
 private slots:
     void ToggleConnection(QString JackID);
     void PluginMenuClicked(QString ClassName);

@@ -1,5 +1,6 @@
 #include "cpeakcontrol.h"
 #include "ui_cpeakcontrol.h"
+#include <QDebug>
 
 CPeakControl::CPeakControl(QWidget *parent) :
     QCanvas(parent,1),
@@ -8,6 +9,8 @@ CPeakControl::CPeakControl(QWidget *parent) :
     ui->setupUi(this);
     m_Value=0;
     m_OldValue=0;
+    m_Margin=Border;
+    m_HalfMargin=HalfBorder;
 }
 
 void CPeakControl::Reset()
@@ -25,7 +28,7 @@ void CPeakControl::Reset()
     Rectangle(rect());
     SetPen(Qt::darkGray);
     SetBrush(QBrush(Qt::NoBrush));
-    Rectangle(HalfBorder,HalfBorder,width()-Border-1,height()-Border-1);
+    Rectangle(HalfBorder,m_Margin-HalfBorder,width()-Border-1,height()-m_Margin-m_Margin+Border);
     CanvasLayers[0]->ClearTransparent();
     update();
 }
@@ -77,8 +80,8 @@ const int CPeakControl::val2y(const float val, const float height)
 
 const QLinearGradient CPeakControl::y2col(const int y, const int height)
 {
-    if (height-y<((height*2)/3)) return lgGreen;
-    if (height-y<((height*3)/4)) return lgYellow;
+    if (height-y<((height*2.0)/3.0)) return lgGreen;
+    if (height-y<((height*3.0)/4.0)) return lgYellow;
     return lgRed;
 }
 
@@ -94,11 +97,11 @@ void CPeakControl::SetValue(const float Value)
     {
         if (m_Value>0) m_Value-=0.02;
     }
-    int HalfHeight=(height()/2)-Border;
-    int val=val2y(m_Value,HalfHeight)+HalfBorder;
-    if (val<HalfBorder) val=HalfBorder;
-    int oldval=val2y(m_OldValue,HalfHeight)+HalfBorder;
-    if (oldval<HalfBorder) oldval=HalfBorder;
+    int HalfHeight=(height()/2.0)-m_Margin;
+    int val=val2y(m_Value,HalfHeight)+m_HalfMargin;
+    if (val<m_HalfMargin) val=m_HalfMargin;
+    int oldval=val2y(m_OldValue,HalfHeight)+m_HalfMargin;
+    if (oldval<m_HalfMargin) oldval=m_HalfMargin;
     int Left=Border;
     int Right=width()-Border;
     int Width=Right-Left;
@@ -108,7 +111,7 @@ void CPeakControl::SetValue(const float Value)
     {
         for (int i=oldval;i>=val;i--)
         {
-            L->SetBrush(y2col(i-HalfBorder,HalfHeight));
+            L->SetBrush(y2col(i-m_HalfMargin,HalfHeight));
             L->Rectangle(Left,i*2,Width,1);
         }
         UpdateRect.setRect(Left,val*2,Width,((oldval-val)*2)+1);
@@ -120,9 +123,9 @@ void CPeakControl::SetValue(const float Value)
     }
     if (m_Max>0)
     {
-        val=val2y(m_Max,HalfHeight)+HalfBorder;
-        if (val<HalfBorder) val=HalfBorder;
-        L->SetBrush(y2col(val-HalfBorder,HalfHeight));
+        val=val2y(m_Max,HalfHeight)+m_HalfMargin;
+        if (val<m_HalfMargin) val=m_HalfMargin;
+        L->SetBrush(y2col(val-m_HalfMargin,HalfHeight));
         L->Rectangle(Left,val*2,Width,1);
     }
     m_OldValue=m_Value;
@@ -133,4 +136,15 @@ void CPeakControl::resizeEvent(QResizeEvent *event)
 {
     QCanvas::resizeEvent(event);
     SetSize();
+}
+
+void CPeakControl::setMargin(int margin)
+{
+    int hm=margin*0.5;
+    if (hm != m_HalfMargin)
+    {
+        m_HalfMargin=hm;
+        m_Margin=hm*2;
+        SetSize();
+    }
 }

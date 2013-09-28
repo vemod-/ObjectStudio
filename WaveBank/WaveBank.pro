@@ -16,7 +16,7 @@ TEMPLATE = lib
 
 LIBS += -L../ -lSoftSynthsClasses
 INCLUDEPATH += ../SoftSynthsClasses
-INCLUDEPATH += ../../ObjectComposerXML
+INCLUDEPATH += ../../QDomLite
 
 DESTDIR = ../
 

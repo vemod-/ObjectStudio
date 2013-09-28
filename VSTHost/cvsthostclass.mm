@@ -1,71 +1,103 @@
 #include "cvsthostclass.h"
-#include "cvsthostform.h"
-#include <dlfcn.h>
+#import <Cocoa/Cocoa.h>
 #include <QFileDialog>
+#include "singlevstpluginlist.h"
+#include "macstrings.h"
+#include <QApplication>
 
-//QList<AEffect*> Plugs;
-//void* HostDialog=NULL;
-
-void* loadDynamicLibrary (const QString& name)
-{
-    return dlopen ((const char*) name.toUtf8().constData(), RTLD_LOCAL | RTLD_NOW);
-}
-
-void freeDynamicLibrary (void* handle)
-{
-    dlclose(handle);
-}
-
-void* getProcedureEntryPoint (void* libraryHandle, const QString& procedureName)
-{
-    return dlsym (libraryHandle, (const char*) procedureName.toUtf8().constData());
-}
-
-TVSTHost::TVSTHost(void *MainWindow,IDevice* Device)
+TVSTHost::TVSTHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent)
+    : IAudioPlugInHost(sampleRate,bufferSize,parent)
 {
     ptrPlug=NULL;
-    ptrInputBuffers=NULL;
-    ptrOutputBuffers=NULL;
-    ptrEvents=NULL;
-    ptrEventBuffer=NULL;
-    MIDIChannel=0;
-    m_MainWindow=(QWidget*)MainWindow;
-    m_Device=Device;
+    InBuffers=NULL;
+    OutBuffers=NULL;
+    startTimer(0);
+    mMainMenu=new QMenu(this);
+    foreach (QString s,VSTCategories())
+    {
+        QSignalMenu* m=new QSignalMenu(s,this);
+        connect(m,SIGNAL(menuClicked(QString)),this,SLOT(LoadFromMenu(QString)));
+        mSubMenus.append(m);
+        mMainMenu->addMenu(m);
+        QStringList l=VSTFiles(s);
+        for (int j=0;j<l.count();j++)
+        {
+            m->addAction(QFileInfo(l[j]).baseName(),l[j]);
+        }
+    }
+}
+
+void TVSTHost::Popup(QPoint pos)
+{
+    foreach(QSignalMenu* m,mSubMenus) m->checkAction(m_Filename);
+    mMainMenu->popup(pos);
 }
 
 TVSTHost::~TVSTHost()
 {
-    if (ptrPlug)
-    {
-        KillPlug();
-        delete m_EditForm;
-    }
+    KillPlug();
     qDebug() << "Exit TVSTHost";
 }
 
-bool TVSTHost::Load(QString FN)
+const QStringList TVSTHost::VSTCategories()
 {
+    return SingleVSTPlugInList::getInstance()->keys();
+}
+
+const QStringList TVSTHost::VSTFiles(QString category)
+{
+    return SingleVSTPlugInList::getInstance()->value(category);
+}
+
+void TVSTHost::LoadFromMenu(QString Filename)
+{
+    Load(Filename);
+}
+
+QString getPlugString(AEffect* eff,AEffectOpcodes OpCode,const long index)
+{
+    char s[256];
+    ZeroMemory(s,256);
+    eff->dispatcher(eff,OpCode,index,0,s,0.0f);
+    return qt_mac_MacRomanToQString(s).trimmed();
+}
+
+const bool TVSTHost::Load(QString Filename)
+{
+    AEffect* TempPlug;
     //find and load the DLL and get a pointer to its main function
     //this has a protoype like this: AEffect *main (audioMasterCallback audioMaster)
-    if (FileName==FN) return true;
-    FileName.clear();
-    AEffect* TempPlug;
-    if (ptrPlug)
+    if (m_Filename==Filename) return true;
+
+    CFStringRef vstBundlePath =
+            CFStringCreateWithCString(kCFAllocatorDefault,
+                                      Filename.toUtf8().constData(), kCFStringEncodingMacRoman );
+    CFURLRef vstBundleURL =
+            CFURLCreateWithFileSystemPath(kCFAllocatorDefault,
+                                          vstBundlePath,
+                                          kCFURLPOSIXPathStyle,
+                                          true);
+    CFArrayRef archArrayRef = CFBundleCopyExecutableArchitecturesForURL(vstBundleURL);
+
+    if (archArrayRef)
     {
-        KillPlug();
-        delete m_EditForm;
+        BOOL isI386 = [(NSArray*)archArrayRef containsObject:[NSNumber numberWithInt:kCFBundleExecutableArchitectureI386]];
+        if (!isI386)
+        {
+            CFRelease(vstBundlePath);
+            CFRelease(vstBundleURL);
+            return false;
+        }
     }
 
-    nEvents=0;
+    CFBundleRef TempBundle = CFBundleCreate(kCFAllocatorDefault, vstBundleURL);
 
-    QString filepath=FN+"/Contents/MacOS/"+QFileInfo(FN).baseName();
-    qDebug() << filepath << QFileInfo(filepath).exists();
-    if (!QFileInfo(filepath).exists()) filepath=FN;
-    void* sdl_library = loadDynamicLibrary(filepath);
-    libhandle=sdl_library;
-    if(sdl_library == NULL)
+    CFRelease(vstBundlePath);
+    CFRelease(vstBundleURL);
+
+    if (TempBundle == NULL)
     {
-        qDebug() << "Not found!" << dlerror();
+        qDebug() << "Not found!";
         return false;
     }
     else
@@ -75,12 +107,9 @@ bool TVSTHost::Load(QString FN)
         //DLL was loaded OK
         AEffect* (VSTCALLBACK* getNewPlugInstance)(audioMasterCallback);
 
-        getNewPlugInstance = (AEffect* (VSTCALLBACK*)(audioMasterCallback)) getProcedureEntryPoint (sdl_library, "VSTPluginMain");
-
-        if (getNewPlugInstance == NULL)
-        {
-            getNewPlugInstance = (AEffect* (VSTCALLBACK*)(audioMasterCallback)) getProcedureEntryPoint (sdl_library, "main");
-        }
+        getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) CFBundleGetFunctionPointerForName(TempBundle, CFSTR("VSTPluginMain"));
+        if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) CFBundleGetFunctionPointerForName(TempBundle, CFSTR("main_macho"));
+        if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) CFBundleGetFunctionPointerForName(TempBundle, CFSTR("main"));
         if (getNewPlugInstance != NULL)
         {
             //main function located OK
@@ -91,7 +120,7 @@ bool TVSTHost::Load(QString FN)
             catch (...)
             {
                 qDebug() << "Load error";
-                dlclose(sdl_library);
+                CFRelease(TempBundle);
                 return false;
             }
 
@@ -107,54 +136,41 @@ bool TVSTHost::Load(QString FN)
                 else
                 {
                     qDebug() << "Not a VST plugin";
-                    dlclose(sdl_library);
+                    CFRelease(TempBundle);
                     return false;
                 }
             }
             else
             {
                 qDebug() << "Plugin could not be instantiated";
-                dlclose(sdl_library);
+                CFRelease(TempBundle);
                 return false;
             }
         }
         else
         {
             qDebug() << "Plugin main function could not be located";
-            dlclose(sdl_library);
+            CFRelease(TempBundle);
             return false;
         }
     }
-    //Plugs.append(TempPlug);
 
-    FileName=FN;
+    if (!(TempPlug->flags & effFlagsHasEditor)) return false;
+
+    KillPlug();
+
+    m_Filename=Filename;
+
+    TempPlug->user=this;
     //switch the plugin off (calls Suspend)
     TempPlug->dispatcher(TempPlug,effMainsChanged,0,0,NULL,0.0f);
 
-    //Must have handle of new window!
-    m_EditForm=new CVSTHostForm(m_Device,m_MainWindow);
-
-    char strEffName[32];
-    if (TempPlug->dispatcher(TempPlug,effGetEffectName,0,0,strEffName,0.0f))
-    {
-        //m_EditForm->Caption=strEffName;
-    }
-    else
-    {
-        // m_EditForm->Caption=ExtractFileName(FN);
-    }
-
-
-    ((CVSTHostForm*)m_EditForm)->Init(TempPlug,this);
-    //m_EditForm->show();
-
-    ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Plug-In Loaded, OK");
+    qDebug() << ("Plug-In Loaded, OK");
     //set sample rate and block size
-    TempPlug->dispatcher(TempPlug,effSetSampleRate,0,0,NULL,CPresets::Presets.SampleRate);
-    TempPlug->dispatcher(TempPlug,effSetBlockSize,0,CPresets::Presets.ModulationRate,NULL,0.0f);
+    TempPlug->dispatcher(TempPlug,effSetSampleRate,0,0,NULL,m_Samplerate);
+    TempPlug->dispatcher(TempPlug,effSetBlockSize,0,m_Buffersize,NULL,0.0f);
 
-    if ((TempPlug->dispatcher(TempPlug,effGetVstVersion,0,0,NULL,0.0f)==2) &&
-            (TempPlug->flags & effFlagsIsSynth))
+    if (TempPlug->dispatcher(TempPlug,effGetVstVersion,0,0,NULL,0.0f)>=2)
     {
         //get I/O configuration for synth plugins - they will declare their
         //own output and input channels
@@ -167,11 +183,11 @@ bool TVSTHost::Load(QString FN)
 
                 if (TempPlug->dispatcher(TempPlug,effGetInputProperties,i,0,&temp,0.0f)==1)
                 {
-                    ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Input pin " + QString::number(i+1) + " label " + QString(temp.label));
+                    qDebug() << ("Input pin " + QString::number(i+1) + " label " + QString(temp.label));
 
                     if (temp.flags & kVstPinIsActive)
                     {
-                        ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Input pin " + QString::number(i+1) + " is active");
+                        qDebug() << ("Input pin " + QString::number(i+1) + " is active");
                     }
 
                     if (temp.flags & kVstPinIsStereo)
@@ -179,11 +195,11 @@ bool TVSTHost::Load(QString FN)
                         // is index even or zero?
                         if (i%2==0 || i==0)
                         {
-                            ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Input pin " + QString::number(i+1) + " is left channel of a stereo pair");
+                            qDebug() << ("Input pin " + QString::number(i+1) + " is left channel of a stereo pair");
                         }
                         else
                         {
-                            ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Input pin " + QString::number(i+1) + " is right channel of a stereo pair");
+                            qDebug() << ("Input pin " + QString::number(i+1) + " is right channel of a stereo pair");
                         }
                     }
                 }
@@ -193,17 +209,17 @@ bool TVSTHost::Load(QString FN)
                 //output pin
                 VstPinProperties temp;
 
-                if (TempPlug->dispatcher(TempPlug,effGetOutputProperties,i,0,&temp,0.0f)==1)
+                if (TempPlug->dispatcher(TempPlug,effGetOutputProperties,i-TempPlug->numInputs,0,&temp,0.0f)==1)
                 {
-                    ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output pin " + QString::number(i-TempPlug->numInputs+1) + " label " + QString(temp.label));
+                    qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " label " + QString(temp.label));
 
                     if (temp.flags & kVstPinIsActive)
                     {
-                        ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is active");
+                        qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is active");
                     }
                     else
                     {
-                        ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is inactive");
+                        qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is inactive");
                     }
 
                     if (temp.flags & kVstPinIsStereo)
@@ -211,16 +227,16 @@ bool TVSTHost::Load(QString FN)
                         // is index even or zero?
                         if ((i-TempPlug->numInputs)%2==0 || (i-TempPlug->numInputs)==0)
                         {
-                            ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output pin " + QString::number(i+1) + " is left channel of a stereo pair");
+                            qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is left channel of a stereo pair");
                         }
                         else
                         {
-                            ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output pin " + QString::number(i+1) + " is right channel of a stereo pair");
+                            qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is right channel of a stereo pair");
                         }
                     }
                     else
                     {
-                        ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output pin " + QString::number(i+1) + " is mono");
+                        qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is mono");
                     }
                 }
             }
@@ -234,38 +250,71 @@ bool TVSTHost::Load(QString FN)
     if (TempPlug->numInputs)
     {
         //Plug requires independent input signals
-        ptrInputBuffers=new float*[TempPlug->numInputs];
+        InBuffers=new float*[TempPlug->numInputs];
 
         //create the input buffers
         for (int i=0;i<TempPlug->numInputs;i++)
         {
-            ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Input buffer " + QString::number(i+1) + " created");
-            ptrInputBuffers[i]=new float[CPresets::Presets.ModulationRate];
-            ZeroMemory(ptrInputBuffers[i],CPresets::Presets.ModulationRate*sizeof(float));
+            qDebug() << ("Input buffer " + QString::number(i+1) + " created");
+            InBuffers[i]=new float[m_Buffersize];
+            ZeroMemory(InBuffers[i],m_Buffersize*sizeof(float));
         }
     }
 
     if (TempPlug->numOutputs)
     {
-        ptrOutputBuffers=new float*[TempPlug->numOutputs];
+        OutBuffers=new float*[TempPlug->numOutputs];
 
         //create the output buffers
         for (int i=0;i<TempPlug->numOutputs;i++)
         {
-            ((CVSTHostForm*)m_EditForm)->AddStatusInfo("Output buffer " + QString::number(i+1) + " created");
-            ptrOutputBuffers[i]=new float[CPresets::Presets.ModulationRate];
-            ZeroMemory(ptrOutputBuffers[i],CPresets::Presets.ModulationRate*sizeof(float));
+            qDebug() << ("Output buffer " + QString::number(i+1) + " created");
+            OutBuffers[i]=new float[m_Buffersize];
+            ZeroMemory(OutBuffers[i],m_Buffersize*sizeof(float));
         }
     }
 
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    Init();
+    [pool drain];
+
+    TempPlug->dispatcher(TempPlug,effEditOpen,0,0,WindowReference(),0.0f);
+
     ptrPlug=TempPlug;
+    vstBundle=TempBundle;
+
+    setFixedSize(GetEffRect().size());
+
+    LoadProgramNames();
+
+    SetProgram(0);
+
+    emit PlugInChanged();
+
     return true;
+}
+
+void TVSTHost::LoadProgramNames()
+{
+    m_ProgramNames.clear();
+    if (ptrPlug)
+    {
+        QString s;
+        for (long i=0;i<ptrPlug->numPrograms;i++)
+        {
+            SetProgram(i);
+            QString pn=getPlugString(ptrPlug,effGetProgramName,i);
+            if (s==pn) break;
+            s=pn;
+            m_ProgramNames.append(s);
+        }
+    }
 }
 
 //host callback function
 //this is called directly by the plug-in!!
 //
-VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr /*value*/, void* ptr, float opt)
+VstIntPtr VSTCALLBACK TVSTHost::host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr /*value*/, void* ptr, float opt)
 {
     char S[1024];
     char** FileStrings=NULL;
@@ -275,7 +324,7 @@ VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, Vst
     VstFileSelect* FS=(VstFileSelect*)ptr;
     //QFileDialog OD;
     QStringList FileNames;
-    QString FN;
+    QString Filename;
     QString Filter;
     VstFileType* FT;
 
@@ -684,6 +733,7 @@ VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, Vst
                 strcmp((char*)ptr,"sendVstTimeInfo")==0 ||
                 strcmp((char*)ptr,"asyncProcessing")==0 ||
                 strcmp((char*)ptr,"offline")==0 ||
+                strcmp((char*)ptr,"sizeWindow")==0 ||
                 strcmp((char*)ptr,"supplyIdle")==0)
         {
             retval=1;
@@ -782,13 +832,13 @@ VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, Vst
                                      QString(FT[i].dosType) + ")|*." +
                                      QString(FT[i].dosType) + "|");
                 }
-                FN=QFileDialog::getOpenFileName(0,FS->title,FS->initialPath,Filter);
-                if (!FN.isEmpty())
+                Filename=QFileDialog::getOpenFileName(0,FS->title,FS->initialPath,Filter);
+                if (!Filename.isEmpty())
                 {
                     ZeroMemory(S,1024);
-                    strcpy(S,FN.toUtf8().constData());
+                    strcpy(S,Filename.toUtf8().constData());
                     FS->returnPath=S;
-                    FS->sizeReturnPath=FN.length();
+                    FS->sizeReturnPath=Filename.length();
                 }
                 break;
             case kVstFileSave:
@@ -799,13 +849,13 @@ VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, Vst
                                      QString(FT[i].dosType) + ")|*." +
                                      QString(FT[i].dosType) + "|");
                 }
-                FN=QFileDialog::getSaveFileName(0,FS->title,FS->initialPath,Filter);
-                if (!FN.isEmpty())
+                Filename=QFileDialog::getSaveFileName(0,FS->title,FS->initialPath,Filter);
+                if (!Filename.isEmpty())
                 {
                     ZeroMemory(S,1024);
-                    strcpy(S,FN.toUtf8().constData());
+                    strcpy(S,Filename.toUtf8().constData());
                     FS->returnPath=S;
-                    FS->sizeReturnPath=FN.length();
+                    FS->sizeReturnPath=Filename.length();
                 }
                 break;
             case kVstMultipleFilesLoad:
@@ -831,13 +881,13 @@ VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, Vst
                 }
                 break;
             case kVstDirectorySelect:
-                FN=QFileDialog::getExistingDirectory(0,FS->title,FS->initialPath);
-                if (!FN.isEmpty())
+                Filename=QFileDialog::getExistingDirectory(0,FS->title,FS->initialPath);
+                if (!Filename.isEmpty())
                 {
                     ZeroMemory(S,1024);
-                    strcpy(S,FN.toUtf8().constData());
+                    strcpy(S,Filename.toUtf8().constData());
                     FS->returnPath=S;
-                    FS->sizeReturnPath=FN.length();
+                    FS->sizeReturnPath=Filename.length();
                 }
                 break;
 
@@ -919,42 +969,52 @@ VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, Vst
     }
 
     return retval;
-};
+}
 
-
-int TVSTHost::NumPrograms()
+const int TVSTHost::ParameterCount()
 {
-    if (ptrPlug)
-    {
-        return ptrPlug->numPrograms;
-    }
+    if (ptrPlug) return ptrPlug->numParams;
     return 0;
 }
 
-int TVSTHost::NumParams()
+const float TVSTHost::GetParameter(const long index)
 {
-    if (ptrPlug)
-    {
-        return ptrPlug->numParams;
-    }
+    if (ptrPlug) return ptrPlug->getParameter(ptrPlug,index);
     return 0;
 }
 
-int TVSTHost::NumInputs()
+void TVSTHost::SetParameter(const long index, const float value)
+{
+    if (ptrPlug) ptrPlug->setParameter(ptrPlug,index,value);
+}
+
+const QString TVSTHost::ParameterName(const long index)
 {
     if (ptrPlug)
     {
-        return ptrPlug->numInputs;
+        return getPlugString(ptrPlug,effGetParamName,index).trimmed();
     }
+    return QString();
+}
+
+const QString TVSTHost::ParameterValue(const long index)
+{
+    if (ptrPlug)
+    {
+        return getPlugString(ptrPlug,effGetParamDisplay,index).trimmed();
+    }
+    return QString();
+}
+
+const int TVSTHost::NumInputs()
+{
+    if (ptrPlug) return ptrPlug->numInputs;
     return 0;
 }
 
-int TVSTHost::NumOutputs()
+const int TVSTHost::NumOutputs()
 {
-    if (ptrPlug)
-    {
-        return ptrPlug->numOutputs;
-    }
+    if (ptrPlug) return ptrPlug->numOutputs;
     return 0;
 }
 
@@ -964,74 +1024,87 @@ float TVSTHost::VSTVersion()
     return ptrPlug->dispatcher(ptrPlug,effGetVstVersion,0,0,NULL,0.0f);
 }
 
-bool TVSTHost::IsSynth()
+const bool TVSTHost::Process()
 {
-    //if ((ptrPlug->dispatcher(ptrPlug,effGetVstVersion,0,0,NULL,0.0f)==2) && (ptrPlug->flags & effFlagsIsSynth))
-    //{
-    return true;
-    //}
-    //return false;
-}
+    if (!ptrPlug) return false;
+    ptrPlug->dispatcher(ptrPlug,effStartProcess,0,0,NULL,0.0f);
+    // Called before the start of process call
 
-void TVSTHost::Process()
-{
-    if (ptrPlug)
-    {
-        ptrPlug->dispatcher(ptrPlug,effStartProcess,0,0,NULL,0.0f);
-        // Called before the start of process call
+    //ProcessEvents
+    if (ptrPlug && vstMidiEvents.count()) {
+          vstEventsBuffer.resize(sizeof(VstEvents) +
+                                 (sizeof(VstEvent *) * vstMidiEvents.count()));
+          VstEvents *vstEvents = (VstEvents *) &vstEventsBuffer.front();
 
-        //ProcessEvents
-        if (nEvents)
-        {
-            //Some plugs can receive but doesn't return non zero on receiveVstEvents, so send anyway
-            //if ((ptrPlug->dispatcher(ptrPlug,effGetVstVersion,0,0,NULL,0.0f)==2) &&
-            //   ((ptrPlug->flags & effFlagsIsSynth) ||
-            //	(ptrPlug->dispatcher(ptrPlug,effCanDo,0,0,"receiveVstEvents",0.0f)>0)))
-            //{
-            if (ptrPlug->dispatcher(ptrPlug,effProcessEvents,0,0,(VstEvents*)ptrEventBuffer,0.0f)==1)
-            {
-                //Debug("plug processed events OK and wants more");
-            }
-            //else
-            //{
-            //Debug("plug does not want any more events");
-            //}
-            //}
+          vstEvents->numEvents = vstMidiEvents.count();
+          vstEvents->reserved = 0;
+          for (size_t i = 0, n = vstEvents->numEvents; i < n; i++)
+          {
+            vstEvents->events[i] = (VstEvent *) &vstMidiEvents[i];
+          }
+          ptrPlug->dispatcher(ptrPlug,effProcessEvents,0,0,vstEvents,0.0f);
         }
 
-        //Some plugs don't replace even if processReplacing is called so we must flush buffers
-        //Some people don't do that for you !!!
-        /*
+    //Some plugs don't replace even if processReplacing is called so we must flush buffers
+    //Some people don't do that for you !!!
+    /*
                 for (int i=0;i<ptrPlug->numOutputs;i++)
                 {
                         ZeroMemory(ptrOutputBuffers[i],ModRate*sizeof(float));
                 }
                 */
-        //process (replacing)
-        //if (ptrPlug->flags & effFlagsCanReplacing)
-        //{
-        ptrPlug->processReplacing(ptrPlug,ptrInputBuffers,ptrOutputBuffers,CPresets::Presets.ModulationRate);
-        /* 2.4
+    //process (replacing)
+    //if (ptrPlug->flags & effFlagsCanReplacing)
+    //{
+    if (!ptrPlug) return false;
+    ptrPlug->processReplacing(ptrPlug,InBuffers,OutBuffers,m_Buffersize);
+    /* 2.4
                 }
                 else
                 {
                         ptrPlug->process(ptrPlug,ptrInputBuffers,ptrOutputBuffers,ModRate);
                 }
                 */
-        //((TfrmVSTHost*)m_EditForm)->EditIdle();
-        // Called after the stop of process call
-        ptrPlug->dispatcher(ptrPlug,effStopProcess,0,0,NULL,0.0f);
-    }
+    //((TfrmVSTHost*)m_EditForm)->EditIdle();
+    // Called after the stop of process call
+    if (!ptrPlug) return false;
+    ptrPlug->dispatcher(ptrPlug,effStopProcess,0,0,NULL,0.0f);
+    vstMidiEvents.clear();
+    return true;
 }
 
-void TVSTHost::DumpMIDI(CMIDIBuffer* MB)
+VstMidiEvent createEvent(BYTE Message, QByteArray &data)
 {
-    if (!ptrPlug)
+    VstMidiEvent e;
+    e.type=kVstMidiType;
+    e.byteSize=24L;
+    e.deltaFrames=0L;
+    e.flags=0L;
+    e.noteLength=0L;
+    e.noteOffset=0L;
+
+    e.midiData[0]=Message;	//status & channel
+    e.midiData[1]=data.at(0);	//MIDI byte #2
+    if (data.count() > 1)
     {
-        return;
+        e.midiData[2]=data.at(1);	//MIDI byte #3
     }
-    QList<VstMidiEvent*> Events;
-    VstMidiEvent* ptrWrite;
+    else
+    {
+        e.midiData[2]=0x00;
+    }
+    e.midiData[3]=0x00;	//MIDI byte #4 - blank
+
+    e.detune=0x00;
+    e.noteOffVelocity=0x00;
+    e.reserved1=0x00;
+    e.reserved2=0x00;
+    return e;
+}
+
+void TVSTHost::DumpMIDI(CMIDIBuffer* MB, bool PatchChange)
+{
+    if (!ptrPlug) return;
     short Message;
     QByteArray data;
     MB->StartRead();
@@ -1050,165 +1123,51 @@ void TVSTHost::DumpMIDI(CMIDIBuffer* MB)
             data.append(lTemp);
         }
         short Channel=Message & 0x0F;
-        if ((Message & 0xF0) == 0x90)
+        if (Message >= 0xF0)
         {
-            if (MIDIChannel==0 || MIDIChannel-1==Channel)
+        }
+        else if ((m_MIDIChannel==0) | (m_MIDIChannel==Channel+1))
+        {
+            if (data.count()==1)
             {
-                ptrWrite=new VstMidiEvent;
-                ptrWrite->type=kVstMidiType;
-                ptrWrite->byteSize=24L;
-                ptrWrite->deltaFrames=0L;
-                ptrWrite->flags=0L;
-                ptrWrite->noteLength=0L;
-                ptrWrite->noteOffset=0L;
-
-                ptrWrite->midiData[0]=(char)Message;	//status & channel
-                ptrWrite->midiData[1]=(char)data[0];	//MIDI byte #2
-                ptrWrite->midiData[2]=(char)data[1];	//MIDI byte #3
-                ptrWrite->midiData[3]=(char)0x00;	//MIDI byte #4 - blank
-
-                ptrWrite->detune=0x00;
-                ptrWrite->noteOffVelocity=0x00;
-                ptrWrite->reserved1=0x00;
-                ptrWrite->reserved2=0x00;
-                Events.append(ptrWrite);
-                /*
-                                        OutBuffer->Push(((TfrmMIDIChannelRouter*)FM)->RouteTo[Message-0x90]+0x90);
-                                        OutBuffer->Push(Data1);
-                                        float Vel=(float)Data2;
-                                        Vel=Vel*(float)(((TfrmMIDIChannelRouter*)FM)->VelScale[Message-0x90]);
-                                        Vel=Vel*0.01;
-                                        OutBuffer->Push(Vel);
-                                        */
+                if ((Message & 0xF0) == 0xC0)
+                {
+                    if (PatchChange) vstMidiEvents.append(createEvent(Message,data));
+                }
+                else
+                {
+                    vstMidiEvents.append(createEvent(Message,data));
+                }
+            }
+            if (data.count()==2)
+            {
+                if (((Message & 0xF0) == 0xB0) & ((data.at(0)==0) | (data.at(0)==0x20)))
+                {
+                    if (PatchChange) vstMidiEvents.append(createEvent(Message,data));
+                }
+                else
+                {
+                    vstMidiEvents.append(createEvent(Message,data));
+                }
             }
         }
-        else if ((Message & 0xF0)==0x80)
-        {
-            if (MIDIChannel==0 || MIDIChannel-1==Channel)
-            {
-                ptrWrite=new VstMidiEvent;
-                ptrWrite->type=kVstMidiType;
-                ptrWrite->byteSize=24L;
-                ptrWrite->deltaFrames=0L;
-                ptrWrite->flags=0L;
-                ptrWrite->noteLength=0L;
-                ptrWrite->noteOffset=0L;
-
-                ptrWrite->midiData[0]=(char)Message;	//status & channel
-                ptrWrite->midiData[1]=(char)data[0];	//MIDI byte #2
-                ptrWrite->midiData[2]=(char)data[1];	//MIDI byte #3
-                ptrWrite->midiData[3]=(char)0x00;	//MIDI byte #4 - blank
-
-                ptrWrite->detune=0x00;
-                ptrWrite->noteOffVelocity=0x00;
-                ptrWrite->reserved1=0x00;
-                ptrWrite->reserved2=0x00;
-                Events.append(ptrWrite);
-                /*
-                                        OutBuffer->Push(((TfrmMIDIChannelRouter*)FM)->RouteTo[Message-0x80]+0x80);
-                                        OutBuffer->Push(Data1);
-                                        float Vel=(float)Data2;
-                                        Vel=Vel*(float)(((TfrmMIDIChannelRouter*)FM)->VelScale[Message-0x80]);
-                                        Vel=Vel*0.01;
-                                        OutBuffer->Push(Vel);
-                                        */
-            }
-        }
-    }
-
-    //create a block of appropriate size
-    nEvents=Events.count();
-    int pointersize=sizeof(VstEvent*);
-    int bufferSize=sizeof(VstEvents)-(pointersize*2);
-    bufferSize+=pointersize*(nEvents);
-    //create the buffer
-    ptrEventBuffer=new char[bufferSize+1];
-
-    //now, create some memory for the events themselves
-    VstMidiEvent* ptrEvents=new VstMidiEvent[nEvents];
-    ptrWrite=ptrEvents;
-    for (int i=0;i<nEvents;i++)
-    {
-        *ptrWrite=*(Events[i]);
-        ptrWrite++;
-    }
-    //copy the addresses of our events into the eventlist structure
-    VstEvents* ev=(VstEvents*)ptrEventBuffer;
-    for (int i=0;i<nEvents;i++)
-    {
-        ev->events[i]=(VstEvent*)(ptrEvents+i);
-    }
-
-    //do the block header
-    ev->numEvents=nEvents;
-    ev->reserved=0L;
-    qDeleteAll(Events);
-    /*
-        for (int i=nEvents-1;i>-1;i--)
-        {
-                ptrWrite=Events[i];
-                Events.removeOne(ptrWrite);
-                delete ptrWrite;
-        }
-        */
-
-}
-
-void TVSTHost::DumpAudio(int Index,float* Buffer,int Samples)
-{
-    if (ptrPlug)
-    {
-        if (Index < ptrPlug->numInputs )
-        {
-            if (Buffer)
-            {
-                //We don't have to do this for synths, obviously
-                CopyMemory(ptrInputBuffers[Index],Buffer,Samples*sizeof(float));
-            }
-            else
-            {
-                ZeroMemory(ptrInputBuffers[Index],Samples*sizeof(float));
-                return;
-            }
-
-        }
-    }
-}
-
-void TVSTHost::GetAudio(int Index, float* Buffer, int Samples,float Volume)
-{
-    if (ptrPlug)
-    {
-        if (Index < ptrPlug->numOutputs)
-        {
-            for (int j=0;j<Samples;j++)
-            {
-                Buffer[j]= ptrOutputBuffers[Index][j]*Volume;
-            }
-        }
-    }
-    else
-    {
-        ZeroMemory(Buffer,Samples*sizeof(float));
     }
 }
 
 void TVSTHost::KillPlug()
 {
-    if (!ptrPlug){return;}
+    if (!ptrPlug) return;
+
     AEffect* TempPlug=ptrPlug;
-    ptrPlug=NULL;
-    //Plugs.removeOne(TempPlug);
+    CFBundleRef TempBundle=(CFBundleRef)vstBundle;
+
     if (TempPlug->flags & effFlagsHasEditor)
     {
         TempPlug->dispatcher(TempPlug,effEditClose,0,0,NULL,0.0f);
     }
     qDebug() << 1;
-    //m_EditForm->Hide();
-    m_Device->Execute(false);
-    m_Device->Load(QString());
-    ((CVSTHostForm*)m_EditForm)->StopTimer();
-    //m_EditForm->deleteLater();
+    DestroyMacWindow();
+
     qDebug() << 2;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -1217,38 +1176,17 @@ void TVSTHost::KillPlug()
 
     ////////////////////////////////////////////////////////////////////////////
 
-    //delete the MIDI data
-    if (ptrEventBuffer!=NULL)
-    {
-        delete[] ptrEventBuffer;
-    }
-
-    if (ptrEvents!=NULL)
-    {
-        delete[] ptrEvents;
-    }
     qDebug() << 3;
 
     //delete the input buffers
     if (TempPlug->numInputs>0)
     {
-        //if (!(TempPlug->flags & effFlagsCanMono))
-        //{
-        //independent buffers have been assigned, delete them
         for (int i=0;i<TempPlug->numInputs;i++)
         {
-            delete[] ptrInputBuffers[i];
+            delete[] InBuffers[i];
         }
-        /* 2.4
-                }
-                else
-                {
-                        //there's only one buffer, delete it
-                        delete[] ptrInputBuffers[0];
-                }
-*/
         //remove the pointers to the buffers
-        delete[] ptrInputBuffers;
+        delete[] InBuffers;
     }
 
     qDebug() << 4;
@@ -1258,28 +1196,32 @@ void TVSTHost::KillPlug()
     {
         for (int i=0;i<TempPlug->numOutputs;i++)
         {
-            delete[] ptrOutputBuffers[i];
+            delete[] OutBuffers[i];
         }
 
         //remove the pointers to the buffers
-        delete[] ptrOutputBuffers;
+        delete[] OutBuffers;
     }
 
     qDebug() << 5;
 
+
+    m_ProgramNames.clear();
+    ptrPlug=NULL;
+    InBuffers=NULL;
+    OutBuffers=NULL;
+    //ptrEvents=NULL;
+    //ptrEventBuffer=NULL;
+    CurrentBank.clear();
+    CurrentPreset.clear();
+    m_Filename.clear();
+
     //Shut the plugin down and free the library (this deletes the C++ class
     //memory and calls the appropriate destructors...)
     TempPlug->dispatcher(TempPlug,effClose,0,0,NULL,0.0f);
-    ptrInputBuffers=NULL;
-    ptrOutputBuffers=NULL;
-    ptrEvents=NULL;
-    ptrEventBuffer=NULL;
-    CurrentBank.clear();
-    CurrentPreset.clear();
-    FileName.clear();
-    dlclose(libhandle);
 
-    m_Device->UpdateHost();
+    CFRelease(TempBundle);
+
     qDebug() << 6;
     ////////////////////////////////////////////////////////////////////////////
 }
@@ -1292,69 +1234,64 @@ void TVSTHost::AllNotesOff()
         b.Reset();
         for (int j=0;j<16;j++)
         {
-            for (int i=0;i<127;i++)
+            b.Push(0xB0+j);
+            b.Push(0x7B);
+        }
+        DumpMIDI(&b,false);
+    }
+}
+
+const QString TVSTHost::SaveXML()
+{
+    QDomLiteElement xml("Settings");
+    QString RelPath=QDir(CPresets::Presets.VSTPath).relativeFilePath(CurrentBank);
+    xml.setAttribute("BankPath",RelPath);
+
+    RelPath=QDir(CPresets::Presets.VSTPath).relativeFilePath(CurrentPreset);
+
+    xml.setAttribute("PresetPath",RelPath);
+    int p = CurrentProgram();
+    xml.setAttribute("Preset",p);
+    xml.setAttribute("NumParams",ParameterCount());
+    QDomLiteElement* Params = xml.appendChild("Parameters");
+    for (int i=0;i<ParameterCount();i++)
+    {
+        Params->setAttribute("Param" + QString::number(i),GetParameter(i));
+    }
+    return xml.toString();
+}
+
+void TVSTHost::LoadXML(const QString &XML)
+{
+    QDomLiteElement xml;
+    xml.fromString(XML);
+    if (xml.tag=="Settings")
+    {
+        CurrentBank=xml.attribute("BankPath");
+        CurrentPreset=xml.attribute("PresetPath");
+        if (!CurrentBank.isEmpty())
+        {
+            QString Expath=QDir(CPresets::Presets.VSTPath).absoluteFilePath(CurrentBank);
+            LoadBank(Expath);
+        }
+        if (!CurrentPreset.isEmpty())
+        {
+            QString Expath=QDir(CPresets::Presets.VSTPath).absoluteFilePath(CurrentPreset);
+            LoadPreset(Expath);
+        }
+        int nParams=xml.attributeValue("NumParams");
+        int p=xml.attributeValue("Preset");
+        SetProgram(p);
+        QDomLiteElement* Params = xml.elementByTag("Parameters");
+        if (Params)
+        {
+            for (int i=nParams-1;i>-1;i--)
             {
-                b.Push(0x80+j);
-                b.Push(i);
-                b.Push(0);
+                float Param=Params->attributeValue("Param" + QString::number(i));
+                SetParameter(i,Param);
+                qDebug() << i << Param << GetParameter(i) << ParameterName(i) << ParameterValue(i);
             }
         }
-        DumpMIDI(&b);
-        /*
-                //switch the plugin off (calls Suspend)
-                ptrPlug->dispatcher(ptrPlug,effMainsChanged,0,0,NULL,0.0f);
-                for (int i=0;i<ptrPlug->numOutputs;i++)
-                {
-                        ZeroMemory(ptrOutputBuffers[i],ModRate*sizeof(float));
-                }
-                ptrPlug->dispatcher(ptrPlug,effMainsChanged,0,1,NULL,0.0f);
-                */
-    }
-}
-
-void TVSTHost::RaiseForm()
-{
-    if (ptrPlug)
-    {
-        if (m_EditForm->isVisible())
-        {
-            m_EditForm->raise();
-            m_EditForm->activateWindow();
-        }
-    }
-}
-
-bool TVSTHost::ShowForm(bool Show)
-{
-    if (ptrPlug)
-    {
-        if (Show)
-        {
-            m_EditForm->show();
-        }
-        else
-        {
-            m_EditForm->setVisible(false);
-        }
-        return true;
-    }
-    return false;
-}
-
-QString TVSTHost::SaveXML()
-{
-    if (ptrPlug)
-    {
-        return m_EditForm->Save();
-    }
-    return "<Custom></Custom>";
-}
-
-void TVSTHost::LoadXML(QString xml)
-{
-    if (ptrPlug)
-    {
-        m_EditForm->Load(xml);
     }
 }
 
@@ -1417,7 +1354,7 @@ fxPreset TVSTHost::GetPreset(long Index)
         *pc=x;
         pc++;
     }
-    result.byteSize=qToBigEndian<qint32>(sizeof(result)-sizeof(int)*2+(NumParams()-1)*sizeof(float));
+    result.byteSize=qToBigEndian<qint32>(sizeof(result)-sizeof(int)*2+(ptrPlug->numParams-1)*sizeof(float));
     return result;
 }
 
@@ -1631,4 +1568,58 @@ void TVSTHost::SaveBank(QFile& str)
     }
 }
 
+const QString TVSTHost::ProgramName()
+{
+    return m_ProgramName;
+}
 
+const QStringList TVSTHost::ProgramNames()
+{
+    return m_ProgramNames;
+}
+
+void TVSTHost::SetProgram(const long index)
+{
+    if (ptrPlug)
+    {
+        m_ProgramName.clear();
+        if ((index > -1) & (index < ptrPlug->numPrograms))
+        {
+            ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,NULL,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effSetProgram,0,index,NULL,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effEditIdle,0,0,NULL,0.0f);
+            m_ProgramName=getPlugString(ptrPlug,effGetProgramName,CurrentProgram());
+        }
+    }
+}
+
+const long TVSTHost::CurrentProgram()
+{
+    if (ptrPlug) return ptrPlug->dispatcher(ptrPlug,effGetProgram,0,0,NULL,0.0f);
+    return -1;
+}
+
+QRect TVSTHost::GetEffRect()
+{
+    VSTRect* FormRect;
+    if (ptrPlug)
+    {
+        ptrPlug->dispatcher(ptrPlug,effEditGetRect,0,0,&FormRect,0.0f);
+        return QRect(0,0,FormRect->right-FormRect->left,FormRect->bottom-FormRect->top);
+    }
+    return QRect();
+}
+
+void TVSTHost::timerEvent(QTimerEvent *)
+{
+    if (ptrPlug)
+    {
+        QSize s(GetEffRect().size());
+        if (s != size())
+        {
+            setFixedSize(s);
+            //Size();
+        }
+    }
+}

@@ -14,6 +14,7 @@ class CdBScale : public QCanvas
 public:
     explicit CdBScale(QWidget *parent = 0);
     ~CdBScale();
+    void setMargin(int margin);
 protected:
     void resizeEvent(QResizeEvent *event);
 private:
@@ -22,6 +23,8 @@ private:
     const int val2y(const float val, const float height);
     static const int Border=4;
     static const int HalfBorder=2;
+    int m_Margin;
+    int m_HalfMargin;
 };
 
 #endif // CDBSCALE_H

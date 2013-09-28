@@ -1,10 +1,9 @@
 #include "cwavegenerator.h"
 #include <QFileInfo>
 
-QMap<QString, CWaveFile*> CWaveGenerator::WaveFiles=QMap<QString, CWaveFile*>();
-
 CWaveGenerator::CWaveGenerator()
 {
+    WaveFiles=SingleWaveMap::getInstance();
     Audio=0;
     WF=0;
     Init();
@@ -12,18 +11,20 @@ CWaveGenerator::CWaveGenerator()
 
 CWaveGenerator::~CWaveGenerator()
 {
-    if (WaveFiles.contains(m_Path))
+    if (WaveFiles->contains(m_Path.toLower()))
     {
         if (--WF->refCount==0)
         {
             delete WF;
-            WaveFiles.remove(m_Path.toLower());
+            WaveFiles->remove(m_Path.toLower());
+            qDebug() << "Delete Wavefile Ref";
         }
     }
     if (Audio)
     {
         delete [] Audio;
     }
+    qDebug() << "Exit WaveGenerator";
 }
 
 bool CWaveGenerator::open(const QString& path, unsigned int SampleRate, unsigned int BufferSize)
@@ -33,18 +34,20 @@ bool CWaveGenerator::open(const QString& path, unsigned int SampleRate, unsigned
     m_Path=QFileInfo(path).absoluteFilePath();
     m_SampleRate=SampleRate;
     m_BufferSize=BufferSize;
-    if (WaveFiles.contains(m_Path.toLower()))
+    if (WaveFiles->contains(m_Path.toLower()))
     {
-        WF=WaveFiles[m_Path.toLower()];
+        WF=WaveFiles->value(m_Path.toLower());
         WF->refCount++;
+        qDebug() << "Use Existing Wavefile Ref" << WF->refCount;
     }
     else
     {
         WF=new CWaveFile;
         if (WF->open(m_Path,SampleRate))
         {
-            WaveFiles.insert(m_Path.toLower(),WF);
+            WaveFiles->insert(m_Path.toLower(),WF);
             WF->refCount++;
+            qDebug() << "New Wavefile Ref" << WF->refCount;
         }
         else
         {

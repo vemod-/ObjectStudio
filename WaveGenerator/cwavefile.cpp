@@ -58,24 +58,24 @@ const bool CAiffFile::Open(BYTE* pSrc, const size_t Size)
                 channels = getShort(CommonHeader->numChannels);
                 frequency = ConvertFloat(CommonHeader->sampleRate);
                 sampleSize = getShort(CommonHeader->sampleSize);
-                AiffEncoding=QString(QByteArray(CommonHeader->compressionType,4));
+                AiffEncoding=QString(QByteArray(CommonHeader->compressionType,4)).toLower();
                 WaveStart=pSrc + ptr + sizeof(SoundDataChunk);
-                if (AiffEncoding.toLower()=="fl32")
+                if (AiffEncoding=="fl32")
                 {
                     sampleSize=32;
                     AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
                 }
-                if (AiffEncoding.toLower()=="fl64")
+                if (AiffEncoding=="fl64")
                 {
                     sampleSize=32;
                     AuEncoding=AUDIO_FILE_ENCODING_DOUBLE;
                 }
-                if (AiffEncoding.toLower()=="alaw")
+                if (AiffEncoding=="alaw")
                 {
                     sampleSize=8;
                     AuEncoding=AUDIO_FILE_ENCODING_ALAW_8;
                 }
-                if (AiffEncoding.toLower()=="ulaw")
+                if (AiffEncoding=="ulaw")
                 {
                     sampleSize=8;
                     AuEncoding=AUDIO_FILE_ENCODING_MULAW_8;
@@ -101,7 +101,7 @@ const size_t CAiffFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerat
     }
     if (sampleSize)
     {
-        if (AiffEncoding.toLower()=="sowt") byteOrder=LittleEndian;
+        if (AiffEncoding=="sowt") byteOrder=LittleEndian;
         Length = IWaveFile::CreateFloatBuffer(OutBuffer,Samplerate);
     }
     if (TempBuffer) delete [] TempBuffer;

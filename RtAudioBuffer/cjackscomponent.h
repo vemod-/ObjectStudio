@@ -3,7 +3,7 @@
 
 #include <QGraphicsView>
 #include <QMouseEvent>
-#include <QMenu>
+#include <qsignalmenu.h>
 #include "cdevicelist.h"
 
 namespace Ui {
@@ -34,9 +34,8 @@ private:
     void DrawConnections();
     int MouseOverJack(const QPoint& Pos);
     CDeviceList* m_DL;
-    QMenu* JackPopup;
+    QSignalMenu* JackPopup;
     QString MenuJackID;
-    QSignalMapper* mapper;
 private slots:
     void ToggleConnection(QString JackID);
 };

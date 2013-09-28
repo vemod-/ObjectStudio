@@ -2,7 +2,7 @@
 #define CVSTHOSTCLASS_H
 
 #include "aeffectx.h"
-#include "softsynthsclasses.h"
+#include "IAudioPlugInHost.h"
 
 typedef unsigned char BYTE;
 
@@ -94,17 +94,14 @@ struct VSTRect
     short right;
 };
 #pragma pack(pop)
-class TVSTHost
+
+class TVSTHost : public IAudioPlugInHost
 {
+    Q_OBJECT
 private:
     AEffect* ptrPlug;
-    float** ptrInputBuffers;
-    float** ptrOutputBuffers;
-    VstEvent* ptrEvents;
-    //HINSTANCE libhandle;
-    char* ptrEventBuffer;
-    int nEvents;
-    CSoftSynthsForm* m_EditForm;
+    QList<VstMidiEvent> vstMidiEvents;
+    std::vector<char> vstEventsBuffer;
     int GetChunk(void* pntr,bool isPreset);
     int SetChunk(void* data,long byteSize,bool isPreset);
     void SavePreset(QFile& str);
@@ -112,39 +109,45 @@ private:
     fxPreset GetPreset(long i);
     void LoadPreset(QFile& str);
     void SaveBank(QFile& str);
-    QWidget* m_MainWindow;
-    IDevice* m_Device;
-    void* libhandle;
-public:
-    TVSTHost(void* MainWindow,IDevice* Device);
-    ~TVSTHost();
-    bool Load(QString FN);
-    void KillPlug();
-    QString FileName;
-    int NumPrograms();
-    int NumParams();
-    int NumInputs();
-    int NumOutputs();
-    void Process();
+    void* vstBundle;
     float VSTVersion();
-    bool IsSynth();
-    void DumpMIDI(CMIDIBuffer* MB);
-    void DumpAudio(int Index,float* Buffer,int Samples);
-    void GetAudio(int Index, float* Buffer, int Samples,float Volume);
+    void LoadProgramNames();
+    QRect GetEffRect();
+public:
+    TVSTHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent=0);
+    ~TVSTHost();
+    void KillPlug();
+    const int NumInputs();
+    const int NumOutputs();
+    const bool Process();
+    void DumpMIDI(CMIDIBuffer* MB, bool PatchChange);
     void AllNotesOff();
-    bool ShowForm(bool Show);
-    void RaiseForm();
     QString CurrentBank;
     QString CurrentPreset;
-    int MIDIChannel;
-    QString SaveXML();
-    void LoadXML(QString xml);
     void LoadBank(QString FileName);
     void LoadPreset(QString FileName);
     void SaveBank(QString FileName);
     void SavePreset(QString FileName);
+    const QString ProgramName();
+    const QStringList ProgramNames();
+    void SetProgram(const long index);
+    const long CurrentProgram();
+    const QStringList VSTCategories();
+    const QStringList VSTFiles(QString category);
+    const float GetParameter(const long index);
+    void SetParameter(const long index, const float value);
+    const int ParameterCount();
+    const QString ParameterName(const long index);
+    const QString ParameterValue(const long index);
+    const QString SaveXML();
+    void LoadXML(const QString& XML);
+    const bool Load(QString Filename);
+    static VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr value, void* ptr, float opt);
+public slots:
+    void LoadFromMenu(QString Filename);
+    void Popup(QPoint pos);
+protected:
+    void timerEvent(QTimerEvent *);
 };
-
-VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr value, void* ptr, float opt);
 
 #endif // CVSTHOSTCLASS_H

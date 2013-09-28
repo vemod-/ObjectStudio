@@ -78,7 +78,7 @@ public:
     const int Rate();
     CMP3File();
     ~CMP3File();
-    const bool Open(unsigned char* pSrc, const int Size);
+    const bool Open(BYTE* pSrc, const size_t Size);
     const unsigned int Close();
     const unsigned int Equalize(EQ eq);
     const unsigned int PCMBuffer(short*& OutBuffer);

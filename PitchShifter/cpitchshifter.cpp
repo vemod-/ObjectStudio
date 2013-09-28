@@ -250,13 +250,13 @@ void CPitchShifter::Init(const int Index, void *MainWindow) {
     gInit = false;
     m_Name="PitchShifter";
     IDevice::Init(Index,MainWindow);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddJack("Modulation",(IJack::AttachModes)(IJack::Pitch | IJack::Amplitude),IJack::In,0);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddParameter(ParameterType::Numeric,"Shift","Semitones",-24,24,0,"",0);
+    AddJackWaveIn();
+    AddJack("Modulation",(IJack::AttachModes)(IJack::Pitch | IJack::Amplitude),IJack::In);
+    AddJackWaveOut(jnOut);
+    AddParameterTranspose("Shift");
     AddParameter(ParameterType::SelectBox,"Oversampling","",0,5,0,"1§2§4§8§16§32",2);
     AddParameter(ParameterType::SelectBox,"Framesize","",0,5,0,"128§256§512§1048§2048§4096",4);
-    AddParameter(ParameterType::Numeric,"Modulation","%",0,100,0,"",0);
+    AddParameterPercent();
     CalcParams();
 }
 

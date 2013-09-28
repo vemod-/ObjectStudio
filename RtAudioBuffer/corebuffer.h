@@ -9,6 +9,7 @@
 #include <QStringList>
 #include <QProgressBar>
 #include <QThread>
+#include <CoreServices/CoreServices.h>
 
 class CCoreMainBuffers : public IDevice
 {
@@ -65,6 +66,9 @@ private:
 
     CWaveFile WaveFile;
     bool m_Recording;
+
+    size_t ActivityCount;
+    size_t ActivityLimit;
 };
 
 #endif // COREBUFFER_H

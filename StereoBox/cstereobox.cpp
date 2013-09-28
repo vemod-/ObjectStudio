@@ -20,12 +20,10 @@ void CStereoBox::Init(const int Index, void *MainWindow)
     IDevice::Init(Index,MainWindow);
     m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
     CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
-    AddJack("Out Left",IJack::Wave,IJack::Out,jnOutLeft);
-    AddJack("Out Right",IJack::Wave,IJack::Out,jnOutRight);
-    AddJack("In",IJack::Stereo,IJack::In,jnIn);
-    AddJack("In Left",IJack::Wave,IJack::In,jnInLeft);
-    AddJack("In Right",IJack::Wave,IJack::In,jnInRight);
+    AddJackStereoOut(jnOut);
+    AddJackDualMonoOut(jnOutLeft);
+    AddJackStereoIn();
+    AddJackDualMonoIn();
     d->SetPoly(1);
 
     WaveOutL=new CInJack("Out","This",IJack::Wave,IJack::In,this);
@@ -65,7 +63,7 @@ void CStereoBox::Process()
     }
     else
     {
-        InBuffer.FromBuffer(B);
+        InBuffer.WriteBuffer(B);
         InBuffer.AddMono(BL,BR);
         InBuffer.Multiply(SQRT2MULTIPLY);
         InL=InBuffer.Buffer;

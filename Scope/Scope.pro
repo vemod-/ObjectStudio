@@ -8,11 +8,7 @@ TARGET = Scope
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-
-INCLUDEPATH += ../WaveRecorder
-
-SOURCES += ../WaveRecorder/qcanvas.cpp
-HEADERS += ../WaveRecorder/qcanvas.h
+include(../../QCanvas/QCanvas.pri)
 
 DEFINES += SCOPE_LIBRARY
 

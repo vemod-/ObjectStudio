@@ -8,12 +8,12 @@ CNoiseGate::CNoiseGate()
 void CNoiseGate::Init(const int Index, void *MainWindow) {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddJack("Out",IJack::Wave,IJack::Out,1);
-    AddJack("Envelope Out",IJack::Amplitude,IJack::Out,2);
-    AddParameter(ParameterType::Numeric,"Threshold","%",0,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"Response Time","%",0,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"Decay Time","%",0,100,0,"",0);
+    AddJackWaveIn();
+    AddJackWaveOut(jnOut);
+    AddJack("Envelope Out",IJack::Amplitude,IJack::Out,jnEnvOut);
+    AddParameterPercent("Threshold");
+    AddParameterPercent("Response Time");
+    AddParameterPercent("Decay Time");
     CurrentVol=0;
     TargetVol=0;
     LastGlideVol=0;

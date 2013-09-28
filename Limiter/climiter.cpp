@@ -9,10 +9,10 @@ CLimiter::CLimiter()
 void CLimiter::Init(const int Index, void *MainWindow) {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
-    AddParameter(ParameterType::dB,"Limit Vol","dB",0,200,0,"",100);
-    AddParameter(ParameterType::dB,"Out Vol","dB",0,200,0,"",100);
+    AddJackWaveOut(jnOut);
+    AddJackWaveIn();
+    AddParameterVolume("Limit Vol");
+    AddParameterVolume();
     /* 80 Hz is the lowest frequency with which zero-crosses were
                  * observed to occur (this corresponds to 40 Hz signal frequency).
                  */

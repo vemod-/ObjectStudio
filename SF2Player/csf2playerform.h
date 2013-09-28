@@ -23,12 +23,17 @@ private:
 public:		// User declarations
     const QString CustomSave();
     void CustomLoad(const QString& XML);
+    void SetPatchResponse(bool value);
+    void setVolume(int value);
+    void SetProgram(const int Bank, const int Preset);
 private slots:
     void OpenClick();
     void TestMouseDown();
     void TestMouseUp();
     void ChangeBank();
     void ChangePreset();
+    void PatchToggled(bool value);
+    void VolChanged(int value);
 };
 
 #endif // CSF2PLAYERFORM_H

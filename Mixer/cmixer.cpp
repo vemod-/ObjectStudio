@@ -128,13 +128,13 @@ void CMixer::Init(const int Index, void* MainWindow)
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
 
-    AddJack("Return",IJack::Stereo,IJack::In,jnReturn);
-    AddJack("Out",IJack::Stereo,IJack::Out,jnOut);
-    AddJack("Send",IJack::Stereo,IJack::Out,jnSend);
+    AddJackStereoIn("Return");
+    AddJackStereoOut(jnOut);
+    AddJackStereoOut(jnSend,"Send");
 
     for (int i=0;i<Mixer::mixerchannels;i++)
     {
-        AddJack("In " + QString::number(i+1),IJack::Wave,IJack::In,jnIn+i);
+        AddJackWaveIn("In " + QString::number(i+1));
         Level[i]=1;
         Effect[i]=0;
         PanL[i]=1;

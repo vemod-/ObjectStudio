@@ -148,3 +148,9 @@ void CMixerFrame::BypassButtonClicked(bool Value)
     }
     Mixer->EffectMute[Index]=Value;
 }
+
+void CMixerFrame::showEvent(QShowEvent *)
+{
+    ui->Peak->setMargin(ui->VolSlider->grooveMargin());
+    ui->frame->setMargin(ui->VolSlider->grooveMargin());
+}

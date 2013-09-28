@@ -5,9 +5,9 @@ void CDrumMachine::Init(const int Index,void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
+    AddJackWaveOut(0);
     AddParameter(ParameterType::Numeric,"Tempo","BPM",20,300,0,"",100);
-    AddParameter(ParameterType::dB,"Volume","dB",0,200,0,"",100);
+    AddParameterVolume();
     BeatInterval=0;
     PatternLength=0;
     SamplesPerTick=0;

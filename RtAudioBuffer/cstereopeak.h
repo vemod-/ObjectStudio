@@ -17,6 +17,7 @@ public:
     ~CStereoPeak();
     void SetValues(const float L, const float R);
     void Reset();
+    void setMargin(int margin);
 private:
     Ui::CStereoPeak *ui;
 };

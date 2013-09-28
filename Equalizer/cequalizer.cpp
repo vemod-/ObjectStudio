@@ -1,6 +1,18 @@
 #include "cequalizer.h"
 #include "cequalizerform.h"
 
+void inline CalcPeak(float Val,float* Peak)
+{
+    if (Val < 0)
+    {
+        Val = -Val;
+    }
+    if (Val > *Peak)
+    {
+        *Peak=Val;
+    }
+}
+
 CEqualizer::CEqualizer()
 {
 }
@@ -32,8 +44,8 @@ void CEqualizer::Init(const int Index,void* MainWindow)
 {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
+    AddJackWaveOut(jnOut);
+    AddJackWaveIn();
     Freq[0]=100;
     Freq[1]=200;
     Freq[2]=400;
@@ -49,22 +61,40 @@ void CEqualizer::Init(const int Index,void* MainWindow)
     }
     m_Form=new CEqualizerForm(this,(QWidget*)MainWindow);
     ((CEqualizerForm*)m_Form)->Init(this);
+    ((CEqualizerForm*)m_Form)->Reset();
     CalcParams();
 }
 
 float* CEqualizer::GetNextA(const int ProcIndex)
 {
+    CEqualizerForm* f=((CEqualizerForm*)m_Form);
     float* InSignal=FetchA(jnIn);
-    if (!InSignal) return NULL;
+    if (!InSignal)
+    {
+        for (int i1=0;i1<8;i1++)
+        {
+            CalcPeak(0,f->PeakVal+i1);
+        }
+        return NULL;
+    }
     float* Buffer=AudioBuffers[ProcIndex]->Buffer;
     for (int i=0;i<m_BufferSize;i++)
     {
         float samp = InSignal[i];
         for (int i1=0;i1<8;i1++)
         {
-            if (Level[i1] != 0) samp = biquad_run(&filters[i1], samp);
+            if (Level[i1] != 0)
+            {
+                samp = biquad_run(&filters[i1], samp);
+            }
+            CalcPeak(samp,f->PeakVal+i1);
         }
         Buffer[i] = samp;
     }
     return Buffer;
+}
+
+void CEqualizer::Play(const bool FromStart)
+{
+    if (FromStart) ((CEqualizerForm*)m_Form)->Reset();
 }

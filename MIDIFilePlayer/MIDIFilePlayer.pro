@@ -10,7 +10,7 @@ TEMPLATE = lib
 include(../SoftSynthsIncludes.pri)
 
 LIBS += -L../ -lMIDIFileReader
-INCLUDEPATH += ../midifilereader
+INCLUDEPATH += ../MIDIFileReader
 
 DEFINES += MIDIFILEPLAYER_LIBRARY
 

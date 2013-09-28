@@ -11,6 +11,7 @@ CKnobControl::CKnobControl(QWidget *parent) :
     spinboxAction=new QWidgetAction(this);
     spinboxAction->setDefaultWidget(spinbox);
     connect(ui->dial,SIGNAL(valueChanged(int)),this,SIGNAL(ValueChanged(int)));
+    ui->dial->setNotchStyle(QSynthKnob::LEDNotch);
     mapper=new QSignalMapper(this);
     connect(mapper,SIGNAL(mapped(int)),ui->dial,SLOT(setValue(int)));
     ui->label->setEffect(EffectLabel::Raised);

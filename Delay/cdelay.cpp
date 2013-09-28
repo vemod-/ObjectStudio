@@ -13,14 +13,14 @@ void CDelay::Init(const int Index, void *MainWindow) {
     Buffer=new float[m_Presets.DoubleRate];
     ZeroMemory(Buffer,m_Presets.DoubleRate*sizeof(float));
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,jnOut);
+    AddJackWaveOut(jnOut);
     AddJack("EffectOut",IJack::Wave,IJack::Out,jnEffectOut);
-    AddJack("In",IJack::Wave,IJack::In,0);
+    AddJackWaveIn();
     AddParameter(ParameterType::Numeric,"Modulation Frequency","Hz",1,1000,100,"",100);
     AddParameter(ParameterType::Numeric,"Modulation Amplitude","%",0,100,0,"",0);
     AddParameter(ParameterType::Numeric,"Delay Time","ms",1,2000,0,"",10);
-    AddParameter(ParameterType::Numeric,"Delay Regeneration","%",0,100,0,"",0);
-    AddParameter(ParameterType::Numeric,"Effect","%",0,100,0,"",100);
+    AddParameterPercent("Delay Regeneration");
+    AddParameterPercent("Effect",100);
     CalcParams();
 }
 

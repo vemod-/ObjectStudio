@@ -15,50 +15,13 @@ TARGET = SF2Generator
 TEMPLATE = lib
 
 LIBS += -L../ -lSoftSynthsClasses
-INCLUDEPATH += ../SoftSynthsClasses
-INCLUDEPATH += ../../ObjectComposerXML
+LIBS += -L../ -lWaveBank
 
-LIBS += -lWaveBank
-INCLUDEPATH += ../wavebank
+INCLUDEPATH += ../SoftSynthsClasses
+INCLUDEPATH += ../WaveBank
+INCLUDEPATH += ../../QDomLite
+
+include(SF2Generator.pri)
 
 DESTDIR = ../
-
-SOURCES += csf2generator.cpp \
-    csf2file.cpp \
-    enabler/win_mem.cpp \
-    enabler/sfreader.cpp \
-    enabler/sfnav.cpp \
-    enabler/sflookup.cpp \
-    enabler/sfdetect.cpp \
-    enabler/riff.cpp \
-    enabler/omega.cpp \
-    enabler/hydra.cpp \
-    enabler/enab.cpp
-
-HEADERS += csf2generator.h \
-    csf2file.h \
-    enabler/win_mem.h \
-    enabler/sfreader.h \
-    enabler/sfnav.h \
-    enabler/sflookup.h \
-    enabler/sfenum.h \
-    enabler/sfdetect.h \
-    enabler/sfdata.h \
-    enabler/riff.h \
-    enabler/omega.h \
-    enabler/hydra.h \
-    enabler/enab.h \
-    enabler/emuerrs.h \
-    enabler/datatype.h
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
-
-
-
 

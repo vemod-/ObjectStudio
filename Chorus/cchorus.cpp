@@ -7,15 +7,15 @@ CChorus::CChorus()
 void CChorus::Init(const int Index, void *MainWindow) {
     m_Name=devicename;
     IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Wave,IJack::Out,0);
-    AddJack("In",IJack::Wave,IJack::In,0);
+    AddJackWaveOut(jnOut);
+    AddJackWaveIn();
     AddParameter(ParameterType::Numeric,"Frequency","Hz",0,500,100,"",400);
     AddParameter(ParameterType::Numeric,"Phase","Centigrades",0,180,0,"",100);
-    AddParameter(ParameterType::Numeric,"Depth","%",0,100,0,"",50);
-    AddParameter(ParameterType::Numeric,"Delay","%",0,100,0,"",50);
+    AddParameterPercent("Depth",50);
+    AddParameterPercent("Delay",50);
     AddParameter(ParameterType::Numeric,"Contour","Hz",20,20000,0,"",100);
-    AddParameter(ParameterType::dB,"Dry Level","dB",0,200,0,"",100);
-    AddParameter(ParameterType::dB,"Wet Level","dB",0,200,0,"",100);
+    AddParameterVolume("Dry Level");
+    AddParameterVolume("Wet Level");
     for (int i = 0; i < COS_TABLE_SIZE; i++) cos_table[i] = cos(i * 2.0f * M_PI / COS_TABLE_SIZE);
     ring=new float[(DEPTH_BUFLEN + DELAY_BUFLEN) * m_Presets.SampleRate / 192000];
     buflen = (DEPTH_BUFLEN + DELAY_BUFLEN) * m_Presets.SampleRate / 192000;

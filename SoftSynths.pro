@@ -1,5 +1,4 @@
 cache()
-QMAKE_CXXFLAGS_WARN_ON += -Wno-reorder
 CONFIG += qt x86
 CONFIG -= x86_64 ppc64 ppc
 
@@ -50,7 +49,8 @@ SUBDIRS = PluginLoader \
     StereoMixer \
     MIDIFile2Wave \
     StereoBox \
-    StereoSplitBox
+    StereoSplitBox \
+    AudioUnitHost
 
 
 

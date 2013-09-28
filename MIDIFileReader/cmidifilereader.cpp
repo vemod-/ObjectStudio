@@ -257,11 +257,12 @@ void CMIDIFileTrack::Reset()
     Finished=false;
 }
 
-QMap<const char*,MIDIFileMemoryData*> CMIDIFileReader::MIDIFiles=QMap<const char*,MIDIFileMemoryData*>();
-
 CMIDIFileReader::CMIDIFileReader()
 {
-    m_Pnt=NULL;
+    MIDIFiles=SingleMIDIMap::getInstance();
+    //m_Pnt=NULL;
+    m_ID.first=NULL;
+    m_ID.second=0;
     m_FileType=0;
     m_NumOfTracks=0;
     Ticks=240;
@@ -271,13 +272,13 @@ CMIDIFileReader::~CMIDIFileReader()
 {
     qDeleteAll(Tracks);
     MIDIFileMemoryData* Data;
-    if (MIDIFiles.contains(m_Pnt))
+    if (MIDIFiles->contains(m_ID))
     {
-        Data=MIDIFiles[m_Pnt];
+        Data=MIDIFiles->value(m_ID);
         if (--Data->refcount==0)
         {
             qDebug() << "Delete MIDIFileRef";
-            MIDIFiles.remove(m_Pnt);
+            MIDIFiles->remove(m_ID);
             delete Data;
         }
     }
@@ -307,31 +308,36 @@ const bool CMIDIFileReader::Open(const QString& Path)
 
 const bool CMIDIFileReader::OpenPtr(const char *Pnt, const size_t Length)
 {
+    MIDIMemoryID ID=qMakePair((char*)Pnt,Length);
     MIDIFileHeader* header=(MIDIFileHeader*)Pnt;
     if (!descriptorMatch(header->descriptor.id,"MThd")) return false;
     MIDIFileMemoryData* Data;
-    if (MIDIFiles.contains(m_Pnt))
+    if (m_ID.first != NULL)
     {
-        Data=MIDIFiles[m_Pnt];
-        if (--Data->refcount==0)
+        if (MIDIFiles->contains(m_ID))
         {
-            qDebug() << "Delete MIDIFileRef";
-            MIDIFiles.remove(m_Pnt);
-            delete Data;
+            Data=MIDIFiles->value(m_ID);
+            if (--Data->refcount==0)
+            {
+                qDebug() << "Delete MIDIFileRef";
+                MIDIFiles->remove(m_ID);
+                delete Data;
+            }
         }
     }
-    if (!MIDIFiles.contains(Pnt))
+    if (!MIDIFiles->contains(ID))
     {
         Data=new MIDIFileMemoryData(Pnt,Length);
-        MIDIFiles.insert(Pnt,Data);
+        MIDIFiles->insert(ID,Data);
         qDebug() << "New MIDIFileRef";
     }
     else
     {
-        Data=MIDIFiles[Pnt];
+        Data=MIDIFiles->value(ID);
     }
     Data->refcount++;
-    m_Pnt=(char*)Pnt;
+    //m_Pnt=(char*)Pnt;
+    m_ID=ID;
     qDeleteAll(Tracks);
     Tracks.clear();
     size_t len=qFromBigEndian<qint32>(header->descriptor.size);

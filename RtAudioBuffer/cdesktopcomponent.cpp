@@ -281,21 +281,17 @@ CDesktopComponent::CDesktopComponent(QWidget *parent) :
     setFrameStyle(0);
     setLineWidth(0);
 
-    RecentMenu=new QMenu("Recent",this);
-    RecentPopup=new QMenu("Recent",this);
-    RecentMapper=new QSignalMapper(this);
-    RecentPopupMapper=new QSignalMapper(this);
-    connect(RecentMapper,SIGNAL(mapped(QString)),this,SLOT(OpenFile(QString)));
-    connect(RecentPopupMapper,SIGNAL(mapped(QString)),this,SLOT(OpenFile(QString)));
-    CreateRecentMenu(RecentMenu,RecentMapper);
-    CreateRecentMenu(RecentPopup,RecentPopupMapper);
+    RecentMenu=new QSignalMenu("Recent",this);
+    RecentPopup=new QSignalMenu("Recent",this);
+    connect(RecentMenu,SIGNAL(menuClicked(QString)),this,SLOT(OpenFile(QString)));
+    connect(RecentPopup,SIGNAL(menuClicked(QString)),this,SLOT(OpenFile(QString)));
+    CreateRecentMenu(RecentMenu);
+    CreateRecentMenu(RecentPopup);
 
-    JackPopup=new QMenu(this);
-    mapper=new QSignalMapper(this);
-    connect(mapper,SIGNAL(mapped(QString)),this,SLOT(ToggleConnection(QString)));
-    PluginsPopup=new QMenu("Add",this);
-    pluginmapper=new QSignalMapper(this);
-    connect(pluginmapper,SIGNAL(mapped(QString)),this,SLOT(PluginMenuClicked(QString)));
+    JackPopup=new QSignalMenu(this);
+    connect(JackPopup,SIGNAL(menuClicked(QString)),this,SLOT(ToggleConnection(QString)));
+    PluginsPopup=new QSignalMenu("Add",this);
+    connect(PluginsPopup,SIGNAL(menuClicked(QString)),this,SLOT(PluginMenuClicked(QString)));
 
     actionPaste=new QAction("Paste",this);
     connect(actionPaste,SIGNAL(triggered()),this,SLOT(Paste()));
@@ -303,9 +299,8 @@ CDesktopComponent::CDesktopComponent(QWidget *parent) :
     actionPasteParameters=new QAction("Paste Parameters",this);
     connect(actionPasteParameters,SIGNAL(triggered()),this,SLOT(PasteParameters()));
 
-    ParameterPresetsMenu=new QMenu("Load",this);
-    ParameterPresetsMapper=new QSignalMapper(this);
-    connect(ParameterPresetsMapper,SIGNAL(mapped(QString)),this,SLOT(OpenPreset(QString)));
+    ParameterPresetsMenu=new QSignalMenu("Load",this);
+    connect(ParameterPresetsMenu,SIGNAL(menuClicked(QString)),this,SLOT(OpenPreset(QString)));
     ParametersMenu=new QMenu("Parameters",this);
     ParametersMenu->addMenu(ParameterPresetsMenu);
     ParametersMenu->addAction("Save as Preset",this,SLOT(SavePresetAs()));
@@ -424,7 +419,7 @@ void CDesktopComponent::ChangeParameter(IDevice* Device, int ParameterIndex, int
 
 void CDesktopComponent::ParameterChange()
 {
-    if ((m_DeviceIndex>-1) & (Devices.count() > 0))
+    if ((m_DeviceIndex>-1) & (m_DeviceIndex < Devices.count()))
     {
         IDevice* D=Devices[m_DeviceIndex].Device();
         ShowParameters(D);
@@ -621,23 +616,31 @@ void CDesktopComponent::ConnectDrop(const QPoint& Pos)
 
 void CDesktopComponent::resizeEvent(QResizeEvent* /*event*/)
 {
+    qDebug() << "ResizeEvent 1";
     DrawConnections();
+    qDebug() << "ResizeEvent 2";
 }
 
 void CDesktopComponent::moveEvent(QMoveEvent* /*event*/)
 {
+    qDebug() << "MoveEvent 1";
     DrawConnections();
+    qDebug() << "MoveEvent 2";
 }
 
 void CDesktopComponent::showEvent(QShowEvent* /*event*/)
 {
+    qDebug() << "ShowEvent 1";
     DrawConnections();
+    qDebug() << "ShowEvent 2";
 }
 
 void CDesktopComponent::scrollContentsBy(int dx, int dy)
 {
+    qDebug() << "ScrollContents 1";
     QGraphicsView::scrollContentsBy(dx,dy);
     DrawConnections();
+    qDebug() << "ScrollContents 2";
 }
 
 void CDesktopComponent::DrawConnections()
@@ -766,26 +769,8 @@ QList<QGraphicsItem*> CDesktopComponent::DrawArrow(const QPoint& OutPoint, const
     return items;
 }
 
-const bool CDesktopComponent::XMLCompare(QDomLiteElement* xml1,QDomLiteElement* xml2)
-{
-    if (xml1->attributeCount() != xml2->attributeCount()) return false;
-    if (xml1->attributesString() != xml2->attributesString()) return false;
-    if (xml1->childCount() != xml2->childCount()) return false;
-    for (int i=0;i<xml1->childCount();i++)
-    {
-        if (!XMLCompare(xml1->childElement(i),xml2->childElement(i))) return false;
-    }
-    return true;
-}
-
 void CDesktopComponent::ShowParameters(IDevice* Device)
 {
-    foreach (QAction* a, ParameterPresetsMenu->actions())
-    {
-        ParameterPresetsMapper->removeMappings(a);
-        delete a;
-    }
-    ParameterPresetsMenu->actions().clear();
     ParameterPresetsMenu->clear();
     QString Preset;
     if (Device != NULL)
@@ -799,12 +784,10 @@ void CDesktopComponent::ShowParameters(IDevice* Device)
             foreach (QDomLiteElement* e,TempDoc.documentElement->elementsByTag("Preset"))
             {
                 QString s=e->attribute("PresetName");
-                QAction* a=ParameterPresetsMenu->addAction(s);
-                connect(a,SIGNAL(triggered()),ParameterPresetsMapper,SLOT(map()));
-                ParameterPresetsMapper->setMapping(a,s);
+                QAction* a=ParameterPresetsMenu->addAction(s,s);
                 a->setCheckable(true);
                 xml1.setAttribute("PresetName",s);
-                if (XMLCompare(&xml1,e))
+                if (xml1.compare(e))
                 {
                     a->setChecked(true);
                     Preset=s;
@@ -943,27 +926,18 @@ void CDesktopComponent::AddRecentFile(const QString &Path)
     CPresets::RecentFiles.removeOne(Path);
     CPresets::RecentFiles.prepend(Path);
     while (CPresets::RecentFiles.count()>20) CPresets::RecentFiles.removeLast();
-    CreateRecentMenu(RecentMenu,RecentMapper);
-    CreateRecentMenu(RecentPopup,RecentPopupMapper);
+    CreateRecentMenu(RecentMenu);
+    CreateRecentMenu(RecentPopup);
 }
 
-void CDesktopComponent::CreateRecentMenu(QMenu* m, QSignalMapper* sm)
+void CDesktopComponent::CreateRecentMenu(QSignalMenu* m)
 {
-    foreach (QAction* a, m->actions())
-    {
-        sm->removeMappings(a);
-        delete a;
-    }
-    m->actions().clear();
     m->clear();
     foreach(QString s,CPresets::RecentFiles)
     {
         QString DisplayString=s;
         if (s.length()>60) DisplayString="..."+s.right(57);
-        QAction* a=new QAction(DisplayString,m);
-        connect(a,SIGNAL(triggered()),sm,SLOT(map()));
-        sm->setMapping(a,s);
-        m->addAction(a);
+        m->addAction(DisplayString,s);
     }
 }
 
@@ -1147,11 +1121,9 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
                 IJack* J=DeviceList.Jacks(i);
                 if (DeviceList.CanConnect(DragJack,J))
                 {
-                    QAction* a=JackPopup->addAction(DeviceList.JackID(J));
+                    QAction* a=JackPopup->addAction(DeviceList.JackID(J),DeviceList.JackID(J));
                     a->setCheckable(true);
                     a->setChecked(DeviceList.IsConnected(DragJack,J));
-                    connect(a,SIGNAL(triggered()),mapper,SLOT(map()));
-                    mapper->setMapping(a,DeviceList.JackID(J));
                 }
             }
             if (JackPopup->actions().count()==0)
@@ -1180,6 +1152,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             MarkList.clear();
             MarkList.append(Devices[DI].Device());
             actionPasteParameters->setEnabled(QApplication::clipboard()->text().startsWith("<Parameters"));
+            ParametersMenu->setEnabled((Devices[DI].Device()->ParameterCount() > 0) | (Devices[DI].Device()->HasUI()));
             DeviceMenu->popup(mapToGlobal(event->pos()));
             //emit DevicePopup(mapToGlobal(event->pos()));
             MouseDown=false;
@@ -1194,14 +1167,9 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             MouseDown=false;
             PluginsPopup->clear();
             QStringList plugs=CAddIns::AddInNames();
-            for (int i=0;i<plugs.count();i++)
-            {
-                QAction* a=PluginsPopup->addAction(plugs[i]);
-                pluginmapper->setMapping(a,plugs[i]);
-                connect(a,SIGNAL(triggered()),pluginmapper,SLOT(map()));
-            }
-            CreateRecentMenu(RecentMenu,RecentMapper);
-            CreateRecentMenu(RecentPopup,RecentPopupMapper);
+            for (int i=0;i<plugs.count();i++) PluginsPopup->addAction(plugs[i],plugs[i]);
+            CreateRecentMenu(RecentMenu);
+            CreateRecentMenu(RecentPopup);
             actionPaste->setEnabled(QApplication::clipboard()->text().startsWith("<Devices>"));
             DesktopMenu->popup(mapToGlobal(event->pos()));
             return;
@@ -1332,6 +1300,7 @@ void CDesktopComponent::mouseDoubleClickEvent(QMouseEvent *event)
     int DI=DeviceIndex(Pos);
     SelectDevice(DI);
     Execute();
+    m_MD=false;
 }
 
 void CDesktopComponent::New()
@@ -1666,5 +1635,9 @@ void CDesktopComponent::Execute()
 
 void CDesktopComponent::ParameterPopup(QPoint Pos)
 {
+    if (m_DeviceIndex>-1)
+    {
+        ParametersMenu->setEnabled((DeviceList.Device(m_DeviceIndex)->ParameterCount() > 0) | (DeviceList.Device(m_DeviceIndex)->HasUI()));
+    }
     ParametersMenu->popup(Pos);
 }

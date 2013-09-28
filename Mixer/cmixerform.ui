@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>746</width>
-    <height>425</height>
+    <height>460</height>
    </rect>
   </property>
   <property name="maximumSize">
@@ -24,30 +24,11 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true">QSlider:vertical{background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(60, 60, 60, 255), stop:0.8 rgba(0, 0, 0, 255));}
-QSlider::handle:vertical {
-	width: 30px;
-    height: 10px;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #DFDFDF, stop: 0.5 #7E7E7E, stop:1 #BCBCBC);
-    border: 1px solid #666666;
-    border-radius: 2px;
-}</string>
-  </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
    <property name="spacing">
     <number>4</number>
    </property>
-   <property name="leftMargin">
-    <number>4</number>
-   </property>
-   <property name="topMargin">
-    <number>4</number>
-   </property>
-   <property name="rightMargin">
-    <number>4</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>4</number>
    </property>
    <item>
@@ -238,16 +219,7 @@ QSlider::handle:vertical {
       <property name="spacing">
        <number>4</number>
       </property>
-      <property name="leftMargin">
-       <number>4</number>
-      </property>
-      <property name="topMargin">
-       <number>4</number>
-      </property>
-      <property name="rightMargin">
-       <number>4</number>
-      </property>
-      <property name="bottomMargin">
+      <property name="margin">
        <number>4</number>
       </property>
       <item>
@@ -288,20 +260,11 @@ QSlider::handle:vertical {
         <property name="spacing">
          <number>2</number>
         </property>
-        <property name="leftMargin">
-         <number>2</number>
-        </property>
-        <property name="topMargin">
-         <number>2</number>
-        </property>
-        <property name="rightMargin">
-         <number>2</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>2</number>
         </property>
         <item>
-         <widget class="QSlider" name="LeftSlider">
+         <widget class="QSynthSlider" name="LeftSlider">
           <property name="maximum">
            <number>150</number>
           </property>
@@ -327,7 +290,7 @@ QSlider::handle:vertical {
          </widget>
         </item>
         <item>
-         <widget class="QSlider" name="RightSlider">
+         <widget class="QSynthSlider" name="RightSlider">
           <property name="maximum">
            <number>150</number>
           </property>
@@ -386,6 +349,11 @@ QSlider::handle:vertical {
    <extends>QFrame</extends>
    <header>cstereopeak.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QSynthSlider</class>
+   <extends>QSlider</extends>
+   <header>qsynthslider.h</header>
   </customwidget>
   <customwidget>
    <class>CMixerFrame</class>

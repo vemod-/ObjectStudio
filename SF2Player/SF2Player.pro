@@ -8,51 +8,32 @@ TARGET = SF2Player
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
+include(../../SynthKnob/QSynthKnob.pri)
+include(../../SynthPanel/QSynthPanel.pri)
+##include(../SF2Generator/SF2Generator.pri)
 
-LIBS += -lSF2Generator
-LIBS += -lWaveBank
+LIBS += -L../ -lSF2Generator
 
-INCLUDEPATH += ../wavebank
-INCLUDEPATH += ../sf2generator
+INCLUDEPATH += ../SF2Generator
+INCLUDEPATH += ../WaveBank
 
-SOURCES += csf2player.cpp
-HEADERS += csf2player.h
+HEADERS += csf2player.h \
+    csf2device.h \
+    csf2playerform.h
+
+SOURCES += csf2player.cpp \
+    csf2device.cpp \
+    csf2playerform.cpp
+
+FORMS += csf2playerform.ui
+
+##HEADERS += ../WaveBank/cwavebank.h
+
+##SOURCES += ../WaveBank/cwavebank.cpp
 
 DEFINES += SF2PLAYER_LIBRARY
 
-SOURCES += \
-    csf2playerform.cpp
 
-HEADERS += \
-    csf2playerform.h
-
-symbian {
-    MMP_RULES += EXPORTUNFROZEN
-    TARGET.UID3 = 0xEBE8270E
-    TARGET.CAPABILITY = 
-    TARGET.EPOCALLOWDLLDATA = 1
-    addFiles.sources = SF2Player.dll
-    addFiles.path = !:/sys/bin
-    DEPLOYMENT += addFiles
-}
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
-
-FORMS += \
-    csf2playerform.ui
-
-HEADERS += \
-    csf2device.h
-
-SOURCES += \
-    csf2device.cpp
 
 
 

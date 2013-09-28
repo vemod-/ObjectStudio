@@ -19,7 +19,7 @@ public:
     void HideForm();
 private:
     enum JackNames
-    {jnMIDIIn,jnOut};
+    {jnOut,jnMIDIIn};
     enum ParameterNames
     {pnMIDIChannel,pnTranspose,pnTune};
     void Reset();

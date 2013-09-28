@@ -3,11 +3,12 @@
 
 #include <QDialog>
 #include <QMenu>
+#include <QStringList>
 #include "softsynthsclasses.h"
 #include "cvsthostclass.h"
 
 namespace Ui {
-    class CVSTHostForm;
+class CVSTHostForm;
 }
 
 class CVSTHostForm : public CSoftSynthsForm
@@ -17,11 +18,14 @@ class CVSTHostForm : public CSoftSynthsForm
 public:
     explicit CVSTHostForm(IDevice* Device, QWidget *parent = 0);
     ~CVSTHostForm();
-    void Init(AEffect* E,TVSTHost* OwnerClass);
+    //void Init(AEffect* E,TVSTHost* OwnerClass);
     void AddStatusInfo(QString Info);
     const QString Save();
     void Load(const QString& XML);
     void StopTimer();
+    QString ProgramName;
+    const QStringList ProgramNames();
+    void SetProgram(int index);
 private slots:
     void TogglePresets();
     void ToggleStatus();
@@ -39,22 +43,18 @@ protected:
     void timerEvent(QTimerEvent *e);
 private:
     Ui::CVSTHostForm *ui;
-       AEffect* m_Effect;
-       TVSTHost* m_OwnerClass;
-       //int EffWidth;
-       //int EffHeight;
-       QRect EffRect;
-       long CurrentParameter;
-        void inline UpdateParam();
-        QMenu* Popup;
-       bool m_MD;
-       QPoint CursorStart;
-       QPoint PosStart;
-       bool HasEditor;
-       bool wasActivated;
-       QAction* PresetAction;
-       QAction* StatusAction;
-       QRect GetEffRect();
+    AEffect* m_Effect;
+    TVSTHost* m_OwnerClass;
+    QRect EffRect;
+    long CurrentParameter;
+    void inline UpdateParam();
+    QMenu* Popup;
+    bool m_MD;
+    QPoint CursorStart;
+    QPoint PosStart;
+    bool HasEditor;
+    QAction* PresetAction;
+    QAction* StatusAction;
 };
 
 #endif // CVSTHOSTFORM_H
