@@ -3,8 +3,6 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += macextras
 LIBS += -framework Cocoa -framework Carbon
 macx:LIBS += -framework AppKit -framework Carbon ## -framework CoreGraphics
 
-LIBS += -L$$PWD/../ -lPluginLoader
-
 INCLUDEPATH += $$PWD
 INCLUDEPATH += $$PWD/../SoftSynthClasses
 INCLUDEPATH += $$PWD/../PluginLoader

@@ -53,13 +53,15 @@ void CMacWindow::DestroyMacWindow()
         NSWindow* hostWindow = [(NSView*)hostView window];
         [hostWindow removeChildWindow:(NSWindow*)cocoaWin];
         [(NSView*)hostView release];
+        /*
         if (cocoaView() != NULL)
         {
             NSView* v=(NSView*)cocoaView();
             qDebug() << [v retainCount];
-            //setCocoaView(NULL);
+            setCocoaView(NULL);
             qDebug() << [v retainCount];
         }
+        */
         DisposeWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]));
         [(NSWindow*)cocoaWin release];
         cocoaWin=0;

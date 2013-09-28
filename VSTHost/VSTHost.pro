@@ -13,6 +13,8 @@ DEFINES += VSTHOST_LIBRARY
 
 include(VSTHost.pri)
 
+LIBS += -L../ -lPluginLoader
+
 
 
 

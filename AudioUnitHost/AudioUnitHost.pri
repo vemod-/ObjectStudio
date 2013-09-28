@@ -10,8 +10,6 @@ include($$PWD/../../QSignalMenu/QSignalMenu.pri)
 
 LIBS += -framework Cocoa -framework Carbon -framework CoreAudio -framework AudioUnit -framework AudioToolbox -framework CoreAudioKit
 
-LIBS += -L$$PWD/../ -lPluginLoader
-
 SOURCES += \
     ../../../../../../Developer/Extras/CoreAudio/PublicUtility/CAComponentDescription.cpp \
     ../../../../../../Developer/Extras/CoreAudio/PublicUtility/CAComponent.cpp \

@@ -15,6 +15,8 @@ DEFINES += AUDIOUNITHOST_LIBRARY
 
 include(AudioUnitHost.pri)
 
+LIBS += -L../ -lPluginLoader
+
 HEADERS += ../VSTHost/cmacwindow.h \
     ../VSTHost/macstrings.h \
     ../VSTHost/iaudiopluginhost.h \
