@@ -16,8 +16,8 @@ const QString WaveFilter("Sound Files (*.wav;*.au;*.mp3;*.aiff)");
 class CAiffFile : public IWaveFile
 {
 public:
-    const size_t CreateFloatBuffer(float *&OutBuffer, const int Samplerate);
-    const bool Open(BYTE* pSrc, const size_t Size);
+    size_t CreateFloatBuffer(float *&OutBuffer, const int Samplerate);
+    bool Open(BYTE* pSrc, const size_t Size);
 private:
     struct FormChunk
     {
@@ -47,8 +47,8 @@ private:
 class CAuFile : public IWaveFile
 {
 public:
-    const bool Open(BYTE* pSrc, const size_t Size);
-    const bool Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate);
+    bool Open(BYTE* pSrc, const size_t Size);
+    bool Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate);
 private:
     struct Audio_filehdr
     {
@@ -106,8 +106,8 @@ public:
         RIFFHeader  riff;
         WAVEHeader  wave;
     };
-    const bool Open(BYTE* pSrc, const size_t Size);
-    const bool Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate);
+    bool Open(BYTE* pSrc, const size_t Size);
+    bool Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate);
 private:
     enum SampleType { Unknown, SignedInt, UnSignedInt, Float };
 };
@@ -117,7 +117,7 @@ class CWaveFile
 public:
     CWaveFile();
     ~CWaveFile();
-    const bool open(const QString &fileName, const unsigned int SampleRate);
+    bool open(const QString &fileName, const unsigned int SampleRate);
     void startRecording(const int Channels, const unsigned int SampleRate);
     void finishRecording();
     void pushBuffer(float* &buffer, const size_t Size);
@@ -126,7 +126,7 @@ public:
     size_t Length;
     int channels;
     int frequency;
-    const bool save(const QString &fileName);
+    bool save(const QString &fileName);
 private:
     unsigned int m_SampleRate;
     size_t m_PushBufferSize;

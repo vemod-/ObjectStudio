@@ -21,13 +21,13 @@ class CKnobControl : public QWidget
 public:
     explicit CKnobControl(QWidget *parent = 0);
     ~CKnobControl();
-    void SetValue(int Value, const ParameterType& p);
-    void SetTexts(int Value, const ParameterType &p);
-    int GetValue();
+    void setValue(int Value, const ParameterType& p);
+    void setLabels(int Value, const ParameterType &p);
+    int value();
 protected:
     void mousePressEvent(QMouseEvent *);
 signals:
-    void ValueChanged(int Value);
+    void valueChanged(int Value);
 private:
     ParameterType Parameter;
     Ui::CKnobControl *ui;

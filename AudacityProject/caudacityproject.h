@@ -24,11 +24,11 @@ class AudacityClip
 {
 private:
     unsigned int Counter;
-    std::vector<AudacityBlock*> Blocks;
+    QList<AudacityBlock*> Blocks;
     float* Buffer;
     float* auBuffer;
     int Buffersize;
-    unsigned int BlockIndex;
+    int BlockIndex;
     int BufferPointer;
 public:
     AudacityClip();
@@ -46,8 +46,7 @@ class AudacityTrack
 {
 private:
     float Time;
-    std::vector<AudacityClip*> Clips;
-    float TimeFactor;
+    QList<AudacityClip*> Clips;
     int Buffersize;
 public:
     QString Name;
@@ -60,7 +59,7 @@ public:
     float Gain;
     float Pan;
     float TimeAdd;
-    unsigned int ClipIndex;
+    int ClipIndex;
     bool Playing;
     float FactorL;
     float FactorR;
@@ -81,7 +80,7 @@ private:
     float ModFactor;
     float TimeAdd;
     float Time;
-    std::vector<AudacityTrack*> Tracks;
+    QList<AudacityTrack*> Tracks;
     bool Playing;
     bool Loading;
     void inline CalcParams();

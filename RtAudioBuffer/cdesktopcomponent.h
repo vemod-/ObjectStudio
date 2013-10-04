@@ -20,10 +20,10 @@ class CJackContainer
 public:
     QList<JackRect> JackRects;
     QRect Geometry;
-    const int InsideJack(const QPoint& Pos);
-    const bool InsideMe(const QPoint& Pos);
+    int InsideJack(const QPoint& Pos);
+    bool InsideMe(const QPoint& Pos);
     QPoint JackPos(const int Index);
-    const int JackCount();
+    int JackCount();
     IJack* GetJack(const int Index);
     virtual QList<QGraphicsItem*> Paint(QGraphicsScene* Scene);
 };
@@ -36,7 +36,7 @@ private:
     QString m_ClassName;
 public:
     CDeviceComponent();
-    ~CDeviceComponent();
+    virtual ~CDeviceComponent();
     QString Name;
     void Init(IDevice* Device, const QString& ClassName);
     IDevice* Device(void);
@@ -68,7 +68,7 @@ public:
 
     CDeviceList DeviceList;
     void AddDevice(IDevice* Device, const QString& ClassName);
-    const bool AddDevice(const QString& ClassName, void* MainWindow);
+    bool AddDevice(const QString& ClassName, void* MainWindow);
     const QString Save(const QString& Mode);
     void Load(const QString& XML);
     IJack* CreateInsideJack(int ProcIndex, IJack* ConnectTo, IDeviceBase* DeviceClass);
@@ -135,8 +135,8 @@ private:
     QSignalMenu* PluginsPopup;
 
     void DisconnectJackBar(CJackBar& JackBar);
-    const int DeviceIndex(const QPoint& Pos);
-    const bool AddDevice(const QString& ClassName, const int ID, void* MainWindow);
+    int DeviceIndex(const QPoint& Pos);
+    bool AddDevice(const QString& ClassName, const int ID, void* MainWindow);
     void RemoveDevice(IDevice* Device);
     void DisconnectDevice(IDevice* Device);
     void FillJackList(void);
@@ -151,7 +151,7 @@ private:
     void Disconnect(const QString& J1,const QString& J2);
     void SetConnectCursor(const QPoint& Pos);
     void ConnectDrop(const QPoint& Pos);
-    const bool DeviceInsideRect(CDeviceComponent& D);
+    bool DeviceInsideRect(CDeviceComponent& D);
     IJack* MouseOverJack(const QPoint& Pos, QPoint& JackPoint);
     IJack* MouseOverJack(const QPoint &Pos);
     QList<QGraphicsItem*> DragList;

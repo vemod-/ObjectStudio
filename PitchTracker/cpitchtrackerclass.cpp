@@ -672,9 +672,9 @@ CPitchTrackerClass::~CPitchTrackerClass()
 
     void CPitchTrackerClass::Process()
     {
-        float freq;
-        float freq1;
-        float freq3;
+        float freq=0;
+        float freq1=0;
+        float freq3=0;
         CurrentVel=0;
         CurrentNote=0;
 

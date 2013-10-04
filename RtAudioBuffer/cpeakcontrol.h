@@ -30,7 +30,7 @@ private:
     QLinearGradient lgYellow;
     QLinearGradient lgGreen;
     QLinearGradient lgDarkRed;
-    const int val2y(const float val, const float height);
+    int val2y(const float val, const float height);
     const QLinearGradient y2col(const int y, const int height);
     static const int Border=4;
     static const int HalfBorder=2;

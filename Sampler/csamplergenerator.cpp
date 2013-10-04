@@ -55,6 +55,7 @@ void CSamplerGenerator::addTranspose(int steps)
 void CSamplerGenerator::setAftertouch(short value)
 {
     float val=(value*0.001)+1;
+    Q_UNUSED(val);
 }
 
 void CSamplerGenerator::resetTranspose()

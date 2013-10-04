@@ -10,7 +10,7 @@ CKnobControl::CKnobControl(QWidget *parent) :
     spinbox=new QDoubleSpinBox(this);
     spinboxAction=new QWidgetAction(this);
     spinboxAction->setDefaultWidget(spinbox);
-    connect(ui->dial,SIGNAL(valueChanged(int)),this,SIGNAL(ValueChanged(int)));
+    connect(ui->dial,SIGNAL(valueChanged(int)),this,SIGNAL(valueChanged(int)));
     ui->dial->setNotchStyle(QSynthKnob::LEDNotch);
     mapper=new QSignalMapper(this);
     connect(mapper,SIGNAL(mapped(int)),ui->dial,SLOT(setValue(int)));
@@ -23,12 +23,12 @@ CKnobControl::~CKnobControl()
     delete ui;
 }
 
-int CKnobControl::GetValue()
+int CKnobControl::value()
 {
     return ui->dial->value();
 }
 
-void CKnobControl::SetValue(int Value, const ParameterType &p)
+void CKnobControl::setValue(int Value, const ParameterType &p)
 {
     Parameter=p;
     ui->dial->blockSignals(true);
@@ -36,10 +36,10 @@ void CKnobControl::SetValue(int Value, const ParameterType &p)
     ui->dial->setMaximum(p.Max);
     ui->dial->setValue(Value);
     ui->dial->blockSignals(false);
-    SetTexts(Value,p);
+    setLabels(Value,p);
 }
 
-void CKnobControl::SetTexts(int Value, const ParameterType &p)
+void CKnobControl::setLabels(int Value, const ParameterType &p)
 {
     ui->label->setText(p.Name);
     if (p.Type==ParameterType::dB)

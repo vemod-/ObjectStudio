@@ -1,3 +1,6 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += macextras
 
 LIBS += -framework Cocoa -framework Carbon
@@ -13,7 +16,8 @@ SOURCES += $$PWD/cvsthost.cpp \
     $$PWD/cvstform.cpp
 OBJECTIVE_SOURCES += $$PWD/cmacwindow.mm \
     $$PWD/cvsthostclass.mm \
-    $$PWD/macstrings.mm
+    $$PWD/macstrings.mm \
+    $$PWD/iaudiopluginhost.mm
 
 HEADERS += $$PWD/cvsthost.h \
     $$PWD/cvsthostclass.h \
@@ -22,7 +26,8 @@ HEADERS += $$PWD/cvsthost.h \
     $$PWD/cmacwindow.h \
     $$PWD/macstrings.h \
     $$PWD/cvstform.h \
-    $$PWD/IAudioPlugInHost.h
+    $$PWD/iaudiopluginhost.h
 
 FORMS += $$PWD/cvstform.ui
+}
 

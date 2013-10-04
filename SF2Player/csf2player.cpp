@@ -1,6 +1,7 @@
 #include "csf2player.h"
 #include "csf2playerform.h"
 
+#undef devicename
 #define devicename "SF2Player"
 
 CSF2Player::CSF2Player()

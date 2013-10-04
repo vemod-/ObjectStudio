@@ -9,7 +9,7 @@ class CEnvelope : public IDevice
 public:
     CEnvelope();
     void Init(const int Index,void* MainWindow);
-    const float GetNext(const int ProcIndex);
+    float GetNext(const int ProcIndex);
     void UpdateHost();
 private:
     enum JackNames

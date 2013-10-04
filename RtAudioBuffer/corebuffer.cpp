@@ -29,11 +29,10 @@ CCoreMainBuffers::CCoreMainBuffers()
     ActivityLimit=m_SampleRate*30;
 }
 
-void CCoreMainBuffers::Init(const int Index, void *MainWindow, IHost* Host)
+void CCoreMainBuffers::Init(const int Index, void *MainWindow)
 {
     m_Name="This";
     IDevice::Init(Index, MainWindow);
-    IDevice::SetHost(Host);
 
     OutAudio=AddJackStereoOut(jnIn,"In");
     OutMIDI=AddJackMIDIOut(jnMIDIIn,"MIDI In");
@@ -48,7 +47,7 @@ void CCoreMainBuffers::Init(const int Index, void *MainWindow, IHost* Host)
     CalcParams();
 }
 
-const float inline CCoreMainBuffers::TruncateVal(float Buf, float& Peak)
+float inline CCoreMainBuffers::TruncateVal(float Buf, float& Peak)
 {
     Buf*=outputVol;
     float Val = Buf;
@@ -65,24 +64,9 @@ const float inline CCoreMainBuffers::TruncateVal(float Buf, float& Peak)
 
 void inline CCoreMainBuffers::ParseMidi(CMIDIBuffer* MIDIBuffer)
 {
-    std::vector<BYTE> message;
-    MIDIBuffer->StartRead();
-    int lTemp=MIDIBuffer->Read();
-    while (lTemp > -1)
-    {
-        if (lTemp >= 0x80)
-        {
-            message.clear();
-            message.push_back(lTemp);
-        }
-        forever
-        {
-            lTemp=MIDIBuffer->Read();
-            if ((lTemp >= 0x80) | (lTemp < 0)) break;
-            message.push_back(lTemp);
-        }
-        if (message.size() > 0) m_MidiOut.sendMessage(&message);
-    }
+    if (!MIDIBuffer) return;
+    std::vector<BYTE> v=MIDIBuffer->MIDIData();
+    m_MidiOut.sendMessage(&v);
 }
 
 void CCoreMainBuffers::Wait()
@@ -150,7 +134,7 @@ void CCoreMainBuffers::StopRecording()
     }
 }
 
-const bool CCoreMainBuffers::SaveRecording(const QString &fileName)
+bool CCoreMainBuffers::SaveRecording(const QString &fileName)
 {
     return WaveFile.save(fileName);
 }
@@ -168,7 +152,8 @@ void* CCoreMainBuffers::GetNextP(const int /*ProcIndex*/)
     MIDIBuffer.Reset();
     std::vector<BYTE> message;
     m_MidiIn.getMessage( &message );
-    foreach (BYTE c, message) MIDIBuffer.Push(c);
+    MIDIBuffer.Push(message.data(),message.size());
+    //foreach (BYTE c, message) MIDIBuffer.Push(c);
     return (void*)&MIDIBuffer;
 }
 
@@ -212,11 +197,12 @@ void CCoreMainBuffers::Panic()
 {
     for (int i=0;i<16;i++)
     {
-        std::vector<BYTE> message;
+        QVector<BYTE> message;
         message.push_back(0xB0+i);
         message.push_back(0x7B);
         message.push_back(00);
-        m_MidiOut.sendMessage(&message);
+        std::vector<BYTE> v=message.toStdVector();
+        m_MidiOut.sendMessage(&v);
     }
     //Bn 7B 00 All notes off!
 }

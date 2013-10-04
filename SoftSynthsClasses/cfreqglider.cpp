@@ -26,7 +26,7 @@ void CFreqGlider::SetTargetFreq(const float Freq)
     TargetFreq=Freq;
 }
 
-const float CFreqGlider::GetCurrentFreq(void)
+float CFreqGlider::GetCurrentFreq(void)
 {
     float CurrentFreq;
     if (CurrentGlide)

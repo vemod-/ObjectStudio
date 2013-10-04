@@ -3,6 +3,7 @@
 
 #include "ijackbase.h"
 #include "softsynthsdefines.h"
+#include "cpresets.h"
 
 class CAudioBuffer
 {
@@ -11,8 +12,17 @@ protected:
     int m_BufferSize;
     int m_WaveBufferSize;
 public:
-    CAudioBuffer(IJackBase::AttachModes a);
-    ~CAudioBuffer();
+    CAudioBuffer(IJackBase::AttachModes a) : AttachMode(a), m_BufferSize(CPresets::Presets.ModulationRate)
+    {
+        m_WaveBufferSize=m_BufferSize;
+        if (AttachMode==IJackBase::Stereo) m_WaveBufferSize=m_BufferSize*2;
+        Buffer=new float[m_WaveBufferSize];
+        ZeroBuffer();
+    }
+    virtual ~CAudioBuffer()
+    {
+        delete [] Buffer;
+    }
     inline float* ZeroBuffer() {
         ZeroMemory(Buffer,m_WaveBufferSize*sizeof(float));
         return Buffer;

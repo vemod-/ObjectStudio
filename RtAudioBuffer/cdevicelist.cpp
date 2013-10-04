@@ -47,7 +47,7 @@ IJack* CJackCollection::Item(const int Index)
     return NULL;
 }
 
-const int CJackCollection::Count()
+int CJackCollection::Count()
 {
     return m_Jacks.count();
 }
@@ -107,7 +107,7 @@ IDevice* CDeviceList::AddDevice(voidinstancefunc InstanceFunction, const int ID,
     return AddDevice(D);
 }
 
-const int CDeviceList::FindFreeID(const QString& Name)
+int CDeviceList::FindFreeID(const QString& Name) const
 {
     int i=0;
     bool Taken;
@@ -232,7 +232,7 @@ void CDeviceList::LoadParameters(QDomLiteElement* Device, const int DeviceIndex,
     }
 }
 
-const bool CDeviceList::CanConnect(IJack* J1, IJack* J2)
+bool CDeviceList::CanConnect(IJack* J1, IJack* J2)
 {
     if (J1 != J2)
     {
@@ -250,12 +250,12 @@ const bool CDeviceList::CanConnect(IJack* J1, IJack* J2)
     return false;
 }
 
-const bool CDeviceList::CanConnect(const int J1, const int J2)
+bool CDeviceList::CanConnect(const int J1, const int J2)
 {
     return CanConnect(m_Jacks.Item(J1),m_Jacks.Item(J2));
 }
 
-const bool CDeviceList::Connect(IJack* J1, IJack* J2)
+bool CDeviceList::Connect(IJack* J1, IJack* J2)
 {
     if (!(J1 && J2))
     {
@@ -281,12 +281,12 @@ const bool CDeviceList::Connect(IJack* J1, IJack* J2)
     return false;
 }
 
-const bool CDeviceList::Connect(const int J1, const int J2)
+bool CDeviceList::Connect(const int J1, const int J2)
 {
     return Connect(m_Jacks.Item(J1),m_Jacks.Item(J2));
 }
 
-const bool CDeviceList::Connect(const QString& J1, const QString& J2)
+bool CDeviceList::Connect(const QString& J1, const QString& J2)
 {
     return Connect(m_Jacks.Item(J1),m_Jacks.Item(J2));
 }
@@ -327,7 +327,7 @@ void CDeviceList::Disconnect(const QString& J1, const QString& J2)
     Disconnect(m_Jacks.Item(J1),m_Jacks.Item(J2));
 }
 
-const bool CDeviceList::IsConnected(IJack* J1, IJack* J2)
+bool CDeviceList::IsConnected(IJack* J1, IJack* J2)
 {
     if (!(J1 && J2))
     {
@@ -356,12 +356,12 @@ const bool CDeviceList::IsConnected(IJack* J1, IJack* J2)
     return false;
 }
 
-const bool CDeviceList::IsConnected(const int J1, const int J2)
+bool CDeviceList::IsConnected(const int J1, const int J2)
 {
     return IsConnected(m_Jacks.Item(J1),m_Jacks.Item(J2));
 }
 
-const bool CDeviceList::IsConnected(const QString& J1, const QString& J2)
+bool CDeviceList::IsConnected(const QString& J1, const QString& J2)
 {
     return IsConnected(m_Jacks.Item(J1),m_Jacks.Item(J2));
 }
@@ -446,17 +446,17 @@ IDevice* CDeviceList::Device(const int Index)
     return m_Devices[Index];
 }
 
-const int CDeviceList::JackCount()
+int CDeviceList::JackCount()
 {
     return m_Jacks.Count();
 }
 
-const int CDeviceList::DeviceCount()
+int CDeviceList::DeviceCount() const
 {
     return m_Devices.count();
 }
 
-const int CDeviceList::IndexOfDevice(IDevice* D)
+int CDeviceList::IndexOfDevice(IDevice* D) const
 {
     return m_Devices.indexOf(D);
 }

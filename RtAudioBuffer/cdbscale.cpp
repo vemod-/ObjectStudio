@@ -18,7 +18,7 @@ CdBScale::~CdBScale()
     delete ui;
 }
 
-const int CdBScale::val2y(const float val, const float height)
+int CdBScale::val2y(const float val, const float height)
 {
     return height-((val*height*2)/3);
 }

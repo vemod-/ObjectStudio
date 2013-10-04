@@ -19,7 +19,7 @@ public:
     COutJack* OutAudio;
     COutJack* OutMIDI;
     CCoreMainBuffers();
-    void Init(const int Index, void* MainWindow, IHost* Host);
+    void Init(const int Index, void* MainWindow);
     void* GetNextP(const int ProcIndex);
     void MainAudioLoop(float* OutBuffer, float* InBuffer, const int BufferSize);
     void CreateBuffer();
@@ -28,7 +28,7 @@ public:
     void Wait();
     void StartRecording();
     void StopRecording();
-    const bool SaveRecording(const QString& fileName);
+    bool SaveRecording(const QString& fileName);
     void getPeak(float& L,float& R);
     QStringList DeviceList(int Direction);
     static int AudioCallback( void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void *userData );
@@ -61,7 +61,7 @@ private:
     float PeakR;
 
     CMIDIBuffer MIDIBuffer;
-    const float inline TruncateVal(float Buf, float& Peak);
+    float inline TruncateVal(float Buf, float& Peak);
     void inline ParseMidi(CMIDIBuffer* MIDIBuffer);
 
     CWaveFile WaveFile;

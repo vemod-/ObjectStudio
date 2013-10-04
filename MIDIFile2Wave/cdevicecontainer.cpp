@@ -312,7 +312,7 @@ const QStringList CDeviceContainer::Presets(const int Bank)
     return l;
 }
 
-const int CDeviceContainer::CurrentBank(const short channel)
+int CDeviceContainer::CurrentBank(const short channel)
 {
 #ifdef CSF2PLAYER_H
     if (m_DeviceType=="SF2Player")
@@ -328,7 +328,7 @@ const int CDeviceContainer::CurrentBank(const short channel)
     return 0;
 }
 
-const int CDeviceContainer::CurrentPreset(const short channel)
+int CDeviceContainer::CurrentPreset(const short channel)
 {
 #ifdef CSF2PLAYER_H
     if (m_DeviceType=="SF2Player")
@@ -351,6 +351,7 @@ const int CDeviceContainer::CurrentPreset(const short channel)
         return d->PresetNames().indexOf(d->PresetName());
     }
 #endif
+    return 0;
 }
 
 void CDeviceContainer::SetCurrentPreset(const int Bank, const int Preset)
@@ -384,7 +385,7 @@ void CDeviceContainer::SetParameterValue(const QString &Name, const int Value)
     if (m_Device) m_Device->SetParameterValue(Name,Value);
 }
 
-const int CDeviceContainer::GetParameterValue(const QString &Name)
+int CDeviceContainer::GetParameterValue(const QString &Name)
 {
     if (m_Device) return m_Device->GetParameterValue(Name);
     return 0;

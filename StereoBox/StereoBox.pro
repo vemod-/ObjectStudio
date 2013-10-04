@@ -8,6 +8,7 @@ TARGET = StereoBox
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
+include(../../QCanvas/QCanvas.pri)
 
 INCLUDEPATH += ../MacroBox
 

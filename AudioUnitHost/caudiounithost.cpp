@@ -1,6 +1,8 @@
 #include "caudiounithost.h"
 #include "caudiounitclass.h"
 #include "cvstform.h"
+
+#undef devicename
 #define devicename "AudioUnitHost"
 
 CAudioUnitHost::CAudioUnitHost()
@@ -127,9 +129,8 @@ void CAudioUnitHost::Load(const QString& XML)
 void CAudioUnitHost::Process()
 {
     CAudioUnitClass* AU=(CAudioUnitClass*)((CVSTForm*)m_Form)->PlugIn;
-    CMIDIBuffer* MB=(CMIDIBuffer*)FetchP(jnMIDIIn);
+    AU->DumpMIDI((CMIDIBuffer*)FetchP(jnMIDIIn),m_ParameterValues[pnPatchChange]);
     float* Buffer=FetchA(jnIn);
-    AU->DumpMIDI(MB,m_ParameterValues[pnPatchChange]);
     if (Buffer != NULL)
     {
         CopyMemory(AU->inBufferL,Buffer,m_BufferSize*sizeof(float)*2);
@@ -164,4 +165,11 @@ void CAudioUnitHost::SetProgram(const int index)
 {
     CVSTForm* f=((CVSTForm*)m_Form);
     f->SetProgram(index);
+}
+
+const void* CAudioUnitHost::Picture() const
+{
+    IAudioPlugInHost* AU=((CVSTForm*)m_Form)->PlugIn;
+    QPixmap* pm=new QPixmap(AU->Picture());
+    return (void*)pm;
 }

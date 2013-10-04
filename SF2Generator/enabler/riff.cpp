@@ -227,11 +227,11 @@ SHORT RIFFClass::initRiffTokensArray()
 // This is a call to open a file and verify that it is 
 // a RIFF file.
 //*********************************************************
-WORD RIFFClass::OpenRIFF(CHAR* pName)
+WORD RIFFClass::OpenRIFF(const CHAR* pName)
 {
   byWhereIsRIFFData = RIFF_ONDISK;
 
-  if ((RIFFOpen(pName) != SUCCESS ) || (pFile == NULL))
+  if ((RIFFOpen((void*)pName) != SUCCESS ) || (pFile == NULL))
   { 
      SetError(errno); // Set inside RIFFOpen
      return (uiErrorNdx = RIFF_OPENFILEERROR);

@@ -39,10 +39,10 @@ public:
     virtual void Patch(const short channel, const short value);
     virtual void SysEx(char* data, const short datalen);
     virtual float* getNext(const int voice);
-    virtual const short voiceChannel(const int voice);
-    virtual const int voiceCount();
-    virtual const float volL(const short channel);
-    virtual const float volR(const short channel);
+    virtual short voiceChannel(const int voice);
+    virtual int voiceCount();
+    virtual float volL(const short channel);
+    virtual float volR(const short channel);
     virtual void reset();
     virtual void allNotesOff();
     virtual void parseMIDI(CMIDIBuffer* MB);
@@ -53,9 +53,6 @@ protected:
     short m_Channel;
     short m_Transpose;
     bool isGM;
-private:
-    QByteArray data;
-    int datalen;
 };
 
 

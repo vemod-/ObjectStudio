@@ -6,7 +6,7 @@
 class IDeviceBase
 {
 public:
-    virtual const float GetNext(const int /*ProcIndex*/)
+    virtual float GetNext(const int /*ProcIndex*/)
     {
         return 0;
     }

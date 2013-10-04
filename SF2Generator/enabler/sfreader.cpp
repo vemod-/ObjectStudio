@@ -153,7 +153,7 @@ CloseSFBFile(void)
   bySFStorageStatus = SFR_CLOSED;
 }
 
-HydraClass *sfReader::ReadSFBFile(CHAR* pFilename, CHAR * pchReqdWaveTable)
+HydraClass *sfReader::ReadSFBFile(const CHAR* pFilename, const CHAR * pchReqdWaveTable)
 /*
 *****************************************************************************
 *
@@ -224,7 +224,7 @@ HydraClass *sfReader::ReadSFBFile(FSSpec * pFSSpec, CHAR *pchReqdWaveTable)
 #endif // USE_MACINTOSH
 
 HydraClass* sfReader::
-ReadSFBData (CHAR * pchReqdWaveTable)
+ReadSFBData (const CHAR * pchReqdWaveTable)
 /*****************************************************************************
 * 
 * Implementation Notes: 

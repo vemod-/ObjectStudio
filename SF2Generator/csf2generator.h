@@ -24,7 +24,7 @@ class CSF2Generator
 private:
     bool PlayEnd;
     bool Ready;
-    std::vector<OscType*> Osc;
+    QList<OscType*> Osc;
     unsigned short OscCount;
     CSF2File* SFFile;
     float* AudioL;

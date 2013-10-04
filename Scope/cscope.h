@@ -20,7 +20,6 @@ private:
     {pnVolume,pnFrequency,pnMode};
     void Reset();
     void inline CalcParams();
-    int SpectrumCount;
     float* m_Buffer[MaxBuffers];
     float* PlotBuffer[MaxBuffers];
     int CurrentBuffer;

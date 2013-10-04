@@ -12,7 +12,7 @@ public:
     void Play(const bool FromStart);
     void Pause();
     void Init(const int Index,void* MainWindow);
-    const float GetNext(const int ProcIndex);
+    float GetNext(const int ProcIndex);
     void* GetNextP(const int ProcIndex);
     float* GetNextA(const int ProcIndex);
     void Tick();
@@ -24,7 +24,7 @@ private:
     {pnMIDIChannel,pnTranspose,pnTune};
     void Reset();
     void inline CalcParams();
-    std::vector<IJack*> JacksCreated;
+    QList<IJack*> JacksCreated;
     CInJack* WaveOut;
     CCVDevice CVDevice;
 };

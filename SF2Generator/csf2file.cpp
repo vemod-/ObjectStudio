@@ -28,7 +28,7 @@ bool CSF2File::Open(const QString &filePath)
     return true;
 }
 
-const short CSF2File::ReadMem(const size_t& Pos)
+short CSF2File::ReadMem(const size_t& Pos)
 {
     return Mem[Pos];
 }
@@ -185,7 +185,7 @@ void OscType::Modulate()
     //ModCount++;
 }
 
-const float OscType::UpdatePos(void)
+float OscType::UpdatePos(void)
 {
     float Data = m_SFFile->ReadMem(RealPos());
     Position += PosRate * EnvMod;
@@ -193,7 +193,7 @@ const float OscType::UpdatePos(void)
     return Filter.GetNext(Data * VolumeFactor * EnvVol);
 }
 
-const unsigned int OscType::RealPos(void)
+unsigned int OscType::RealPos(void)
 {
     return RealStart+Position;
 }
@@ -202,7 +202,8 @@ void OscType::Loop()
 {
     while (Position>=RelEndLoop) Position-=LoopSize;
 }
-const bool OscType::NoLoop()
+
+bool OscType::NoLoop()
 {
     if (Position>=SampleSize)
     {
@@ -275,7 +276,7 @@ void SFEnvelope::Init(const int Delay, const int Attack, const int Hold, const i
     Silent=true;
 }
 
-const float inline SFEnvelope::GetNext()
+float inline SFEnvelope::GetNext()
 {
     if (CurrentAction==evSilent)
     {
@@ -396,7 +397,7 @@ SFLFO::~SFLFO()
     //delete LFO;
 }
 
-const float inline SFLFO::GetNext()
+float inline SFLFO::GetNext()
 {
     if (CurrentAction==SFEnvelope::evSilent)
     {
@@ -486,7 +487,7 @@ void inline SFFilter::SetAmount(const float Amount)
 
 }
 
-const float inline SFFilter::GetNext(const float Signal)
+float inline SFFilter::GetNext(const float Signal)
 {
     //float Signal=Value;
     float Temp_y=(FiltCoefTab0 * Signal) + (FiltCoefTab1 * lx1) + (FiltCoefTab2 * lx2) + (FiltCoefTab3 * ly1) + (FiltCoefTab4 * ly2);

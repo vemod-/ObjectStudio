@@ -161,7 +161,7 @@ class RIFFClass
     WORD        OpenRIFF(FSSpec * pFileSpecifier);
     #endif
     
-    WORD        OpenRIFF(CHAR* pName); 
+    WORD  OpenRIFF(const CHAR* pName);
     WORD  CloseRIFF(void);
     WORD  ReadCkHdr(void);
     WORD  Descend(void);

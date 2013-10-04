@@ -21,18 +21,18 @@ extern int			m_buf_ptr0, m_buf_ptr1;
 extern float		m_yout[576];
 
 //extern "l3sbt.c"
-void sbt_mono_L3(float *sample, signed short *pcm, int ch);
-void sbt_dual_L3(float *sample, signed short *pcm, int ch);
-void sbt16_mono_L3(float *sample, signed short *pcm, int ch);
-void sbt16_dual_L3(float *sample, signed short *pcm, int ch);
-void sbt8_mono_L3(float *sample, signed short *pcm, int ch);
-void sbt8_dual_L3(float *sample, signed short *pcm, int ch);
-void sbtB_mono_L3(float *sample, unsigned char *pcm, int ch);
-void sbtB_dual_L3(float *sample, unsigned char *pcm, int ch);
-void sbtB16_mono_L3(float *sample, unsigned char *pcm, int ch);
-void sbtB16_dual_L3(float *sample, unsigned char *pcm, int ch);
-void sbtB8_mono_L3(float *sample, unsigned char *pcm, int ch);
-void sbtB8_dual_L3(float *sample, unsigned char *pcm, int ch);
+void sbt_mono_L3(float *sample, void *pcm, int ch);
+void sbt_dual_L3(float *sample, void *pcm, int ch);
+void sbt16_mono_L3(float *sample, void *pcm, int ch);
+void sbt16_dual_L3(float *sample, void *pcm, int ch);
+void sbt8_mono_L3(float *sample, void *pcm, int ch);
+void sbt8_dual_L3(float *sample, void *pcm, int ch);
+void sbtB_mono_L3(float *sample, void *pcm, int ch);
+void sbtB_dual_L3(float *sample, void *pcm, int ch);
+void sbtB16_mono_L3(float *sample, void *pcm, int ch);
+void sbtB16_dual_L3(float *sample, void *pcm, int ch);
+void sbtB8_mono_L3(float *sample, void *pcm, int ch);
+void sbtB8_dual_L3(float *sample, void *pcm, int ch);
 
 //extern "l3dec.c"
 void xform_mono(void *pcm, int igr);

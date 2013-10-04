@@ -74,15 +74,15 @@ struct EQ
 class CMP3File : public IWaveFile
 {
 public:
-    const int Channels();
-    const int Rate();
+    int Channels() const;
+    int Rate() const;
     CMP3File();
     ~CMP3File();
-    const bool Open(BYTE* pSrc, const size_t Size);
-    const unsigned int Close();
-    const unsigned int Equalize(EQ eq);
-    const unsigned int PCMBuffer(short*& OutBuffer);
-    const size_t CreateFloatBuffer(float*& OutBuffer, const int Samplerate);
+    bool Open(BYTE* pSrc, const size_t Size);
+    unsigned int Close();
+    unsigned int Equalize(EQ eq);
+    unsigned int PCMBuffer(short*& OutBuffer);
+    size_t CreateFloatBuffer(float*& OutBuffer, const int Samplerate);
     //void WaveFile();
 private:
     void Init();

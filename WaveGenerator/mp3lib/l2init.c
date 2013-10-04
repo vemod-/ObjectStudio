@@ -22,23 +22,23 @@ int m_bat[4][16];
 /* -1 = invalid  */
 static const char lookqt[4][3][16] =
 {
-   1, -1, -1, -1, 2, -1, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1,		/*  44ks stereo */
-   0, -1, -1, -1, 2, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1,		/*  48ks */
-   1, -1, -1, -1, 3, -1, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1,		/*  32ks */
-   1, -1, -1, -1, 2, -1, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1,		/*  44ks joint stereo */
-   0, -1, -1, -1, 2, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1,		/*  48ks */
-   1, -1, -1, -1, 3, -1, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1,		/*  32ks */
-   1, -1, -1, -1, 2, -1, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1,		/*  44ks dual chan */
-   0, -1, -1, -1, 2, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1,		/*  48ks */
-   1, -1, -1, -1, 3, -1, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1,		/*  32ks */
+   {{1, -1, -1, -1, 2, -1, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1},		/*  44ks stereo */
+   {0, -1, -1, -1, 2, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1},		/*  48ks */
+   {1, -1, -1, -1, 3, -1, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1}},		/*  32ks */
+   {{1, -1, -1, -1, 2, -1, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1},		/*  44ks joint stereo */
+   {0, -1, -1, -1, 2, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1},		/*  48ks */
+   {1, -1, -1, -1, 3, -1, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1}},		/*  32ks */
+   {{1, -1, -1, -1, 2, -1, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1},		/*  44ks dual chan */
+   {0, -1, -1, -1, 2, -1, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1},		/*  48ks */
+   {1, -1, -1, -1, 3, -1, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1}},		/*  32ks */
 // mono extended beyond legal br index
 //  1,2,2,0,0,0,1,1,1,1,1,1,1,1,1,-1,          /*  44ks single chan */
 //  0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,-1,          /*  48ks */
 //  1,3,3,0,0,0,1,1,1,1,1,1,1,1,1,-1,          /*  32ks */
 // legal mono
-   1, 2, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1,		/*  44ks single chan */
-   0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1,		/*  48ks */
-   1, 3, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1,		/*  32ks */
+   {{1, 2, 2, 0, 0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1},		/*  44ks single chan */
+   {0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1},		/*  48ks */
+   {1, 3, 3, 0, 0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1}},		/*  32ks */
 };
 
 /* bit allocation table look up */
@@ -47,70 +47,70 @@ static const char lookqt[4][3][16] =
 static const unsigned char look_bat[5][4][16] =
 {
 /* LOOK_BATA */
-   0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17,
-   0, 1, 2, 3, 4, 5, 6, 17, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 1, 2, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   {{0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17},
+   {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17},
+   {0, 1, 2, 3, 4, 5, 6, 17, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 1, 2, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 /* LOOK_BATB */
-   0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17,
-   0, 1, 2, 3, 4, 5, 6, 17, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 1, 2, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   {{0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17},
+   {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17},
+   {0, 1, 2, 3, 4, 5, 6, 17, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 1, 2, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 /* LOOK_BATC */
-   0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 1, 2, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   {{0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 1, 2, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 /* LOOK_BATD */
-   0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 1, 2, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   {{0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 1, 2, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 /* LOOK_BATE */
-   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 1, 2, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0,
-   0, 1, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 1, 2, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0},
+   {0, 1, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 };
 
 /* look_nbat[abcd_index]][4] */
 static const unsigned char look_nbat[5][4] =
 {
-   3, 8, 12, 4,
-   3, 8, 12, 7,
-   2, 0, 6, 0,
-   2, 0, 10, 0,
-   4, 0, 7, 19,
+   {3, 8, 12, 4},
+   {3, 8, 12, 7},
+   {2, 0, 6, 0},
+   {2, 0, 10, 0},
+   {4, 0, 7, 19},
 };
 
 //extern "sbt.c"
-void sbt_mono(float *sample, signed short *pcm, int ch);
-void sbt_dual(float *sample, signed short *pcm, int ch);
-void sbt16_mono(float *sample, signed short *pcm, int ch);
-void sbt16_dual(float *sample, signed short *pcm, int ch);
-void sbt8_mono(float *sample, signed short *pcm, int ch);
-void sbt8_dual(float *sample, signed short *pcm, int ch);
-void sbtB_mono(float *sample, unsigned char *pcm, int ch);
-void sbtB_dual(float *sample, unsigned char *pcm, int ch);
-void sbtB16_mono(float *sample, unsigned char *pcm, int ch);
-void sbtB16_dual(float *sample, unsigned char *pcm, int ch);
-void sbtB8_mono(float *sample, unsigned char *pcm, int ch);
-void sbtB8_dual(float *sample, unsigned char *pcm, int ch);
+void sbt_mono(float *sample, void *pcm, int ch);
+void sbt_dual(float *sample, void *pcm, int ch);
+void sbt16_mono(float *sample, void *pcm, int ch);
+void sbt16_dual(float *sample, void *pcm, int ch);
+void sbt8_mono(float *sample, void *pcm, int ch);
+void sbt8_dual(float *sample, void *pcm, int ch);
+void sbtB_mono(float *sample, void *pcm, int ch);
+void sbtB_dual(float *sample, void *pcm, int ch);
+void sbtB16_mono(float *sample, void *pcm, int ch);
+void sbtB16_dual(float *sample, void *pcm, int ch);
+void sbtB8_mono(float *sample, void *pcm, int ch);
+void sbtB8_dual(float *sample, void *pcm, int ch);
 
 static const SBT_PROC sbt_table[2][3][2] =
 {
-	sbt_mono, 
-	sbt_dual, 
-	sbt16_mono, 
-	sbt16_dual, 
-	sbt8_mono, 
-	sbt8_dual, 
-	sbtB_mono,
-	sbtB_dual,
-	sbtB16_mono,
-	sbtB16_dual,
-	sbtB8_mono,
-	sbtB8_dual,
+    {{sbt_mono,
+    sbt_dual},
+    {sbt16_mono,
+    sbt16_dual},
+    {sbt8_mono,
+    sbt8_dual}},
+    {{sbtB_mono,
+    sbtB_dual},
+    {sbtB16_mono,
+    sbtB16_dual},
+    {sbtB8_mono,
+    sbtB8_dual}},
 };
 
 void L2table_init()

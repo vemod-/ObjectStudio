@@ -25,7 +25,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->dial,SIGNAL(valueChanged(int)),this,SLOT(SetVolume(int)));
     startTimer(50);
 
-    MainBuffers.Init(0,this,ui->DesktopContainer->Desktop);
+    MainBuffers.SetHost(ui->DesktopContainer->Desktop);
+    MainBuffers.Init(0,this);
     for (int i=0;i<MainBuffers.JackCount();i++)
     {
         ui->DesktopContainer->Desktop->AddJack(MainBuffers.GetJack(i),0);

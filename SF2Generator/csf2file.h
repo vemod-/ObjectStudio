@@ -24,7 +24,7 @@ public:
     unsigned int Offset;
     BYTE* SFData;
     size_t Size;
-    const short ReadMem(const size_t& Pos);
+    short ReadMem(const size_t& Pos);
     short* Mem;
 };
 
@@ -36,7 +36,7 @@ public:
         evSilent,evDelay,evAttack,evHold,evDecay,evSustain,evRelease
     };
     void Init(const int Delay, const int Attack, const int Hold, const int Decay, const int Sustain, const int Release, const int AutoHold, const int AutoRelease, const int KeyNum, const float RateFactor);
-    const float inline GetNext(void);
+    float inline GetNext(void);
     void Start(void);
     void End(void);
     bool Silent;
@@ -47,15 +47,12 @@ private:
     int mDecay;
     float mSustain;
     int mRelease;
-    int mAutoHold;
-    int mAutoRelease;
     SFEnvelopeValues CurrentAction;
     float AttackStep;
     float DecayStep;
     float ReleaseStep;
     float CurrentVol;
     long Counter;
-    long TimeCount;
 };
 
 class SFLFO
@@ -73,7 +70,7 @@ public:
     void Init(const int Freq, const int Delay, const int KeyNum, const float RateFactor);
     SFLFO();
     ~SFLFO();
-    const float inline GetNext(void);
+    float inline GetNext(void);
     void Start(void);
 };
 
@@ -91,21 +88,16 @@ private:
     float lx1;
     float lx2;
     float m_ExpResonance;
-    //int LastResonance;
     int LastCO;
-    int TargetFreq;
     float MixFactor;
-    //float ModulationFactor;
-    //float InVolumeFactor;
     int CurrentCutOff;
     int CurrentHiQ;
     float CurrentAmount;
     int HalfRate;
-    //void inline CalcParams();
     void inline CalcExpResonance(void);
 public:
     void Init(const int CutOff, const int HiQ);
-    const float inline GetNext(const float Signal);
+    float inline GetNext(const float Signal);
     void inline SetAmount(const float Amount);
 };
 
@@ -150,10 +142,10 @@ public:
     OscType();
     ~OscType();
     void Modulate(void);
-    const float UpdatePos(void);
-    const unsigned int RealPos(void);
+    float UpdatePos(void);
+    unsigned int RealPos(void);
     void Loop();
-    const bool NoLoop();
+    bool NoLoop();
     void Start(void);
     void End(void);
 };

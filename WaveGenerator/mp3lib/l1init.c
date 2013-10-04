@@ -15,18 +15,18 @@ extern float m_look_c_valueL1[18];
 extern int m_nbatL1;
 
 //extern "sbt.c"
-void sbt_mono(float *sample, signed short *pcm, int ch);
-void sbt_dual(float *sample, signed short *pcm, int ch);
-void sbt16_mono(float *sample, signed short *pcm, int ch);
-void sbt16_dual(float *sample, signed short *pcm, int ch);
-void sbt8_mono(float *sample, signed short *pcm, int ch);
-void sbt8_dual(float *sample, signed short *pcm, int ch);
-void sbtB_mono(float *sample, unsigned char *pcm, int ch);
-void sbtB_dual(float *sample, unsigned char *pcm, int ch);
-void sbtB16_mono(float *sample, unsigned char *pcm, int ch);
-void sbtB16_dual(float *sample, unsigned char *pcm, int ch);
-void sbtB8_mono(float *sample, unsigned char *pcm, int ch);
-void sbtB8_dual(float *sample, unsigned char *pcm, int ch);
+void sbt_mono(float *sample, void *pcm, int ch);
+void sbt_dual(float *sample, void *pcm, int ch);
+void sbt16_mono(float *sample, void *pcm, int ch);
+void sbt16_dual(float *sample, void *pcm, int ch);
+void sbt8_mono(float *sample, void *pcm, int ch);
+void sbt8_dual(float *sample, void *pcm, int ch);
+void sbtB_mono(float *sample, void *pcm, int ch);
+void sbtB_dual(float *sample, void *pcm, int ch);
+void sbtB16_mono(float *sample, void *pcm, int ch);
+void sbtB16_dual(float *sample, void *pcm, int ch);
+void sbtB8_mono(float *sample, void *pcm, int ch);
+void sbtB8_dual(float *sample, void *pcm, int ch);
 
 static const SBT_PROC sbt_table[2][3][2] =
 {

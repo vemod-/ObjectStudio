@@ -30,13 +30,9 @@ private:
     int BeatCount;
     int PatternIndex;
     int PatternRepeatCount;
-    int CurrentPitch;
-    int CurrentLength;
-    int CurrentVolume;
     int PatternLength;
     int NextBeat;
     int NextStop;
-    //float MixFactor;
     float SamplesPerTick;
     float SampleCount;
     bool Playing;

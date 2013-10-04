@@ -12,14 +12,21 @@ CSF2PlayerForm::CSF2PlayerForm(IDevice* Device, QWidget *parent) :
     connect(ui->LoadButton,SIGNAL(clicked()),this,SLOT(OpenClick()));
     //connect(ui->TestButton,SIGNAL(pressed()),this,SLOT(TestMouseDown()));
     //connect(ui->TestButton,SIGNAL(released()),this,SLOT(TestMouseUp()));
-    connect(ui->BankList,SIGNAL(currentIndexChanged(int)),this,SLOT(ChangeBank()));
-    connect(ui->PresetList,SIGNAL(currentIndexChanged(int)),this,SLOT(ChangePreset()));
+    connect(ui->BankList,SIGNAL(currentIndexChanged(int)),this,SLOT(ChangeBank(int)));
+    connect(ui->PresetList,SIGNAL(currentIndexChanged(int)),this,SLOT(ChangePreset(int)));
     connect(ui->PatchButton,SIGNAL(toggled(bool)),this,SLOT(PatchToggled(bool)));
     connect(ui->VolDial,SIGNAL(valueChanged(int)),this,SLOT(VolChanged(int)));
 }
 
 CSF2PlayerForm::~CSF2PlayerForm()
 {
+    ui->BankList->blockSignals(true);
+    ui->BankList->disconnect();
+    ui->PresetList->blockSignals(true);
+    ui->PresetList->disconnect();
+    qDebug() << "banklist count" << ui->BankList->count();
+    ui->BankList->clear();
+    ui->PresetList->clear();
     delete ui;
 }
 
@@ -32,6 +39,7 @@ void CSF2PlayerForm::FillPresetList(int Bank,int Preset)
     foreach (int i,m_DM->SF2Device.banks.keys())
     {
         ui->BankList->addItem(QString("000" + QString::number(i)).right(3));
+        qDebug() << "Banklist additem" << QString("000" + QString::number(i)).right(3);
         if (i==Bank)
         {
             ui->BankList->setCurrentIndex(ui->BankList->count()-1);
@@ -205,23 +213,28 @@ void CSF2PlayerForm::TestMouseUp()
 }
 //---------------------------------------------------------------------------
 
-void CSF2PlayerForm::ChangeBank()
+void CSF2PlayerForm::ChangeBank(int /*index*/)
 {
+    if (ui->BankList->currentIndex() < 0) return;
     CSF2Player* m_DM=(CSF2Player*)m_Device;
-    if (ui->BankList->currentIndex()==-1) return;
-    int BankIndex=ui->BankList->currentText().toInt();
-    m_DM->SF2Device.setBank(BankIndex);
-    FillPresetList2(0);
+    int num=ui->BankList->currentText().left(3).toInt();
+    if ((num > -1) & (num < ui->BankList->count()))
+    {
+        m_DM->SF2Device.setBank(num);
+        FillPresetList2(0);
+    }
 }
 //---------------------------------------------------------------------------
 
-void CSF2PlayerForm::ChangePreset()
+void CSF2PlayerForm::ChangePreset(int /*index*/)
 {
+    if (ui->PresetList->currentIndex() < 0) return;
     CSF2Player* m_DM=(CSF2Player*)m_Device;
-    if (ui->PresetList->currentIndex()==-1) return;
-    QString Presetnum=ui->PresetList->currentText();
-    int PresetIndex=Presetnum.left(3).toInt();
-    m_DM->SF2Device.setPreset(PresetIndex);
+    int num=ui->PresetList->currentText().left(3).toInt();
+    if ((num > -1) & (num < ui->PresetList->count()))
+    {
+        m_DM->SF2Device.setPreset(num);
+    }
 }
 
 void CSF2PlayerForm::SetPatchResponse(bool value)

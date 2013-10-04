@@ -20,9 +20,7 @@ include(../../QDomLite/QDomLite.pri)
 
 SOURCES += \
     cmidibuffer.cpp \
-    caudiobuffer.cpp \
-    ijack.cpp \
-    idevice.cpp
+    ijack.cpp
 
 HEADERS += softsynthsclasses.h \
     cmidibuffer.h \
@@ -32,7 +30,6 @@ HEADERS += softsynthsclasses.h \
     ijack.h \
     ihost.h \
     idevice.h \
-    cfastpointerlist.h \
     softsynthsdefines.h
 
 HEADERS += \

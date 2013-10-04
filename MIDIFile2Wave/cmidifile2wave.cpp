@@ -83,11 +83,13 @@ void CDeviceListLite::RemoveDevice(IDevice *device)
 void CDeviceListLite::Clear()
 {
     Jacks.clear();
-    foreach (IDevice* d,Devices)
+    foreach(IDevice* d,Devices)
     {
         Devices.removeOne(d);
         delete d;
     }
+    //qDeleteAll(Devices);
+    //Devices.clear();
 }
 
 void CDeviceListLite::AddJacks(IDevice *device)

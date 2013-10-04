@@ -14,6 +14,7 @@ include(../SoftSynthsIncludes.pri)
 DEFINES += AUDIOUNITHOST_LIBRARY
 
 include(AudioUnitHost.pri)
+include($$PWD/../../QSignalMenu/QSignalMenu.pri)
 
 LIBS += -L../ -lPluginLoader
 
@@ -26,6 +27,7 @@ SOURCES += \
     ../VSTHost/cvstform.cpp
 
 OBJECTIVE_SOURCES += ../VSTHost/cmacwindow.mm \
+    ../VSTHost/iaudiopluginhost.mm \
     ../VSTHost/macstrings.mm
 
 FORMS += \

@@ -41,7 +41,7 @@ CMIDIFileTrack::~CMIDIFileTrack()
 {
 }
 
-const size_t CMIDIFileTrack::Fill(const char *Data, const size_t Pointer)
+size_t CMIDIFileTrack::Fill(const char *Data, const size_t Pointer)
 {
     MIDIFileTrackHeader* header=(MIDIFileTrackHeader*)(Data+Pointer);
     m_Length=qFromBigEndian<qint32>(header->descriptor.size);
@@ -50,7 +50,7 @@ const size_t CMIDIFileTrack::Fill(const char *Data, const size_t Pointer)
     return Pointer+m_Length+sizeof(MIDIFileTrackHeader);
 }
 
-const unsigned long CMIDIFileTrack::GetTime()
+unsigned long CMIDIFileTrack::GetTime()
 {
     unsigned long value;
     BYTE c;
@@ -66,7 +66,7 @@ const unsigned long CMIDIFileTrack::GetTime()
     return value;
 }
 
-const MessageType CMIDIFileTrack::MoreMessages()
+MessageType CMIDIFileTrack::MoreMessages()
 {
     TimePointer=NextPointer;
     BYTE Message=*NextPointer;
@@ -189,7 +189,7 @@ BYTE* CMIDIFileTrack::Data()
     return DataPointer;
 }
 
-const short CMIDIFileTrack::GetData()
+short CMIDIFileTrack::GetData()
 {
     if (DataIndex<DataSize)
     {
@@ -201,7 +201,7 @@ const short CMIDIFileTrack::GetData()
     }
 }
 
-const bool CMIDIFileTrack::MessageReady()
+bool CMIDIFileTrack::MessageReady()
 {
     if (m_Time != Counter)
     {
@@ -212,38 +212,38 @@ const bool CMIDIFileTrack::MessageReady()
     return true;
 }
 
-const unsigned long CMIDIFileTrack::Time()
+unsigned long CMIDIFileTrack::Time()
 {
     return m_Time;
 }
 
-const BYTE CMIDIFileTrack::Message()
+BYTE CMIDIFileTrack::Message()
 {
     DataIndex=0;
     return m_Message;
 }
 
-const unsigned int CMIDIFileTrack::Tempo()
+unsigned int CMIDIFileTrack::Tempo()
 {
     return m_Tempo;
 }
 
-const BYTE CMIDIFileTrack::Time1()
+BYTE CMIDIFileTrack::Time1()
 {
     return m_Time1;
 }
 
-const BYTE CMIDIFileTrack::Time2()
+BYTE CMIDIFileTrack::Time2()
 {
     return m_Time2;
 }
 
-const BYTE CMIDIFileTrack::SharpFlat()
+BYTE CMIDIFileTrack::SharpFlat()
 {
     return m_SharpFlat;
 }
 
-const BYTE CMIDIFileTrack::Key()
+BYTE CMIDIFileTrack::Key()
 {
     return m_Key;
 }
@@ -284,7 +284,7 @@ CMIDIFileReader::~CMIDIFileReader()
     }
 }
 
-const bool CMIDIFileReader::Open(const QString& Path)
+bool CMIDIFileReader::Open(const QString& Path)
 {
     try
     {
@@ -306,7 +306,7 @@ const bool CMIDIFileReader::Open(const QString& Path)
     }
 }
 
-const bool CMIDIFileReader::OpenPtr(const char *Pnt, const size_t Length)
+bool CMIDIFileReader::OpenPtr(const char *Pnt, const size_t Length)
 {
     MIDIMemoryID ID=qMakePair((char*)Pnt,Length);
     MIDIFileHeader* header=(MIDIFileHeader*)Pnt;
@@ -356,12 +356,12 @@ const bool CMIDIFileReader::OpenPtr(const char *Pnt, const size_t Length)
     return true;
 }
 
-const short CMIDIFileReader::TrackCount()
+short CMIDIFileReader::TrackCount()
 {
     return m_NumOfTracks;
 }
 
-const short CMIDIFileReader::FileType()
+short CMIDIFileReader::FileType()
 {
     return m_FileType;
 }
@@ -448,18 +448,18 @@ void CMIDIFileReader::GetDuration()
     qDebug() << m_MilliSeconds << m_Ticks;
 }
 
-const unsigned long CMIDIFileReader::MilliSeconds()
+unsigned long CMIDIFileReader::MilliSeconds()
 {
     return m_MilliSeconds;
 }
 
-const unsigned long CMIDIFileReader::Duration(const int Track)
+unsigned long CMIDIFileReader::Duration(const int Track)
 {
     if (Track==-1) return m_Ticks;
     return Tracks[Track]->Duration;
 }
 
-const unsigned long CMIDIFileReader::NoteCount(const int Track)
+unsigned long CMIDIFileReader::NoteCount(const int Track)
 {
     return Tracks[Track]->NoteCount;
 }

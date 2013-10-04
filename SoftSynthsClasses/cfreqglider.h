@@ -16,7 +16,7 @@ public:
     CFreqGlider();
     void SetGlide(const int Glide);
     void SetTargetFreq(const float Freq);
-    const float GetCurrentFreq(void);
+    float GetCurrentFreq(void);
     void SetSpeed(const int Speed);
 };
 

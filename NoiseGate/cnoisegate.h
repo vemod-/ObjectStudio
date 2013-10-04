@@ -9,7 +9,7 @@ public:
     CNoiseGate();
     void Init(const int Index,void* MainWindow);
     float* GetNextA(const int ProcIndex);
-    const float GetNext(int /*ProcIndex*/);
+    float GetNext(int /*ProcIndex*/);
 private:
     enum JackNames
     {jnIn,jnOut,jnEnvOut};

@@ -17,7 +17,7 @@ void CLFO::Init(const int Index, void *MainWindow) {
     CalcParams();
 }
 
-const float CLFO::GetNext(const int ProcIndex) {
+float CLFO::GetNext(const int ProcIndex) {
     if (ProcIndex==jnOutPitch) return ReturnValue;
     return (ReturnValue+1.0)*0.5;
 }

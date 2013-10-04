@@ -1,3 +1,6 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 INCLUDEPATH += $$PWD
 include($$PWD/../../QCanvas/QCanvas.pri)
 
@@ -12,4 +15,4 @@ HEADERS += $$PWD/cstereopeak.h \
 FORMS += $$PWD/cstereopeak.ui \
     $$PWD/cpeakcontrol.ui \
     $$PWD/cdbscale.ui
-
+}

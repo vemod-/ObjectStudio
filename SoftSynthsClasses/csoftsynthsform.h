@@ -12,6 +12,7 @@ class CSoftSynthsForm : public QDialog
     Q_OBJECT
 public:
     CSoftSynthsForm(IDevice* Device, const bool FixedSize, QWidget* parent=0);
+    virtual ~CSoftSynthsForm(){}
     virtual const QString Save();
     virtual void Load(const QString& XML);
 public slots:

@@ -39,7 +39,6 @@ public:
 private:	// User declarations
     QList<CSampleKeyRange*> Ranges;
     QList<CSampleKeyRange*> ActiveRanges;
-    float CurrentFrequency;
 };
 
 #endif // CLAYERCLASS_H

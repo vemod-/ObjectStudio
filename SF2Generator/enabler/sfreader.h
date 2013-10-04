@@ -92,9 +92,9 @@ class sfReader {
   void         OpenSFBFile(CHAR * pchFilename);
   void         CloseSFBFile(void);
   #ifdef USE_MACINTOSH
-  HydraClass*  ReadSFBFile(FSSpec * pSpecifier, CHAR *chReqdWaveTable = '\0');
+  HydraClass*  ReadSFBFile(const FSSpec * pSpecifier, const CHAR *chReqdWaveTable = "\0");
   #endif
-  HydraClass*  ReadSFBFile(CHAR *sfFileName, CHAR *chReqdWaveTable = '\0');
+  HydraClass*  ReadSFBFile(const CHAR *sfFileName, const CHAR *chReqdWaveTable = "\0");
  
   bool         IsValid(void);
 
@@ -144,7 +144,7 @@ class sfReader {
   *  storing the new info data.
   */ 
 
-   HydraClass*  ReadSFBData(CHAR *pchReqdWaveTable);
+   HydraClass*  ReadSFBData(const CHAR *pchReqdWaveTable);
 
    BYTEPTR      Allocate(SHORT       shHydraSymbol,
 			 SHORT       shMemStructSize,

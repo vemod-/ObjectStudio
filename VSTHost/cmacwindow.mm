@@ -95,7 +95,6 @@ void CMacWindow::resizeEvent(QResizeEvent *e)
             SizeWindow((WindowRef)([(NSWindow*)cocoaWin windowRef]),r.width(),r.height(),true);
         }
     }
-    //qDebug() << "resizeevent";
 }
 
 void CMacWindow::paintEvent(QPaintEvent* e)

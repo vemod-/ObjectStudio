@@ -16,7 +16,7 @@ private:
 public:
     CMIDI2CV();
     void Init(const int Index,void* MainWindow);
-    const float GetNext(const int ProcIndex);
+    float GetNext(const int ProcIndex);
     void Play(const bool FromStart);
     void Pause();
 };

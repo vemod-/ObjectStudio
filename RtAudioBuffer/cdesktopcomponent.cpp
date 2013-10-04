@@ -19,7 +19,7 @@ QList<QGraphicsItem*> CJackContainer::Paint(QGraphicsScene* Scene)
     return items;
 }
 
-const bool CJackContainer::InsideMe(const QPoint& Pos)
+bool CJackContainer::InsideMe(const QPoint& Pos)
 {
     return Geometry.contains(Pos);
 }
@@ -33,7 +33,7 @@ QPoint CJackContainer::JackPos(const int Index)
     return JackRects[Index].topLeft()+QPoint(4,4);
 }
 
-const int CJackContainer::InsideJack(const QPoint& Pos)
+int CJackContainer::InsideJack(const QPoint& Pos)
 {
     for (int i=0;i<JackRects.count();i++)
     {
@@ -42,7 +42,7 @@ const int CJackContainer::InsideJack(const QPoint& Pos)
     return -1;
 }
 
-const int CJackContainer::JackCount()
+int CJackContainer::JackCount()
 {
     return JackRects.count();
 }
@@ -441,12 +441,12 @@ void CDesktopComponent::PluginMenuClicked(QString ClassName)
     DrawConnections();
 }
 
-const bool CDesktopComponent::AddDevice(const QString &ClassName, void *MainWindow)
+bool CDesktopComponent::AddDevice(const QString &ClassName, void *MainWindow)
 {
     return AddDevice(ClassName,DeviceList.FindFreeID(ClassName),MainWindow);
 }
 
-const bool CDesktopComponent::AddDevice(const QString& ClassName, const int ID, void* MainWindow)
+bool CDesktopComponent::AddDevice(const QString& ClassName, const int ID, void* MainWindow)
 {
     int MenuIndex=CAddIns::AddInIndex(ClassName);
     if (MenuIndex<0) return false;
@@ -959,12 +959,12 @@ void CDesktopComponent::Pause()
     }
 }
 
-const bool CDesktopComponent::DeviceInsideRect(CDeviceComponent& D)
+bool CDesktopComponent::DeviceInsideRect(CDeviceComponent& D)
 {
     return Rubberband->windowGeometry().translated(mapToScene(0,0).toPoint()).contains(D.Geometry);
 }
 
-const int CDesktopComponent::DeviceIndex(const QPoint& Pos)
+int CDesktopComponent::DeviceIndex(const QPoint& Pos)
 {
     if (m_DeviceIndex>-1)
     {

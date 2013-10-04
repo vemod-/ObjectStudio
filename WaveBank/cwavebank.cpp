@@ -45,7 +45,7 @@ CWaveBank::CWaveBank()
     wPos=0;
 }
 
-const float CWaveBank::GetNextFreq(const float &Frequency, const WaveForms &WaveForm)
+float CWaveBank::GetNextFreq(const float &Frequency, const WaveForms &WaveForm)
 {
     float retVal=GetNext(wPos,WaveForm);
     wPos+=Frequency;
@@ -53,7 +53,7 @@ const float CWaveBank::GetNextFreq(const float &Frequency, const WaveForms &Wave
     return retVal;
 }
 
-const float CWaveBank::GetNext(const unsigned int& Position,const WaveForms& WaveForm)
+float CWaveBank::GetNext(const unsigned int& Position,const WaveForms& WaveForm)
 {
     switch (WaveForm)
     {

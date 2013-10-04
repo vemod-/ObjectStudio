@@ -53,7 +53,7 @@ private:
 const float PI = 2.0 * asin (1.0);
 
 Fft::Fft (unsigned int points, unsigned int sampleRate)
-    : _points (points), _sampleRate (sampleRate), _volume (1)
+    : _volume (1), _points (points), _sampleRate (sampleRate)
 {
     //_tape=new int[_points];
     _sqrtPoints = 1.0/sqrtf (_points);

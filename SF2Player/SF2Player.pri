@@ -1,3 +1,6 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 INCLUDEPATH += $$PWD
 
 include($$PWD/../SF2Generator/SF2Generator.pri)
@@ -19,3 +22,4 @@ INCLUDEPATH += $$PWD/../WaveBank
 HEADERS += $$PWD/../WaveBank/cwavebank.h
 
 SOURCES += $$PWD/../WaveBank/cwavebank.cpp
+}

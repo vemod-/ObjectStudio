@@ -1,7 +1,8 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 LIBS += -L $$PWD/../ -lPluginLoader
 macx:LIBS += -framework AppKit -framework Carbon
-
-include($$PWD/../../SynthKnob/QSynthKnob.pri)
 
 INCLUDEPATH += $$PWD
 INCLUDEPATH += $$PWD/../PluginLoader
@@ -12,7 +13,9 @@ include($$PWD/../../QSignalMenu/QSignalMenu.pri)
 include($$PWD/../../QiPhotoRubberband/QiPhotoRubberband.pri)
 include($$PWD/../../EffectLabel/EffectLabel.pri)
 include($$PWD/../../SynthPanel/QSynthPanel.pri)
+include($$PWD/../../SynthKnob/QSynthKnob.pri)
 include($$PWD/../../LCDLabel/QLCDLabel.pri)
+include($$PWD/../../EventHandlers/EventHandlers.pri)
 
 SOURCES += $$PWD/cparameterscomponent.cpp \
     $$PWD/cknobcontrol.cpp \
@@ -33,3 +36,4 @@ FORMS += $$PWD/cparameterscomponent.ui \
     $$PWD/cjackscomponent.ui \
     $$PWD/cdesktopcontainer.ui \
     $$PWD/cdesktopcomponent.ui
+}

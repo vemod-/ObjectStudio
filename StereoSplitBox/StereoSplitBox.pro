@@ -8,6 +8,7 @@ TARGET = StereoSplitBox
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
+include(../../QCanvas/QCanvas.pri)
 
 DEFINES += STEREOSPLITBOX_LIBRARY
 

@@ -10,6 +10,7 @@ TEMPLATE = lib
 DEFINES += MACROBOX_LIBRARY
 
 include(../SoftSynthsIncludes.pri)
+include(../../QCanvas/QCanvas.pri)
 
 include(../RtAudioBuffer/DesktopComponent.pri)
 

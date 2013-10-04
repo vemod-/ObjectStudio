@@ -71,7 +71,7 @@ void CCVDevice::NoteOff(const short channel, const short pitch)
     }
 }
 
-const int CCVDevice::voiceCount()
+int CCVDevice::voiceCount()
 {
     return CVDevice::CVVoices;
 }
@@ -94,17 +94,17 @@ void CCVDevice::allNotesOff()
     }
 }
 
-const short CCVDevice::voiceChannel(const int voice)
+short CCVDevice::voiceChannel(const int voice)
 {
     return Notes[voice].Channel;
 }
 
-const float CCVDevice::getPitchbend(const int voice)
+float CCVDevice::getPitchbend(const int voice)
 {
     return Cent_to_Percent(channelSettings[voiceChannel(voice)].pitchWheel);
 }
 
-const float CCVDevice::Vol(const int voice)
+float CCVDevice::Vol(const int voice)
 {
     int ch=voiceChannel(voice);
     return channelSettings[ch].volume*channelSettings[ch].expression;

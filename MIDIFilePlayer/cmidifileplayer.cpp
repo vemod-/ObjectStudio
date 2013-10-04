@@ -1,4 +1,7 @@
 #include "cmidifileplayer.h"
+#undef devicename
+
+#undef devicename
 #define devicename "MIDIFile"
 
 CMIDIFilePlayer::CMIDIFilePlayer()
@@ -72,9 +75,7 @@ void CMIDIFilePlayer::Tick()
                         BYTE Message=T->Message();
                         if ((m_ParameterValues[pnTrack]==0) | (T->Index==m_ParameterValues[pnTrack]-1) | (Message==0xF0) | (Message==0XF7) | (Message==0xFF))
                         {
-                            MIDIBuffer.Push(Message);
-                            BYTE* b=T->Data();
-                            for (int i=0;i<T->DataSize;i++) MIDIBuffer.Push(b[i]);
+                            MIDIBuffer.Push(Message,T->Data(),T->DataSize);
                         }
                     }
                 }
@@ -132,9 +133,7 @@ void CMIDIFilePlayer::Skip(const unsigned long mSec)
                                     if (((Message >= 0xB0) & (Message <= 0xDF)) | ((Message >= 0xF0) & (Message < 0xFF)))
                                     {
                                         SkipBuffer=true;
-                                        MIDIBuffer.Push(Message);
-                                        BYTE* b=T->Data();
-                                        for (int i=0;i<T->DataSize;i++) MIDIBuffer.Push(b[i]);
+                                        MIDIBuffer.Push(Message,T->Data(),T->DataSize);
                                     }
                                 }
                             }
@@ -205,17 +204,17 @@ void CMIDIFilePlayer::Load(const QString& XML)
     }
 }
 
-const bool CMIDIFilePlayer::IsPlaying()
+bool CMIDIFilePlayer::IsPlaying()
 {
     return Playing;
 }
 
-const unsigned long CMIDIFilePlayer::Duration()
+unsigned long CMIDIFilePlayer::Duration()
 {
     return MFR.Duration();
 }
 
-const unsigned long CMIDIFilePlayer::MilliSeconds()
+unsigned long CMIDIFilePlayer::MilliSeconds()
 {
     return MFR.MilliSeconds();
 }

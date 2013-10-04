@@ -27,7 +27,6 @@ private:
     int PatternRepeatCount;
     int CurrentPitch;
     int CurrentLength;
-    int CurrentVolume;
     int PatternLength;
     int NextBeat;
     int NextStop;

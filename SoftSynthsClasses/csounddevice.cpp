@@ -69,12 +69,12 @@ float* ISoundDevice::getNext(const int /*voice*/)
     return NULL;
 }
 
-const short ISoundDevice::voiceChannel(const int /*voice*/)
+short ISoundDevice::voiceChannel(const int /*voice*/)
 {
     return 0;
 }
 
-const int ISoundDevice::voiceCount()
+int ISoundDevice::voiceCount()
 {
     return 0;
 }
@@ -158,12 +158,12 @@ void ISoundDevice::SysEx(char* data, const short datalen)
     }
 }
 
-const float ISoundDevice::volL(const short channel)
+float ISoundDevice::volL(const short channel)
 {
     return channelSettings[channel].volL();
 }
 
-const float ISoundDevice::volR(const short channel)
+float ISoundDevice::volR(const short channel)
 {
     return channelSettings[channel].volR();
 }
@@ -175,90 +175,63 @@ void ISoundDevice::reset()
 
 void ISoundDevice::parseMIDI(CMIDIBuffer* MB)
 {
-    short Message=0;
-    datalen=0;
-    if (MB!=NULL)
+    if (!MB) return;
+    foreach(CMIDIEvent Event,MB->Events())
     {
-        MB->StartRead();
-        int lTemp=MB->Read();
-        while (lTemp > -1)
+        if (Event.message >= 0x80)
         {
-            if (lTemp >= 0x80)
+            if ((m_Channel==0) | (Event.channel==m_Channel-1))
             {
-                Message=lTemp;
-                datalen=0;
-            }
-            forever
-            {
-                lTemp=MB->Read();
-                if ((lTemp >= 0x80) | (lTemp < 0)) break;
-                if (datalen < data.count())
+                if (!Event.data.isEmpty())
                 {
-                    data[datalen]=lTemp;
-                }
-                else
-                {
-                    data.append(lTemp);
-                }
-                datalen++;
-            }
-            if (Message >= 0x80)
-            {
-                short Channel=Message & 0x0F;
-                Message=Message & 0xF0;
-                if ((m_Channel==0) | (Channel==m_Channel-1))
-                {
-                    if (datalen > 0)
+                    if (Event.command==0x80)
                     {
-                        if (Message==0x80)
+                        NoteOff(Event.channel,Event.data.at(0));
+                    }
+                    else if (Event.command==0xC0)
+                    {
+                        Patch(Event.channel,Event.data.at(0));
+                    }
+                    else if (Event.command==0xD0)
+                    {
+                        ChannelPressure(Event.channel,Event.data.at(0));
+                    }
+                    else if (Event.command==0xF0)
+                    {
+                        if ((Event.channel==0) | (Event.channel==7))
                         {
-                            NoteOff(Channel,data[0]);
+                            SysEx((char*)(Event.data.data()),Event.data.size());
                         }
-                        else if (Message==0xC0)
+                        if (Event.channel==0xF)
                         {
-                            Patch(Channel,data[0]);
+                            QString MetaText=QString::fromLatin1((char*)(Event.data.data()),Event.data.size()).trimmed().simplified();
+                            if (!MetaText.isEmpty()) qDebug() << "Meta" << MetaText;
                         }
-                        else if (Message==0xD0)
+                    }
+                    if (Event.data.size() > 1)
+                    {
+                        if (Event.command==0x90)
                         {
-                            ChannelPressure(Channel,data[0]);
-                        }
-                        else if (Message==0xF0)
-                        {
-                            if ((Channel==0) | (Channel==7))
+                            if ((int)Event.data.at(1) == 0)
                             {
-                                SysEx(data.data(),datalen);
+                                NoteOff(Event.channel,Event.data.at(0));
                             }
-                            if (Channel==0xF)
+                            else
                             {
-                                QString MetaText=QString(data.left(datalen)).trimmed().simplified();
-                                if (!MetaText.isEmpty()) qDebug() << "Meta" << MetaText;
+                                NoteOn(Event.channel,Event.data.at(0),Event.data.at(1));
                             }
                         }
-                        if (datalen > 1)
+                        else if (Event.command==0xA0)
                         {
-                            if (Message==0x90)
-                            {
-                                if ((int)data[1] == 0)
-                                {
-                                    NoteOff(Channel,data[0]);
-                                }
-                                else
-                                {
-                                    NoteOn(Channel,data[0],data[1]);
-                                }
-                            }
-                            else if (Message==0xA0)
-                            {
-                                Aftertouch(Channel,data[0],data[1]);
-                            }
-                            else if (Message==0xB0)
-                            {
-                                Controller(Channel,data[0],data[1]);
-                            }
-                            else if (Message==0xE0)
-                            {
-                                PitchBend(Channel,from14bit(data[0],data[1])-0x2000);
-                            }
+                            Aftertouch(Event.channel,Event.data.at(0),Event.data.at(1));
+                        }
+                        else if (Event.command==0xB0)
+                        {
+                            Controller(Event.channel,Event.data.at(0),Event.data.at(1));
+                        }
+                        else if (Event.command==0xE0)
+                        {
+                            PitchBend(Event.channel,from14bit(Event.data.at(0),Event.data.at(1))-0x2000);
                         }
                     }
                 }

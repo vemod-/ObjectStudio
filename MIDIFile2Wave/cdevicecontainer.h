@@ -29,13 +29,13 @@ public:
     void Activate();
     const QString CurrentPresetName(const short channel=-1);
     void SetParameterValue(const QString &Name, const int Value);
-    const int GetParameterValue(const QString &Name);
+    int GetParameterValue(const QString &Name);
     const QString OpenFile(const QString &Filter);
     const QStringList Banks();
     const QStringList Presets(const int Bank=0);
     void SetCurrentPreset(const int Bank, const int Preset);
-    const int CurrentBank(const short channel=-1);
-    const int CurrentPreset(const short channel=-1);
+    int CurrentBank(const short channel=-1);
+    int CurrentPreset(const short channel=-1);
 private:
     enum JackNames
     {jnIn,jnMIDIIn,jnOut,jnInsideIn,jnInsideMIDIIn};
@@ -52,7 +52,7 @@ private:
     CInJack* DeviceIn;
     CInJack* DeviceMIDIIn;
     COutJack* DeviceOut;
-    std::vector<IJack*> JacksCreated;
+    QList<IJack*> JacksCreated;
     float* InBuffer;
     CMIDIBuffer* MIDIBuffer;
     bool m_Bypass;

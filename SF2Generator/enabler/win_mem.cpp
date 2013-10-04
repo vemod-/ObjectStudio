@@ -200,7 +200,7 @@ VOIDPTR Memset(VOIDPTR pMem, WORD wValue, DWORD dwSize)
 
 void Dealloc(VOIDPTR pMem)
 {
-  delete [] pMem;
+  delete [] (BYTEPTR)pMem;
   pMem = 0;
 }
 

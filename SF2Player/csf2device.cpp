@@ -156,12 +156,12 @@ float* CSF2Device::getNext(const int voice)
     return SF2Generator[voice].GetNext();
 }
 
-const short CSF2Device::voiceChannel(const int voice)
+short CSF2Device::voiceChannel(const int voice)
 {
     return SF2Generator[voice].Channel;
 }
 
-const int CSF2Device::voiceCount()
+int CSF2Device::voiceCount()
 {
     return SF2Device::sf2voices;
 }
@@ -193,7 +193,7 @@ void CSF2Device::reset()
     if (isGM) channelSettings[9].bank=drumBank;
 }
 
-const int CSF2Device::presetcount()
+int CSF2Device::presetcount()
 {
     return SF2Generator[0].PresetCount();
 }
@@ -203,24 +203,24 @@ const QString CSF2Device::presetname(const int preset)
     return SF2Generator[0].Preset(preset)->achPresetName;
 }
 
-const int CSF2Device::banknumber(const int preset)
+int CSF2Device::banknumber(const int preset)
 {
     return SF2Generator[0].Preset(preset)->wPresetBank;
 }
 
-const int CSF2Device::presetnumber(const int preset)
+int CSF2Device::presetnumber(const int preset)
 {
     return SF2Generator[0].Preset(preset)->wPresetNum;
 }
 
-const int CSF2Device::currentBank(const short channel)
+int CSF2Device::currentBank(const short channel)
 {
     short ch=channel;
     if (ch<0) ch=lastChannel;
     return channelSettings[ch].bank;
 }
 
-const int CSF2Device::currentPreset(const short channel)
+int CSF2Device::currentPreset(const short channel)
 {
     short ch=channel;
     if (ch<0) ch=lastChannel;
@@ -245,7 +245,7 @@ void CSF2Device::setPreset(const int preset)
     }
 }
 
-const bool CSF2Device::loadFile(const QString& filename)
+bool CSF2Device::loadFile(const QString& filename)
 {
     allNotesOff();
     loaded=false;

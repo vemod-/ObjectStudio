@@ -24,8 +24,8 @@ public:
     CPitchTracker();
     ~CPitchTracker();
     void Init(const int Index,void* MainWindow);
-    const float GetNext(const int ProcIndex);
-    void Process(float* Input);
+    float GetNext(const int ProcIndex);
+    void Process();
     void* GetNextP(int /*ProcIndex*/);
 };
 

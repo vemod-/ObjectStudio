@@ -53,9 +53,7 @@ void CSequenser::Tick()
                     CurrentPitch=Beat->Pitch[0];
                     if (CurrentPitch>0)
                     {
-                        MIDIBuffer->Push(m_ParameterValues[pnMIDIChannel] + 0x90 - 1);
-                        MIDIBuffer->Push(CurrentPitch);
-                        MIDIBuffer->Push(Beat->Volume[0] * 127 / 100);
+                        MIDIBuffer->Push(m_ParameterValues[pnMIDIChannel] + 0x90 - 1,CurrentPitch,Beat->Volume[0] * 127 / 100);
                     }
                 }
                 else
@@ -84,9 +82,7 @@ void CSequenser::Tick()
         }
         if (Counter==NextStop)
         {
-            MIDIBuffer->Push(m_ParameterValues[pnMIDIChannel] + 0x90 - 1);
-            MIDIBuffer->Push(CurrentPitch);
-            MIDIBuffer->Push(0);
+            MIDIBuffer->Push(m_ParameterValues[pnMIDIChannel] + 0x90 - 1,CurrentPitch,0);
         }
         Counter++;
         if (Counter>=PatternLength)

@@ -25,7 +25,6 @@ class CWaveBank
 {
 private:
     float HoldFloat;
-    short HoldInt;
     bool HoldSet1;
     bool HoldSet2;
     static float HalfRate;
@@ -38,8 +37,8 @@ public:
     enum WaveForms
     {Sine,Square,Triangle,Sawtooth,Noise,SampleAndHold};
     CWaveBank();
-    const float GetNext(const unsigned int& Position,const WaveForms& WaveForm);
-    const float GetNextFreq(const float& Frequency,const WaveForms& WaveForm);
+    float GetNext(const unsigned int& Position,const WaveForms& WaveForm);
+    float GetNextFreq(const float& Frequency,const WaveForms& WaveForm);
 };
 
 #endif // CWAVEBANK_H

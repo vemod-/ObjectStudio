@@ -1,7 +1,7 @@
 #include "caddins.h"
 #include <dlfcn.h>
 
-std::vector<CAddIns::AddInType> CAddIns::AddInList=std::vector<CAddIns::AddInType>();
+QVector<CAddIns::AddInType> CAddIns::AddInList=QVector<CAddIns::AddInType>();
 int CAddIns::instances=0;
 
 CAddIns::CAddIns()
@@ -31,7 +31,7 @@ const QStringList CAddIns::AddInNames()
     return l;
 }
 
-const unsigned int CAddIns::AddInIndex(const QString &Name)
+unsigned int CAddIns::AddInIndex(const QString &Name)
 {
     return AddInNames().indexOf(Name);
 }

@@ -31,12 +31,12 @@ const float LOG10MULTIPLY=1.0f / logf(10.0f);
 
 const float pitchBendFactor=1.0f / (0x2000/200.0f);
 
-const float inline MIDItoFreq(const BYTE keynum ,const float A440)
+float inline MIDItoFreq(const BYTE keynum ,const float A440)
 {
     return A440 * powf(2.0f, (keynum - 69) / 12.0f);
 }
 
-const int inline FreqtoMIDI(const float freq, const float A440)
+int inline FreqtoMIDI(const float freq, const float A440)
 {
     return floorf((12*log2f(freq/A440)) + 0.5f)+69;
 }
@@ -51,7 +51,7 @@ void inline CopyMemory(const void* dest, const void* source, const size_t size)
     memcpy((void*)dest,source,size);
 }
 
-const inline unsigned short from14bit(const BYTE lsb, const BYTE msb)
+inline unsigned short from14bit(const BYTE lsb, const BYTE msb)
 {
    unsigned short _14bit;
    _14bit = (unsigned short)msb;
@@ -60,7 +60,7 @@ const inline unsigned short from14bit(const BYTE lsb, const BYTE msb)
    return(_14bit);
 }
 
-const float inline Cent_to_Percent(const float Cent)
+float inline Cent_to_Percent(const float Cent)
 {
     static float LastPercentReturn=1;
     static float LastCent=0;
@@ -73,27 +73,27 @@ const float inline Cent_to_Percent(const float Cent)
 /*
  * convert timecents to msec
  */
-const int inline awe_timecent_to_msec(const float timecent)
+int inline awe_timecent_to_msec(const float timecent)
 {
     return 1000 * powf(2.0f, timecent / 1200.0f);
 }
 /*
  * convert msec to timecents
  */
-const int inline awe_msec_to_timecent(float msec)
+int inline awe_msec_to_timecent(float msec)
 {
     if (msec <= 0) msec = 1;
     return logf(msec / 1000.0f) * LOG2MULTIPLY * 1200.0f;
 }
 
-const float inline cB_to_Percent(const float cB)
+float inline cB_to_Percent(const float cB)
 {
     if (cB>=960) return 0;
     if (cB==0) return 1;
     return powf(10.0f,cB/-200.0f);
 }
 
-const float inline calc_filterQ_adip(const int gain_cB)
+float inline calc_filterQ_adip(const int gain_cB)
 {
     float Q = (gain_cB * 2) / 30;
     if (Q < 0)
@@ -103,7 +103,7 @@ const float inline calc_filterQ_adip(const int gain_cB)
     return Q/15.0f;
 }
 
-const bool inline descriptorMatch(const void *descriptor, const void *s)
+bool inline descriptorMatch(const void *descriptor, const void *s)
 {
     return (memcmp(descriptor,s,4)==0);
 }
@@ -113,13 +113,13 @@ void inline setDescriptor(const void* descriptor, const void* s)
     CopyMemory(descriptor,s,4);
 }
 
-const float inline db2lin(const float x)
+float inline db2lin(const float x)
 {
     if (x > -96.0f) return powf(10.0f, x * 0.05f);
     return 0;
 }
 
-const float inline lin2db(const float x)
+float inline lin2db(const float x)
 {
     if (x > 0) return 20.0f*(logf(x)*LOG10MULTIPLY);
     return -96;

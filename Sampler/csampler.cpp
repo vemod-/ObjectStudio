@@ -41,9 +41,10 @@ void CSampler::Process()
         }
         SamplerDevice.parseMIDI((CMIDIBuffer*)FetchP(jnMIDIIn));
         bool First=true;
+        SamplerDevice.setModulation(CurrentMod);
         for (int i1=0;i1<SamplerDevice.voiceCount();i1++)
         {
-            float* BufferL=SamplerDevice.getNext(i1,CurrentMod);
+            float* BufferL=SamplerDevice.getNext(i1);
             if (BufferL)
             {
                 float volL=VolumeFactor*SamplerDevice.volL(SamplerDevice.voiceChannel(i1));

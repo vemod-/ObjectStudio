@@ -19,6 +19,7 @@ public:
     const QString PresetName();
     const QStringList PresetNames();
     void SetProgram(const int index);
+    const void* Picture() const;
 private:
     enum JackNames
     {jnIn,jnMIDIIn,jnOut};

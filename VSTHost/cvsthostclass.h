@@ -95,13 +95,13 @@ struct VSTRect
 };
 #pragma pack(pop)
 
-class TVSTHost : public IAudioPlugInHost
+class CVSTHostClass : public IAudioPlugInHost
 {
     Q_OBJECT
 private:
     AEffect* ptrPlug;
     QList<VstMidiEvent> vstMidiEvents;
-    std::vector<char> vstEventsBuffer;
+    QVector<char> vstEventsBuffer;
     int GetChunk(void* pntr,bool isPreset);
     int SetChunk(void* data,long byteSize,bool isPreset);
     void SavePreset(QFile& str);
@@ -114,14 +114,13 @@ private:
     void LoadProgramNames();
     QRect GetEffRect();
 public:
-    TVSTHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent=0);
-    ~TVSTHost();
+    CVSTHostClass(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent=0);
+    ~CVSTHostClass();
     void KillPlug();
-    const int NumInputs();
-    const int NumOutputs();
-    const bool Process();
+    int NumInputs();
+    int NumOutputs();
+    bool Process();
     void DumpMIDI(CMIDIBuffer* MB, bool PatchChange);
-    void AllNotesOff();
     QString CurrentBank;
     QString CurrentPreset;
     void LoadBank(QString FileName);
@@ -131,17 +130,17 @@ public:
     const QString ProgramName();
     const QStringList ProgramNames();
     void SetProgram(const long index);
-    const long CurrentProgram();
+    long CurrentProgram();
     const QStringList VSTCategories();
     const QStringList VSTFiles(QString category);
-    const float GetParameter(const long index);
+    float GetParameter(const long index);
     void SetParameter(const long index, const float value);
-    const int ParameterCount();
+    int ParameterCount();
     const QString ParameterName(const long index);
     const QString ParameterValue(const long index);
     const QString SaveXML();
     void LoadXML(const QString& XML);
-    const bool Load(QString Filename);
+    bool Load(QString Filename);
     static VstIntPtr VSTCALLBACK host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr value, void* ptr, float opt);
 public slots:
     void LoadFromMenu(QString Filename);

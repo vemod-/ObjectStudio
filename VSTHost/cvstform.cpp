@@ -88,7 +88,7 @@ bool CVSTForm::event(QEvent *event)
             PlugIn->Popup(mapToGlobal(((QMouseEvent*)event)->pos()));
         }
     }
-    return QDialog::event(event);
+    return CSoftSynthsForm::event(event);
 }
 
 void CVSTForm::timerEvent(QTimerEvent */*event*/)

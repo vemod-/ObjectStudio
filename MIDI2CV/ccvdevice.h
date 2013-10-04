@@ -23,14 +23,14 @@ public:
     ~CCVDevice();
     void NoteOn(const short channel, const short pitch, const short velocity);
     void NoteOff(const short channel, const short pitch);
-    const int voiceCount();
+    int voiceCount();
     void reset();
     void allNotesOff();
     float Tune;
     CVNote* Notes;
-    const short voiceChannel(const int voice);
-    const float getPitchbend(const int voice);
-    const float Vol(const int voice);
+    short voiceChannel(const int voice);
+    float getPitchbend(const int voice);
+    float Vol(const int voice);
 };
 
 

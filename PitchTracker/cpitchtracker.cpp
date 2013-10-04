@@ -31,12 +31,12 @@ void CPitchTracker::Init(const int Index, void *MainWindow) {
     CalcParams();
 }
 
-const float CPitchTracker::GetNext(const int ProcIndex) {
+float CPitchTracker::GetNext(const int ProcIndex) {
     float Retval=0;
     if (m_Process)
     {
         m_Process=false;
-        Process(FetchA(jnIn));
+        Process();
     }
     if (ProcIndex==jnFrequencyOut)
     {
@@ -60,7 +60,8 @@ const float CPitchTracker::GetNext(const int ProcIndex) {
     return Retval;
 }
 
-void CPitchTracker::Process(float *Input) {
+void CPitchTracker::Process() {
+    float* Input=FetchA(jnIn);
     if (!Input)
     {
         BufferFill=0;
@@ -88,7 +89,7 @@ void *CPitchTracker::GetNextP(int) {
     if (m_Process)
     {
         m_Process=false;
-        Process(FetchA(jnIn));
+        Process();
     }
     MIDIBuffer.Reset();
     if (PT->CurrentVel)
@@ -98,15 +99,11 @@ void *CPitchTracker::GetNextP(int) {
             if (LastNote)
             {
                 //LastNote Off
-                MIDIBuffer.Push(0x80);
-                MIDIBuffer.Push(LastNote-(12*(BufferDivide >>1)));
-                MIDIBuffer.Push(0);
+                MIDIBuffer.Push(0x80,LastNote-(12*(BufferDivide >>1)),0);
             }
             if (PT->CurrentNote)
             {
-                MIDIBuffer.Push(0x90);
-                MIDIBuffer.Push(PT->CurrentNote-(12*(BufferDivide >>1)));
-                MIDIBuffer.Push(PT->CurrentVel);
+                MIDIBuffer.Push(0x90,PT->CurrentNote-(12*(BufferDivide >>1)),PT->CurrentVel);
             }
         }
 
@@ -116,9 +113,7 @@ void *CPitchTracker::GetNextP(int) {
     {
         if (LastNote)
         {
-            MIDIBuffer.Push(0x80);
-            MIDIBuffer.Push(LastNote-(12*(BufferDivide >>1)));
-            MIDIBuffer.Push(0);
+            MIDIBuffer.Push(0x80,LastNote-(12*(BufferDivide >>1)),0);
 
             LastNote=0;
         }

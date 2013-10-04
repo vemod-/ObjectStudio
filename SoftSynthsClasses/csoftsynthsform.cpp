@@ -107,9 +107,13 @@ void CSoftSynthsForm::closeEvent(QCloseEvent *event)
 
 bool CSoftSynthsForm::event(QEvent *event)
 {
-    if (event->type()==QEvent::NonClientAreaMouseButtonPress)
+    if (event->type()==QEvent::NonClientAreaMouseButtonPress) m_Device->Activate();
+    if (event->type() == QEvent::ActivationChange)
     {
-        m_Device->Activate();
+        if (this->isActiveWindow())
+        {
+            if (geometry().contains(QCursor::pos())) m_Device->Activate();
+        }
     }
     return QDialog::event(event);
 }

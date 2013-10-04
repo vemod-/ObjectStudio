@@ -101,7 +101,7 @@ int L3get_side_info2(int gr)
 			/* region0 discussion says 54 but this would mix long */
 			/* and short in region0 if scale factors switch */
 			/* at band 36 (6 long scale factors) */
-			if ((m_side_info.gr[gr][ch].block_type == 2)) {
+            if (m_side_info.gr[gr][ch].block_type == 2) {
 				m_side_info.gr[gr][ch].region0_count = (6 - 1);	/* 36 samples */
 				m_side_info.gr[gr][ch].region1_count = 20 - (6 - 1);
 			}

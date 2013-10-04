@@ -1,4 +1,5 @@
 cache()
+
 CONFIG += qt x86
 CONFIG -= x86_64 ppc64 ppc
 

@@ -25,7 +25,7 @@ void CPolyBox::Init(const int Index, void *MainWindow)
 
     d->SetPoly(CVDevice::CVVoices-1);
 
-    WaveOut=(CInJack*)d->CreateInsideJack(0,(IJack*)m_Jacks.front(),this);
+    WaveOut=(CInJack*)d->CreateInsideJack(0,m_Jacks.front(),this);
     JacksCreated.push_back(WaveOut);
 
     for (int i=0;i<CVDevice::CVVoices;i++)
@@ -52,7 +52,7 @@ void CPolyBox::HideForm()
     m_Form->setVisible(false);
 }
 
-const float CPolyBox::GetNext(const int ProcIndex)
+float CPolyBox::GetNext(const int ProcIndex)
 {
     if (m_Process)
     {

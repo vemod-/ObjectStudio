@@ -1,3 +1,6 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 DEFINES += __MACOSX_CORE__
 
 CONFIG += qt x86
@@ -17,4 +20,4 @@ DEFINES += headerfile=\\\"c$${TARGET}.h\\\"
 
 SOURCES += ../cdeviceclass.cpp
 HEADERS += ../cdeviceclass.h
-
+}

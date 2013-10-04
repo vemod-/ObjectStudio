@@ -2,6 +2,8 @@
 #ifdef STEREOMIXER_LIBRARY
 #include "cstereomixerform.h"
 #endif
+
+#undef devicename
 #define devicename "StereoMixer"
 
 void inline CalcPeak(float Val,float* Peak)

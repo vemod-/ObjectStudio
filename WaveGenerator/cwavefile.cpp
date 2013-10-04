@@ -23,7 +23,7 @@ unsigned int ConvertFloat(BYTE* buffer)
    return(mantissa);
 }
 
-const bool CAiffFile::Open(BYTE* pSrc, const size_t Size)
+bool CAiffFile::Open(BYTE* pSrc, const size_t Size)
 {
     FormChunk* header=(FormChunk*)pSrc;
     if (!descriptorMatch(header->descriptor.id, "FORM"))
@@ -87,7 +87,7 @@ const bool CAiffFile::Open(BYTE* pSrc, const size_t Size)
     return false;
 }
 
-const size_t CAiffFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerate)
+size_t CAiffFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerate)
 {
     size_t Length=0;
     float* TempBuffer=NULL;
@@ -108,7 +108,7 @@ const size_t CAiffFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerat
     return Length;
 }
 
-const bool CAuFile::Open(BYTE* pSrc, const size_t Size)
+bool CAuFile::Open(BYTE* pSrc, const size_t Size)
 {
     Audio_filehdr* auHeader=(Audio_filehdr*)pSrc;
     int HeaderSize=0;
@@ -167,7 +167,7 @@ const bool CAuFile::Open(BYTE* pSrc, const size_t Size)
     return true;
 }
 
-const bool CAuFile::Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate)
+bool CAuFile::Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate)
 {
     Audio_filehdr WH;
     int* WaveBuffer=new int[Length*Channels];
@@ -200,7 +200,7 @@ const bool CAuFile::Save(const QString &filename, float *&data, const int Channe
 
 }
 
-const bool CWavFile::Open(BYTE* pSrc, const size_t Size)
+bool CWavFile::Open(BYTE* pSrc, const size_t Size)
 {
     CombinedHeader* header=(CombinedHeader*)pSrc;
     short audioFormat=-1;
@@ -249,7 +249,7 @@ const bool CWavFile::Open(BYTE* pSrc, const size_t Size)
     return false;
 }
 
-const bool CWavFile::Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate)
+bool CWavFile::Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate)
 {
     CombinedHeader WH;
 
@@ -300,7 +300,7 @@ CWaveFile::CWaveFile()
     m_PushBufferSize=0;
 }
 
-const bool CWaveFile::open(const QString &fileName, const unsigned int SampleRate)
+bool CWaveFile::open(const QString &fileName, const unsigned int SampleRate)
 {
     m_SampleRate=SampleRate;
     IWaveFile* WF=NULL;
@@ -396,7 +396,7 @@ void CWaveFile::finishRecording()
     }
 }
 
-const bool CWaveFile::save(const QString &fileName)
+bool CWaveFile::save(const QString &fileName)
 {
     if (!data) return false;
     finishRecording();

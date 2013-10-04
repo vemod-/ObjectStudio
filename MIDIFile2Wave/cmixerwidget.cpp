@@ -74,10 +74,8 @@ CSF2ChannelWidget* CMixerWidget::appendChannel(int index)
 
 void CMixerWidget::removeChannel(int index)
 {
-    CSF2ChannelWidget* ch=channels[index];
-    lo->removeWidget(ch);
-    channels.removeOne(ch);
-    delete ch;
+    lo->removeWidget(channels[index]);
+    delete channels.takeAt(index);
 }
 
 void CMixerWidget::hideMaster()
@@ -105,20 +103,14 @@ void CMixerWidget::start()
 
 void CMixerWidget::clear()
 {
-    foreach (CSF2ChannelWidget* ch,channels)
-    {
-        lo->removeWidget(ch);
-        channels.removeOne(ch);
-        delete ch;
-    }
+    foreach (CSF2ChannelWidget* ch,channels) lo->removeWidget(ch);
+    qDeleteAll(channels);
+    channels.clear();
     lo->removeWidget(master);
 }
 
 void CMixerWidget::resetPeak()
 {
     master->resetPeak();
-    foreach (CSF2ChannelWidget* ch,channels)
-    {
-        ch->resetPeak();
-    }
+    foreach (CSF2ChannelWidget* ch,channels) ch->resetPeak();
 }

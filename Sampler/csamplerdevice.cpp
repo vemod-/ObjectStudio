@@ -4,6 +4,7 @@ CSamplerDevice::CSamplerDevice()
 {
     CurrentLayerIndex=0;
     CurrentRangeIndex=0;
+    m_Modulation=1;
     TestMode=st_NoTest;
     Looping=false;
     AddLayer();
@@ -94,10 +95,10 @@ void CSamplerDevice::allNotesOff()
     }
 }
 
-float* CSamplerDevice::getNext(const int voice, const float modulation)
+float* CSamplerDevice::getNext(const int voice)
 {
     SamplerGenerator[voice].setPitchWheel(channelSettings[voiceChannel(voice)].pitchWheel);
-    return SamplerGenerator[voice].GetNext(modulation);
+    return SamplerGenerator[voice].GetNext(m_Modulation);
 }
 
 void CSamplerDevice::LoopTest(float* BufferL,float* BufferR,int Samples)
@@ -193,12 +194,12 @@ void CSamplerDevice::TuneTest(float* BufferL,float* BufferR,int Samples)
     }
 }
 
-const short CSamplerDevice::voiceChannel(const int voice)
+short CSamplerDevice::voiceChannel(const int voice)
 {
     return SamplerGenerator[voice].Channel;
 }
 
-const int CSamplerDevice::voiceCount()
+int CSamplerDevice::voiceCount()
 {
     return Sampler::samplervoices;
 }
@@ -301,12 +302,17 @@ void CSamplerDevice::setADSRParams(CADSR::ADSRParams ADSRParams)
     }
 }
 
-void CSamplerDevice::setTune(float tune)
+void CSamplerDevice::setTune(const float tune)
 {
     for (int i=0; i < Sampler::samplervoices; i++)
     {
         SamplerGenerator[i].Tune=tune;
     }
+}
+
+void CSamplerDevice::setModulation(const float modulation)
+{
+    m_Modulation=modulation;
 }
 
 void CSamplerDevice::AddRange(int Layer, const QString &WavePath, int Upper, int Lower)

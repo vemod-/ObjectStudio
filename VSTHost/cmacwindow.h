@@ -18,10 +18,10 @@ protected:
     void DestroyMacWindow();
     void Init();
     void* WindowReference();
-    void * cocoaWin;
+    void *cocoaWin;
+    void* hostView;
 private:
     void CreateMacWindow();
-    void* hostView;
 };
 
 #endif // CMACWINDOW_H

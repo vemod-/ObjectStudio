@@ -69,9 +69,6 @@ struct MIDIFileTrackHeader
 class CMIDIFileTrack
 {
 private:
-    char* m_TrackName;
-    char* m_trackText;
-    char* m_CopyRight;
     unsigned int m_Length;
     unsigned long m_Time;
     short m_Time1;
@@ -93,22 +90,22 @@ public:
     unsigned long NoteCount;
     CMIDIFileTrack();
     ~CMIDIFileTrack();
-    const size_t Fill(const char* Data, const size_t Pointer);
-    const unsigned long inline GetTime();
-    const MessageType MoreMessages();
-    const short GetData();
-    const unsigned long Time();
-    const BYTE Message();
-    const unsigned int Tempo();
-    const BYTE Time1();
-    const BYTE Time2();
-    const BYTE SharpFlat();
-    const BYTE Key();
+    size_t Fill(const char* Data, const size_t Pointer);
+    unsigned long inline GetTime();
+    MessageType MoreMessages();
+    short GetData();
+    unsigned long Time();
+    BYTE Message();
+    unsigned int Tempo();
+    BYTE Time1();
+    BYTE Time2();
+    BYTE SharpFlat();
+    BYTE Key();
     BYTE* Data();
     int DataIndex;
     int DataSize;
     void Reset();
-    const bool MessageReady();
+    bool MessageReady();
 };
 
 class CMIDIFileReader
@@ -126,13 +123,13 @@ public:
     ~CMIDIFileReader();
     QList<CMIDIFileTrack*> Tracks;
     short Ticks;
-    const bool Open(const QString& Path);
-    const bool OpenPtr(const char* Pnt, const size_t Length);
-    const short TrackCount();
-    const short FileType();
-    const unsigned long MilliSeconds();
-    const unsigned long Duration(const int Track=-1);
-    const unsigned long NoteCount(const int Track);
+    bool Open(const QString& Path);
+    bool OpenPtr(const char* Pnt, const size_t Length);
+    short TrackCount();
+    short FileType();
+    unsigned long MilliSeconds();
+    unsigned long Duration(const int Track=-1);
+    unsigned long NoteCount(const int Track);
     void Reset();
     SingleMIDIMap* MIDIFiles;
 };

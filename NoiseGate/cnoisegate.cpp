@@ -30,7 +30,7 @@ float *CNoiseGate::GetNextA(const int ProcIndex) {
     return AudioBuffers[ProcIndex]->Buffer;
 }
 
-const float CNoiseGate::GetNext(int) {
+float CNoiseGate::GetNext(int) {
     if (m_Process)
     {
         m_Process=false;

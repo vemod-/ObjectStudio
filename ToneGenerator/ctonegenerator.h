@@ -19,13 +19,10 @@ private:
     float CurrentDetune;
     float CurrentMod;
     float CurrentFreq;
-    float DetuneFreq;
-    int LastFreq;
     float LastMod;
     float LastFreqValue;
     float VolumeFactor;
     float PulseFactor;
-    float PulseModulationFactor;
     CWaveBank WaveBank;
     CFreqGlider FreqGlider;
     int inline PulseCalc(int Pos,float Modulation);

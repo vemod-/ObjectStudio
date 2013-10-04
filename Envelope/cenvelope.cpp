@@ -21,7 +21,7 @@ void CEnvelope::Init(const int Index,void* MainWindow)
     CalcParams();
 }
 
-const float CEnvelope::GetNext(int /*ProcIndex*/)
+float CEnvelope::GetNext(int /*ProcIndex*/)
 {
     return ADSR.GetVol(Fetch(jnTriggerIn))*VolumeFactor;
 }

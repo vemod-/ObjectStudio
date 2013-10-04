@@ -73,7 +73,7 @@ CPeakControl::~CPeakControl()
     delete ui;
 }
 
-const int CPeakControl::val2y(const float val, const float height)
+int CPeakControl::val2y(const float val, const float height)
 {
     return height-((val*height*2)/3);
 }

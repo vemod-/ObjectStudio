@@ -21,6 +21,7 @@ public:
     const QStringList PresetNames();
     void SetProgram(const int index);
     void UpdateHost();
+    const void* Picture() const;
 private:
     enum JackNames
     {jnIn,jnMIDIIn,jnOut};
@@ -29,9 +30,6 @@ private:
     float VolFactor;
     int OldBuffers;
     void inline CalcParams();
-    //TVSTHost* VST;
-    int InBufferCount;
-    int OutBufferCount;
     void Process();
 };
 

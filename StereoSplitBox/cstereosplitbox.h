@@ -20,7 +20,7 @@ private:
     enum ParameterNames
     {};
     void Process();
-    std::vector<IJack*> JacksCreated;
+    QList<IJack*> JacksCreated;
     CInJack* WaveOutL;
     CInJack* WaveOutR;
     float* InL;

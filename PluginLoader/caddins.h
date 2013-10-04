@@ -2,7 +2,6 @@
 #define CADDINS_H
 
 #include <QtCore>
-#include <stdlib.h>
 
 typedef void*(*voidinstancefunc)();
 
@@ -18,9 +17,9 @@ public:
     };
     CAddIns();
     ~CAddIns();
-    static std::vector<AddInType> AddInList;
+    static QVector<AddInType> AddInList;
     static const QStringList AddInNames();
-    static const unsigned int AddInIndex(const QString& Name);
+    static unsigned int AddInIndex(const QString& Name);
     static int instances;
 private:
     void LoadAddIns(QDir& pluginsDir);

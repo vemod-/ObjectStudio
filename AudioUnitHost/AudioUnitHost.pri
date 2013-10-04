@@ -1,3 +1,6 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += macextras
 
 INCLUDEPATH += /Developer/Extras/CoreAudio/PublicUtility
@@ -5,8 +8,6 @@ INCLUDEPATH += $$PWD/../PluginLoader
 INCLUDEPATH += $$PWD/../VSTHost
 INCLUDEPATH += $$PWD/../../AudioUnit
 INCLUDEPATH += $$PWD
-
-include($$PWD/../../QSignalMenu/QSignalMenu.pri)
 
 LIBS += -framework Cocoa -framework Carbon -framework CoreAudio -framework AudioUnit -framework AudioToolbox -framework CoreAudioKit
 
@@ -25,4 +26,4 @@ HEADERS += \
 
 OBJECTIVE_SOURCES += \
     $$PWD/../../AudioUnit/caudiounitclass.mm
-
+}

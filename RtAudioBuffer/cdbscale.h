@@ -20,7 +20,7 @@ protected:
 private:
     Ui::CdBScale *ui;
     void SetSize();
-    const int val2y(const float val, const float height);
+    int val2y(const float val, const float height);
     static const int Border=4;
     static const int HalfBorder=2;
     int m_Margin;

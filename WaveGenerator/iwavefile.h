@@ -12,37 +12,38 @@ class IWaveFile
 public:
     enum Endian { BigEndian = QSysInfo::BigEndian, LittleEndian = QSysInfo::LittleEndian };
     IWaveFile();
-    virtual const int Channels();
-    virtual const int Rate();
-    virtual const bool OpenFile(QFile& f);
-    virtual const bool Open(BYTE* pSrc, const size_t Size);
-    virtual const bool Save(const QString &filename,float*& data,const int Channels,const size_t Length,const unsigned int SampleRate);
-    virtual const size_t CreateFloatBuffer(float*& OutBuffer, const int Samplerate);
+    virtual ~IWaveFile();
+    virtual int Channels() const;
+    virtual int Rate() const;
+    virtual bool OpenFile(QFile& f);
+    virtual bool Open(BYTE* pSrc, const size_t Size);
+    virtual bool Save(const QString &filename,float*& data,const int Channels,const size_t Length,const unsigned int SampleRate);
+    virtual size_t CreateFloatBuffer(float*& OutBuffer, const int Samplerate);
 protected:
     struct chunk
     {
         char        id[4];
         quint32     size;
     };
-    const qint16 inline getShort(const qint16 val)
+    qint16 inline getShort(const qint16 val)
     {
         if (byteOrder==LittleEndian) return qFromLittleEndian<qint16>(val);
         if (byteOrder==BigEndian) return qFromBigEndian<qint16>(val);
         return val;
     }
-    const qint32 inline getInt(const qint32 val)
+    qint32 inline getInt(const qint32 val)
     {
         if (byteOrder==LittleEndian) return qFromLittleEndian<qint32>(val);
         if (byteOrder==BigEndian) return qFromBigEndian<qint32>(val);
         return val;
     }
-    const bool findChunk(const char* s, size_t &ptr, BYTE* pSrc, const size_t filesize);
+    bool findChunk(const char* s, size_t &ptr, BYTE* pSrc, const size_t filesize);
 
-    const int16_t inline MuLaw_Decode(int8_t number);
-    const int16_t inline ALaw_Decode(int8_t number);
-    const float inline ReadAuMem(const void* pSrc, const bool HalfByte=false);
+    int16_t inline MuLaw_Decode(int8_t number);
+    int16_t inline ALaw_Decode(int8_t number);
+    float inline ReadAuMem(const void* pSrc, const bool HalfByte=false);
     void inline DecompressIMAPacket( const uint8_t* pSrc, float* pDst, const int stride );
-    const size_t DecompressIMA(const int channels, const uint8_t* pSrc, float *&pDst, const size_t srcSize);
+    size_t DecompressIMA(const int channels, const uint8_t* pSrc, float *&pDst, const size_t srcSize);
 
     int channels;
     int frequency;

@@ -21,7 +21,7 @@ public:
     CLFO();
     void Init(const int Index,void* MainWindow);
     void Tick();
-    const float GetNext(const int ProcIndex);
+    float GetNext(const int ProcIndex);
 };
 
 #endif // CLFO_H

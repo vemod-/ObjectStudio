@@ -131,9 +131,7 @@ void CDrumMachineForm::RemovePatternInList(int Index)
     CDrumMachine* m_DM=(CDrumMachine*)m_Device;
     if (m_DM->PatternsInList.count()>0)
     {
-        PatternListType* PLI=m_DM->PatternsInList[Index];
-        m_DM->PatternsInList.removeOne(PLI);
-        delete PLI;
+        delete m_DM->PatternsInList.takeAt(Index);
         UpdatePatternlist();
     }
 }
@@ -196,11 +194,7 @@ void CDrumMachineForm::RemovePattern(int Index)
             RemovePatternInList(i);
         }
     }
-    PatternType* P=m_DM->Patterns[Index];
-    P->SetNumOfBeats(0);
-    m_DM->Patterns.removeOne(P);
-    delete P;
-
+    delete m_DM->Patterns.takeAt(Index);
 }
 
 void CDrumMachineForm::PlayListPopup(QPoint Pos)
@@ -316,14 +310,14 @@ void CDrumMachineForm::CustomLoad(const QString &XML)
         QDomLiteElementList XMLPatterns=xml.elementsByTag("Pattern");
         foreach (QDomLiteElement* Pattern, XMLPatterns)
         {
-            unsigned int NOB = Pattern->attributeValue("NumOfBeats");
+            int NOB = Pattern->attributeValue("NumOfBeats");
             QString Name = Pattern->attribute("Name");
             PatternType* P=new PatternType(Name,NOB);
             m_DM->Patterns.append(P);
             P->Tempo= Pattern->attributeValue("Tempo");
             P->Polyphony= Pattern->attributeValue("Sounds");
             QDomLiteElementList XMLBeats = Pattern->elementsByTag("Beat");
-            for (unsigned int i=0;i<XMLBeats.size();i++)
+            for (int i=0;i<XMLBeats.size();i++)
             {
                 QDomLiteElement* Beat=XMLBeats[i];
                 if (i < NOB)

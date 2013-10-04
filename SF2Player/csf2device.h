@@ -12,13 +12,17 @@ const int sf2voices=16;
 class CSF2Device : public ISoundDevice
 {
 public:
-    struct SF2Preset
+    class SF2Preset
     {
+    public:
+        SF2Preset(){}
         int number;
         QString name;
     };
-    struct SF2Bank
+    class SF2Bank
     {
+    public:
+        SF2Bank(){}
         QHash<int,SF2Preset> presets;
     };
     CSF2Device();
@@ -29,18 +33,18 @@ public:
     void Patch(const short channel, const short value);
     void Controller(const short channel, const short controller, const short value);
     float* getNext(const int voice);
-    const short voiceChannel(const int voice);
-    const int voiceCount();
+    short voiceChannel(const int voice);
+    int voiceCount();
     void reset();
-    const int presetcount();
+    int presetcount();
     const QString presetname(const int preset);
-    const int banknumber(const int preset);
-    const int presetnumber(const int preset);
-    const int currentPreset(const short channel);
-    const int currentBank(const short channel);
+    int banknumber(const int preset);
+    int presetnumber(const int preset);
+    int currentPreset(const short channel);
+    int currentBank(const short channel);
     void setBank(const int bank);
     void setPreset(const int preset);
-    const bool loadFile(const QString& filename);
+    bool loadFile(const QString& filename);
     bool patchResponse;
     void allNotesOff();
     QHash<int,SF2Bank> banks;

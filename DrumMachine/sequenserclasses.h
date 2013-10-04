@@ -19,6 +19,7 @@ class PatternType
 public:
         PatternType(const QString& sName,int NumOfBeats);
         PatternType(const QString& sName,int NumOfBeats,int Poly,BYTE Length,BYTE Pitch,BYTE Volume);
+        ~PatternType();
         QString Name;
         int NumOfBeats();
         int Tempo;

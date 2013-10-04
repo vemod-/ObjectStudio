@@ -45,7 +45,7 @@ void CMP3File::Init()
     memset(&MP3DP[1],0,sizeof(MPEG_DECODE_PARAM));
 }
 
-const bool CMP3File::Open(BYTE* pSrc, const size_t Size)
+bool CMP3File::Open(BYTE* pSrc, const size_t Size)
 {
     pSrcFile=pSrc;
     FileSize = Size;//GetFileSize(FileHandle,NULL);
@@ -154,7 +154,7 @@ const bool CMP3File::Open(BYTE* pSrc, const size_t Size)
     return true;
 }
 
-const unsigned int CMP3File::Close()
+unsigned int CMP3File::Close()
 {
     if(State == Closed) { return NoError; }
 
@@ -168,7 +168,7 @@ const unsigned int CMP3File::Close()
     return NoError;
 }
 
-const unsigned int CMP3File::PCMBuffer(short*& OutBuffer)
+unsigned int CMP3File::PCMBuffer(short*& OutBuffer)
 {
     if(State != Opened) { return NoError; }
 
@@ -331,17 +331,17 @@ void CMP3File::WaveFile()
     delete [] WaveBuffer;
 }
 */
-const int CMP3File::Channels()
+int CMP3File::Channels() const
 {
     return PCMwf.nChannels;
 }
 
-const int CMP3File::Rate()
+int CMP3File::Rate() const
 {
     return PCMwf.nSamplesPerSec;
 }
 
-const size_t CMP3File::CreateFloatBuffer(float*& OutBuffer, const int Samplerate)
+size_t CMP3File::CreateFloatBuffer(float*& OutBuffer, const int Samplerate)
 {
     short* WaveBuffer;
     size_t size=PCMBuffer(WaveBuffer);
@@ -364,7 +364,7 @@ const size_t CMP3File::CreateFloatBuffer(float*& OutBuffer, const int Samplerate
     return Length;
 }
 
-const unsigned int CMP3File::Equalize(EQ eq)
+unsigned int CMP3File::Equalize(EQ eq)
 {
     int tEQ[10];
 

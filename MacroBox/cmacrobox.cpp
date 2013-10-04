@@ -32,9 +32,9 @@ void CMacroBox::Init(const int Index, void *MainWindow)
     AddJack("Pitch Modulation In",IJack::Pitch,IJack::In);
     AddJack("Frequency In",IJack::Frequency,IJack::In);
     AddJack("Trigger In",IJack::Trigger,IJack::In);
-    for (unsigned int i=0;i<m_Jacks.size();i++)
+    for (int i=0;i<m_Jacks.size();i++)
     {
-        IJack* J=(IJack*)m_Jacks[i];
+        IJack* J=m_Jacks[i];
         IJack* J1=d->AddJack(d->CreateInsideJack(i,J,this),0);
         JacksCreated.push_back(J1);
         if (J->Direction==IJack::Out)
@@ -59,7 +59,7 @@ void CMacroBox::HideForm()
     m_Form->setVisible(false);
 }
 
-const float CMacroBox::GetNext(const int ProcIndex)
+float CMacroBox::GetNext(const int ProcIndex)
 {
     return ((CInJack*)InsideJacks[ProcIndex])->GetNext();
 }

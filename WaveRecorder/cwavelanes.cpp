@@ -689,9 +689,7 @@ void CWaveLanes::RemoveLane()
     {
         if (CurrentLane>-1)
         {
-            CWaveLane* Lane=Lanes[CurrentLane];
-            Lanes.removeOne(Lane);
-            delete Lane;
+            delete Lanes.takeAt(CurrentLane);
             CurrentLane=-1;
             CurrentTrack=-1;
             Paint();

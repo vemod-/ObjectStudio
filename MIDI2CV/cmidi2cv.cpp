@@ -29,7 +29,8 @@ void CMIDI2CV::Init(const int Index,void* MainWindow)
     AddParameterTune();
     CalcParams();
 }
-const float CMIDI2CV::GetNext(const int ProcIndex)
+
+float CMIDI2CV::GetNext(const int ProcIndex)
 {
     if (m_Process)
     {

@@ -8,6 +8,7 @@ TARGET = PolyBox
 TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
+include(../../QCanvas/QCanvas.pri)
 
 INCLUDEPATH += ../MacroBox
 INCLUDEPATH += ../MIDI2CV

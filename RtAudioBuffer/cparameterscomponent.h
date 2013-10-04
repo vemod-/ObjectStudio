@@ -4,6 +4,7 @@
 #include <QWidget>
 #include "softsynthsclasses.h"
 #include "cknobcontrol.h"
+#include <QLabel>
 
 namespace Ui {
     class CParametersComponent;
@@ -27,8 +28,10 @@ private:
     QSignalMapper* mapper;
     IDevice* m_D;
     QWidget* Spacer;
+    QLabel* ImgLabel;
 private slots:
     void ValueChanged(int i);
+    void showUI();
 signals:
     void ParameterChanged(IDevice* Device, int Index, int Value);
     void Popup(QPoint Pos);

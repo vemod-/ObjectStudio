@@ -5,7 +5,7 @@
 #include "macstrings.h"
 #include <QApplication>
 
-TVSTHost::TVSTHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent)
+CVSTHostClass::CVSTHostClass(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent)
     : IAudioPlugInHost(sampleRate,bufferSize,parent)
 {
     ptrPlug=NULL;
@@ -27,29 +27,29 @@ TVSTHost::TVSTHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* pa
     }
 }
 
-void TVSTHost::Popup(QPoint pos)
+void CVSTHostClass::Popup(QPoint pos)
 {
     foreach(QSignalMenu* m,mSubMenus) m->checkAction(m_Filename);
     mMainMenu->popup(pos);
 }
 
-TVSTHost::~TVSTHost()
+CVSTHostClass::~CVSTHostClass()
 {
     KillPlug();
     qDebug() << "Exit TVSTHost";
 }
 
-const QStringList TVSTHost::VSTCategories()
+const QStringList CVSTHostClass::VSTCategories()
 {
     return SingleVSTPlugInList::getInstance()->keys();
 }
 
-const QStringList TVSTHost::VSTFiles(QString category)
+const QStringList CVSTHostClass::VSTFiles(QString category)
 {
     return SingleVSTPlugInList::getInstance()->value(category);
 }
 
-void TVSTHost::LoadFromMenu(QString Filename)
+void CVSTHostClass::LoadFromMenu(QString Filename)
 {
     Load(Filename);
 }
@@ -62,7 +62,7 @@ QString getPlugString(AEffect* eff,AEffectOpcodes OpCode,const long index)
     return qt_mac_MacRomanToQString(s).trimmed();
 }
 
-const bool TVSTHost::Load(QString Filename)
+bool CVSTHostClass::Load(QString Filename)
 {
     AEffect* TempPlug;
     //find and load the DLL and get a pointer to its main function
@@ -294,7 +294,7 @@ const bool TVSTHost::Load(QString Filename)
     return true;
 }
 
-void TVSTHost::LoadProgramNames()
+void CVSTHostClass::LoadProgramNames()
 {
     m_ProgramNames.clear();
     if (ptrPlug)
@@ -314,7 +314,7 @@ void TVSTHost::LoadProgramNames()
 //host callback function
 //this is called directly by the plug-in!!
 //
-VstIntPtr VSTCALLBACK TVSTHost::host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr /*value*/, void* ptr, float opt)
+VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr /*value*/, void* ptr, float opt)
 {
     char S[1024];
     char** FileStrings=NULL;
@@ -971,33 +971,35 @@ VstIntPtr VSTCALLBACK TVSTHost::host(AEffect* effect, VstInt32 opcode, VstInt32 
     return retval;
 }
 
-const int TVSTHost::ParameterCount()
+int CVSTHostClass::ParameterCount()
 {
     if (ptrPlug) return ptrPlug->numParams;
     return 0;
 }
 
-const float TVSTHost::GetParameter(const long index)
+float CVSTHostClass::GetParameter(const long index)
 {
     if (ptrPlug) return ptrPlug->getParameter(ptrPlug,index);
     return 0;
 }
 
-void TVSTHost::SetParameter(const long index, const float value)
+void CVSTHostClass::SetParameter(const long index, const float value)
 {
     if (ptrPlug) ptrPlug->setParameter(ptrPlug,index,value);
 }
 
-const QString TVSTHost::ParameterName(const long index)
-{
+const QString CVSTHostClass::ParameterName(const long index)
+{;
+    QString retVal;
     if (ptrPlug)
     {
-        return getPlugString(ptrPlug,effGetParamName,index).trimmed();
+        retVal = getPlugString(ptrPlug,effGetParamName,index).trimmed();
+        if (retVal.isEmpty()) retVal = getPlugString(ptrPlug,effGetParamLabel,index).trimmed();
     }
-    return QString();
+    return retVal;
 }
 
-const QString TVSTHost::ParameterValue(const long index)
+const QString CVSTHostClass::ParameterValue(const long index)
 {
     if (ptrPlug)
     {
@@ -1006,25 +1008,25 @@ const QString TVSTHost::ParameterValue(const long index)
     return QString();
 }
 
-const int TVSTHost::NumInputs()
+int CVSTHostClass::NumInputs()
 {
     if (ptrPlug) return ptrPlug->numInputs;
     return 0;
 }
 
-const int TVSTHost::NumOutputs()
+int CVSTHostClass::NumOutputs()
 {
     if (ptrPlug) return ptrPlug->numOutputs;
     return 0;
 }
 
-float TVSTHost::VSTVersion()
+float CVSTHostClass::VSTVersion()
 {
     if  (!ptrPlug){return 0;}
     return ptrPlug->dispatcher(ptrPlug,effGetVstVersion,0,0,NULL,0.0f);
 }
 
-const bool TVSTHost::Process()
+bool CVSTHostClass::Process()
 {
     if (!ptrPlug) return false;
     ptrPlug->dispatcher(ptrPlug,effStartProcess,0,0,NULL,0.0f);
@@ -1073,7 +1075,7 @@ const bool TVSTHost::Process()
     return true;
 }
 
-VstMidiEvent createEvent(BYTE Message, QByteArray &data)
+VstMidiEvent createEvent(BYTE Message, QVarLengthArray<BYTE> &data)
 {
     VstMidiEvent e;
     e.type=kVstMidiType;
@@ -1085,7 +1087,7 @@ VstMidiEvent createEvent(BYTE Message, QByteArray &data)
 
     e.midiData[0]=Message;	//status & channel
     e.midiData[1]=data.at(0);	//MIDI byte #2
-    if (data.count() > 1)
+    if (data.size() > 1)
     {
         e.midiData[2]=data.at(1);	//MIDI byte #3
     }
@@ -1102,59 +1104,44 @@ VstMidiEvent createEvent(BYTE Message, QByteArray &data)
     return e;
 }
 
-void TVSTHost::DumpMIDI(CMIDIBuffer* MB, bool PatchChange)
+void CVSTHostClass::DumpMIDI(CMIDIBuffer* MB, bool PatchChange)
 {
+    if (!MB) return;
     if (!ptrPlug) return;
-    short Message;
-    QByteArray data;
-    MB->StartRead();
-    int lTemp=MB->Read();
-    while (lTemp > -1)
+    foreach(CMIDIEvent Event,MB->Events())
     {
-        if (lTemp >= 0x80)
-        {
-            Message=lTemp;
-            data.clear();
-        }
-        forever
-        {
-            lTemp=MB->Read();
-            if ((lTemp >= 0x80) | (lTemp < 0)) break;
-            data.append(lTemp);
-        }
-        short Channel=Message & 0x0F;
-        if (Message >= 0xF0)
+        if (Event.command == 0xF0)
         {
         }
-        else if ((m_MIDIChannel==0) | (m_MIDIChannel==Channel+1))
+        else if ((m_MIDIChannel==0) | (m_MIDIChannel==Event.channel+1))
         {
-            if (data.count()==1)
+            if (Event.data.size()==1)
             {
-                if ((Message & 0xF0) == 0xC0)
+                if (Event.command == 0xC0)
                 {
-                    if (PatchChange) vstMidiEvents.append(createEvent(Message,data));
+                    if (PatchChange) vstMidiEvents.append(createEvent(Event.message,Event.data));
                 }
                 else
                 {
-                    vstMidiEvents.append(createEvent(Message,data));
+                    vstMidiEvents.append(createEvent(Event.message,Event.data));
                 }
             }
-            if (data.count()==2)
+            if (Event.data.size()==2)
             {
-                if (((Message & 0xF0) == 0xB0) & ((data.at(0)==0) | (data.at(0)==0x20)))
+                if ((Event.command == 0xB0) & ((Event.data.at(0)==0) | (Event.data.at(0)==0x20)))
                 {
-                    if (PatchChange) vstMidiEvents.append(createEvent(Message,data));
+                    if (PatchChange) vstMidiEvents.append(createEvent(Event.message,Event.data));
                 }
                 else
                 {
-                    vstMidiEvents.append(createEvent(Message,data));
+                    vstMidiEvents.append(createEvent(Event.message,Event.data));
                 }
             }
         }
     }
 }
 
-void TVSTHost::KillPlug()
+void CVSTHostClass::KillPlug()
 {
     if (!ptrPlug) return;
 
@@ -1226,22 +1213,7 @@ void TVSTHost::KillPlug()
     ////////////////////////////////////////////////////////////////////////////
 }
 
-void TVSTHost::AllNotesOff()
-{
-    if (ptrPlug)
-    {
-        CMIDIBuffer b;
-        b.Reset();
-        for (int j=0;j<16;j++)
-        {
-            b.Push(0xB0+j);
-            b.Push(0x7B);
-        }
-        DumpMIDI(&b,false);
-    }
-}
-
-const QString TVSTHost::SaveXML()
+const QString CVSTHostClass::SaveXML()
 {
     QDomLiteElement xml("Settings");
     QString RelPath=QDir(CPresets::Presets.VSTPath).relativeFilePath(CurrentBank);
@@ -1261,7 +1233,7 @@ const QString TVSTHost::SaveXML()
     return xml.toString();
 }
 
-void TVSTHost::LoadXML(const QString &XML)
+void CVSTHostClass::LoadXML(const QString &XML)
 {
     QDomLiteElement xml;
     xml.fromString(XML);
@@ -1295,7 +1267,7 @@ void TVSTHost::LoadXML(const QString &XML)
     }
 }
 
-void TVSTHost::LoadBank(QString FileName)
+void CVSTHostClass::LoadBank(QString FileName)
 {
     QFile f(FileName);
     if (!f.exists())
@@ -1313,7 +1285,7 @@ void TVSTHost::LoadBank(QString FileName)
     }
 }
 
-void TVSTHost::LoadPreset(QString FileName)
+void CVSTHostClass::LoadPreset(QString FileName)
 {
     QFile f(FileName);
     if (!f.exists())
@@ -1331,7 +1303,7 @@ void TVSTHost::LoadPreset(QString FileName)
     }
 }
 
-fxPreset TVSTHost::GetPreset(long Index)
+fxPreset CVSTHostClass::GetPreset(long Index)
 {
     fxPreset result;
     ptrPlug->dispatcher(ptrPlug,effSetProgram,0,Index,NULL,0.0f);
@@ -1358,7 +1330,7 @@ fxPreset TVSTHost::GetPreset(long Index)
     return result;
 }
 
-void TVSTHost::SaveBank(QString FileName)
+void CVSTHostClass::SaveBank(QString FileName)
 {
     QFile f(FileName);
     if (f.open(QIODevice::WriteOnly))
@@ -1368,7 +1340,7 @@ void TVSTHost::SaveBank(QString FileName)
     }
 }
 
-void TVSTHost::SavePreset(QString FileName)
+void CVSTHostClass::SavePreset(QString FileName)
 {
     QFile f(FileName);
     if (f.open(QIODevice::WriteOnly))
@@ -1377,18 +1349,18 @@ void TVSTHost::SavePreset(QString FileName)
     }
 }
 
-int TVSTHost::GetChunk(void* pntr,bool isPreset)
+int CVSTHostClass::GetChunk(void* pntr,bool isPreset)
 {
     return ptrPlug->dispatcher(ptrPlug,effGetChunk,long(isPreset),0,pntr,0.0f);
 }
 
-int TVSTHost::SetChunk(void* data,long byteSize,bool isPreset)
+int CVSTHostClass::SetChunk(void* data,long byteSize,bool isPreset)
 {
     return ptrPlug->dispatcher(ptrPlug,effSetChunk, long(isPreset), byteSize, data,0.0f);
 }
 
 
-void TVSTHost::SavePreset(QFile& str)
+void CVSTHostClass::SavePreset(QFile& str)
 {
     if (!ptrPlug){return;}
     if (ptrPlug->flags & effFlagsProgramChunks)
@@ -1420,7 +1392,7 @@ void TVSTHost::SavePreset(QFile& str)
     }
 }
 
-void TVSTHost::LoadBank(QFile& str)
+void CVSTHostClass::LoadBank(QFile& str)
 {
     if (!ptrPlug){return;}
     if (ptrPlug->flags & effFlagsProgramChunks)
@@ -1478,7 +1450,7 @@ void TVSTHost::LoadBank(QFile& str)
     ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
 }
 
-void TVSTHost::LoadPreset(QFile& str)
+void CVSTHostClass::LoadPreset(QFile& str)
 {
     if (!ptrPlug){return;}
     if (ptrPlug->flags & effFlagsProgramChunks)
@@ -1528,7 +1500,7 @@ void TVSTHost::LoadPreset(QFile& str)
     ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
 }
 
-void TVSTHost::SaveBank(QFile& str)
+void CVSTHostClass::SaveBank(QFile& str)
 {
     if (!ptrPlug){return;}
     if (ptrPlug->flags & effFlagsProgramChunks)
@@ -1540,7 +1512,7 @@ void TVSTHost::SaveBank(QFile& str)
         p2.fxID=qToBigEndian<qint32>(ptrPlug->uniqueID);
         p2.fxVersion=qToBigEndian<qint32>(ptrPlug->version);
         p2.numPrograms=qToBigEndian<qint32>(ptrPlug->numPrograms);
-        void* PBuffer;
+        void* PBuffer=NULL;
         int x=GetChunk(PBuffer,false);
         p2.chunkSize=qToBigEndian<qint32>(x);
         p2.byteSize=qToBigEndian<qint32>(sizeof(p2) - sizeof(int) * 3 + x + 8);
@@ -1568,17 +1540,17 @@ void TVSTHost::SaveBank(QFile& str)
     }
 }
 
-const QString TVSTHost::ProgramName()
+const QString CVSTHostClass::ProgramName()
 {
     return m_ProgramName;
 }
 
-const QStringList TVSTHost::ProgramNames()
+const QStringList CVSTHostClass::ProgramNames()
 {
     return m_ProgramNames;
 }
 
-void TVSTHost::SetProgram(const long index)
+void CVSTHostClass::SetProgram(const long index)
 {
     if (ptrPlug)
     {
@@ -1594,13 +1566,13 @@ void TVSTHost::SetProgram(const long index)
     }
 }
 
-const long TVSTHost::CurrentProgram()
+long CVSTHostClass::CurrentProgram()
 {
     if (ptrPlug) return ptrPlug->dispatcher(ptrPlug,effGetProgram,0,0,NULL,0.0f);
     return -1;
 }
 
-QRect TVSTHost::GetEffRect()
+QRect CVSTHostClass::GetEffRect()
 {
     VSTRect* FormRect;
     if (ptrPlug)
@@ -1611,7 +1583,7 @@ QRect TVSTHost::GetEffRect()
     return QRect();
 }
 
-void TVSTHost::timerEvent(QTimerEvent *)
+void CVSTHostClass::timerEvent(QTimerEvent *)
 {
     if (ptrPlug)
     {

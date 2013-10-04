@@ -12,11 +12,9 @@ CMIDIBuffer::~CMIDIBuffer()
     delete [] Buffer;
 }
 
-void CMIDIBuffer::Push(const BYTE MIDIData)
+void CMIDIBuffer::Expand(unsigned int dataSize)
 {
-    Buffer[PushCount]=MIDIData;
-    PushCount++;
-    if (PushCount>=Size)
+    while (PushCount+dataSize >= Size)
     {
         BYTE* temp=new BYTE[Size+MIDIBuffer::MIDIBufferSize];
         memcpy(temp,Buffer,Size);
@@ -26,7 +24,42 @@ void CMIDIBuffer::Push(const BYTE MIDIData)
     }
 }
 
-const short CMIDIBuffer::Pop()
+void CMIDIBuffer::Push(const BYTE MIDIData)
+{
+    Expand(1);
+    Buffer[PushCount++]=MIDIData;
+}
+
+void CMIDIBuffer::Push(const BYTE message, const BYTE data)
+{
+    Expand(2);
+    Buffer[PushCount++]=message;
+    Buffer[PushCount++]=data;
+}
+
+void CMIDIBuffer::Push(const BYTE message, const BYTE data1, const BYTE data2)
+{
+    Expand(3);
+    Buffer[PushCount++]=message;
+    Buffer[PushCount++]=data1;
+    Buffer[PushCount++]=data2;
+}
+
+void CMIDIBuffer::Push(const BYTE *data, const unsigned int dataSize)
+{
+    Expand(dataSize);
+    memcpy(&Buffer[PushCount],data,dataSize);
+    PushCount+=dataSize;
+}
+
+void CMIDIBuffer::Push(const BYTE message, const BYTE *data, const unsigned int dataSize)
+{
+    Expand(dataSize+1);
+    Buffer[PushCount++]=message;
+    Push(data,dataSize);
+}
+
+short CMIDIBuffer::Pop()
 {
     if (PushCount != PopCount)
     {
@@ -49,7 +82,7 @@ void CMIDIBuffer::StartRead()
     ReadCount=PopCount;
 }
 
-const short CMIDIBuffer::Read()
+short CMIDIBuffer::Read()
 {
     if (PushCount != ReadCount)
     {
@@ -80,12 +113,12 @@ void CMIDIBuffer::Reset()
     ReadCount=0;
 }
 
-const bool CMIDIBuffer::IsEmpty()
+bool CMIDIBuffer::IsEmpty() const
 {
     return (PushCount == PopCount);
 }
 
-const bool CMIDIBuffer::IsRead()
+bool CMIDIBuffer::IsRead() const
 {
     return (PushCount == ReadCount);
 }
@@ -99,4 +132,36 @@ void CMIDIBuffer::Append(CMIDIBuffer *MB)
         Push(lTemp);
         lTemp=MB->Read();
     }
+}
+
+const MIDIEventList CMIDIBuffer::Events()
+{
+    QList<CMIDIEvent> li;
+    StartRead();
+    int lTemp=Read();
+    while (lTemp > -1)
+    {
+        CMIDIEvent e;
+        if (lTemp >= 0x80)
+        {
+            e.message=lTemp;
+            e.channel=e.message & 0x0F;
+            e.command=e.message & 0xF0;
+        }
+        forever
+        {
+            lTemp=Read();
+            if ((lTemp >= 0x80) | (lTemp < 0)) break;
+            e.data.push_back(lTemp);
+        }
+        li.append(e);
+    }
+    return li;
+}
+
+const std::vector<BYTE> CMIDIBuffer::MIDIData()
+{
+    std::vector<BYTE> v(PushCount-ReadCount);
+    memcpy(v.data(),&Buffer[ReadCount],PushCount-ReadCount);
+    return v;
 }

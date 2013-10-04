@@ -23,14 +23,15 @@ public:
     void NoteOn(const short channel, const short pitch, const short velocity);
     void NoteOff(const short channel, const short pitch);
     void Aftertouch(const short channel, const short pitch, const short value);
-    float* getNext(const int voice, const float modulation=1);
+    float* getNext(const int voice);
     void TuneTest(float* BufferL, float* BufferR, int Samples);
     void LoopTest(float* BufferL, float* BufferR, int Samples);
-    const short voiceChannel(const int voice);
-    const int voiceCount();
+    short voiceChannel(const int voice);
+    int voiceCount();
     void reset();
     void allNotesOff();
-    void setTune(float tune);
+    void setTune(const float tune);
+    void setModulation(const float modulation);
     void AddRange(int Layer,const QString& WavePath=QString(),int Upper=127,int Lower=0);
     void AddRange(const QString& WavePath=QString(),int Upper=127,int Lower=0);
     void ChangePath(int Layer,int Range,const QString& WavePath);
@@ -72,6 +73,7 @@ public:
     float WavePos;
 private:
     CSamplerGenerator SamplerGenerator[Sampler::samplervoices];
+    float m_Modulation;
 };
 
 #endif // CSAMPLERDEVICE_H

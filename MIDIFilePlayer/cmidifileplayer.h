@@ -29,9 +29,9 @@ public:
     void Execute(const bool Show);
     const QString Save();
     void Load(const QString& XML);
-    const bool IsPlaying();
-    const unsigned long Duration();
-    const unsigned long MilliSeconds();
+    bool IsPlaying();
+    unsigned long Duration();
+    unsigned long MilliSeconds();
     void OpenPtr(const char* Pnt, const int Length);
 private:
     enum JackNames

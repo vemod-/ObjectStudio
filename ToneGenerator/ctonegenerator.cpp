@@ -1,6 +1,6 @@
 #include "ctonegenerator.h"
 
-CToneGenerator::CToneGenerator():WavePosition(0),DetunePosition(0),CurrentMod(0),LastFreq(0),LastMod(0)
+CToneGenerator::CToneGenerator():WavePosition(0),DetunePosition(0),CurrentMod(0),LastMod(0)
 {
 }
 

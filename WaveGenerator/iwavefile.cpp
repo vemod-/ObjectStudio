@@ -78,7 +78,7 @@ void IWaveFile::DecompressIMAPacket( const uint8_t* pSrc, float* pDst, const int
     }
 }
 
-const size_t IWaveFile::DecompressIMA(const int channels, const uint8_t* pSrc, float *&pDst, const size_t srcSize)
+size_t IWaveFile::DecompressIMA(const int channels, const uint8_t* pSrc, float *&pDst, const size_t srcSize)
 {
     int packetCount = ((float)srcSize / 34.0) / (float)channels;
     unsigned int Length=packetCount*64.0;
@@ -102,7 +102,12 @@ IWaveFile::IWaveFile()
     frequency=44100;
 }
 
-const int16_t IWaveFile::MuLaw_Decode(int8_t number)
+IWaveFile::~IWaveFile()
+{
+
+}
+
+int16_t IWaveFile::MuLaw_Decode(int8_t number)
 {
    const uint16_t MULAW_BIAS = 33;
    uint8_t sign = 0, position = 0;
@@ -119,7 +124,7 @@ const int16_t IWaveFile::MuLaw_Decode(int8_t number)
    return (sign == 0) ? (decoded) : (-(decoded));
 }
 
-const int16_t IWaveFile::ALaw_Decode(int8_t number)
+int16_t IWaveFile::ALaw_Decode(int8_t number)
 {
    uint8_t sign = 0x00;
    uint8_t position = 0;
@@ -143,7 +148,7 @@ const int16_t IWaveFile::ALaw_Decode(int8_t number)
    return (sign==0)?(decoded):(-decoded);
 }
 
-const float IWaveFile::ReadAuMem(const void* pSrc, const bool HalfByte)
+float IWaveFile::ReadAuMem(const void* pSrc, const bool HalfByte)
 {
     if (AuEncoding==AUDIO_FILE_ENCODING_DOUBLE) return *((double*)(pSrc));
     if (AuEncoding==AUDIO_FILE_ENCODING_FLOAT) return *((float*)(pSrc));
@@ -173,7 +178,7 @@ const float IWaveFile::ReadAuMem(const void* pSrc, const bool HalfByte)
     return 0;
 }
 
-const size_t IWaveFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerate)
+size_t IWaveFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerate)
 {
     float PointerInc = ((float)sampleSize / 8.0) * channels;
     float RateFactor=(float)frequency/(float)Samplerate;
@@ -227,33 +232,33 @@ const size_t IWaveFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerat
     return Length;
 }
 
-const int IWaveFile::Rate()
+int IWaveFile::Rate() const
 {
     return frequency;
 }
 
-const int IWaveFile::Channels()
+int IWaveFile::Channels() const
 {
     return channels;
 }
 
-const bool IWaveFile::OpenFile(QFile &f)
+bool IWaveFile::OpenFile(QFile &f)
 {
     qDebug() << f.fileName();
     return Open(f.map(0,f.size()),f.size());
 }
 
-const bool IWaveFile::Open(BYTE* /*pSrc*/, size_t /*Size*/)
+bool IWaveFile::Open(BYTE* /*pSrc*/, size_t /*Size*/)
 {
     return false;
 }
 
-const bool IWaveFile::Save(const QString &/*filename*/, float *&/*data*/, const int /*Channels*/, const size_t /*Length*/, const unsigned int /*SampleRate*/)
+bool IWaveFile::Save(const QString &/*filename*/, float *&/*data*/, const int /*Channels*/, const size_t /*Length*/, const unsigned int /*SampleRate*/)
 {
     return false;
 }
 
-const bool IWaveFile::findChunk(const char *s, size_t &ptr, BYTE* pSrc, const size_t filesize)
+bool IWaveFile::findChunk(const char *s, size_t &ptr, BYTE* pSrc, const size_t filesize)
 {
     chunk* Chnk=(chunk*)(pSrc + ptr);
     while (!descriptorMatch(Chnk->id, s))

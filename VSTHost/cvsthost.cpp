@@ -3,6 +3,7 @@
 #include <QFileDialog>
 #include "cvstform.h"
 
+#undef devicename
 #define devicename "VSTHost"
 #define BufferCount 8
 
@@ -27,7 +28,7 @@ void CVSTHost::Init(const int Index, void *MainWindow)
     AddParameter(ParameterType::SelectBox,"Patch Change","",0,1,0,"Off§On",0);
     VolFactor=1.0;
     OldBuffers=0;
-    m_Form=new CVSTForm(new TVSTHost(CPresets::Presets.SampleRate,CPresets::Presets.ModulationRate), this,(QWidget*)MainWindow);
+    m_Form=new CVSTForm(new CVSTHostClass(CPresets::Presets.SampleRate,CPresets::Presets.ModulationRate), this,(QWidget*)MainWindow);
 
     CalcParams();
 }
@@ -100,7 +101,7 @@ void CVSTHost::Load(const QString& XML)
             CurrentPath = CPresets::ResolveFilename(QDir(CPresets::Presets.VSTPath).absoluteFilePath(CurrentPath));
             if (QFileInfo(CurrentPath).exists())
             {
-                TVSTHost* VST=(TVSTHost*)((CVSTForm*)m_Form)->PlugIn;
+                CVSTHostClass* VST=(CVSTHostClass*)((CVSTForm*)m_Form)->PlugIn;
                 if (VST->Load(CurrentPath))
                 {
                     QDomLiteElement* Custom=xml.elementByTag("Settings");
@@ -118,9 +119,8 @@ void CVSTHost::Load(const QString& XML)
 
 void CVSTHost::Process()
 {
-    TVSTHost* VST=(TVSTHost*)((CVSTForm*)m_Form)->PlugIn;
-    CMIDIBuffer* MB=(CMIDIBuffer*)FetchP(jnMIDIIn);
-    if (MB) VST->DumpMIDI(MB,m_ParameterValues[pnPatchChange]);
+    CVSTHostClass* VST=(CVSTHostClass*)((CVSTForm*)m_Form)->PlugIn;
+    VST->DumpMIDI((CMIDIBuffer*)FetchP(jnMIDIIn),m_ParameterValues[pnPatchChange]);
     float* Buffer=FetchA(jnIn);
     if (VST->NumInputs()>1)
     {
@@ -146,16 +146,9 @@ void CVSTHost::Process()
             ZeroMemory(VST->InBuffers[0],m_BufferSize*sizeof(float));
         }
     }
-    if (VST->NumOutputs()>BufferCount)
+    for (int i=VST->NumOutputs()/2;i<OldBuffers/2;i++)
     {
-        OutBufferCount=BufferCount;
-    }
-    if (OldBuffers>VST->NumOutputs())
-    {
-        for (int i=VST->NumOutputs()/2;i<OldBuffers/2;i++)
-        {
-            AudioBuffers[jnOut + i]->ZeroBuffer();
-        }
+        AudioBuffers[jnOut + i]->ZeroBuffer();
     }
     OldBuffers=VST->NumOutputs();
     if (VST->Process())
@@ -189,4 +182,11 @@ const QStringList CVSTHost::PresetNames()
 void CVSTHost::SetProgram(const int index)
 {
     ((CVSTForm*)m_Form)->SetProgram(index);
+}
+
+const void* CVSTHost::Picture() const
+{
+    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
+    QPixmap* pm=new QPixmap(VST->Picture());
+    return (void*)pm;
 }

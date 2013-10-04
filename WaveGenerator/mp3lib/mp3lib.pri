@@ -1,3 +1,6 @@
+!contains(PROFILES,$$_FILE_){
+PROFILES+=$$_FILE_
+
 SOURCES +=     $$PWD/MP3Play.cpp \
     $$PWD/windowb.c \
     $$PWD/window.c \
@@ -27,4 +30,4 @@ HEADERS +=     $$PWD/MP3Play.h \
     $$PWD/include/l3huff.h \
     $$PWD/include/bstream.h \
     $$PWD/debug.h 
-
+}

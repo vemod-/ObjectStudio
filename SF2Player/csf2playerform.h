@@ -30,8 +30,8 @@ private slots:
     void OpenClick();
     void TestMouseDown();
     void TestMouseUp();
-    void ChangeBank();
-    void ChangePreset();
+    void ChangeBank(int index);
+    void ChangePreset(int index);
     void PatchToggled(bool value);
     void VolChanged(int value);
 };

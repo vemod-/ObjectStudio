@@ -22,12 +22,16 @@ PatternType::PatternType(const QString& sName,int NumOfBeats,int Poly,BYTE Lengt
     }
 }
 
+PatternType::~PatternType()
+{
+    SetNumOfBeats(0);
+}
+
 void PatternType::SetNumOfBeats(int NewNumOfBeats)
 {
     for (int i=Beats.count()-1;i>=NewNumOfBeats;i--)
     {
-        delete Beats[i];
-        Beats.removeAt(i);
+        delete Beats.takeAt(i);
     }
     for (int i=Beats.count();i<NewNumOfBeats;i++)
     {
@@ -39,8 +43,7 @@ void PatternType::SetNumOfBeats(int NewNumOfBeats,BYTE Length,BYTE Pitch,BYTE Vo
 {
     for (int i=Beats.count()-1;i>=NewNumOfBeats;i--)
     {
-        delete Beats[i];
-        Beats.removeAt(i);
+        delete Beats.takeAt(i);
     }
     for (int i=Beats.count();i<NewNumOfBeats;i++)
     {

@@ -11,7 +11,7 @@ public:
     void Play(const bool FromStart);
     void Pause();
     void Init(const int Index,void* MainWindow);
-    const float GetNext(const int ProcIndex);
+    float GetNext(const int ProcIndex);
     void* GetNextP(const int ProcIndex);
     float* GetNextA(const int ProcIndex);
     void Tick();
@@ -21,8 +21,8 @@ private:
     {jnMIDIIn,jnOut};
     enum ParameterNames
     {pnMIDIChannel,pnVolume};
-    CFastPointerList InsideJacks;
-    std::vector<IJack*> JacksCreated;
+    QList<IJack*> InsideJacks;
+    QList<IJack*> JacksCreated;
 };
 
 #endif // CMACROBOX_H

@@ -10,24 +10,28 @@ class IAudioPlugInHost : public CMacWindow
 {
     Q_OBJECT
 public:
-    IAudioPlugInHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent=0):CMacWindow(parent)
-    {
-        m_Samplerate=sampleRate;
-        m_Buffersize=bufferSize;
-        m_MIDIChannel=0;
-    }
+    IAudioPlugInHost(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent=0);
     virtual const QString ProgramName(){ return QString(); }
     virtual const QStringList ProgramNames(){ return QStringList(); }
-    virtual void SetProgram(const long index) {}
-    virtual const long CurrentProgram(){ return -1; }
+    virtual void SetProgram(const long index) { Q_UNUSED(index) }
+    virtual long CurrentProgram(){ return -1; }
     virtual const QString SaveXML(){ return QString(); }
     virtual void LoadXML(const QString& XML){ Q_UNUSED(XML) }
-    virtual void AllNotesOff(){}
+    virtual void AllNotesOff(){
+        CMIDIBuffer b;
+        b.Reset();
+        for (int j=0;j<16;j++)
+        {
+            b.Push(0xB0+j,0x7B);
+        }
+        DumpMIDI(&b,false);
+    }
     int MIDIChannel(){ return m_MIDIChannel; }
     void setMIDIChannel(int value){ m_MIDIChannel=value; }
     const QString Filename(){ return m_Filename; }
-    virtual const bool Process(){ return false; }
+    virtual bool Process(){ return false; }
     virtual void DumpMIDI(CMIDIBuffer* MB, bool PatchChange) { Q_UNUSED(MB) Q_UNUSED(PatchChange) }
+    virtual QPixmap Picture();
     float** InBuffers;
     float** OutBuffers;
 public slots:

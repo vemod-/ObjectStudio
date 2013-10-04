@@ -11,7 +11,7 @@ bool ModulationZero()
 */
 
 IJack::IJack(const QString& sName,const QString& sOwner,AttachModes tAttachMode,Directions tDirection,IDeviceBase* OwnerClass)
-    : IJackBase(tAttachMode,tDirection), m_BufferSize(CPresets::Presets.BufferSize), Name(sName), Owner(sOwner), m_OwnerClass(OwnerClass), AudioBuffer(NULL)
+    : IJackBase(tAttachMode,tDirection), m_OwnerClass(OwnerClass), m_BufferSize(CPresets::Presets.BufferSize), Name(sName), Owner(sOwner), AudioBuffer(NULL)
 {
     qDebug() << "Jack Created " << sOwner << sName;
     if (AttachMode==Wave)
@@ -50,7 +50,7 @@ void* CInJack::GetNextP()
         else if (m_OutJackCount==0) return NULL;
         else
         {
-            std::vector<CMIDIBuffer*> MIDIBuffers;
+            QList<CMIDIBuffer*> MIDIBuffers;
             for (int lTemp=0;lTemp<m_OutJackCount;lTemp++)
             {
                 CMIDIBuffer* MB=(CMIDIBuffer*)FetchP(lTemp, this);
@@ -73,7 +73,7 @@ void* CInJack::GetNextP()
     return NULL;
 }
 
-const float CInJack::GetNext()
+float CInJack::GetNext()
 {
     if (m_OutJackCount==0) return 0;
     if (m_OutJackCount==1)
@@ -89,9 +89,8 @@ const float CInJack::GetNext()
     int FreqCount=0;
     float GetAmp;
     float GetPitch=0;
-    foreach (void* j,m_OutJacks)
+    foreach (COutJack* OJ,m_OutJacks)
     {
-        COutJack* OJ=(COutJack*)j;
         switch (OJ->AttachMode)
         {
         case Amplitude:
@@ -152,11 +151,11 @@ void CInJack::ConnectToOut(COutJack* OutJack)
 
 void CInJack::DisconnectFromOut(COutJack* OutJack)
 {
-    int Index=m_OutJacks.IndexOf(OutJack);
+    int Index=m_OutJacks.indexOf(OutJack);
     if (Index>-1)
     {
         OutJack->Disconnect();
-        m_OutJacks.Remove(Index);
+        m_OutJacks.removeAt(Index);
         m_OutJackCount--;
         if (m_OutJackCount > 1) MixFactor=1.0/sqrtf(m_OutJackCount);
         else MixFactor=1;
