@@ -41,7 +41,7 @@ public slots:
     void Pitchdetect();
     void FixRange();
 signals:
-    void UpdateHost(bool Erase);
+    void Changed(bool Erase);
 private:
     Ui::CKeyLayoutControl *ui;
     CSamplerDevice* m_Sampler;

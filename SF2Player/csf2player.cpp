@@ -6,102 +6,108 @@
 
 CSF2Player::CSF2Player()
 {
-    m_Loading=false;
+    //m_Loading=false;
 }
 
-void CSF2Player::Init(const int Index,void* MainWindow)
+void CSF2Player::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackMIDIIn();
-    AddJackStereoOut(jnOut);
-    AddParameterMIDIChannel();
-    AddParameterVolume();
-    AddParameterTranspose();
-    AddParameter(ParameterType::SelectBox,"Patch Change","",0,1,0,"Off§On",0);
+    IDevice::init(Index,MainWindow);
+    addJackMIDIIn();
+    addJackStereoOut(jnOut);
+    startParameterGroup("MIDI", Qt::yellow);
+    addParameterMIDIChannel();
+    addParameterTranspose();
+    addParameterPatchChange();
+    endParameterGroup();
+    addParameterTune();
+    addParameterVolume();
+    addFileParameter(&SF2Device);
+    m_Form=new CSF2PlayerForm(this,MainWindow);
+    //FORMFUNC(CSF2PlayerForm)->fileParameter = m_FileParameter;
     LastTrigger=0;
     LastFreq=0;
-    m_Form=new CSF2PlayerForm(this,(QWidget*)MainWindow);
-    VolumeFactor=1.0*(1.0/sqrtf(SF2Device::sf2voices));
+    VolumeFactor=mixFactorf(SF2Device::sf2voices);
     SF2Device.reset();
-    CalcParams();
+    updateDeviceParameter();
 }
 
-float* CSF2Player::GetNextA(const int ProcIndex)
+void CSF2Player::process()
 {
-    if (m_Loading) return NULL;
-    if (m_Process)
+    SF2Device.parseMIDI(FetchP(jnIn));
+    bool First = true;
+    CStereoBuffer* OutBuffer = StereoBuffer(jnOut);
+    for (int i = 0; i < SF2Device.voiceCount(); i++)
     {
-        m_Process=false;
-        Process();
-    }
-    return AudioBuffers[ProcIndex]->Buffer;
-}
-
-void CSF2Player::Process()
-{
-    SF2Device.parseMIDI((CMIDIBuffer*)FetchP(jnIn));
-    bool First=true;
-    CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-    for (int i1=0;i1<SF2Device.voiceCount();i1++)
-    {
-        float* BufferL=SF2Device.getNext(i1);
-        if (BufferL)
+        const CStereoBuffer DeviceBuffer(SF2Device.getNext(i));
+        if (DeviceBuffer.isValid())
         {
-            float volL=VolumeFactor*SF2Device.volL(SF2Device.voiceChannel(i1));
-            float volR=VolumeFactor*SF2Device.volR(SF2Device.voiceChannel(i1));
+            const float volL=VolumeFactor*SF2Device.volL(SF2Device.voiceChannel(i));
+            const float volR=VolumeFactor*SF2Device.volR(SF2Device.voiceChannel(i));
             if (First)
             {
                 First=false;
-                OutBuffer->WriteBuffer(BufferL,volL,volR);
+                OutBuffer->writeStereoBuffer(DeviceBuffer.data(),volL,volR);
             }
             else
             {
-                OutBuffer->AddBuffer(BufferL,volL,volR);
+                OutBuffer->addStereoBuffer(DeviceBuffer.data(),volL,volR);
             }
         }
     }
-    if (First) OutBuffer->ZeroBuffer();
+    if (First) OutBuffer->zeroBuffer();
 }
 
-void CSF2Player::Pause()
+void CSF2Player::pause()
 {
     SF2Device.allNotesOff();
-    //Reset();
+    IDevice::pause();
 }
 
-void CSF2Player::Play(const bool FromStart)
+void CSF2Player::play(const bool FromStart)
 {
-    if (FromStart) SF2Device.reset();
+    if (FromStart) updateDeviceParameter();
+    IDevice::play(FromStart);
 }
 
-void inline CSF2Player::CalcParams()
+void inline CSF2Player::updateDeviceParameter(const CParameter* /*p*/)
 {
-    CSF2PlayerForm* f=(CSF2PlayerForm*)m_Form;
-    float oldVol=VolumeFactor;
-    VolumeFactor=(float)m_ParameterValues[pnVolume]*0.01*(1.0/sqrtf(SF2Device::sf2voices));
-    if (oldVol != VolumeFactor) f->setVolume(m_ParameterValues[pnVolume]);
-    bool oldPatch=SF2Device.patchResponse;
-    SF2Device.patchResponse=m_ParameterValues[pnPatchChange];
-    if (oldPatch != SF2Device.patchResponse) f->SetPatchResponse(m_ParameterValues[pnPatchChange]);
-    SF2Device.setTranspose(m_ParameterValues[pnTranspose]);
-    SF2Device.setChannel(m_ParameterValues[pnMIDIChannel]);
+    VolumeFactor=m_Parameters[pnVolume]->PercentValue*mixFactorf(SF2Device::sf2voices);
+    SF2Device.setTune(m_Parameters[pnTune]->percentValue());
+    SF2Device.setTranspose(m_Parameters[pnTranspose]->Value);
+    SF2Device.setChannelMode(m_Parameters[pnMIDIChannel]->Value);
+    FORMFUNC(CSF2PlayerForm)->SetPatchResponse();
 }
 
-void CSF2Player::SetFilename(const QString &FileName)
+void CSF2Player::setCurrentBankPreset(const int Program)
 {
-    m_FileName=FileName;
+    QMutexLocker locker(&mutex);
+    if (m_Form) FORMFUNC(CSF2PlayerForm)->SetProgram(Program);
 }
 
-void CSF2Player::Load(const QString &XML)
+const QString CSF2Player::currentBankPresetName(const short channel) const
 {
-    m_Loading=true;
-    if (m_Form) m_Form->Load(XML);
-    m_Loading=false;
+    const int p=SF2Device.currentBankPreset(channel);
+    return "Bank "+QString::number(SF2Device.currentBank(channel))+"\n"+SF2Device.bankPresetName(p);
 }
 
-void CSF2Player::SetProgram(const int Bank, const int Preset)
+const QStringList CSF2Player::bankNames() const
 {
-    CSF2PlayerForm* f=(CSF2PlayerForm*)m_Form;
-    f->SetProgram(Bank,Preset);
+    return SF2Device.bankCaptions();
 }
+
+const QStringList CSF2Player::presetNames(const int bank) const
+{
+    return SF2Device.presetCaptions(bank);
+}
+
+long CSF2Player::currentBankPreset(const short channel) const
+{
+    return SF2Device.currentBankPreset(channel);
+}
+
+int CSF2Player::bankPresetNumber(const int bank, const int preset) const
+{
+    return SF2Device.bankPresetNumber(bank,preset);
+}
+

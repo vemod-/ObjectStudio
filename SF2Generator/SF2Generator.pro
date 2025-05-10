@@ -4,18 +4,30 @@
 #
 #-------------------------------------------------
 
-CONFIG += qt x86
-CONFIG -= x86_64 ppc64 ppc
-
-QT += core gui
-QT -= network opengl sql svg xml xmlpatterns qt3support
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
 TARGET = SF2Generator
-TEMPLATE = lib
+DESTDIR = ../
 
-LIBS += -L../ -lSoftSynthsClasses
-LIBS += -L../ -lWaveBank
+include(../SoftSynthsFrameworks.pri)
+
+macx {
+    contains(DEFINES,BUILD_WITH_FRAMEWORKS) {
+        LIBS += -F$$PWD/../SoftSynthsClasses
+        LIBS += -F$$PWD/../WaveBank
+    } else {
+        LIBS += -L../ -lSoftSynthsClasses
+        LIBS += -L../ -lWaveBank
+    }
+}
+ios {
+    contains(DEFINES,BUILD_WITH_FRAMEWORKS) {
+        LIBS += -F$$PWD/../SoftSynthsClasses
+        LIBS += -F$$PWD/../WaveBank
+    }
+    contains(DEFINES,BUILD_WITH_STATIC) {
+        LIBS += -L$$PWD/../ -lSoftSynthsClasses
+        LIBS += -L$$PWD/../ -lWaveBank
+    }
+}
 
 INCLUDEPATH += ../SoftSynthsClasses
 INCLUDEPATH += ../WaveBank
@@ -23,5 +35,4 @@ INCLUDEPATH += ../../QDomLite
 
 include(SF2Generator.pri)
 
-DESTDIR = ../
 

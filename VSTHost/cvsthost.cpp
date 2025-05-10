@@ -1,7 +1,7 @@
 #include "cvsthost.h"
+#include "cvstform.h"
 #include "cvsthostclass.h"
 #include <QFileDialog>
-#include "cvstform.h"
 
 #undef devicename
 #define devicename "VSTHost"
@@ -16,54 +16,55 @@ CVSTHost::~CVSTHost()
     qDebug() << "Exit CVSTHost";
 }
 
-void CVSTHost::Init(const int Index, void *MainWindow)
+void CVSTHost::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackStereoIn();
-    AddJackMIDIIn();
-    for (int i=0;i<BufferCount/2;i++) AddJackStereoOut(jnOut+i,"Out " + QString::number(i));
-    AddParameterVolume();
-    AddParameterMIDIChannel();
-    AddParameter(ParameterType::SelectBox,"Patch Change","",0,1,0,"Off§On",0);
+    IDevice::init(Index,MainWindow);
+    addJackStereoIn();
+    addJackMIDIIn();
+    for (int i=0;i<BufferCount/2;i++) addJackStereoOut(jnOut+i,"Out " + QString::number(i));
+    addParameterVolume();
+    startParameterGroup("MIDI", Qt::yellow);
+    addParameterMIDIChannel();
+    addParameterTranspose();
+    addParameterPatchChange();
+    endParameterGroup();
+    auto VSTHostClass = new CVSTHostClass();
+    addFileParameter(VSTHostClass,presets.VSTPath);
+    VSTHostClass->fileParameter = m_FileParameter;
+    m_Form=new CVSTForm(VSTHostClass, this,MainWindow);
     VolFactor=1.0;
     OldBuffers=0;
-    m_Form=new CVSTForm(new CVSTHostClass(CPresets::Presets.SampleRate,CPresets::Presets.ModulationRate), this,(QWidget*)MainWindow);
-
-    CalcParams();
+    updateDeviceParameter();
 }
 
-void inline CVSTHost::CalcParams()
+void inline CVSTHost::updateDeviceParameter(const CParameter* /*p*/)
 {
-    VolFactor=m_ParameterValues[pnVolume]*0.01;
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    VST->setMIDIChannel(m_ParameterValues[pnMIDIChannel]);
+    VolFactor=m_Parameters[pnVolume]->PercentValue;
+    VSTPLUGINCLASS->setChannelMode(m_Parameters[pnMIDIChannel]->Value);
+    VSTPLUGINCLASS->setTranspose(m_Parameters[pnTranspose]->Value);
+    VSTPLUGINCLASS->setPatchResponse(m_Parameters[pnPatchChange]->Value);
 }
 
-void CVSTHost::Pause()
+void CVSTHost::pause()
 {
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    VST->AllNotesOff();
+    VSTPLUGINCLASS->allNotesOff();
+    IDevice::pause();
 }
 
-const QString CVSTHost::FileName()
-{
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    return VST->Filename();
-}
-
-void CVSTHost::Execute(const bool Show)
+void CVSTHost::execute(const bool Show)
 {
     if (Show)
     {
-        IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-        if (VST->Filename().isEmpty())
+        if (filename().isEmpty())
         {
-            VST->Popup(QCursor::pos());
+            VSTPLUGINCLASS->popup(QCursor::pos());
         }
         else
         {
             m_Form->show();
+            //VSTPLUGINCLASS->setFixedSize(VSTPLUGINCLASS->UISize());
+            //m_Form->setFixedSize(m_Form->sizeHint());;
         }
     }
     else
@@ -72,121 +73,91 @@ void CVSTHost::Execute(const bool Show)
     }
 }
 
-void CVSTHost::UpdateHost()
+void CVSTHost::serializeCustom(QDomLiteElement* xml) const
 {
-    m_Host->ParameterChange();
+    if (filename().isEmpty()) return;
+    VSTPLUGINCLASS->serialize(xml->appendChild("Settings"));
 }
 
-const QString CVSTHost::Save()
+void CVSTHost::unserializeCustom(const QDomLiteElement* xml)
 {
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    if (VST->Filename().isEmpty()) return QString();
-    QDomLiteElement xml("Custom");
-    QString Relpath=QDir(CPresets::Presets.VSTPath).relativeFilePath(VST->Filename());
-    xml.setAttribute("File",Relpath);
-    xml.appendChildFromString(VST->SaveXML());
-    xml.appendChildFromString(m_Form->Save());
-    return xml.toString();
-}
-
-void CVSTHost::Load(const QString& XML)
-{
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
+    if (!xml) return;
+    QMutexLocker locker(&mutex);
+    if (!filename().isEmpty())
     {
-        QString CurrentPath = xml.attribute("File");
-        if (!CurrentPath.isEmpty())
-        {
-            CurrentPath = CPresets::ResolveFilename(QDir(CPresets::Presets.VSTPath).absoluteFilePath(CurrentPath));
-            if (QFileInfo(CurrentPath).exists())
-            {
-                CVSTHostClass* VST=(CVSTHostClass*)((CVSTForm*)m_Form)->PlugIn;
-                if (VST->Load(CurrentPath))
-                {
-                    QDomLiteElement* Custom=xml.elementByTag("Settings");
-                    if (Custom) VST->LoadXML(Custom->toString());
-                    Custom=xml.elementByTag("Custom");
-                    if (Custom) m_Form->Load(Custom->toString());
-                    ((CVSTForm*)m_Form)->FillList(VST->CurrentProgram());
-                    return;
-                }
-                qDebug() << "Could not open " + CurrentPath;
-            }
-        }
+        VSTPLUGINCLASS->unserialize(xml->elementByTag("Settings"));
+        FORMFUNC(CVSTForm)->fillList(VSTPLUGINCLASS->currentBankPreset());
     }
 }
 
-void CVSTHost::Process()
+void CVSTHost::process()
 {
-    CVSTHostClass* VST=(CVSTHostClass*)((CVSTForm*)m_Form)->PlugIn;
-    VST->DumpMIDI((CMIDIBuffer*)FetchP(jnMIDIIn),m_ParameterValues[pnPatchChange]);
-    float* Buffer=FetchA(jnIn);
-    if (VST->NumInputs()>1)
+    //qDebug() << "CVSTHost Process";
+    VSTPLUGINCLASS->parseMIDI(FetchP(jnMIDIIn));
+    VSTPLUGINCLASS->InBuffers.fill(FetchA(jnIn)->data(),m_BufferSize*2);
+    int j;
+    for (int i=0;i<4;i++)
     {
-        if (Buffer)
-        {
-            CopyMemory(VST->InBuffers[0],Buffer,m_BufferSize*sizeof(float));
-            CopyMemory(VST->InBuffers[1],Buffer+m_BufferSize,m_BufferSize*sizeof(float));
-        }
-        else
-        {
-            ZeroMemory(VST->InBuffers[0],m_BufferSize*sizeof(float));
-            ZeroMemory(VST->InBuffers[1],m_BufferSize*sizeof(float));
-        }
+        CStereoBuffer* b=StereoBuffer(jnOut+i);
+        if ((j=i*2)>=OldBuffers) break;
+        if (j>=VSTPLUGINCLASS->outputCount()) b->zeroLeftBuffer();
+        if (++j>=OldBuffers) break;
+        if (j>=VSTPLUGINCLASS->outputCount()) b->zeroRightBuffer();
     }
-    else if (VST->NumInputs())
+    OldBuffers=VSTPLUGINCLASS->outputCount();
+    if (VSTPLUGINCLASS->process())
     {
-        if (Buffer)
+        for (int i=0;i<4;i++)
         {
-            CopyMemory(VST->InBuffers[0],Buffer,m_BufferSize*sizeof(float));
-        }
-        else
-        {
-            ZeroMemory(VST->InBuffers[0],m_BufferSize*sizeof(float));
-        }
-    }
-    for (int i=VST->NumOutputs()/2;i<OldBuffers/2;i++)
-    {
-        AudioBuffers[jnOut + i]->ZeroBuffer();
-    }
-    OldBuffers=VST->NumOutputs();
-    if (VST->Process())
-    {
-        for (int i=0;i<VST->NumOutputs()/2;i++)
-        {
-            ((CStereoBuffer*)AudioBuffers[jnOut+i])->FromMono(VST->OutBuffers[i*2],VST->OutBuffers[(i*2)+1],VolFactor);
+            CStereoBuffer* b=StereoBuffer(jnOut+i);
+            if ((j=i*2)<OldBuffers) b->writeLeftBuffer(VSTPLUGINCLASS->OutBuffers.channelPointer(j),VolFactor);
+            if (++j<OldBuffers) b->writeRightBuffer(VSTPLUGINCLASS->OutBuffers.channelPointer(j),VolFactor);
         }
     }
     else
     {
-        for (int i=0;i<VST->NumOutputs()/2;i++)
+        for (int i=0;i<4;i++)
         {
-            ((CStereoBuffer*)AudioBuffers[jnOut+i])->ZeroBuffer();
+            CStereoBuffer* b=StereoBuffer(jnOut+i);
+            if ((j=i*2)<OldBuffers) b->zeroLeftBuffer();
+            if (++j<OldBuffers) b->zeroRightBuffer();
         }
     }
 }
 
-const QString CVSTHost::PresetName()
+const QString CVSTHost::currentBankPresetName(const short /*channel*/) const
 {
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    return VST->ProgramName();
+    qDebug() << "bankpreset name";
+    return VSTPLUGINCLASS->bankPresetName();
 }
 
-const QStringList CVSTHost::PresetNames()
+const QStringList CVSTHost::presetNames(const int /*bank*/) const
 {
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    return VST->ProgramNames();
+    qDebug() << "bankpreset names";
+    return VSTPLUGINCLASS->bankPresetNames();
 }
 
-void CVSTHost::SetProgram(const int index)
+void CVSTHost::setCurrentBankPreset(const int index)
 {
-    ((CVSTForm*)m_Form)->SetProgram(index);
+    qDebug() << "set bankpreset";
+    FORMFUNC(CVSTForm)->setBankPreset(index);
 }
 
-const void* CVSTHost::Picture() const
+long CVSTHost::currentBankPreset(const short channel) const
 {
-    IAudioPlugInHost* VST=((CVSTForm*)m_Form)->PlugIn;
-    QPixmap* pm=new QPixmap(VST->Picture());
-    return (void*)pm;
+    qDebug() << "current bankpreset";
+    return VSTPLUGINCLASS->currentBankPreset(channel);
 }
+
+void CVSTHost::parseEvent(CMIDIEvent *Event)
+{
+    //qDebug() << "parseEvent";
+    VSTPLUGINCLASS->parseEvent(Event);
+}
+
+const QPixmap* CVSTHost::picture() const
+{
+    qDebug() << "picture";
+    return VSTPLUGINCLASS->picture();
+}
+

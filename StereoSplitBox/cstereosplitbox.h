@@ -1,30 +1,26 @@
 #ifndef CSTEREOSPLITBOX_H
 #define CSTEREOSPLITBOX_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 
 class CStereoSplitBox  : public IDevice
 {
 public:
     CStereoSplitBox();
     ~CStereoSplitBox();
-    void Init(const int Index, void *MainWindow);
-    float* GetNextA(const int ProcIndex);
-    void Tick();
-    void HideForm();
-    void Play(const bool FromStart);
-    void Pause();
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
+    //void hideForm();
 private:
     enum JackNames
     {jnOut,jnIn,jnOutLeft,jnOutRight,jnInLeft,jnInRight};
     enum ParameterNames
     {};
-    void Process();
+    void process();
     QList<IJack*> JacksCreated;
     CInJack* WaveOutL;
     CInJack* WaveOutR;
-    float* InL;
-    float* InR;
+    CStereoBuffer* InBuffer;
 };
 
 #endif // CSTEREOSPLITBOX_H

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>CSF2PlayerForm</class>
- <widget class="QDialog" name="CSF2PlayerForm">
+ <widget class="QWidget" name="CSF2PlayerForm">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>407</width>
-    <height>156</height>
+    <height>155</height>
    </rect>
   </property>
   <property name="font">
@@ -37,7 +37,7 @@
    <property name="spacing">
     <number>0</number>
    </property>
-   <item row="0" column="0" rowspan="4">
+   <item row="0" column="0">
     <widget class="QSynthPanel" name="frame">
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
@@ -45,18 +45,27 @@
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <layout class="QGridLayout" name="gridLayout_3">
+     <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,0">
       <property name="leftMargin">
        <number>12</number>
+      </property>
+      <property name="topMargin">
+       <number>2</number>
       </property>
       <property name="rightMargin">
        <number>12</number>
       </property>
-      <property name="spacing">
+      <property name="bottomMargin">
+       <number>6</number>
+      </property>
+      <property name="horizontalSpacing">
        <number>4</number>
       </property>
+      <property name="verticalSpacing">
+       <number>0</number>
+      </property>
       <item row="0" column="0" alignment="Qt::AlignHCenter">
-       <widget class="QLabel" name="label">
+       <widget class="EffectLabel" name="label">
         <property name="font">
          <font>
           <pointsize>10</pointsize>
@@ -80,24 +89,24 @@
         </property>
         <property name="sizeHint" stdset="0">
          <size>
-          <width>20</width>
-          <height>40</height>
+          <width>1</width>
+          <height>1</height>
          </size>
         </property>
        </spacer>
       </item>
       <item row="3" column="0" alignment="Qt::AlignHCenter">
-       <widget class="QToolButton" name="PatchButton">
+       <widget class="QToggleButton" name="PatchButton">
         <property name="minimumSize">
          <size>
-          <width>70</width>
-          <height>18</height>
+          <width>80</width>
+          <height>40</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>70</width>
-          <height>18</height>
+          <width>80</width>
+          <height>40</height>
          </size>
         </property>
         <property name="font">
@@ -115,94 +124,124 @@
       </item>
       <item row="0" column="1" rowspan="4" alignment="Qt::AlignHCenter">
        <widget class="QGroupBox" name="groupBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>240</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="title">
          <string>Source</string>
         </property>
-        <layout class="QGridLayout" name="gridLayout_2">
-         <property name="spacing">
-          <number>5</number>
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <property name="topMargin">
+          <number>6</number>
          </property>
-         <item row="1" column="0" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
-          <widget class="QComboBox" name="BankList">
+         <property name="bottomMargin">
+          <number>6</number>
+         </property>
+         <item>
+          <widget class="QLCDLabel" name="LoadButton">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
            <property name="minimumSize">
             <size>
-             <width>220</width>
-             <height>0</height>
+             <width>0</width>
+             <height>24</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>220</width>
-             <height>16777215</height>
+             <width>16777215</width>
+             <height>24</height>
             </size>
            </property>
            <property name="font">
             <font>
-             <pointsize>10</pointsize>
-            </font>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
-          <widget class="QPushButton" name="LoadButton">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>220</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>10</pointsize>
+             <pointsize>11</pointsize>
             </font>
            </property>
            <property name="text">
             <string>...</string>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
           </widget>
          </item>
-         <item row="2" column="0" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
-          <widget class="QComboBox" name="PresetList">
+         <item>
+          <widget class="QLCDDropDown" name="BankList">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
            <property name="minimumSize">
             <size>
-             <width>220</width>
-             <height>0</height>
+             <width>0</width>
+             <height>24</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>220</width>
-             <height>16777215</height>
+             <width>16777215</width>
+             <height>24</height>
             </size>
            </property>
            <property name="font">
             <font>
-             <pointsize>10</pointsize>
+             <pointsize>11</pointsize>
             </font>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLCDDropDown" name="PresetList">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
            </property>
           </widget>
          </item>
@@ -244,15 +283,35 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>EffectLabel</class>
+   <extends>QLabel</extends>
+   <header>effectlabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QSynthKnob</class>
+   <extends>QDial</extends>
+   <header>qsynthknob.h</header>
+  </customwidget>
+  <customwidget>
    <class>QSynthPanel</class>
    <extends>QFrame</extends>
    <header>qsynthpanel.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>QSynthKnob</class>
-   <extends>QDial</extends>
-   <header>qsynthknob.h</header>
+   <class>QToggleButton</class>
+   <extends>QToolButton</extends>
+   <header>qtogglebutton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QLCDDropDown</class>
+   <extends>QLabel</extends>
+   <header>qlcdlabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QLCDLabel</class>
+   <extends>QLabel</extends>
+   <header>qlcdlabel.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

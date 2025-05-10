@@ -1,7 +1,8 @@
 #ifndef CPANNER_H
 #define CPANNER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
+#include "cvoltagemodulator.h"
 
 class CPanner : public IDevice
 {
@@ -12,18 +13,16 @@ private:
     {pnPan,pnModulation};
     float LeftModFactor;
     float RightModFactor;
-    float CurrentMod;
-    float LastMod;
     float LeftFactor;
     float RightFactor;
-    float ModFactor;
-    float* InSignal;
-    void inline CalcParams();
-    void Process();
+    CMonoBuffer* InSignal;
+    CVoltageModulator Modulator;
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
+    void process();
 public:
     CPanner();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
 };
 
 #endif // CPANNER_H

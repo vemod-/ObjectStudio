@@ -5,7 +5,7 @@
 #include "sequenserclasses.h"
 
 namespace Ui {
-    class CBeatFrame;
+class CBeatFrame;
 }
 
 class CBeatFrame : public QFrame
@@ -19,22 +19,19 @@ public:
     void Flash();
 private:
     Ui::CBeatFrame *ui;
-        QString Pitch2Note(int Pitch);
-        int Note2Pitch(const QString& Note);
-        bool DontChange;
-        int Text2Pitch(const QString& Txt);
-        QString Pitch2Text(int Pitch);
-        void UpdateBeat();	// User declarations
-        BeatType* m_Beat;
-        int m_SoundIndex;
-        int m_TimerID;
+    void UpdateBeat();	// User declarations
+    BeatType* m_Beat;
+    int m_SoundIndex;
+    int m_TimerID;
 private slots:
-        void LenChanged(int Value);
-        void PitchChanged(int Value);
-        void VolChanged(int Value);
-        void TextChanged(QString Txt);
+    void LenChanged(int Value);
+    void PitchChanged(int Value);
+    void VolChanged(int Value);
+    void timerStart();
 protected:
-        void timerEvent(QTimerEvent *);
+    void timerEvent(QTimerEvent *);
+signals:
+    void flashed();
 };
 
 #endif // CBEATFRAME_H

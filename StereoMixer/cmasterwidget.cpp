@@ -1,36 +1,23 @@
 #include "cmasterwidget.h"
 #include "ui_cmasterwidget.h"
+#include "effectlabel.h"
 
 CMasterWidget::CMasterWidget(QWidget *parent) :
     QFrame(parent),
     ui(new Ui::CMasterWidget)
 {
     ui->setupUi(this);
-    effMenuMapper=new QSignalMapper(this);
-    effShowMapper=new QSignalMapper(this);
-    dialMapper=new QSignalMapper(this);
-    ui->label->setEffect(EffectLabel::Raised);
-    ui->label->setShadowColor(Qt::white);
-    //ui->VolLabelL->setEffect(EffectLabel::Raised);
-    //ui->VolLabelL->setShadowColor(Qt::darkGray);
-    //ui->VolLabelR->setEffect(EffectLabel::Raised);
-    //ui->VolLabelR->setShadowColor(Qt::darkGray);
+    //ui->label->setEffect(EffectLabel::Raised);
+    //ui->label->setShadowColor(Qt::white);
+    connect(ui->MasterVol,&CMasterVol::leftVolChanged,this,&CMasterWidget::setVolL);
+    connect(ui->MasterVol,&CMasterVol::rightVolChanged,this,&CMasterWidget::setVolR);
 
-    ui->VolLabelL->setText("0.00 dB");
-    ui->VolLabelR->setText("0.00 dB");
-    connect(ui->VolL,SIGNAL(valueChanged(int)),this,SLOT(setVolL(int)));
-    connect(ui->VolR,SIGNAL(valueChanged(int)),this,SLOT(setVolR(int)));
-    connect(dialMapper,SIGNAL(mapped(int)),this,SLOT(effectVol(int)));
-    connect(effMenuMapper,SIGNAL(mapped(int)),this,SLOT(showEffectMenu(int)));
-    connect(effShowMapper,SIGNAL(mapped(int)),this,SLOT(showEffect(int)));
-
+    m_Active = false;
     effectMenu=new QSignalMenu(this);
     showUIAction=effectMenu->addAction("Show UI","Show UI");
-    effectMenu->addAction("VST","VSTHost");
-    effectMenu->addAction("AU","AudioUnitHost");
+    for (const QString& s:CDeviceContainer::effectList()) effectMenu->addAction(s,s);
     unloadAction=effectMenu->addAction("Unload","Unload");
-    connect(effectMenu,SIGNAL(menuClicked(QString)),this,SLOT(selectEffect(QString)));
-
+    connect(effectMenu,qOverload<QString>(&QSignalMenu::menuClicked),this,&CMasterWidget::selectEffect);
 }
 
 CMasterWidget::~CMasterWidget()
@@ -38,67 +25,62 @@ CMasterWidget::~CMasterWidget()
     delete ui;
 }
 
-void CMasterWidget::Init(CStereoMixer *mx, QList<IDevice *>* effects)
+void CMasterWidget::clear()
+{
+    m_Active = false;
+}
+
+void CMasterWidget::init(CStereoMixer *mx, QList<CDeviceContainer*>* effects)
 {
     m_Mx=mx;
     m_Fx=effects;
-    for (int i=dials.count();i<m_Mx->sendCount;i++)
+    for (int i = dials.size(); i < int(m_Mx->sendCount()); i++)
     {
-        QSynthKnob* d=new QSynthKnob(this);
-        d->setMaximumSize(28,28);
-        d->setKnobStyle(QSynthKnob::SimpleStyle);
+        auto d=new QSynthKnob(this);
+        d->setFixedSize(40,40);
+        //d->setKnobStyle(QSynthKnob::SimpleStyle);
         d->setMaximum(200);
         d->setValue(100);
         d->setNotchesVisible(true);
+        d->setNotchStyle(QSynthKnob::dBNotch);
         dials.append(d);
-        connect(d,SIGNAL(valueChanged(int)),dialMapper,SLOT(map()));
-        dialMapper->setMapping(d,i);
+        connect(d, &QSynthKnob::valueChanged, [=]() {effectVol(i);});
         ui->EffectLayout->addWidget(d,0,Qt::AlignHCenter);
-        if (m_Fx==NULL)
+        if (m_Fx==nullptr)
         {
-            EffectLabel* e=new EffectLabel(this);
+            auto e=new EffectLabel(this);
             e->setEffect(EffectLabel::Raised);
-            e->setShadowColor(Qt::white);
-            //e->setStyleSheet("background:transparent;");
+            e->setShadowColor(QColor(255,255,255,200));
+            e->setTextColor(QColor(0,0,0,200));
             e->setText("Effect "+QString::number(i+1));
             e->setMaximumHeight(13);
-            QFont f=e->font();
-            f.setPixelSize(9);
-            e->setFont(f);
+            setFontSizeScr(e,9);
             ui->EffectLayout->addWidget(e,0,Qt::AlignHCenter);
         }
         else
         {
-            QLCDLabel* b=new QLCDLabel(this);
+            auto b=new QLCDLabel(this);
             m_Buttons.append(b);
-            m_Names.append(m_Fx->at(i)->FileName());
+            m_Names.append(m_Fx->at(i)->caption());
             b->setText("Effect "+QString::number(i+1));
             b->setFixedHeight(13);
             b->setAlignment(Qt::AlignHCenter);
-            //b->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
             b->setMinimumWidth(this->width()-6);
-            //b->setFlat(true);
-            //b->setStyleSheet("color: rgb(255, 244, 105);background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(100, 100, 100, 255), stop:0.8 rgba(0, 0, 0, 255));border:1px solid #AAA;border-style:inset;border-radius:5px;");
-            //b->setCursor(Qt::PointingHandCursor);
-            QFont f=b->font();
-            f.setPixelSize(9);
-            //f.setUnderline(true);
-            b->setFont(f);
-            if (i<m_Fx->count())
+            setFontSizeScr(b,9);
+            if (i < m_Fx->size())
             {
-                b->setText(QFileInfo(m_Fx->at(i)->FileName()).completeBaseName());
+                b->setText(m_Fx->at(i)->caption());
             }
             if (b->text().isEmpty()) b->setText("Effect "+QString::number(i+1));
-            connect(b,SIGNAL(rightClick()),effMenuMapper,SLOT(map()));
-            connect(b,SIGNAL(leftClick()),effShowMapper,SLOT(map()));
-            effMenuMapper->setMapping(b,i);
-            effShowMapper->setMapping(b,i);
+            connect(b, &QLCDLabel::rightClicked, [=]() {showEffectMenu(i);});
+            connect(b, &QLCDLabel::leftClicked, [=]() {showEffect(i);});
             ui->EffectLayout->addWidget(b,0,Qt::AlignHCenter);
         }
     }
-    ui->Lock->setChecked(true);
-    ui->VolL->setValue(100);
-    foreach (QDial* d,dials) d->setValue(100);
+    ui->MasterVol->setLock(true);
+    ui->MasterVol->setLeftVol(100);
+    for(QSynthKnob* d : std::as_const(dials)) d->setValue(100);
+    m_Active = true;
 }
 
 void CMasterWidget::showEffect(int eff)
@@ -109,10 +91,9 @@ void CMasterWidget::showEffect(int eff)
 
 void CMasterWidget::showEffectMenu(int eff)
 {
-    showUIAction->setVisible(!m_Fx->at(eff)->FileName().isEmpty());
-    unloadAction->setVisible(!m_Fx->at(eff)->FileName().isEmpty());
+    showUIAction->setVisible(!m_Fx->at(eff)->deviceType().isEmpty());
+    unloadAction->setVisible(!m_Fx->at(eff)->deviceType().isEmpty());
     currentEffect=m_Fx->at(eff);
-    //effectMenu->popup(this->cursor().pos());
     effectMenu->popup(ui->verticalFrame->mapToGlobal(m_Buttons.at(eff)->geometry().bottomLeft()));
 }
 
@@ -120,74 +101,63 @@ void CMasterWidget::selectEffect(QString DeviceType)
 {
     if (DeviceType=="Show UI")
     {
-        currentEffect->Execute(true);
-        currentEffect->RaiseForm();
+        currentEffect->execute(true);
+        currentEffect->raiseForm();
         return;
     }
-    if (currentEffect->OpenFile(DeviceType)==DeviceType)
+    if (currentEffect->deviceType()!=DeviceType)
     {
-        currentEffect->OpenFile(QString());
-        currentEffect->OpenFile(DeviceType);
+        currentEffect->setDeviceType(DeviceType);
     }
-    currentEffect->Execute(true);
+    currentEffect->execute(true);
 }
 
 void CMasterWidget::effectVol(int eff)
 {
-    m_Mx->Sends[eff]=dials[eff]->value()*0.01;
+    m_Mx->Sends[eff]=dials[eff]->value()*0.01f;
 }
 
 void CMasterWidget::checkPeak()
 {
-    ui->Peak->SetValues(m_Mx->PeakL,m_Mx->PeakR);
+    ui->MasterVol->peak(m_Mx->PeakL,m_Mx->PeakR);
     m_Mx->PeakL=0;
     m_Mx->PeakR=0;
 }
 
 void CMasterWidget::resetPeak()
 {
-    ui->Peak->Reset();
+    ui->MasterVol->resetPeak();
     m_Mx->PeakL=0;
     m_Mx->PeakR=0;
 }
 
 void CMasterWidget::setVolL(int vol)
 {
-    m_Mx->MasterLeft=vol*0.01;
-    ui->VolLabelL->setText(QString::number(lin2db((float)vol*0.01),'f',2)+" dB");
-    if (ui->Lock->isChecked())
-    {
-        ui->VolR->blockSignals(true);
-        ui->VolR->setValue(vol);
-        m_Mx->MasterRight=vol*0.01;
-        ui->VolLabelR->setText(QString::number(lin2db((float)vol*0.01),'f',2)+" dB");
-        ui->VolR->blockSignals(false);
-    }
+    m_Mx->MasterLeft=vol*0.01f;
+    ui->MasterVol->setLeftVol(vol);
+    if (ui->MasterVol->lock()) m_Mx->MasterRight=vol*0.01f;
 }
 
 void CMasterWidget::setVolR(int vol)
 {
-    m_Mx->MasterRight=vol*0.01;
-    ui->VolLabelR->setText(QString::number(lin2db((float)vol*0.01),'f',2)+" dB");
-    if (ui->Lock->isChecked())
-    {
-        ui->VolL->blockSignals(true);
-        ui->VolL->setValue(vol);
-        m_Mx->MasterLeft=vol*0.01;
-        ui->VolLabelL->setText(QString::number(lin2db((float)vol*0.01),'f',2)+" dB");
-        ui->VolL->blockSignals(false);
-    }
+    m_Mx->MasterRight=vol*0.01f;
+    ui->MasterVol->setRightVol(vol);
+    if (ui->MasterVol->lock()) m_Mx->MasterLeft=vol*0.01f;
 }
 
 void CMasterWidget::checkEffects()
 {
-    for (int i=0;i<m_Fx->count();i++)
+    if (m_Active)
     {
-        if (m_Fx->at(i)->FileName() != m_Names[i])
+        for (int i=0;i<m_Fx->size();i++)
         {
-            m_Names[i]=m_Fx->at(i)->FileName();
-            m_Buttons[i]->setText(QFileInfo(m_Names[i]).completeBaseName());
-            if (m_Buttons[i]->text().isEmpty()) m_Buttons[i]->setText("Effect "+QString::number(i+1));
+            QString s=m_Fx->at(i)->caption();
+            if (s != m_Names[i])
+            {
+                m_Names[i]=s;
+                m_Buttons[i]->setText(s);
+                if (m_Buttons[i]->text().isEmpty()) m_Buttons[i]->setText("Effect "+QString::number(i+1));
+            }
         }
     }
 }
@@ -197,30 +167,23 @@ void CMasterWidget::setSoloChannel(int channel)
     m_Mx->SoloChannel=channel;
 }
 
-const QString CMasterWidget::Save()
+void CMasterWidget::serialize(QDomLiteElement* xml) const
 {
-    QDomLiteElement Master("Master");
-    Master.setAttribute("Lock",ui->Lock->isChecked());
-    Master.setAttribute("Volume Left",ui->VolL->value());
-    Master.setAttribute("Volume Right",ui->VolR->value());
-    for (int i=0;i<dials.count();i++) Master.setAttribute("Effect "+QString::number(i+1),dials[i]->value());
-    return Master.toString();
+    xml->setAttribute("Lock",ui->MasterVol->lock());
+    xml->setAttribute("Volume Left",ui->MasterVol->leftVol());
+    xml->setAttribute("Volume Right",ui->MasterVol->rightVol());
+    for (int i=0;i<dials.size();i++) xml->setAttribute("Effect "+QString::number(i+1),dials[i]->value());
 }
 
-void CMasterWidget::Load(const QString& XML)
+void CMasterWidget::unserialize(const QDomLiteElement* xml)
 {
-    QDomLiteElement Master("Master");
-    Master.fromString(XML);
-    ui->Lock->setChecked(Master.attributeValue("Lock"));
-    ui->VolL->setValue(Master.attributeValue("Volume Left"));
-    ui->VolR->setValue(Master.attributeValue("Volume Right"));
-    for (int i=0;i<dials.count();i++)
+    if (!xml) return;
+    ui->MasterVol->setLock(xml->attributeValueBool("Lock"));
+    ui->MasterVol->setLeftVol(xml->attributeValueInt("Volume Left"));
+    ui->MasterVol->setRightVol(xml->attributeValueInt("Volume Right"));
+    for (int i=0;i<dials.size();i++)
     {
-        dials[i]->setValue(Master.attributeValue("Effect "+QString::number(i+1),100));
+        dials[i]->setValue(xml->attributeValueInt("Effect "+QString::number(i+1),100));
     }
 }
 
-void CMasterWidget::showEvent(QShowEvent *)
-{
-    ui->Peak->setMargin(ui->VolL->grooveMargin());
-}

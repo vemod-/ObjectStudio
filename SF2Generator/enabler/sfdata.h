@@ -10,9 +10,8 @@
      PURPOSE.
      
      *********************************************************************/
-#ifndef __SFDATA_H
-#define __SFDATA_H
-
+#ifndef SFDATA_H
+#define SFDATA_H
 
 /******************************************************************************
 *
@@ -35,11 +34,12 @@
 //       Includes          //
 /////////////////////////////
 
-#include "datatype.h" 
+#include "softsynthsdefines.h"
 
 /////////////////////////////
 // SoundFont Data Structure//
 /////////////////////////////
+#pragma pack (push,1)
 
 typedef enum sfSampleFlagsTag
 {
@@ -53,87 +53,87 @@ typedef enum sfSampleFlagsTag
 typedef struct sfDataTag
 {
   //// Oscillator ////
-  DWORD dwStart;             //// sample start address 
-  DWORD dwEnd;
-  DWORD dwStartloop;         //// loop start address 
-  DWORD dwEndloop;           //// loop end address 
-  DWORD dwSampleRate; 
-  SHORT shOrigKeyAndCorr;
-  SHORT shSampleModes;
-  SHORT shSampleLink;
+  uint dwStart;             //// sample start address 
+  uint dwEnd;
+  uint dwStartloop;         //// loop start address 
+  uint dwEndloop;           //// loop end address 
+  uint dwSampleRate; 
+  short shOrigKeyAndCorr;
+  short shSampleModes;
+  short shSampleLink;
 
   //// Pitch ////
-  SHORT  shCoarseTune;
-  SHORT  shFineTune;
-  SHORT  shScaleTuning;
-  SHORT  shModLfoToPitch;            //// main fm: modLfo-> pitch ////
-  SHORT  shVibLfoToPitch;            //// aux fm:  vibLfo-> pitch ////
-  SHORT  shModEnvToPitch;            //// pitch env: modEnv(aux)-> pitch ////
+  short  shCoarseTune;
+  short  shFineTune;
+  short  shScaleTuning;
+  short  shModLfoToPitch;            //// main fm: modLfo-> pitch ////
+  short  shVibLfoToPitch;            //// aux fm:  vibLfo-> pitch ////
+  short  shModEnvToPitch;            //// pitch env: modEnv(aux)-> pitch ////
 
   //// Filter ////
-  SHORT   shInitialFilterFc;        //// initial filter cutoff ////
-  SHORT   shInitialFilterQ;         //// filter Q ////
-  SHORT   shModLfoToFilterFc;         //// modLfo -> filter * cutoff ////
-  SHORT   shModEnvToFilterFc;         //// mod env(aux)-> filter * cutoff ////
+  short   shInitialFilterFc;        //// initial filter cutoff ////
+  short   shInitialFilterQ;         //// filter Q ////
+  short   shModLfoToFilterFc;         //// modLfo -> filter * cutoff ////
+  short   shModEnvToFilterFc;         //// mod env(aux)-> filter * cutoff ////
 
   //// Amplifier ////
-  SHORT   shInstVol;                //// ////
-  SHORT   shModLfoToVolume;           //// tremolo: modLfo-> volume ////
+  short   shInstVol;                //// ////
+  short   shModLfoToVolume;           //// tremolo: modLfo-> volume ////
 
   //// Effects ////
-  SHORT   shChorusEffectsSend;      //// chorus ////
-  SHORT   shReverbEffectsSend;      //// reverb ////
-  SHORT   shPanEffectsSend;         //// pan ////
+  short   shChorusEffectsSend;      //// chorus ////
+  short   shReverbEffectsSend;      //// reverb ////
+  short   shPanEffectsSend;         //// pan ////
 
   //// Modulation Low Frequency Oscillator ////
-  SHORT   shDelayModLfo;              //// delay 
-  SHORT   shFreqModLfo;               //// frequency ////
+  short   shDelayModLfo;              //// delay 
+  short   shFreqModLfo;               //// frequency ////
 
   //// Vibrato (Pitch only) Low Frequency Oscillator ////
-  SHORT   shDelayVibLfo;              //// delay 
-  SHORT   shFreqVibLfo;               //// frequency ////
+  short   shDelayVibLfo;              //// delay 
+  short   shFreqVibLfo;               //// frequency ////
 
   //// Modulation Envelope ////
-  SHORT   shDelayModEnv;              //// delay 
-  SHORT   shAttackModEnv;             //// attack ////
-  SHORT   shHoldModEnv;               //// hold ////
-  SHORT   shDecayModEnv;              //// decay ////
-  SHORT   shSustainModEnv;            //// sustain ////
-  SHORT   shReleaseModEnv;            //// release ////
-  SHORT   shAutoHoldModEnv;
-  SHORT   shAutoDecayModEnv;
+  short   shDelayModEnv;              //// delay
+  short   shAttackModEnv;             //// attack ////
+  short   shHoldModEnv;               //// hold ////
+  short   shDecayModEnv;              //// decay ////
+  short   shSustainModEnv;            //// sustain ////
+  short   shReleaseModEnv;            //// release ////
+  short   shAutoHoldModEnv;
+  short   shAutoDecayModEnv;
 
   //// Attenuation (Volume only) Envelope ////
-  SHORT   shDelayVolEnv;              //// delay 
-  SHORT   shAttackVolEnv;             //// attack ////
-  SHORT   shHoldVolEnv;               //// hold ////
-  SHORT   shDecayVolEnv;              //// decay ////
-  SHORT   shSustainVolEnv;            //// sustain ////
-  SHORT   shReleaseVolEnv;            //// release ////
-  SHORT   shAutoHoldVolEnv;
-  SHORT   shAutoDecayVolEnv;
+  short   shDelayVolEnv;              //// delay
+  short   shAttackVolEnv;             //// attack ////
+  short   shHoldVolEnv;               //// hold ////
+  short   shDecayVolEnv;              //// decay ////
+  short   shSustainVolEnv;            //// sustain ////
+  short   shReleaseVolEnv;            //// release ////
+  short   shAutoHoldVolEnv;
+  short   shAutoDecayVolEnv;
 
   //// Miscellaneous ////
-  SHORT   shKeyExclusiveClass;
+  short   shKeyExclusiveClass;
 
   //// Preserved for informational purposes ////
-  SHORT   shKeynum;                 //// ////
-  SHORT   shVelocity;               //// ////
+  short   shKeynum;                 //// ////
+  short   shVelocity;               //// ////
 
   //// These parameters are processed from within navigator ////
-  SHORT   shStartAddrsCoarseOffset;
-  SHORT   shEndAddrsCoarseOffset;
-  SHORT   shStartloopAddrsCoarseOffset;
-  SHORT   shEndloopAddrsCoarseOffset;
-  SHORT   shOverridingRootKey;
+  short   shStartAddrsCoarseOffset;
+  short   shEndAddrsCoarseOffset;
+  short   shStartloopAddrsCoarseOffset;
+  short   shEndloopAddrsCoarseOffset;
+  short   shOverridingRootKey;
 
   //// Place holders, not used ////
-  SHORT   shNOP;
-  SHORT   shEndOper;
+  short   shNOP;
+  short   shEndOper;
 } sfData;
 
+#pragma pack(pop)
 
 
-
-#endif // __SFDATA_H
+#endif // SFDATA_H
 //////////////////////// End of SFDATA.H ////////////////////////////

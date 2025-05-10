@@ -13,15 +13,16 @@ class CMixerFrame : public QFrame
     Q_OBJECT
 
 public:
-    explicit CMixerFrame(QWidget *parent = 0);
+    explicit CMixerFrame(QWidget *parent = nullptr);
     ~CMixerFrame();
-    void Init(CMixer* MixerClass,int ChannelIndex);
+    void init(CMixer* MixerClass,int ChannelIndex);
     int Index;
-    const QString Save();
-    void Load(const QString& XML);
-    void Peak(float Value);
-    void Reset();
-    void SetSolo(bool Value);
+    void serialize(QDomLiteElement* xml) const;
+    void unserialize(const QDomLiteElement* xml);
+    void peak(float Value);
+    void reset();
+    void setSolo(bool Value);
+    void setSender(const QString& s);
 signals:
     void SoloClicked(bool Pressed, int Index);
 private:

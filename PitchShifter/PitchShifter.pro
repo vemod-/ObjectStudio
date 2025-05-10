@@ -5,32 +5,14 @@
 #-------------------------------------------------
 
 TARGET = PitchShifter
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
 
 DEFINES += PITCHSHIFTER_LIBRARY
 
-SOURCES += cpitchshifter.cpp
+SOURCES += cpitchshifter.cpp \
+    smbpitchshifter.cpp
 
-HEADERS += cpitchshifter.h
-
-symbian {
-    MMP_RULES += EXPORTUNFROZEN
-    TARGET.UID3 = 0xE036C2D7
-    TARGET.CAPABILITY = 
-    TARGET.EPOCALLOWDLLDATA = 1
-    addFiles.sources = PitchShifter.dll
-    addFiles.path = !:/sys/bin
-    DEPLOYMENT += addFiles
-}
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
+HEADERS += cpitchshifter.h \
+    smbpitchshifter.h
 

@@ -6,27 +6,26 @@ CWaveLayers::CWaveLayers(QWidget *parent) :
     ui(new Ui::CWaveLayers)
 {
     ui->setupUi(this);
-    connect(ui->VolSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->TransposeSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->TuneSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->LowVelFullSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->HighVelFullSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->LowVelXSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->HighVelXSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateGraph()));
-    connect(ui->ADSRWidget,SIGNAL(Changed(CADSR::ADSRParams)),this,SLOT(UpdateADSRs(CADSR::ADSRParams)));
-    connect(ui->LayersControl,SIGNAL(CurrentLayerChanged(CLayer::LayerParams)),this,SLOT(UpdateControls(CLayer::LayerParams)));
-    connect(ui->LayersControl,SIGNAL(LayerIndexChanged(int)),this,SLOT(SelectLayer(int)));
-    connect(ui->LayersControl,SIGNAL(Add(int,int)),this,SLOT(AddLayer(int,int)));
-    //connect(ui->KeyLayoutControl,SIGNAL(ReleaseLoop()),this,SLOT(ReleaseLoop()));
-    connect(ui->FixLayerButton,SIGNAL(clicked()),this,SLOT(FixLayer()));
-    connect(ui->FixAllButton,SIGNAL(clicked()),this,SLOT(FixAll()));
-    connect(ui->PitchLayerButton,SIGNAL(clicked()),this,SLOT(PitchLayer()));
-    connect(ui->PitchAllButton,SIGNAL(clicked()),this,SLOT(PitchAll()));
+    connect(ui->VolSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->TransposeSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->TuneSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->LowVelFullSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->HighVelFullSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->LowVelXSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->HighVelXSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveLayers::UpdateGraph);
+    connect(ui->ADSRWidget,&CADSRWidget::Changed,this,&CWaveLayers::UpdateADSRs);
+    connect(ui->LayersControl,&CKeyLayersControl::CurrentLayerChanged,this,&CWaveLayers::UpdateControls);
+    connect(ui->LayersControl,&CKeyLayersControl::LayerIndexChanged,this,&CWaveLayers::SelectLayer);
+    connect(ui->LayersControl,&CKeyLayersControl::AddLayerRequested,this,&CWaveLayers::AddLayer);
+    connect(ui->FixLayerButton,&QAbstractButton::clicked,this,&CWaveLayers::FixLayer);
+    connect(ui->FixAllButton,&QAbstractButton::clicked,this,&CWaveLayers::FixAll);
+    connect(ui->PitchLayerButton,&QAbstractButton::clicked,this,&CWaveLayers::PitchLayer);
+    connect(ui->PitchAllButton,&QAbstractButton::clicked,this,&CWaveLayers::PitchAll);
 
-    connect(ui->DeleteLayerButton,SIGNAL(clicked()),this,SLOT(DeleteLayer()));
+    connect(ui->DeleteLayerButton,&QAbstractButton::clicked,this,&CWaveLayers::DeleteLayer);
 
-    MD=false;
-    Working=false;
+    //MD=false;
+    //Working=false;
     //Update();
 }
 
@@ -42,26 +41,24 @@ void CWaveLayers::Init(CSamplerDevice *Device)
     ui->ADSRWidget->Update(m_Sampler->ADSRParams());
     ui->LayersControl->Init(m_Sampler);
     ui->KeyLayoutControl->Init(m_Sampler);
-    SelectLayer(m_Sampler->CurrentLayerIndex);
+    SelectLayer(m_Sampler->currentLayerIndex);
 }
 
 void CWaveLayers::SelectLayer(int LayerIndex)
 {
     ReleaseLoop();
-    m_Sampler->CurrentLayerIndex=LayerIndex;
-    if (m_Sampler->CurrentRangeIndex >= m_Sampler->RangeCount()) m_Sampler->CurrentRangeIndex=m_Sampler->RangeCount()-1;
+    m_Sampler->currentLayerIndex=LayerIndex;
+    if (m_Sampler->currentRangeIndex >= m_Sampler->rangeCount()) m_Sampler->currentRangeIndex=m_Sampler->rangeCount()-1;
     Update();
 }
 
 void CWaveLayers::DeleteLayer()
 {
     ReleaseLoop();
-    if (m_Sampler->LayerCount() > 1)
+    if (m_Sampler->layerCount() > 1)
     {
-        m_Sampler->RemoveLayer();
-        int L=m_Sampler->CurrentLayerIndex-1;
-        if (L < 0) L=0;
-        SelectLayer(L);
+        m_Sampler->removeLayer();
+        SelectLayer(qMax<int>(m_Sampler->currentLayerIndex-1,0));
     }
 }
 
@@ -85,7 +82,8 @@ void CWaveLayers::UpdateGraph()
 void CWaveLayers::UpdateControls(CLayer::LayerParams LP)
 {
     setControlBounds(LP);
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(true);
+    qDebug() << LP.Tune;
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(true);
     ui->VolSpin->setValue(LP.Volume);
     ui->LowVelFullSpin->setValue(LP.LowerTop);
     ui->HighVelFullSpin->setValue(LP.UpperTop);
@@ -93,18 +91,18 @@ void CWaveLayers::UpdateControls(CLayer::LayerParams LP)
     ui->HighVelXSpin->setValue(LP.UpperZero);
     ui->TransposeSpin->setValue(LP.Transpose);
     ui->TuneSpin->setValue(LP.Tune);
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(false);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(false);
     m_Sampler->setLayerParams(LP);
 }
 
 void CWaveLayers::setControlBounds(CLayer::LayerParams LP)
 {
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(true);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(true);
     ui->LowVelFullSpin->setMaximum(LP.UpperTop);
     ui->HighVelFullSpin->setMinimum(LP.LowerTop);
     ui->LowVelXSpin->setMaximum(LP.LowerTop);
     ui->HighVelXSpin->setMinimum(LP.UpperTop);
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(false);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(false);
 }
 
 void CWaveLayers::Update()
@@ -113,7 +111,7 @@ void CWaveLayers::Update()
     ui->LayersControl->Draw();
     UpdateControls(m_Sampler->LayerParams());
     ui->KeyLayoutControl->Update();
-    ui->DeleteLayerButton->setEnabled(m_Sampler->LayerCount() > 1);
+    ui->DeleteLayerButton->setEnabled(m_Sampler->layerCount() > 1);
 }
 
 void CWaveLayers::UpdateADSRs(CADSR::ADSRParams ADSRParams)
@@ -123,8 +121,9 @@ void CWaveLayers::UpdateADSRs(CADSR::ADSRParams ADSRParams)
 
 void CWaveLayers::AddLayer(int Upper, int Lower)
 {
-    m_Sampler->AddLayer(Upper,Lower);
-    m_Sampler->CurrentLayerIndex=m_Sampler->LayerCount()-1;
+    m_Sampler->addLayer(Upper,Lower);
+    m_Sampler->currentLayerIndex=m_Sampler->layerCount()-1;
+    m_Sampler->currentRangeIndex=0;
     Update();
 }
 
@@ -135,35 +134,35 @@ void CWaveLayers::ReleaseLoop()
 
 void CWaveLayers::FixLayer()
 {
-    for (int i=0;i<m_Sampler->RangeCount();i++)
+    for (int i=0;i<m_Sampler->rangeCount();i++)
     {
-        CSampleKeyRange* KR=m_Sampler->Range(m_Sampler->CurrentLayerIndex,i);
-        KR->AutoFix(ui->KeyLayoutControl->LoopCycles(),ui->KeyLayoutControl->Tune_A440());
-        m_Sampler->setLoopParams(KR->WG.LP,m_Sampler->CurrentLayerIndex,i);
+        CSampleKeyRange* KR=m_Sampler->range(m_Sampler->currentLayerIndex,i);
+        KR->autoFix(ui->KeyLayoutControl->LoopCycles(),ui->KeyLayoutControl->Tune_A440());
+        m_Sampler->setLoopParams(KR->generator.LP,m_Sampler->currentLayerIndex,i);
     }
     Update();
 }
 
 void CWaveLayers::PitchLayer()
 {
-    for (int i=0;i<m_Sampler->RangeCount();i++)
+    for (int i=0;i<m_Sampler->rangeCount();i++)
     {
-        CSampleKeyRange* KR=m_Sampler->Range(m_Sampler->CurrentLayerIndex,i);
-        KR->PitchDetect(ui->KeyLayoutControl->Tune_A440());
-        m_Sampler->setLoopParams(KR->WG.LP,m_Sampler->CurrentLayerIndex,i);
+        CSampleKeyRange* KR=m_Sampler->range(m_Sampler->currentLayerIndex,i);
+        KR->pitchDetect(ui->KeyLayoutControl->Tune_A440());
+        m_Sampler->setLoopParams(KR->generator.LP,m_Sampler->currentLayerIndex,i);
     }
     Update();
 }
 
 void CWaveLayers::FixAll()
 {
-    for (int l=0;l<m_Sampler->LayerCount();l++)
+    for (int l=0;l<m_Sampler->layerCount();l++)
     {
-        for (int i=0;i<m_Sampler->RangeCount(l);i++)
+        for (int i=0;i<m_Sampler->rangeCount(l);i++)
         {
-            CSampleKeyRange* KR=m_Sampler->Range(l,i);
-            KR->AutoFix(ui->KeyLayoutControl->LoopCycles(),ui->KeyLayoutControl->Tune_A440());
-            m_Sampler->setLoopParams(KR->WG.LP,l,i);
+            CSampleKeyRange* KR=m_Sampler->range(l,i);
+            KR->autoFix(ui->KeyLayoutControl->LoopCycles(),ui->KeyLayoutControl->Tune_A440());
+            m_Sampler->setLoopParams(KR->generator.LP,l,i);
         }
     }
     Update();
@@ -171,13 +170,13 @@ void CWaveLayers::FixAll()
 
 void CWaveLayers::PitchAll()
 {
-    for (int l=0;l<m_Sampler->LayerCount();l++)
+    for (int l=0;l<m_Sampler->layerCount();l++)
     {
-        for (int i=0;i<m_Sampler->RangeCount(l);i++)
+        for (int i=0;i<m_Sampler->rangeCount(l);i++)
         {
-            CSampleKeyRange* KR=m_Sampler->Range(l,i);
-            KR->PitchDetect(ui->KeyLayoutControl->Tune_A440());
-            m_Sampler->setLoopParams(KR->WG.LP,l,i);
+            CSampleKeyRange* KR=m_Sampler->range(l,i);
+            KR->pitchDetect(ui->KeyLayoutControl->Tune_A440());
+            m_Sampler->setLoopParams(KR->generator.LP,l,i);
         }
     }
     Update();

@@ -7,67 +7,52 @@ CEqualizerForm::CEqualizerForm(IDevice* Device, QWidget *parent) :
     ui(new Ui::CEqualizerForm)
 {
     ui->setupUi(this);
-    m_Device=NULL;
-    connect(ui->GraphFrame,SIGNAL(RefreshMe()),this,SLOT(Draw()));
+    for (int i=0;i<8;i++)
+    {
+        frames.append(findChild<CEqualizerFrame*>("frame_"+QString::number(i)));
+    }
+    connect(ui->GraphFrame,&CEqualizerGraph::Changed,this,&CEqualizerForm::Draw);
     Canvas=ui->GraphFrame;
-    startTimer(50);
+    m_TimerID=startTimer(50);
 }
 
 CEqualizerForm::~CEqualizerForm()
 {
+    killTimer(m_TimerID);
+    m_TimerID=0;
     delete ui;
 }
 
-void CEqualizerForm::Init(CEqualizer *EQ)
+void CEqualizerForm::Init()
 {
-    m_Device=EQ;
-    ui->frame_0->Init(EQ,0,40,280,100);
-    ui->frame_1->Init(EQ,1,100,500,200);
-    ui->frame_2->Init(EQ,2,200,1000,400);
-    ui->frame_3->Init(EQ,3,400,2800,1000);
-    ui->frame_4->Init(EQ,4,1000,5000,3000);
-    ui->frame_5->Init(EQ,5,3000,9000,6000);
-    ui->frame_6->Init(EQ,6,6000,18000,12000);
-    ui->frame_7->Init(EQ,7,10000,20000,15000);
+    ui->frame_0->init(EQUALIZERCLASS,0,40,280,100);
+    ui->frame_1->init(EQUALIZERCLASS,1,100,500,200);
+    ui->frame_2->init(EQUALIZERCLASS,2,200,1000,400);
+    ui->frame_3->init(EQUALIZERCLASS,3,400,2800,1000);
+    ui->frame_4->init(EQUALIZERCLASS,4,1000,5000,3000);
+    ui->frame_5->init(EQUALIZERCLASS,5,3000,9000,6000);
+    ui->frame_6->init(EQUALIZERCLASS,6,6000,18000,12000);
+    ui->frame_7->init(EQUALIZERCLASS,7,10000,20000,15000);
 }
 
-const QString CEqualizerForm::CustomSave()
+void CEqualizerForm::serializeCustom(QDomLiteElement* xml) const
 {
-    QDomLiteElement xml("Custom");
-
     for (int i=0;i<8;i++)
     {
-        QDomLiteElement* Channel = xml.appendChild("Band" + QString::number(i+1));
-        CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
-        Channel->appendChildFromString(f->Save());
+        frames[i]->serialize(xml->appendChild("Band" + QString::number(i+1))->appendChild("Band"));
     }
-
-    return xml.toString();
 }
 
-void CEqualizerForm::CustomLoad(const QString& XML)
+void CEqualizerForm::unserializeCustom(const QDomLiteElement* xml)
 {
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
+    if (!xml) return;
+    for (int i=0;i<8;i++)
     {
-        for (int i=0;i<8;i++)
+        if (const QDomLiteElement* Channel = xml->elementByTag("Band" + QString::number(i+1)))
         {
-            QDomLiteElement* Channel = xml.elementByTag("Band" + QString::number(i+1));
-            CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
-            f->Load(Channel->firstChild()->toString());
+            frames[i]->unserialize(Channel->elementByTag("Band"));
         }
     }
-}
-
-int inline freqtopoint(float freq)
-{
-    return floor( (12.0*log2(freq/440.0)) + 0.5 )+69.0;
-}
-
-int inline PointtoFreq( int keynum )
-{
-    return 440 * pow( 2.0, ((float)keynum - 69.0) / 12.0 );
 }
 
 void CEqualizerForm::Draw()
@@ -78,82 +63,57 @@ void CEqualizerForm::Draw()
 
 void CEqualizerForm::DrawBg()
 {
-    Canvas->ClearGradient();
-    Canvas->SetBrush(QBrush(Qt::NoBrush));
-    Canvas->SetPen(Qt::black);
-    Canvas->SetFont(QFont("",10));
-    QFontMetrics fm(QFont("",10));
-    int P=(float)((freqtopoint(100)-23)*ui->GraphFrame->width()*1.56)/(200.0-22.0);
-    Canvas->Line(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
-    Canvas->Text(P-(fm.width("100Hz")/2),ui->GraphFrame->height()-14,"100Hz");
-    P=(float)((freqtopoint(1000)-23)*ui->GraphFrame->width()*1.56)/(200.0-22.0);
-    Canvas->Line(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
-    Canvas->Text(P-(fm.width("1000Hz")/2),ui->GraphFrame->height()-14,"1000Hz");
-    P=(float)((freqtopoint(10000)-23)*ui->GraphFrame->width()*1.56)/(200.0-22.0);
-    Canvas->Line(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
-    Canvas->Text(P-(fm.width("10kHz")/2),ui->GraphFrame->height()-14,"10kHz");
-    P=(float)((freqtopoint(20000)-23)*ui->GraphFrame->width()*1.56)/(200.0-22.0);
-    Canvas->Line(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
-    Canvas->Text(P-(fm.width("20kHz")/2),ui->GraphFrame->height()-14,"20kHz");
+    Canvas->clearGradient();
+    Canvas->setBrush(QBrush(Qt::NoBrush));
+    Canvas->setPen(Qt::black);
+    Canvas->setLayerFontSize(10);
+    const QFontMetrics fm(Canvas->layerFont());
+    int P=((freq2MIDIkeyf(100.f)-23)*ui->GraphFrame->width()*1.56f)/(200.f-22.f);
+    Canvas->drawLine(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
+    Canvas->drawText(P-(fm.horizontalAdvance("100Hz")/2),ui->GraphFrame->height()-14,"100Hz");
+    P=((freq2MIDIkeyf(1000)-23)*ui->GraphFrame->width()*1.56f)/(200.f-22.f);
+    Canvas->drawLine(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
+    Canvas->drawText(P-(fm.horizontalAdvance("1000Hz")/2),ui->GraphFrame->height()-14,"1000Hz");
+    P=((freq2MIDIkeyf(10000)-23)*ui->GraphFrame->width()*1.56f)/(200.f-22.f);
+    Canvas->drawLine(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
+    Canvas->drawText(P-(fm.horizontalAdvance("10kHz")/2),ui->GraphFrame->height()-14,"10kHz");
+    P=((freq2MIDIkeyf(20000)-23)*ui->GraphFrame->width()*1.56f)/(200.f-22.f);
+    Canvas->drawLine(P,ui->GraphFrame->height(),P,ui->GraphFrame->height()-5);
+    Canvas->drawText(P-(fm.horizontalAdvance("20kHz")/2),ui->GraphFrame->height()-14,"20kHz");
 }
 
 void CEqualizerForm::DrawGraph()
 {
-    if (m_Device==NULL) return;
-    QCanvasLayer* CanvasLayer=Canvas->CanvasLayers[0];
-    CanvasLayer->ClearTransparent();
-    CanvasLayer->SetPen(Qt::red);
+    QCanvasLayer* CanvasLayer=Canvas->canvasLayers[0];
+    CanvasLayer->clearTransparent();
+    CanvasLayer->setPen(Qt::red);
     QPoint LastPoint(-1,40);
-    int SR=CPresets::Presets.SampleRate;
-    for (int i=0;i<8;i++)
-    {
-        eq_set_params(&Fi[i], m_Device->Freq[i], m_Device->Level[i], BWIDTH, SR);
-    }
     for (int x = 22;x < 200;x++)
     {
-        int F=PointtoFreq(x);
+        const auto F=uint(MIDIkey2Freqf(x));
         float WPos=0;
         float Max=0;
-        for (int i=0;i<8;i++)
+
+        CBiquad filters[8];
+        filters[0].lsSetParams(EQUALIZERCLASS->Freq[0], EQUALIZERCLASS->Level[0], 1, presets.SampleRate);
+        for (int i=1; i<7; i++)
         {
-            biquad_init(&Fi[i]);
+            filters[i].eqSetParams(EQUALIZERCLASS->Freq[i], EQUALIZERCLASS->Level[i], BWIDTH, presets.SampleRate);
         }
-        for (int i=0;i<512;i++)
+        filters[7].hsSetParams(EQUALIZERCLASS->Freq[7], EQUALIZERCLASS->Level[7], 1, presets.SampleRate);
+        for (uint i=0;i<presets.DoubleRate/F;i++)
         {
-            WPos=WPos+F;
-            while (WPos>=SR)
-            {
-                WPos-=SR;
-            }
-            float samp=W.GetNext(WPos,CWaveBank::Sine);
-            for (int i1=0;i1<8;i1++)
-            {
-                if (m_Device->Level[i1] != 0)
-                    samp = biquad_run(&Fi[i1], samp);
-            }
-            if (samp<0)
-            {
-                if (-samp>Max)
-                {
-                    Max=-samp;
-                }
-            }
-            else if (samp>0)
-            {
-                if (samp>Max)
-                {
-                    Max=samp;
-                }
-            }
+            WPos+=F;
+            while (WPos >= presets.SampleRate) WPos-=presets.SampleRate;
+            float samp=W.getNext(uint(WPos),CWaveBank::Sine);
+            for (int j=0;j<8;j++) if (!isZero(EQUALIZERCLASS->Level[j])) samp = filters[j].run(samp);
+            Max=qMax<float>(qAbs<float>(samp),Max);
         }
-        int X1=(float)((x-23)*ui->GraphFrame->width()*1.56)/(200.0-22.0);
-        QPoint EndPoint(X1,40+((1.0-Max)*30.0));
-        CanvasLayer->Line(LastPoint,EndPoint);
+        const auto X1=int(((x-23)*ui->GraphFrame->width()*1.56)/(200.0-22.0));
+        const QPoint EndPoint(X1,40+int((1.f-Max)*30.f));
+        CanvasLayer->drawLine(LastPoint,EndPoint);
         LastPoint=EndPoint;
-        if (X1>ui->GraphFrame->width())
-        {
-            break;
-        }
+        if (X1>ui->GraphFrame->width()) break;
     }
     ui->GraphFrame->update();
 }
@@ -163,8 +123,7 @@ void CEqualizerForm::Reset()
     for (int i=0;i<8;i++)
     {
         PeakVal[i]=0;
-            CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
-            f->Reset();
+        frames.at(i)->reset();
     }
 }
 
@@ -172,20 +131,19 @@ void CEqualizerForm::Peak()
 {
     for (int i=0;i<8;i++)
     {
-        CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
-        f->Peak(PeakVal[i]);
+        frames.at(i)->peak(PeakVal[i]);
     }
 }
 
 void CEqualizerForm::timerEvent(QTimerEvent *)
 {
+    if (!m_TimerID) return;
     if (isVisible())
     {
-    for (int i=0;i<8;i++)
-    {
-        CEqualizerFrame* f=findChild<CEqualizerFrame*>("frame_"+QString::number(i));
-        f->Peak(PeakVal[i]);
-        PeakVal[i]=0;
-    }
+        for (int i=0;i<8;i++)
+        {
+            frames.at(i)->peak(PeakVal[i]);
+            PeakVal[i]=0;
+        }
     }
 }

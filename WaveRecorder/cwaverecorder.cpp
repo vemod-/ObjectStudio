@@ -3,48 +3,104 @@
 
 CWaveRecorder::CWaveRecorder()
 {
+    m_Recording=false;
+    //Playing=false;
 }
 
-void CWaveRecorder::Init(const int Index,void* MainWindow)
+CWaveRecorder::~CWaveRecorder()
 {
-     m_Name=devicename;
-     IDevice::Init(Index,MainWindow);
-     AddJackStereoOut(jnOut);
-     AddJackStereoIn();
-     m_Form=new CWaveRecorderForm(this,(QWidget*)MainWindow);
-     Playing=false;
 }
 
-void CWaveRecorder::Tick()
+void CWaveRecorder::init(const int Index, QWidget* MainWindow)
 {
-    if (Playing)
+    m_Name=devicename;
+    IDevice::init(Index,MainWindow);
+    addJackStereoOut(jnOut);
+    addJackStereoIn();
+    m_Form=new CWaveRecorderForm(this,MainWindow);
+    FORMFUNC(CWaveRecorderForm)->setHost(m_Host);
+    //Playing=false;
+    m_MilliSeconds=0;
+    m_Recording=false;
+    PeakL=0;
+    PeakR=0;
+    m_SilentBuffer.zeroBuffer();
+}
+
+void CWaveRecorder::execute(bool show)
+{
+    IDevice::execute(show);
+    FORMFUNC(CWaveRecorderForm)->showMixer(show);
+}
+
+void CWaveRecorder::tick()
+{
+    const CStereoBuffer* InBuffer = FetchAStereo(jnIn);
+    if (InBuffer->isValid())
     {
-        CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-        OutBuffer->ZeroBuffer();
-        ((CWaveRecorderForm*)m_Form)->ModifyBuffers(OutBuffer->Buffer,OutBuffer->BufferR);
+        RecordBuffer.writeStereoBuffer(InBuffer,FORMFUNC(CWaveRecorderForm)->volumeL(),FORMFUNC(CWaveRecorderForm)->volumeR());
+        if (m_Recording) WaveFile.pushBuffer(RecordBuffer.data(),RecordBuffer.size());
+        RecordBuffer.peakStereoBuffer(&PeakL,&PeakR);
     }
-}
-
-float* CWaveRecorder::GetNextA(const int ProcIndex)
-{
-    if (!Playing)
+    else
     {
-        return NULL;
+        RecordBuffer.zeroBuffer();
     }
-    return AudioBuffers[ProcIndex]->Buffer;
+    //if (m_TickerDevice) m_TickerDevice->tick();
+    IDevice::tick();
 }
 
-void CWaveRecorder::Play(const bool FromStart)
+void CWaveRecorder::initWithFile(const QString& path) {
+    FORMFUNC(CWaveRecorderForm)->initWithFile(path);
+}
+/*
+ulong CWaveRecorder::milliSeconds() const
 {
-    Playing=true;
-    if (FromStart)
-    {
-        ((CWaveRecorderForm*)m_Form)->Reset();
+    return m_MilliSeconds;
+}
+*/
+/*
+void CWaveRecorder::skip(ulong mSecs)
+{
+    FORMFUNC(CWaveRecorderForm)->skip(samples);
+}
+*/
+CAudioBuffer* CWaveRecorder::getNextA(const int ProcIndex)
+{
+    if (m_Monitor) {
+        m_AudioBuffers[ProcIndex]->writeBuffer(FORMFUNC(CWaveRecorderForm)->getNextA(ProcIndex));
+        m_AudioBuffers[ProcIndex]->addBuffer(&RecordBuffer,m_MonitorLevel);
+        return m_AudioBuffers[ProcIndex];
     }
+    return FORMFUNC(CWaveRecorderForm)->getNextA(ProcIndex);
 }
 
-void CWaveRecorder::Pause()
+void CWaveRecorder::play(const bool FromStart)
 {
-    Playing=false;
-    ((CWaveRecorderForm*)m_Form)->Stop();
+    FORMFUNC(CWaveRecorderForm)->setPlayIcon(true);
+    IDevice::play(FromStart);
+}
+
+void CWaveRecorder::pause()
+{
+    FORMFUNC(CWaveRecorderForm)->setPlayIcon(false);
+    IDevice::pause();
+}
+
+void CWaveRecorder::startRecording()
+{
+    m_Recording=true;
+    WaveFile.startRecording(2,presets.SampleRate);
+}
+
+void CWaveRecorder::finishRecording()
+{
+    m_Recording=false;
+    WaveFile.finishRecording();
+}
+
+bool CWaveRecorder::saveAs(const QString& path)
+{
+    if (m_Recording) finishRecording();
+    return WaveFile.save(path);
 }

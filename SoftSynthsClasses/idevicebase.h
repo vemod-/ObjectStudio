@@ -1,23 +1,44 @@
 #ifndef IDEVICEBASE_H
 #define IDEVICEBASE_H
 
-#include "softsynthsdefines.h"
+#include <QMutex>
 
-class IDeviceBase
+#if (QT_VERSION < QT_VERSION_CHECK(5, 15, 0))
+class QRecursiveMutex : public QMutex
 {
 public:
-    virtual float GetNext(const int /*ProcIndex*/)
+    explicit QRecursiveMutex() : QMutex(QMutex::Recursive) {}
+};
+#endif
+
+class CParameter;
+class CMIDIBuffer;
+class CAudioBuffer;
+
+class IParameterHost
+{
+public:
+    virtual ~IParameterHost();
+    virtual void updateParameter(const CParameter* /*p*/ = nullptr) {}
+};
+
+class IDeviceBase : public IParameterHost
+{
+public:
+    virtual ~IDeviceBase();
+    virtual float getNext(const int /*ProcIndex*/)
     {
         return 0;
     }
-    virtual void* GetNextP(const int /*ProcIndex*/)
+    virtual CMIDIBuffer* getNextP(const int /*ProcIndex*/)
     {
-        return NULL;
+        return nullptr;
     }
-    virtual float* GetNextA(const int /*ProcIndex*/)
+    virtual CAudioBuffer* getNextA(const int /*ProcIndex*/)
     {
-        return NULL;
+        return nullptr;
     }
+    virtual void connectionChanged(){}
 };
 
 #endif // IDEVICEBASE_H

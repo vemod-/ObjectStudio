@@ -4,64 +4,54 @@
 #
 #-------------------------------------------------
 TARGET = MIDIFile2Wave
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
 
 DEFINES += MIDIFILE2WAVE_LIBRARY
 
+LIBS += -lStereoMixer
 INCLUDEPATH += ../StereoMixer
-INCLUDEPATH += ../MIDIFilePlayer
+LIBS += -lMIDIFileReader
 INCLUDEPATH += ../MIDIFileReader
+LIBS += -lMIDIFilePlayer
+INCLUDEPATH += ../MIDIFilePlayer
 
-##include(../../QSignalMenu/QSignalMenu.pri)
-include(../../EffectLabel/EffectLabel.pri)
-include(../VSTHost/VSTHost.pri)
-include(../AudioUnitHost/AudioUnitHost.pri)
-include(../RtAudioBuffer/PeakMeter.pri)
-include(../../LCDLabel/QLCDLabel.pri)
-include(../SF2Player/SF2Player.pri)
-include(../../SynthSlider/QSynthSlider.pri)
-include(../../SynthPanel/QSynthPanel.pri)
+LIBS += -lSoftSynthsWidgets
+INCLUDEPATH += ../../SynthKnob
+INCLUDEPATH += ../../LCDLabel
+INCLUDEPATH += ../../QSignalMenu
+INCLUDEPATH += ../RtAudioBuffer
+INCLUDEPATH += ../../SynthPanel
 
-##LIBS += -L../AudioUnitHost/ -lAudioUnitHost
-##INCLUDEPATH += ../AudioUnitHost
-##LIBS += -L../VSTHost/ -lVSTHost
-##INCLUDEPATH += ../VSTHost
+include(../RtAudioBuffer/UIMap.pri)
 
-SOURCES += cmidifile2wave.cpp \
-    cdevicecontainer.cpp
-HEADERS += cmidifile2wave.h \
-    cdevicecontainer.h
+INCLUDEPATH += $$PWD/../PluginLoader
 
-HEADERS += ../StereoMixer/cmasterwidget.h
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L../ -lPluginLoader
+    }
+}
 
-SOURCES += \
-    ../StereoMixer/cmasterwidget.cpp
+SOURCES += cmidifile2wave.cpp ##\
+    ##../StereoMixer/cmixerwidget.cpp \
+    ##../StereoMixer/cstereomixer.cpp
+HEADERS += cmidifile2wave.h ##\
+    ##../StereoMixer/cmixerwidget.h \
+    ##../StereoMixer/cstereomixer.h
 
-FORMS += ../StereoMixer/cmasterwidget.ui
+##FORMS += \
+    ##../StereoMixer/cmixerwidget.ui
 
-HEADERS += \
-    csf2channelwidget.h \
-    cmixerwidget.h
+##HEADERS += \
+##    csf2channelwidget.h
 
-SOURCES += \
-    csf2channelwidget.cpp \
-    cmixerwidget.cpp
+##SOURCES += \
+##    csf2channelwidget.cpp
 
-FORMS += \
-    csf2channelwidget.ui \
-    cmixerwidget.ui
+##FORMS += \
+##    csf2channelwidget.ui
 
-HEADERS += \
-    ../StereoMixer/cstereomixer.h
-
-SOURCES += \
-    ../StereoMixer/cstereomixer.cpp
-
-HEADERS += ../MIDIFileReader/cmidifilereader.h \
-    ../MIDIFilePlayer/cmidifileplayer.h
-
-SOURCES += ../MIDIFileReader/cmidifilereader.cpp \
-    ../MIDIFilePlayer/cmidifileplayer.cpp
+RESOURCES += \
+    midifile2waveresources.qrc
 

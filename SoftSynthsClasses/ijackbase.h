@@ -7,23 +7,20 @@ class IJackBase
 {
 public:
     enum AttachModes
-    {Amplitude=1,Pitch=2,Modulation=3,Frequency=4,Trigger=8,Wave=16,Audio=16,Stereo=24,MIDI=32};
+    {Amplitude=1,Pitch=2,Voltage=3,Frequency=4,Trigger=8,Wave=16,Audio=16,Stereo=48,MIDI=64};
     enum Directions
     {In,Out};
-    IJackBase(IJackBase::AttachModes tAttachMode, IJackBase::Directions tDirection):AttachMode(tAttachMode),Direction(tDirection){}
-    inline const QColor JackColor()
+    inline IJackBase(IJackBase::AttachModes AttachMode, IJackBase::Directions Direction):attachMode(AttachMode),direction(Direction){}
+    inline const QColor JackColor() const
     {
-        switch (AttachMode)
+        switch (attachMode)
         {
         case Amplitude:
-            return Qt::green;
         case Frequency:
-            return Qt::yellow;
         case Pitch:
-        case Modulation:
-            return Qt::blue;
+        case Voltage:
         case Trigger:
-            return Qt::black;
+            return Qt::yellow;
         case Wave:
             return Qt::darkRed;
         case Stereo:
@@ -33,8 +30,10 @@ public:
         }
         return Qt::black;
     }
-    AttachModes AttachMode;
-    Directions Direction;
+    inline bool isInJack() const { return (direction==IJackBase::In); }
+    inline bool isOutJack() const { return (direction==IJackBase::Out); }
+    AttachModes attachMode;
+    Directions direction;
 };
 
 #endif // IJACKBASE_H

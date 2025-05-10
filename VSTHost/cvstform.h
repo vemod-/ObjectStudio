@@ -1,9 +1,9 @@
 #ifndef CVSTFORM_H
 #define CVSTFORM_H
 
-#include "softsynthsclasses.h"
-#include "IAudioPlugInHost.h"
+#include "iaudiopluginhost.h"
 #include <QComboBox>
+#include "csoftsynthsform.h"
 
 namespace Ui {
 class CVSTForm;
@@ -16,16 +16,18 @@ class CVSTForm : public CSoftSynthsForm
 public:
     explicit CVSTForm(IAudioPlugInHost* plug, IDevice* Device, QWidget *parent = 0);
     ~CVSTForm();
-    IAudioPlugInHost* PlugIn;
-    void FillList(int CurrentProgram=-1);
-    void SetProgram(const int programIndex);
+    IAudioPlugInHost* plugIn;
+    void fillList(int CurrentProgram=-1);
+    void setBankPreset(const int programIndex);
 private slots:
     void PlugInIndexChanged();
-    void ChangeProgram(int programIndex);
+    void ChangeBankPreset(int programIndex);
+    //void updateHost();
 private:
     Ui::CVSTForm *ui;
     QComboBox* li;
     QWidget* listHolder;
+    QTimer updateTimer;
 protected:
     bool event(QEvent *event);
     void timerEvent(QTimerEvent* event);

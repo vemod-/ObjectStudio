@@ -1,31 +1,35 @@
 #include "cadsrcontrol.h"
 #include "ui_cadsrcontrol.h"
+#include <QGraphicsLineItem>
+#include <QMouseEvent>
 
 #define ADSR_FrameWidth 4
 
 CADSRControl::CADSRControl(QWidget *parent) :
-    QCanvas(parent),
+    QGraphicsView(parent),
     ui(new Ui::CADSRControl)
 {
     ui->setupUi(this);
     MD=false;
-    /*
+    SplitValue=svADSRNone;
+    setMouseTracking(true);
+    ReleaseStart = ADSRControl::ADSR_MinWidth*5;
+    MaxWidth = ADSRControl::ADSR_MinWidth*6;
     setScene(&Scene);
-    setOptimizationFlags(QGraphicsView::DontSavePainterState | QGraphicsView::DontAdjustForAntialiasing);
+    setSceneRect(0,0,1,1);
+    setAlignment(Qt::AlignTop | Qt::AlignLeft);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     Scene.setItemIndexMethod(QGraphicsScene::NoIndex);
     setRenderHint(QPainter::Antialiasing);
     setRenderHint(QPainter::TextAntialiasing);
-    setRenderHint(QPainter::HighQualityAntialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
-    */
     setMouseTracking(true);
-    /*
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setFrameStyle(0);
-    setLineWidth(0);
-    */
+
+    //grabGesture(Qt::PinchGesture);
+    //connect(this,&QViewportCanvas::paintRequested,this,&CWaveEditControl::Paint);
+    setStyleSheet("QGraphicsView{background-color: QLinearGradient( x1: 0, y1: 0, x2: 1, y2: 1, stop: 0 #ddd, stop: 1 #999);}");
+
+    //connect(this,&QViewportCanvas::paintRequested,this,&CADSRControl::Paint);
 }
 
 CADSRControl::~CADSRControl()
@@ -33,48 +37,84 @@ CADSRControl::~CADSRControl()
     delete ui;
 }
 
-int inline CADSRControl::Time2X(int Time)
+int inline CADSRControl::Time2X(const ldouble Time)
 {
-    return ((Time*(width()-(ADSR_FrameWidth*2)))/ADSRControl::ADSR_MaxWidth)+ADSR_FrameWidth;
+    return ((Time*(sceneRect().width()-(ADSR_FrameWidth*2)))/MaxWidth)+ADSR_FrameWidth;
 }
 
-int inline CADSRControl::Vol2Y(int Vol)
+int inline CADSRControl::Vol2Y(const int Vol)
 {
-    return ((100-Vol)*(height()-(ADSR_FrameWidth*2))*0.01)+ADSR_FrameWidth;
+    return ((120-Vol)*(sceneRect().height()-(ADSR_FrameWidth*2))/120)+ADSR_FrameWidth;
 }
 
-int inline CADSRControl::X2Time(int X)
+ldouble inline CADSRControl::X2Time(const int X)
 {
-    return ((X-ADSR_FrameWidth)*ADSRControl::ADSR_MaxWidth)/(width()-(ADSR_FrameWidth*2));
+    return ldouble((X-ADSR_FrameWidth)*MaxWidth)/ldouble(sceneRect().width()-(ADSR_FrameWidth*2));
 }
 
-int inline CADSRControl::Y2Vol(int Y)
+int inline CADSRControl::Y2Vol(const int Y)
 {
-    return 100-(((Y-ADSR_FrameWidth)*100)/(height()-(ADSR_FrameWidth*2)));
+    return 120-(((Y-ADSR_FrameWidth)*120)/(sceneRect().height()-(ADSR_FrameWidth*2)));
+}
+
+void CADSRControl::Paint()
+{
+    Draw(ADSR.AP);
 }
 
 void CADSRControl::Draw(CADSR::ADSRParams ADSRParams)
 {
-    AP=ADSRParams;
-    ClearGradient();
-    SetPen(Qt::black);
-    Line(Time2X(0),Vol2Y(0),Time2X(AP.Attack),Vol2Y(100));
-    Line(Time2X(AP.Attack),Vol2Y(100),Time2X(AP.Attack+AP.Decay),Vol2Y(AP.Sustain));
-    SetPen(QPen(Qt::darkGray,0,Qt::DotLine));
-    Line(Time2X(AP.Attack+AP.Decay),Vol2Y(AP.Sustain),Time2X(ADSRControl::ADSR_ReleaseStart),Vol2Y(AP.Sustain));
-    SetPen(Qt::black);
-    Line(Time2X(ADSRControl::ADSR_ReleaseStart),Vol2Y(AP.Sustain),Time2X(ADSRControl::ADSR_ReleaseStart+AP.Release),Vol2Y(0));
+    ADSR.AP=ADSRParams;
+    ulong64 i=ADSRControl::ADSR_MinWidth*5;
+    if (ADSR.AP.Delay > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Delay-ADSRControl::ADSR_MinWidth);
+    if (ADSR.AP.Attack > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Attack-ADSRControl::ADSR_MinWidth);
+    if (ADSR.AP.Hold > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Hold-ADSRControl::ADSR_MinWidth);
+    if (ADSR.AP.Decay > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Decay-ADSRControl::ADSR_MinWidth);
+    ReleaseStart=i;
+    i+=ADSRControl::ADSR_MinWidth;
+    if (ADSR.AP.Release > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Release-ADSRControl::ADSR_MinWidth);
+    MaxWidth=i+200;
+    Scene.clear();
+    QRect r = viewport()->rect();
+    r.setSize(QSize((((viewport()->width()-(ADSR_FrameWidth*2))*MaxWidth)/(MaxWidth))+(ADSR_FrameWidth*2),viewport()->height()));
+    setSceneRect(r);
 
-    SetPenBrush(Qt::red);
-    SetBrush(QBrush(Qt::NoBrush));
-    Circle(Time2X(AP.Attack),Vol2Y(100),3);
-    Circle(Time2X(AP.Attack+AP.Decay),Vol2Y(AP.Sustain),3);
-    Circle(Time2X(ADSRControl::ADSR_ReleaseStart),Vol2Y(AP.Sustain),3);
-    Circle(Time2X(ADSRControl::ADSR_ReleaseStart+AP.Release),Vol2Y(0),3);
-    update();
+    ADSR.Start();
+    //clearGradient();
+    //setPen(Qt::black);
+    Pen = QPen(Qt::black);
+    moveTo(Time2X(0),Vol2Y(0));
+    for (ulong64 i=0;i<=ADSR.mSec2Buffer(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold+ADSR.AP.Decay);i++)
+    {
+        lineTo(Time2X(ADSR.Buffer2mSec(i)),Vol2Y(ADSR.GetVol()*100));
+    }
+    lineTo(Time2X(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold+ADSR.AP.Decay),Vol2Y(ADSR.AP.Sustain));
+
+    Pen = QPen(Qt::darkGray,0,Qt::DashLine);
+
+    Scene.addLine(Time2X(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold+ADSR.AP.Decay),Vol2Y(ADSR.AP.Sustain),Time2X(ReleaseStart),Vol2Y(ADSR.AP.Sustain));
+    moveTo(Time2X(ReleaseStart),Vol2Y(ADSR.AP.Sustain));
+    Pen = QPen(Qt::black);
+    ADSR.Finish();
+    for (ulong64 i=ADSR.mSec2Buffer(ReleaseStart);i<=ADSR.mSec2Buffer(ReleaseStart+ADSR.AP.Release);i++)
+    {
+        lineTo(Time2X(ADSR.Buffer2mSec(i)),Vol2Y(ADSR.GetVol()*100));
+    }
+    Pen = QPen(Qt::red);
+    //setPenBrush(Qt::red);
+    //setBrush(QBrush(Qt::NoBrush));
+
+    drawCircle(Time2X(ADSR.AP.Delay),Vol2Y(0),3);
+    drawCircle(Time2X(ADSR.AP.Delay+ADSR.AP.Attack),Vol2Y(100),3);
+    drawCircle(Time2X(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold),Vol2Y(100),3);
+    drawCircle(Time2X(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold+ADSR.AP.Decay),Vol2Y(ADSR.AP.Sustain),3);
+    drawCircle(Time2X(ReleaseStart),Vol2Y(ADSR.AP.Sustain),3);
+    drawCircle(Time2X(ReleaseStart+ADSR.AP.Release),Vol2Y(0),3);
+
+    //update();
 }
 
-bool InsidePoint(int X,int Y,QPoint P)
+bool InsidePoint(const int X,const int Y,const QPoint P)
 {
     return QRect(X,Y,0,0).adjusted(-4,-4,4,4).contains(P);
 }
@@ -86,46 +126,63 @@ void inline CADSRControl::MoveLines(QPoint P)
     PutPoint(P,SplitValue);
 }
 
-void inline CADSRControl::PutPoint(QPoint P,SplitterValuesADSR SV)
+void inline CADSRControl::PutPoint(const QPoint P,const SplitterValuesADSR SV)
 {
     if (SV==svDecay)
     {
-        int D=P.x()-AP.Attack;
-        if (D>ADSRControl::ADSR_MaxTime){D=ADSRControl::ADSR_MaxTime;}
-        if (D<0){D=0;}
-        AP.Decay=D;
-        int Vol=P.y();
-        if (Vol>100){Vol=100;}
-        if (Vol<0){Vol=0;}
-        AP.Sustain=Vol;
-        Draw(AP);
-        emit Changed(AP);
+        int D=P.x()-(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold);
+        D = qBound<int>(0,D,ADSRControl::ADSR_MaxTime);
+        ADSR.AP.Decay=D;
+        const int Vol=qBound<int>(0,P.y(),100);
+        ADSR.AP.Sustain=Vol;
+        Draw(ADSR.AP);
+        emit DecayChanged(D);
+        emit SustainChanged(Vol);
+        emit Changed(ADSR.AP);
     }
     else if (SV==svSustain)
     {
-        int Vol=P.y();
-        if (Vol>100){Vol=100;}
-        if (Vol<0){Vol=0;}
-        AP.Sustain=Vol;
-        Draw(AP);
-        emit Changed(AP);
+        const int Vol=qBound<int>(0,P.y(),100);
+        ADSR.AP.Sustain=Vol;
+        Draw(ADSR.AP);
+        emit SustainChanged(Vol);
+        emit Changed(ADSR.AP);
     }
     else if (SV==svAttack)
     {
-        if ((P.x()>=0) && (P.x()<=ADSRControl::ADSR_MaxTime))
-        {
-            AP.Attack=P.x();
-            Draw(AP);
-            emit Changed(AP);
-        }
+        int D=P.x()-ADSR.AP.Delay;
+        D = qBound<int>(0,D,ADSRControl::ADSR_MaxTime);
+        ADSR.AP.Attack=D;
+        Draw(ADSR.AP);
+        emit AttackChanged(ADSR.AP.Attack);
+        emit Changed(ADSR.AP);
+    }
+    else if (SV==svHold)
+    {
+        int D=P.x()-(ADSR.AP.Delay+ADSR.AP.Attack);
+        D = qBound<int>(0,D,ADSRControl::ADSR_MaxTime);
+        ADSR.AP.Hold=D;
+        Draw(ADSR.AP);
+        emit HoldChanged(ADSR.AP.Hold);
+        emit Changed(ADSR.AP);
     }
     else if (SV==svRelease)
     {
-        if ((P.x()>=ADSRControl::ADSR_ReleaseStart) && (P.x()<=ADSRControl::ADSR_ReleaseStart+ADSRControl::ADSR_MaxTime))
+        int D=P.x()-ReleaseStart;
+        D = qBound<int>(0,D,ADSRControl::ADSR_MaxTime);
+        ADSR.AP.Release=D;
+        Draw(ADSR.AP);
+        emit ReleaseChanged(ADSR.AP.Release);
+        emit Changed(ADSR.AP);
+    }
+    else if (SV==svDelay)
+    {
+        if ((P.x()>=0) && (P.x()<=ADSRControl::ADSR_MaxTime))
         {
-            AP.Release=P.x()-ADSRControl::ADSR_ReleaseStart;
-            Draw(AP);
-            emit Changed(AP);
+            ADSR.AP.Delay=P.x();
+            Draw(ADSR.AP);
+            emit DelayChanged(ADSR.AP.Delay);
+            emit Changed(ADSR.AP);
         }
     }
 
@@ -138,26 +195,35 @@ void CADSRControl::mousePressEvent(QMouseEvent* /*event*/)
 
 void CADSRControl::mouseMoveEvent(QMouseEvent *event)
 {
-    //QPoint P=mapToScene(event->pos().x(),event->pos().y()).toPoint();
-    QPoint P=event->pos();
+    const QPoint P = mapToScene(event->pos()).toPoint();
     if (!MD)
     {
-        if (InsidePoint(Time2X(AP.Attack),Vol2Y(100),P))
+        if (InsidePoint(Time2X(ADSR.AP.Delay),Vol2Y(0),P))
+        {
+            setCursor(Qt::SizeHorCursor);
+            SplitValue=svDelay;
+        }
+        else if (InsidePoint(Time2X(ADSR.AP.Delay+ADSR.AP.Attack),Vol2Y(100),P))
         {
             setCursor(Qt::SizeHorCursor);
             SplitValue=svAttack;
         }
-        else if (InsidePoint(Time2X(AP.Attack+AP.Decay),Vol2Y(AP.Sustain),P))
+        else if (InsidePoint(Time2X(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold),Vol2Y(100),P))
+        {
+            setCursor(Qt::SizeHorCursor);
+            SplitValue=svHold;
+        }
+        else if (InsidePoint(Time2X(ADSR.AP.Delay+ADSR.AP.Attack+ADSR.AP.Hold+ADSR.AP.Decay),Vol2Y(ADSR.AP.Sustain),P))
         {
             setCursor(Qt::SizeAllCursor);
             SplitValue=svDecay;
         }
-        else if (InsidePoint(Time2X(ADSRControl::ADSR_ReleaseStart),Vol2Y(AP.Sustain),P))
+        else if (InsidePoint(Time2X(ReleaseStart),Vol2Y(ADSR.AP.Sustain),P))
         {
             setCursor(Qt::SizeVerCursor);
             SplitValue=svSustain;
         }
-        else if (InsidePoint(Time2X(ADSRControl::ADSR_ReleaseStart+AP.Release),Vol2Y(0),P))
+        else if (InsidePoint(Time2X(ReleaseStart+ADSR.AP.Release),Vol2Y(0),P))
         {
             setCursor(Qt::SizeHorCursor);
             SplitValue=svRelease;
@@ -180,20 +246,48 @@ void CADSRControl::mouseMoveEvent(QMouseEvent *event)
 
 void CADSRControl::mouseReleaseEvent(QMouseEvent *event)
 {
-    //QPoint P=mapToScene(event->pos().x(),event->pos().y()).toPoint();
-    QPoint P=event->pos();
-    if (MD)
-    {
-        if (SplitValue!=svADSRNone)
-        {
-            MoveLines(P);
-        }
-    }
+    if (MD) if (SplitValue!=svADSRNone) MoveLines(mapToScene(event->pos()).toPoint());
     MD=false;
 }
 
 void CADSRControl::resizeEvent(QResizeEvent* event)
 {
-    QCanvas::resizeEvent(event);
-    Draw(AP);
+    QGraphicsView::resizeEvent(event);
+    Paint();
+}
+
+void CADSRControl::setDelay(int v)
+{
+    ADSR.AP.Delay=v;
+    Draw(ADSR.AP);
+}
+
+void CADSRControl::setAttack(int v)
+{
+    ADSR.AP.Attack=v;
+    Draw(ADSR.AP);
+}
+
+void CADSRControl::setHold(int v)
+{
+    ADSR.AP.Hold=v;
+    Draw(ADSR.AP);
+}
+
+void CADSRControl::setDecay(int v)
+{
+    ADSR.AP.Decay=v;
+    Draw(ADSR.AP);
+}
+
+void CADSRControl::setSustain(int v)
+{
+    ADSR.AP.Sustain=v;
+    Draw(ADSR.AP);
+}
+
+void CADSRControl::setRelease(int v)
+{
+    ADSR.AP.Release=v;
+    Draw(ADSR.AP);
 }

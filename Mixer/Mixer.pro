@@ -4,14 +4,17 @@
 #
 #-------------------------------------------------
 TARGET = Mixer
-TEMPLATE = lib
 
 DEFINES += MIXER_LIBRARY
 
 include(../SoftSynthsIncludes.pri)
-include(../RtAudioBuffer/PeakMeter.pri)
-include(../../SynthKnob/QSynthKnob.pri)
-include(../../SynthSlider/QSynthSlider.pri)
+
+LIBS += -lSoftSynthsWidgets
+INCLUDEPATH += ../RtAudioBuffer \
+../../SynthKnob \
+../../SynthSlider \
+../../ToggleButton \
+../../QCanvas
 
 SOURCES += cmixerframe.cpp \
     cmixerform.cpp

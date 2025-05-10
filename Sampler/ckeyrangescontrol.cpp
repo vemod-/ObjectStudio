@@ -8,7 +8,7 @@ CKeyRangesControl::CKeyRangesControl(QWidget *parent) :
     ui->setupUi(this);
     MD=false;
     setMouseTracking(true);
-    m_Sampler=NULL;
+    m_Sampler=nullptr;
 }
 
 CKeyRangesControl::~CKeyRangesControl()
@@ -30,70 +30,60 @@ void CKeyRangesControl::resizeEvent(QResizeEvent* event)
 
 void inline CKeyRangesControl::MoveLines(QPoint P)
 {
-    if (m_Sampler->RangeCount()) PutPoint(m_Sampler->CurrentRange(),QPoint(Graph2X(P.x()),Graph2Vol(P.y())),SplitValue);
+    if (m_Sampler->rangeCount()) PutPoint(m_Sampler->currentRange(),QPoint(Graph2X(P.x()),Graph2Vol(P.y())),SplitValue);
 }
 
 void inline CKeyRangesControl::PutPoint(CSampleKeyRange* Range,QPoint P,SplitterValues SV)
 {
     if (SV==svUpper)
     {
-        if ((P.x()>Range->RP.LowerTop) && (P.x()<128))
+        if ((P.x()-1>Range->parameters.LowerTop) && (P.x()-1<128))
         {
-            Range->RP.UpperTop=P.x();
-            if (Range->RP.UpperZero<P.x()) Range->RP.UpperZero=P.x();
-            if (Range->RP.UpperZero>127) Range->RP.UpperZero=127;
-            int Vol=P.y();
-            if (Vol>100) Vol=100;
-            if (Vol<5) Vol=5;
-            Range->RP.Volume=Vol;
-
+            Range->parameters.UpperTop=P.x()-1;
+            Range->parameters.UpperZero = qBound<int>(P.x()-1, Range->parameters.UpperZero, 127);
+            Range->parameters.Volume=qBound<int>(5, P.y(), 200);
             DrawLines();
-            emit CurrentRangeChanged(Range->RP);
+            emit CurrentRangeChanged(Range->parameters);
         }
     }
     else if (SV==svLower)
     {
-        if ((P.x()<Range->RP.UpperTop) && (P.x()>=0))
+        if ((P.x()<Range->parameters.UpperTop) && (P.x()>=0))
         {
-            Range->RP.LowerTop=P.x();
-            if (Range->RP.LowerZero>P.x()) Range->RP.LowerZero=P.x();
-            if (Range->RP.LowerZero<0) Range->RP.LowerZero=0;
-            int Vol=P.y();
-            if (Vol>100) Vol=100;
-            if (Vol<5) Vol=5;
-            Range->RP.Volume=Vol;
-
+            Range->parameters.LowerTop=P.x();
+            Range->parameters.LowerZero = qBound<int>(0, Range->parameters.LowerZero, P.x());
+            Range->parameters.Volume=qBound<int>(5, P.y(), 200);
             DrawLines();
-            emit CurrentRangeChanged(Range->RP);
+            emit CurrentRangeChanged(Range->parameters);
         }
     }
     else if (SV==svUpperZero)
     {
-        if ((P.x()>=Range->RP.UpperTop) && (P.x()<128))
+        if ((P.x()-1>=Range->parameters.UpperTop) && (P.x()-1<128))
         {
-            Range->RP.UpperZero=P.x();
+            Range->parameters.UpperZero=P.x()-1;
             DrawLines();
-            emit CurrentRangeChanged(Range->RP);
+            emit CurrentRangeChanged(Range->parameters);
         }
         else
         {
-            Range->RP.UpperZero=P.x();
-            P.setY(Range->RP.Volume);
+            Range->parameters.UpperZero=P.x()-1;
+            P.setY(Range->parameters.Volume);
             PutPoint(Range,P,svUpper);
         }
     }
     else if (SV==svLowerZero)
     {
-        if ((P.x()<=Range->RP.LowerTop) && (P.x()>=0))
+        if ((P.x()<=Range->parameters.LowerTop) && (P.x()>=0))
         {
-            Range->RP.LowerZero=P.x();
+            Range->parameters.LowerZero=P.x();
             DrawLines();
-            emit CurrentRangeChanged(Range->RP);
+            emit CurrentRangeChanged(Range->parameters);
         }
         else
         {
-            Range->RP.LowerZero=P.x();
-            P.setY(Range->RP.Volume);
+            Range->parameters.LowerZero=P.x();
+            P.setY(Range->parameters.Volume);
             PutPoint(Range,P,svLower);
         }
     }
@@ -115,24 +105,23 @@ void CKeyRangesControl::Draw()
 
 void CKeyRangesControl::DrawLines()
 {
-    if (m_Sampler==NULL) return;
-    CanvasLayers[0]->ClearTransparent();
-    for (int i=0;i<m_Sampler->RangeCount();i++)
+    if (m_Sampler==nullptr) return;
+    canvasLayers[0]->clearTransparent();
+    for (int i=0;i<m_Sampler->rangeCount();i++)
     {
-        CSampleKeyRange::RangeParams RP=m_Sampler->RangeParams(m_Sampler->CurrentLayerIndex,i);
+        CSampleKeyRange::RangeParams RP=m_Sampler->RangeParams(m_Sampler->currentLayerIndex,i);
         int GrafVol=Vol2Graph(RP.Volume);
-        CanvasLayers[0]->SetPen(QPen(Qt::black));
-        if (m_Sampler->CurrentRangeIndex==i) CanvasLayers[0]->SetPen(QPen(Qt::red));
-        CanvasLayers[0]->Line(X2Graph(RP.LowerZero),Vol2Graph(0),X2Graph(RP.LowerTop),GrafVol);
-        CanvasLayers[0]->Line(X2Graph(RP.LowerTop),GrafVol,X2Graph(RP.UpperTop),GrafVol);
-        CanvasLayers[0]->Line(X2Graph(RP.UpperTop),GrafVol,X2Graph(RP.UpperZero),Vol2Graph(0));
-        if (m_Sampler->CurrentRangeIndex==i)
+        (m_Sampler->currentRangeIndex==i) ? canvasLayers[0]->setPen(QPen(Qt::red)) : canvasLayers[0]->setPen(QPen(Qt::black));
+        canvasLayers[0]->drawLine(X2Graph(RP.LowerZero),Vol2Graph(0),X2Graph(RP.LowerTop),GrafVol);
+        canvasLayers[0]->drawLine(X2Graph(RP.LowerTop),GrafVol,X2Graph(RP.UpperTop+1),GrafVol);
+        canvasLayers[0]->drawLine(X2Graph(RP.UpperTop+1),GrafVol,X2Graph(RP.UpperZero+1),Vol2Graph(0));
+        if (m_Sampler->currentRangeIndex==i)
         {
-            CanvasLayers[0]->SetBrush(QBrush(Qt::NoBrush));
-            CanvasLayers[0]->Circle(X2Graph(RP.LowerZero),Vol2Graph(0),3);
-            CanvasLayers[0]->Circle(X2Graph(RP.LowerTop),GrafVol,3);
-            CanvasLayers[0]->Circle(X2Graph(RP.UpperTop),GrafVol,3);
-            CanvasLayers[0]->Circle(X2Graph(RP.UpperZero),Vol2Graph(0),3);
+            canvasLayers[0]->setBrush(QBrush(Qt::NoBrush));
+            canvasLayers[0]->drawCircle(X2Graph(RP.LowerZero),Vol2Graph(0),3);
+            canvasLayers[0]->drawCircle(X2Graph(RP.LowerTop),GrafVol,3);
+            canvasLayers[0]->drawCircle(X2Graph(RP.UpperTop+1),GrafVol,3);
+            canvasLayers[0]->drawCircle(X2Graph(RP.UpperZero+1),Vol2Graph(0),3);
         }
     }
     update();
@@ -140,40 +129,40 @@ void CKeyRangesControl::DrawLines()
 
 int inline CKeyRangesControl::Vol2Graph(int Vol)
 {
-    return (((100-Vol)*(height()-(Range_FrameWidth*2)))/100)+Range_FrameWidth;
+    return (((200-Vol)*(height()-(Range_FrameWidth*2)))/200)+Range_FrameWidth;
 }
 
 int inline CKeyRangesControl::Graph2Vol(int Y)
 {
-    return 100-(((Y-Range_FrameWidth)*100)/(height()-(Range_FrameWidth*2)));
+    return 200-(((Y-Range_FrameWidth)*200)/(height()-(Range_FrameWidth*2)));
 }
 
 int inline CKeyRangesControl::X2Graph(int X)
 {
-    return (((float)X*(float)(width()-(Range_FrameWidth*2)))/127.0)+Range_FrameWidth;
+    return ((float(X)*float(width()-(Range_FrameWidth*2)))/128.f)+Range_FrameWidth;
 }
 
 int inline CKeyRangesControl::Graph2X(int X)
 {
-    return ((float)(X-Range_FrameWidth)*127.0)/((float)(width()-(Range_FrameWidth*2)));
+    return (float(X-Range_FrameWidth)*128.f)/(float(width()-(Range_FrameWidth*2)));
 }
 
 void CKeyRangesControl::DrawKeys()
 {
-    ClearGradient();
-    SetPen(QPen(Qt::darkGray));
+    clearGradient();
+    setPen(QPen(Qt::darkGray));
     for (int i=0;i<128;i++)
     {
-        int XG=X2Graph(i);
-        Line(XG,0,XG,height()-1);
-        int Key=i % 12;
-        int KeyHeight=(height()*3)/5;
+        const int XG=X2Graph(i);
+        drawLine(XG,0,XG,height()-1);
+        const int Key=i % 12;
+        const int KeyHeight=(height()*3)/5;
         if (Key==1 || Key==3 || Key==6 || Key==8 || Key==10)
         {
-            Line(XG+1,KeyHeight-5,XG+1,KeyHeight);
+            drawLine(XG+1,KeyHeight-5,XG+1,KeyHeight);
             for (int i1=2;i1<5;i1++)
             {
-                Line(XG+i1,0,XG+i1,KeyHeight);
+                drawLine(XG+i1,0,XG+i1,KeyHeight);
             }
         }
     }
@@ -191,7 +180,7 @@ void CKeyRangesControl::mousePressEvent(QMouseEvent *event)
 
 void CKeyRangesControl::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_Sampler->RangeCount())
+    if (m_Sampler->rangeCount())
     {
         QPoint P=event->pos();
         if (MD)
@@ -205,7 +194,7 @@ void CKeyRangesControl::mouseMoveEvent(QMouseEvent *event)
         else
         {
             CSampleKeyRange::RangeParams RP=m_Sampler->RangeParams();
-            if (InsidePoint(X2Graph(RP.UpperTop),Vol2Graph(RP.Volume),P))
+            if (InsidePoint(X2Graph(RP.UpperTop+1),Vol2Graph(RP.Volume),P))
             {
                 setCursor(Qt::SizeAllCursor);
                 SplitValue=svUpper;
@@ -220,7 +209,7 @@ void CKeyRangesControl::mouseMoveEvent(QMouseEvent *event)
                 setCursor(Qt::SizeHorCursor);
                 SplitValue=svLowerZero;
             }
-            else if (InsidePoint(X2Graph(RP.UpperZero),Vol2Graph(0),P))
+            else if (InsidePoint(X2Graph(RP.UpperZero+1),Vol2Graph(0),P))
             {
                 setCursor(Qt::SizeHorCursor);
                 SplitValue=svUpperZero;
@@ -241,9 +230,9 @@ void CKeyRangesControl::mouseReleaseEvent(QMouseEvent *event)
     {
         if (MD)
         {
-            if (StartMark < Graph2X(P.x())) emit Add(Graph2X(P.x()),StartMark);
-            if (StartMark > Graph2X(P.x())) emit Add(StartMark,Graph2X(P.x()));
-            emit LoadWaveFile();
+            if (StartMark < Graph2X(P.x())) emit AddRangeRequested(Graph2X(P.x()),StartMark);
+            if (StartMark > Graph2X(P.x())) emit AddRangeRequested(StartMark,Graph2X(P.x()));
+            emit WaveFileRequested();
         }
     }
     else
@@ -252,12 +241,12 @@ void CKeyRangesControl::mouseReleaseEvent(QMouseEvent *event)
         {
             if (SplitValue==svNone)
             {
-                for (int i=0;i<m_Sampler->RangeCount();i++)
+                for (int i=0;i<m_Sampler->rangeCount();i++)
                 {
-                    CSampleKeyRange::RangeParams RP=m_Sampler->RangeParams(m_Sampler->CurrentLayerIndex,i);
-                    if ((P.x()>(X2Graph(RP.LowerTop))) && (P.x()<X2Graph(RP.UpperTop)))
+                    CSampleKeyRange::RangeParams RP=m_Sampler->RangeParams(m_Sampler->currentLayerIndex,i);
+                    if ((P.x()>(X2Graph(RP.LowerTop))) && (P.x()<X2Graph(RP.UpperTop+1)))
                     {
-                        if (i != m_Sampler->CurrentRangeIndex)
+                        if (i != m_Sampler->currentRangeIndex)
                         {
                             emit RangeIndexChanged(i);
                             MD=false;

@@ -14,7 +14,7 @@ class CKeyLayersControl : public QCanvas
     Q_OBJECT
     
 public:
-    explicit CKeyLayersControl(QWidget *parent = 0);
+    explicit CKeyLayersControl(QWidget *parent = nullptr);
     ~CKeyLayersControl();
     void Init(CSamplerDevice* D);
 protected:
@@ -26,7 +26,7 @@ public slots:
     void Draw();
 signals:
     void CurrentLayerChanged(CLayer::LayerParams LP);
-    void Add(int Upper, int Lower);
+    void AddLayerRequested(int Upper, int Lower);
     void LayerIndexChanged(int LayerIndex);
 private:
     enum SplitterValues

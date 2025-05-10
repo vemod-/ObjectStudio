@@ -2,28 +2,28 @@
 
 CCVDevice::CCVDevice()
 {
-    Notes=new CVNote[CVDevice::CVVoices];
-    reset();
+    //Notes=new CVNote[CVDevice::CVVoices];
+    //reset();
     Tune=440;
 }
 
 CCVDevice::~CCVDevice()
 {
-    delete [] Notes;
+    //delete [] Notes;
 }
 
-void CCVDevice::NoteOn(const short channel, const short pitch, const short velocity)
+void CCVDevice::noteOn(const short channel, const short key, const short velocity)
 {
     if (channelSettings[channel].portNote)
     {
-        for (int i=0;i<CVDevice::CVVoices;i++)
+        for (CVNote& n : Notes)
         {
-            if ((channel) == Notes[i].Channel)
+            if ((channel) == n.Channel)
             {
-                if (Notes[i].MIDIPitch==channelSettings[channel].portNote)
+                if (n.MIDIKey==channelSettings[channel].portNote)
                 {
-                    Notes[i].MIDIPitch=pitch;
-                    Notes[i].Frequency*=Cent_to_Percent((pitch-channelSettings[channel].portNote)*100);
+                    n.MIDIKey=key;
+                    n.Voltage += MIDIkey2voltage(key-channelSettings[channel].portNote);
                     break;
                 }
             }
@@ -34,7 +34,7 @@ void CCVDevice::NoteOn(const short channel, const short pitch, const short veloc
         int FreeIndex=-1;
         for (int i=0;i<CVDevice::CVVoices;i++)
         {
-            if (Notes[i].Velocity==0)
+            if (Notes[i].MIDIVelocity==0)
             {
                 FreeIndex=i;
                 break;
@@ -42,70 +42,87 @@ void CCVDevice::NoteOn(const short channel, const short pitch, const short veloc
         }
         if (FreeIndex>-1)
         {
-            Notes[FreeIndex].Channel=channel;
-            Notes[FreeIndex].MIDIPitch=pitch;
-            Notes[FreeIndex].Frequency=MIDItoFreq(pitch+m_Transpose,Tune)*FreqResolution;
-            Notes[FreeIndex].Velocity=(float)(velocity & 0x7F) / (float)0x7F;
+            CVNote& n = Notes[FreeIndex];
+            n.Channel=channel;
+            n.MIDIKey=key;
+            n.Voltage=MIDIkey2voltage(key, Tune);
+            //qDebug() << n.Frequency;
+            n.MIDIVelocity=velocity;
+            n.Velocity=float(velocity & 0x7F) / float(0x7F);
         }
     }
     channelSettings[channel].portNote=0;
 }
 
-void CCVDevice::NoteOff(const short channel, const short pitch)
+void CCVDevice::noteOff(const short channel, const short pitch)
 {
-    for (int i=0;i<CVDevice::CVVoices;i++)
+    for (CVNote& n : Notes)
     {
-        if (channel==Notes[i].Channel)
+        if (channel==n.Channel)
         {
             if (channelSettings[channel].pedal)
             {
                 channelSettings[channel].pedalnotes.append(pitch);
             }
-            else if (pitch==Notes[i].MIDIPitch)
+            else if (pitch==n.MIDIKey)
             {
-                Notes[i].Frequency=0;
-                Notes[i].Velocity=0;
+                n.Off();
                 break;
             }
         }
     }
 }
-
-int CCVDevice::voiceCount()
+/*
+void CCVDevice::controller(const short channel, const short controller, const short value)
+{
+    switch (controller)
+    {
+    case 84: // portamento note
+        channelSettings[channel].portNote=value+m_Transpose;
+        break;
+    default:
+        ISoundDevice::controller(channel,controller,value);
+        break;
+    }
+}
+*/
+int CCVDevice::voiceCount() const
 {
     return CVDevice::CVVoices;
 }
 
 void CCVDevice::reset()
 {
-    ZeroMemory(Notes,CVDevice::CVVoices*sizeof(CVNote));
-    for (int i = 0; i < 16; i++)
-    {
-        channelSettings[i].reset();
-    }
+    //zeroMemory(Notes,CVDevice::CVVoices*sizeof(CVNote));
+    for (CVNote& n : Notes) n.Zero();
+    for (ChannelData& d : channelSettings) d.resetAll();
 }
 
 void CCVDevice::allNotesOff()
 {
+    for (CVNote& n : Notes) n.Zero();
+/*
     for (int i=0;i<CVDevice::CVVoices;i++)
     {
         Notes[i].MIDIPitch=0;
         Notes[i].Velocity=0;
+        Notes[i].MIDIVelocity=0;
     }
+    */
 }
 
-short CCVDevice::voiceChannel(const int voice)
+short CCVDevice::voiceChannel(const int voice) const
 {
     return Notes[voice].Channel;
 }
 
-float CCVDevice::getPitchbend(const int voice)
+float CCVDevice::getPitchbend(const int voice) const
 {
-    return Cent_to_Percent(channelSettings[voiceChannel(voice)].pitchWheel);
+    return channelSettings[voiceChannel(voice)].pitchWheel;
 }
 
-float CCVDevice::Vol(const int voice)
+float CCVDevice::Vol(const int voice) const
 {
-    int ch=voiceChannel(voice);
+    const int ch=voiceChannel(voice);
     return channelSettings[ch].volume*channelSettings[ch].expression;
 }

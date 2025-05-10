@@ -1,6 +1,6 @@
 <ui version="4.0">
  <class>CVSTForm</class>
- <widget name="CVSTForm" class="QDialog">
+ <widget name="CVSTForm" class="QWidget">
   <property name="geometry">
    <rect>
     <x>0</x>

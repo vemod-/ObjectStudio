@@ -1,8 +1,9 @@
 #ifndef CDELAY_H
 #define CDELAY_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "cwavebank.h"
+#include "cringbuffer.h"
 
 class CDelay : public IDevice
 {
@@ -11,9 +12,8 @@ private:
     {jnOut,jnEffectOut,jnIn};
     enum ParameterNames
     {pnFrequency,pnAmplitude,pnDelay,pnRegen,pnMix};
-    float* Buffer;
+    CRingBuffer ring;
     int ReadPosition;
-    float WavePosition;
     float CleanMix;
     float EffectMix;
     float RegenCleanMix;
@@ -21,13 +21,13 @@ private:
     int DelayRate;
     float CurrentMod;
     CWaveBank WaveBank;
-    void Process(void);
-    void inline CalcParams(void);
+    void process();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 public:
     CDelay();
-    ~CDelay();
-    void Init(const int Index,void* MainWindow);
-    void Tick(void);
+    ~CDelay() {}
+    void init(const int Index, QWidget* MainWindow);
+    void tick();
 };
 
 #endif // CDELAY_H

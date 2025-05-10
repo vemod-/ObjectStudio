@@ -1,6 +1,5 @@
 #include "cstereomixerform.h"
 #include "ui_cstereomixerform.h"
-#include "softsynthsclasses.h"
 #include <QHBoxLayout>
 
 CStereoMixerForm::CStereoMixerForm(IDevice *Device, QWidget *parent) :
@@ -9,28 +8,34 @@ CStereoMixerForm::CStereoMixerForm(IDevice *Device, QWidget *parent) :
 {
     ui->setupUi(this);
 
-    connect(&peakTimer,SIGNAL(timeout()),this,SLOT(peak()));
-    mapper=new QSignalMapper(this);
-    connect(mapper,SIGNAL(mapped(int)),this,SLOT(setSoloChannel(int)));
-
-    this->setLayout(new QHBoxLayout(this));
-    this->layout()->setMargin(1);
-    this->layout()->setSpacing(1);
-    for (int i=0;i<((CStereoMixer*)Device)->channelCount;i++)
+    m_Mx=new CMixerWidget(this);
+    auto ly=new QHBoxLayout(this);
+    ly->setContentsMargins(0,0,0,0);
+    ly->setSpacing(0);
+    ly->addWidget(m_Mx);
+    for (int i=Effects.size();i<3;i++)
     {
-        CStereoChannelWidget* ch=new CStereoChannelWidget(this);
-        channels.append(ch);
-        ch->Init(((CStereoMixer*)Device)->channels[i],QString::number(i+1));
-        connect(ch,SIGNAL(solo()),mapper,SLOT(map()));
-        mapper->setMapping(ch,i);
-        this->layout()->addWidget(ch);
+        Effects.append(dynamic_cast<CDeviceContainer*>(deviceList.addDevice(new CDeviceContainer("Effect"),i+1,parent)));
     }
-    master=new CMasterWidget(this);
-    master->Init((CStereoMixer*)Device);
-    this->layout()->addWidget(master);
-    adjustSize();
-    setFixedSize(size());
-    peakTimer.start(40+channels.count());
+    auto m = DEVICEFUNC(CStereoMixer);
+    for (int i=0;i<3;i++)
+    {
+        deviceList.addJack(m->SendJacks[i]);
+        deviceList.connect(m->SendJacks[i]->jackID(),"Effect "+ QString::number(i+1) +" In");
+        deviceList.addJack(m->ReturnJacks[i]);
+        deviceList.connect(m->ReturnJacks[i]->jackID(),"Effect "+ QString::number(i+1) +" Out");
+    }
+    for (uint i=0;i<m->channelCount();i++)
+    {
+        CSF2ChannelWidget* ch=m_Mx->appendChannel();
+        ch->init(m->channels[i],QString::number(i+1));
+        ch->setVisible(true);
+    }
+    m_Mx->showMaster(m,&Effects);
+    //setFixedSize(m_Mx->sizeHint());
+    m_Mx->adjustSize();
+    m_Mx->start();
+    m_Mx->show();
 }
 
 CStereoMixerForm::~CStereoMixerForm()
@@ -38,68 +43,31 @@ CStereoMixerForm::~CStereoMixerForm()
     delete ui;
 }
 
-void CStereoMixerForm::Reset()
+void CStereoMixerForm::setSender(const QString& s, const int index)
 {
-    master->resetPeak();
-    foreach (CStereoChannelWidget* ch,channels)
-    {
-        ch->resetPeak();
-    }
+    m_Mx->channels[index]->setSender(s);
 }
 
-void CStereoMixerForm::peak()
+void CStereoMixerForm::unserializeCustom(const QDomLiteElement* xml)
 {
-    master->checkPeak();
-    foreach (CStereoChannelWidget* ch,channels)
+    if (!xml) return;
+    //qDebug() << "CStereoMixerForm unserializeCustom" << xml->toString();
+    for (CDeviceContainer* d : std::as_const(Effects)) d->ClearDevice();
+    m_Mx->unserialize(xml);
+    for (int i=0;i<3;i++)
     {
-        ch->checkPeak();
-    }
-}
-
-void CStereoMixerForm::setSoloChannel(int channel)
-{
-    QToolButton* b = channels[channel]->findChild<QToolButton*>("Solo");
-    if (b->isChecked())
-    {
-        for (int i=0;i<channels.count();i++)
+        if (const QDomLiteElement* e=xml->elementByTag("Effect"+QString::number(i)))
         {
-            if (i != channel) channels[i]->soloButton(false);
-        }
-        master->setSoloChannel(channel);
-    }
-    else
-    {
-        master->setSoloChannel(-1);
-    }
-}
-
-void CStereoMixerForm::CustomLoad(const QString &XML)
-{
-    QDomLiteElement Custom("Custom");
-    Custom.fromString(XML);
-    for (int i=0;i<channels.count();i++)
-    {
-        QDomLiteElement* ch=Custom.elementByTag("Channel"+QString::number(i));
-        if (ch != 0)
-        {
-            channels[i]->Load(ch->firstChild()->toString());
+            Effects[i]->unserializeCustom(e->elementByTag("Custom"));
         }
     }
-    QDomLiteElement* Master=Custom.elementByTag("Master");
-    if (Master != 0)
-    {
-        master->Load(Master->toString());
-    }
 }
 
-const QString CStereoMixerForm::CustomSave()
+void CStereoMixerForm::serializeCustom(QDomLiteElement* xml) const
 {
-    QDomLiteElement Custom("Custom");
-    for (int i=0;i<channels.count();i++)
+    m_Mx->serialize(xml);
+    for (int i=0;i<Effects.size();i++)
     {
-        QDomLiteElement* ch=Custom.appendChild("Channel"+QString::number(i));
-        ch->appendChildFromString(channels[i]->Save());
+        Effects[i]->serializeCustom(xml->appendChild("Effect"+QString::number(i))->appendChild("Custom"));
     }
-    Custom.appendChildFromString(master->Save());
-    return Custom.toString();
 }

@@ -1,8 +1,8 @@
 #include "csequenserform.h"
 #include "ui_csequenserform.h"
-#include "csequenser.h"
 #include "cinsertpatternform.h"
 #include "crepeatform.h"
+#include "csequenser.h"
 
 CSequenserForm::CSequenserForm(IDevice* Device, QWidget *parent) :
     CSoftSynthsForm(Device,true,parent),
@@ -14,16 +14,16 @@ CSequenserForm::CSequenserForm(IDevice* Device, QWidget *parent) :
     PlayListMenu->addAction("Remove",this,SLOT(MenuRemovePatternClick()));
     PlayListMenu->addAction("Edit...",this,SLOT(MenuEditPatternClick()));
 
-    connect(ui->AddPattern,SIGNAL(clicked()),this,SLOT(AddPatternClick()));
-    connect(ui->RemovePattern,SIGNAL(clicked()),this,SLOT(RemovePatternClick()));
+    connect(ui->AddPattern,&QAbstractButton::clicked,this,&CSequenserForm::AddPatternClick);
+    connect(ui->RemovePattern,&QAbstractButton::clicked,this,&CSequenserForm::RemovePatternClick);
 
-    connect(ui->NameEdit,SIGNAL(textEdited(QString)),this,SLOT(ChangeName()));
-    connect(ui->TempoSpin,SIGNAL(valueChanged(int)),this,SLOT(ChangeTempo(int)));
-    connect(ui->BeatsSpin,SIGNAL(valueChanged(int)),this,SLOT(ChangeNumOfBeats(int)));
+    connect(ui->NameEdit,&QLineEdit::textEdited,this,&CSequenserForm::ChangeName);
+    connect(ui->TempoSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CSequenserForm::ChangeTempo);
+    connect(ui->BeatsSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CSequenserForm::ChangeNumOfBeats);
 
-    connect(ui->PatternList,SIGNAL(currentRowChanged(int)),this,SLOT(ChangePatternIndex()));
-    connect(ui->PatternPlayList,SIGNAL(customContextMenuRequested(QPoint)),this,SLOT(PlayListPopup(QPoint)));
-    connect(ui->PatternPlayList,SIGNAL(currentRowChanged(int)),this,SLOT(ChangeListIndex(int)));
+    connect(ui->PatternList,&QListWidget::currentRowChanged,this,&CSequenserForm::ChangePatternIndex);
+    connect(ui->PatternPlayList,&QWidget::customContextMenuRequested,this,&CSequenserForm::PlayListPopup);
+    connect(ui->PatternPlayList,&QListWidget::currentRowChanged,this,&CSequenserForm::ChangeListIndex);
 
     UpdatePatterns();
     UpdateBeats();
@@ -37,14 +37,10 @@ CSequenserForm::~CSequenserForm()
 
 void CSequenserForm::UpdatePatterns()
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
     ui->PatternList->blockSignals(true);
     ui->PatternList->clear();
-    ui->RemovePattern->setEnabled(m_DM->Patterns.count()>1);
-    for (int i=0;i<m_DM->Patterns.count();i++)
-    {
-        ui->PatternList->addItem(m_DM->Patterns[i]->Name);
-    }
+    ui->RemovePattern->setEnabled(SEQUENSERCLASS->Patterns.size()>1);
+    for (const PatternType* p : std::as_const(SEQUENSERCLASS->Patterns)) ui->PatternList->addItem(p->Name);
     ui->PatternList->blockSignals(false);
 }
 
@@ -57,22 +53,21 @@ void CSequenserForm::UpdateBeats()
         ui->PatternList->setCurrentRow(0);
         ui->PatternList->blockSignals(false);
     }
-    CSequenser* m_DM=(CSequenser*)m_Device;
     ui->BeatsSpin->blockSignals(true);
     ui->TempoSpin->blockSignals(true);
     ui->NameEdit->blockSignals(true);
     CBeatFrame* Beat;
-    PatternType* CP=m_DM->Patterns[ui->PatternList->currentRow()];
-    for (int i=0;i<m_Beats.count();i++)
+    const PatternType* CP=SEQUENSERCLASS->Patterns[ui->PatternList->currentRow()];
+    for (CBeatFrame* b : std::as_const(m_Beats))//(int i=0;i<m_Beats.size();i++)
     {
-        m_Beats[i]->hide();
+        b->hide();
     }
-    ui->BeatsSpin->setValue(CP->NumOfBeats());
+    ui->BeatsSpin->setValue(CP->numOfBeats());
     ui->NameEdit->setText(CP->Name);
     ui->TempoSpin->setValue(CP->Tempo);
-    for (int i=0;i<CP->NumOfBeats();i++)
+    for (int i=0;i<CP->numOfBeats();i++)
     {
-        if (i>=m_Beats.count())
+        if (i>=m_Beats.size())
         {
             Beat=new CBeatFrame(this);
             Beat->hide();
@@ -80,7 +75,7 @@ void CSequenserForm::UpdateBeats()
             ui->BeatFrameLayout->addWidget(Beat);
         }
         Beat=m_Beats[i];
-        Beat->Init(CP->Beat(i),i,0,false,false,false);
+        Beat->Init(CP->beat(i),i,0,false,false,false);
         Beat->show();
     }
     ui->BeatsSpin->blockSignals(false);
@@ -90,58 +85,33 @@ void CSequenserForm::UpdateBeats()
 
 void CSequenserForm::UpdatePatternlist()
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
     ui->PatternPlayList->blockSignals(true);
     ui->PatternPlayList->clear();
-    for (int i=0;i<m_DM->PatternsInList.count();i++)
-    {
-        PatternListType* PL=m_DM->PatternsInList[i];
-        PatternType* P=PL->Pattern;
-        if (PL->Repeats>0)
-        {
-            ui->PatternPlayList->addItem(P->Name + " " + QString::number(PL->Repeats) + "x");
-        }
-        else
-        {
-            ui->PatternPlayList->addItem(P->Name + " Loop");
-        }
-    }
+    for (const PatternListType* p : std::as_const(SEQUENSERCLASS->PatternsInList)) ui->PatternPlayList->addItem(p->caption());
     ui->PatternPlayList->blockSignals(false);
 }
 
 void CSequenserForm::RemovePatternInList(int Index)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    if (m_DM->PatternsInList.count()>0)
+    if (!SEQUENSERCLASS->PatternsInList.isEmpty())
     {
-        delete m_DM->PatternsInList.takeAt(Index);
+        delete SEQUENSERCLASS->PatternsInList.takeAt(Index);
         UpdatePatternlist();
     }
 }
 
 void CSequenserForm::AddPatternToList(int NewIndex, int PatternIndex, int Repeats)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    PatternListType* PLI=new PatternListType;
-    PLI->Pattern=m_DM->Patterns[PatternIndex];
-    PLI->Repeats=Repeats;
-    if (NewIndex>m_DM->PatternsInList.count())
-    {
-        NewIndex=m_DM->PatternsInList.count();
-    }
-    m_DM->PatternsInList.insert(NewIndex,PLI);
+    if (NewIndex>SEQUENSERCLASS->PatternsInList.size()) NewIndex=SEQUENSERCLASS->PatternsInList.size();
+    SEQUENSERCLASS->PatternsInList.insert(NewIndex,new PatternListType(SEQUENSERCLASS->Patterns[PatternIndex],Repeats));
     UpdatePatternlist();
 }
 
 void CSequenserForm::AddPatternClick()
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    PatternType* P=new PatternType("New Pattern",16,1,100,0,0);
-    m_DM->Patterns.append(P);
+    SEQUENSERCLASS->Patterns.append(new PatternType("New Pattern",16,1,100,0,0));
     UpdatePatterns();
     ui->PatternList->setCurrentRow(ui->PatternList->count()-1);
-    //TabControl1->TabIndex=m_DM->Patterns->Count-1;
-    //TabControl1->OnChange(this);
 }
 //---------------------------------------------------------------------------
 
@@ -166,17 +136,13 @@ void CSequenserForm::RemovePatternClick()
 
 void CSequenserForm::RemovePattern(int Index)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    for (int i=0;i<m_DM->PatternsInList.count();i++)
+    for (int i=0;i<SEQUENSERCLASS->PatternsInList.size();i++)
     {
-        PatternListType* PLI=m_DM->PatternsInList[i];
+        const PatternListType* PLI=SEQUENSERCLASS->PatternsInList[i];
         PatternType* CP=PLI->Pattern;
-        if (m_DM->Patterns.indexOf(CP)==Index)
-        {
-            RemovePatternInList(i);
-        }
+        if (SEQUENSERCLASS->Patterns.indexOf(CP)==Index) RemovePatternInList(i);
     }
-    delete m_DM->Patterns.takeAt(Index);
+    delete SEQUENSERCLASS->Patterns.takeAt(Index);
 }
 
 void CSequenserForm::PlayListPopup(QPoint Pos)
@@ -186,7 +152,6 @@ void CSequenserForm::PlayListPopup(QPoint Pos)
 
 void CSequenserForm::MenuAddPatternClick()
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
     int PIndex=0;
     if (ui->PatternPlayList->currentRow()>-1)
     {
@@ -196,14 +161,11 @@ void CSequenserForm::MenuAddPatternClick()
     int Repeats=4;
     bool InsertBefore=true;
     CInsertPatternForm d(this);
-    d.SelectPattern(m_DM->Patterns,NewPattern,Repeats,InsertBefore);
+    d.SelectPattern(SEQUENSERCLASS->Patterns,NewPattern,Repeats,InsertBefore);
     if (d.exec() == QDialog::Accepted)
     {
         d.GetValues(NewPattern,Repeats,InsertBefore);
-        if (!InsertBefore)
-        {
-            PIndex++;
-        }
+        if (!InsertBefore) PIndex++;
         AddPatternToList(PIndex,NewPattern,Repeats);
     }
 }
@@ -220,10 +182,9 @@ void CSequenserForm::MenuRemovePatternClick()
 
 void CSequenserForm::MenuEditPatternClick()
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
     if (ui->PatternPlayList->currentRow()>-1)
     {
-        PatternListType* PL=m_DM->PatternsInList[ui->PatternPlayList->currentRow()];
+        PatternListType* PL=SEQUENSERCLASS->PatternsInList[ui->PatternPlayList->currentRow()];
         CRepeatForm d(this);
         d.SetRepeats(PL->Repeats);
         if (d.exec()==QDialog::Accepted)
@@ -236,122 +197,94 @@ void CSequenserForm::MenuEditPatternClick()
 
 void CSequenserForm::ChangePatternIndex()
 {
-    //CurrentPattern=ui->PatternList->currentRow();
     UpdateBeats();
 }
 //---------------------------------------------------------------------------
 
-/*
-void CSequenserForm::FormResize(TObject *Sender)
-{
-    ListView1->Columns->Items[0]->Width=ListView1->ClientWidth;
-}
-*/
 void CSequenserForm::ChangeName()
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    m_DM->Patterns[ui->PatternList->currentRow()]->Name=ui->NameEdit->text();
+    const int r = ui->PatternList->currentRow();
+    SEQUENSERCLASS->Patterns[r]->Name=ui->NameEdit->text();
     UpdatePatterns();
+    ui->PatternList->setCurrentRow(r);
 }
 
 void CSequenserForm::ChangeNumOfBeats(int Value)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    m_DM->Patterns[ui->PatternList->currentRow()]->SetNumOfBeats(Value,100,0,0);
+    SEQUENSERCLASS->Patterns[ui->PatternList->currentRow()]->setNumOfBeats(Value,100,0,0);
     UpdateBeats();
 }
 //---------------------------------------------------------------------------
 
 void CSequenserForm::ChangeTempo(int Value)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    m_DM->Patterns[ui->PatternList->currentRow()]->Tempo=Value;
+    SEQUENSERCLASS->Patterns[ui->PatternList->currentRow()]->Tempo=Value;
 }
 
-void CSequenserForm::CustomLoad(const QString &XML)
+void CSequenserForm::unserializeCustom(const QDomLiteElement* xml)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    for (int i=m_DM->Patterns.count()-1;i>-1;i--)
+    while (!SEQUENSERCLASS->Patterns.empty()) RemovePattern(SEQUENSERCLASS->Patterns.size()-1);
+    //SEQUENSERCLASS->Patterns.clear();
+    SEQUENSERCLASS->PatternsInList.clear();
+    if (!xml) return;
+    for (const QDomLiteElement* Pattern : (const QDomLiteElementList)xml->elementsByTag("Pattern"))
     {
-        RemovePattern(i);
-    }
-    m_DM->Patterns.clear();
-    m_DM->PatternsInList.clear();
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
-    {
-        QDomLiteElementList XMLPatterns=xml.elementsByTag("Pattern");
-        foreach (QDomLiteElement* Pattern, XMLPatterns)
+        int NOB = Pattern->attributeValueInt("NumOfBeats");
+        const QString Name = Pattern->attribute("Name");
+        auto P=new PatternType(Name,NOB);
+        SEQUENSERCLASS->Patterns.append(P);
+        P->Tempo = Pattern->attributeValueInt("Tempo");
+        const QDomLiteElementList XMLBeats = Pattern->elementsByTag("Beat");
+        for (int i=0;i<XMLBeats.size();i++)
         {
-            int NOB = Pattern->attributeValue("NumOfBeats");
-            QString Name = Pattern->attribute("Name");
-            PatternType* P=new PatternType(Name,NOB);
-            m_DM->Patterns.append(P);
-            P->Tempo= Pattern->attributeValue("Tempo");
-            //P->Polyphony= Pattern->attributeValue("Sounds");
-            QDomLiteElementList XMLBeats = Pattern->elementsByTag("Beat");
-            for (int i=0;i<XMLBeats.size();i++)
+            const QDomLiteElement* Beat=XMLBeats[i];
+            if (i<NOB)
             {
-                QDomLiteElement* Beat=XMLBeats[i];
-                if (i<NOB)
-                {
-                    BeatType* B = P->Beat(i);
-                        B->Pitch[0]=Beat->attributeValue("Pitch");
-                        B->Length[0]=Beat->attributeValue("Length");
-                        B->Volume[0]=Beat->attributeValue("Volume");
-                }
+                BeatType* B = P->beat(i);
+                B->Pitch[0]=Beat->attributeValueInt("Pitch");
+                B->Length[0]=Beat->attributeValueInt("Length");
+                B->Volume[0]=Beat->attributeValueInt("Volume");
             }
         }
-        //ui->PatternList->setCurrentRow(0);
-        //ui->InstrList->setCurrentRow(0);
-        XMLPatterns = xml.elementsByTag("PatternInList");
-        foreach(QDomLiteElement* PatternInList,XMLPatterns)
-        {
-            int Index = PatternInList->attributeValue("PatternIndex");
-            int Repeats = PatternInList->attributeValue("Repeats");
-            PatternListType* PLI=new PatternListType();
-            PLI->Repeats=Repeats;
-            PLI->Pattern=m_DM->Patterns[Index];
-            m_DM->PatternsInList.append(PLI);
-        }
+    }
+    for (const QDomLiteElement* PatternInList : (const QDomLiteElementList)xml->elementsByTag("PatternInList"))
+    {
+        const int Index = PatternInList->attributeValueInt("PatternIndex");
+        const int Repeats = PatternInList->attributeValueInt("Repeats");
+        SEQUENSERCLASS->PatternsInList.append(new PatternListType(SEQUENSERCLASS->Patterns[Index],Repeats));
     }
     UpdatePatterns();
     UpdateBeats();
     UpdatePatternlist();
 }
 
-const QString CSequenserForm::CustomSave()
+void CSequenserForm::serializeCustom(QDomLiteElement* xml) const
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    QDomLiteElement xml("Custom");
-    for (int i=0; i<m_DM->Patterns.count(); i++)
+    for (int i=0; i<SEQUENSERCLASS->Patterns.size(); i++)
     {
-        PatternType* P=m_DM->Patterns[i];
-        QDomLiteElement* Pattern = xml.appendChild("Pattern");
+        const PatternType* P=SEQUENSERCLASS->Patterns[i];
+        QDomLiteElement* Pattern = xml->appendChild("Pattern");
         Pattern->setAttribute("Name",P->Name);
-        Pattern->setAttribute("NumOfBeats",P->NumOfBeats());
+        Pattern->setAttribute("NumOfBeats",P->numOfBeats());
         Pattern->setAttribute("Tempo",P->Tempo);
-        //Pattern->setAttribute("Sounds",P->Polyphony);
-        for (int i1=0;i1<P->NumOfBeats();i1++)
+        for (int i1=0;i1<P->numOfBeats();i1++)
         {
-            BeatType* B=P->Beat(i1);
+            const BeatType* B=P->beat(i1);
             QDomLiteElement* Beat = Pattern->appendChild("Beat");
-                Beat->setAttribute("Pitch",B->Pitch[0]);
-                Beat->setAttribute("Length",B->Length[0]);
-                Beat->setAttribute("Volume",B->Volume[0]);
+            Beat->setAttribute("Pitch",B->Pitch[0]);
+            Beat->setAttribute("Length",B->Length[0]);
+            Beat->setAttribute("Volume",B->Volume[0]);
         }
     }
 
-    for (int i=0; i<m_DM->PatternsInList.count(); i++)
+    for (int i=0; i<SEQUENSERCLASS->PatternsInList.size(); i++)
     {
-        PatternListType* PLI=m_DM->PatternsInList[i];
-        int Index=m_DM->Patterns.indexOf(PLI->Pattern);
-        QDomLiteElement* PatternInList = xml.appendChild("PatternInList");
+        const PatternListType* PLI=SEQUENSERCLASS->PatternsInList[i];
+        const int Index=SEQUENSERCLASS->Patterns.indexOf(PLI->Pattern);
+        QDomLiteElement* PatternInList = xml->appendChild("PatternInList");
         PatternInList->setAttribute("PatternIndex",Index);
         PatternInList->setAttribute("Repeats",PLI->Repeats);
     }
-    return xml.toString();
 }
 
 void CSequenserForm::Flash(int Pattern, int Beat)
@@ -362,12 +295,10 @@ void CSequenserForm::Flash(int Pattern, int Beat)
 
 void CSequenserForm::ChangeListIndex(int index)
 {
-    CSequenser* m_DM=(CSequenser*)m_Device;
-    PatternListType* PLI=m_DM->PatternsInList[index];
+    QString PatternName=SEQUENSERCLASS->PatternsInList[index]->Pattern->Name;
     for (int i=0;i<ui->PatternList->count();i++)
     {
-        QListWidgetItem* l = ui->PatternList->item(i);
-        if (l->text()==PLI->Pattern->Name)
+        if (ui->PatternList->item(i)->text()==PatternName)
         {
             ui->PatternList->setCurrentRow(i);
             break;

@@ -1,11 +1,11 @@
 #ifndef CVSTHOSTFORM_H
 #define CVSTHOSTFORM_H
 
-#include <QDialog>
 #include <QMenu>
 #include <QStringList>
-#include "softsynthsclasses.h"
 #include "cvsthostclass.h"
+#include "cvsthost.h"
+#include "csoftsynthsform.h"
 
 namespace Ui {
 class CVSTHostForm;
@@ -44,7 +44,6 @@ protected:
 private:
     Ui::CVSTHostForm *ui;
     AEffect* m_Effect;
-    TVSTHost* m_OwnerClass;
     QRect EffRect;
     long CurrentParameter;
     void inline UpdateParam();

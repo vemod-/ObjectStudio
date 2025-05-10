@@ -3,98 +3,73 @@
 
 void inline CalcPeak(float Val,float* Peak)
 {
-    if (Val < 0)
-    {
-        Val = -Val;
-    }
-    if (Val > *Peak)
-    {
-        *Peak=Val;
-    }
+    *Peak=qMax<float>(qAbs<float>(Val),*Peak);
 }
 
-CEqualizer::CEqualizer()
+
+
+void inline CEqualizer::updateDeviceParameter(const CParameter* /*p*/)
 {
-}
-
-void inline CEqualizer::CalcParams()
-{
-    for (int i=0; i<8; i++)
+    for (CBiquad& f : filters) f.init();
+    filters[0].lsSetParams(Freq[0], Level[0], 1, presets.SampleRate);
+    for (int i=1; i<7; i++)
     {
-        eq_set_params(&filters[i], Freq[i], Level[i], BWIDTH, m_Presets.SampleRate);
+        filters[i].eqSetParams(Freq[i], Level[i], BWIDTH, presets.SampleRate);
     }
-    ((CEqualizerForm*)m_Form)->DrawGraph();
+    filters[7].hsSetParams(Freq[7], Level[7], 1, presets.SampleRate);
+    EQUALIZERFORM->DrawGraph();
 }
 
-void CEqualizer::SetLevel(int Index, int Level)
+CEqualizer::CEqualizer(){}
+
+void CEqualizer::SetLevel(const int Index, const float Level)
 {
     this->Level[Index]=Level;
-    eq_set_params(&filters[Index], Freq[Index], this->Level[Index], BWIDTH, m_Presets.SampleRate);
-    ((CEqualizerForm*)m_Form)->DrawGraph();
+    updateDeviceParameter();
 }
 
-void CEqualizer::SetFreq(int Index, int Freq)
+void CEqualizer::SetFreq(const int Index, const int Freq)
 {
     this->Freq[Index]=Freq;
-    eq_set_params(&filters[Index], this->Freq[Index], Level[Index], BWIDTH, m_Presets.SampleRate);
-    ((CEqualizerForm*)m_Form)->DrawGraph();
+    updateDeviceParameter();
 }
 
-void CEqualizer::Init(const int Index,void* MainWindow)
+void CEqualizer::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveOut(jnOut);
-    AddJackWaveIn();
-    Freq[0]=100;
-    Freq[1]=200;
-    Freq[2]=400;
-    Freq[3]=1000;
-    Freq[4]=3000;
-    Freq[5]=6000;
-    Freq[6]=12000;
-    Freq[7]=15000;
-    for (int i=0;i<8;i++)
-    {
-        Level[i]=0;
-        biquad_init(&filters[i]);
-    }
-    m_Form=new CEqualizerForm(this,(QWidget*)MainWindow);
-    ((CEqualizerForm*)m_Form)->Init(this);
-    ((CEqualizerForm*)m_Form)->Reset();
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackWaveOut(jnOut);
+    addJackWaveIn();
+    m_Form=new CEqualizerForm(this,MainWindow);
+    EQUALIZERFORM->Init();
+    EQUALIZERFORM->Reset();
+    updateDeviceParameter();
 }
 
-float* CEqualizer::GetNextA(const int ProcIndex)
+CAudioBuffer* CEqualizer::getNextA(const int ProcIndex)
 {
-    CEqualizerForm* f=((CEqualizerForm*)m_Form);
-    float* InSignal=FetchA(jnIn);
-    if (!InSignal)
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    if (!InBuffer->isValid())
     {
+        for (int i=0;i<8;i++) CalcPeak(0,EQUALIZERFORM->PeakVal+i);
+        return nullptr;
+    }
+    CMonoBuffer* OutBuffer=MonoBuffer(ProcIndex);
+    for (uint i=0;i<m_BufferSize;i++)
+    {
+        float samp = InBuffer->at(i);
         for (int i1=0;i1<8;i1++)
         {
-            CalcPeak(0,f->PeakVal+i1);
+            if (!isZero(Level[i1])) samp = filters[i1].run(samp);
+            CalcPeak(samp,EQUALIZERFORM->PeakVal+i1);
         }
-        return NULL;
+        OutBuffer->setAt(i,samp);
     }
-    float* Buffer=AudioBuffers[ProcIndex]->Buffer;
-    for (int i=0;i<m_BufferSize;i++)
-    {
-        float samp = InSignal[i];
-        for (int i1=0;i1<8;i1++)
-        {
-            if (Level[i1] != 0)
-            {
-                samp = biquad_run(&filters[i1], samp);
-            }
-            CalcPeak(samp,f->PeakVal+i1);
-        }
-        Buffer[i] = samp;
-    }
-    return Buffer;
+    return OutBuffer;
 }
 
-void CEqualizer::Play(const bool FromStart)
+void CEqualizer::play(const bool FromStart)
 {
-    if (FromStart) ((CEqualizerForm*)m_Form)->Reset();
+    if (FromStart) EQUALIZERFORM->Reset();
+    IDevice::play(FromStart);
 }

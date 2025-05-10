@@ -1,28 +1,28 @@
 #ifndef CMACROBOX_H
 #define CMACROBOX_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 
 class CMacroBox : public IDevice
 {
 public:
     CMacroBox();
     ~CMacroBox();
-    void Play(const bool FromStart);
-    void Pause();
-    void Init(const int Index,void* MainWindow);
-    float GetNext(const int ProcIndex);
-    void* GetNextP(const int ProcIndex);
-    float* GetNextA(const int ProcIndex);
-    void Tick();
-    void HideForm();
+    void init(const int Index, QWidget* MainWindow);
+    float getNext(const int ProcIndex);
+    CMIDIBuffer* getNextP(const int ProcIndex);
+    CAudioBuffer* getNextA(const int ProcIndex);
+    //void hideForm();
 private:
+    /*
     enum JackNames
     {jnMIDIIn,jnOut};
     enum ParameterNames
     {pnMIDIChannel,pnVolume};
-    QList<IJack*> InsideJacks;
+    */
+    QList<CInJack*> InsideJacks;
     QList<IJack*> JacksCreated;
+    //QRecursiveMutex mutex;
 };
 
 #endif // CMACROBOX_H

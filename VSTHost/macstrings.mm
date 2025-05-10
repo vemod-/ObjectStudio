@@ -1,44 +1,44 @@
 #include "macstrings.h"
 
-#import <Cocoa/Cocoa.h>
-#import <Carbon/Carbon.h>
+#import <CoreFoundation/CoreFoundation.h>
+#ifndef __x86_64
+//#include <Carbon/Carbon.h>
+#endif
 
-const QString qt_mac_MacRomanToQString (const char* source)
+const QString qt_mac_MacRomanToQString(const char* source)
 {
-    char buffer[256];
-    CFStringRef temp = CFStringCreateWithCString (kCFAllocatorDefault, source, kCFStringEncodingMacRoman);
-    CFStringGetCString (temp, buffer, 256, kCFStringEncodingUTF8);
-    CFRelease (temp);
-    return QString(buffer);
+    CFStringRef temp = CFStringCreateWithCString(kCFAllocatorDefault, source, kCFStringEncodingMacRoman);
+    QString retval=qt_mac_CFStringToQString(temp);
+    CFRelease(temp);
+    return retval;
 }
 
 const QString qt_mac_NSStringToQString(const void *source)
 {
+#if (QT_VERSION < QT_VERSION_CHECK(5, 2, 0))
+    if (!source) return QString();
     NSString* nsstr=(NSString*)source;
-    NSRange range;
-    range.location = 0;
-    range.length = [nsstr length];
-    QString result(range.length, QChar(0));
-
-    unichar *chars = new unichar[range.length];
-    [nsstr getCharacters:chars range:range];
-    result = QString::fromUtf16(chars, range.length);
-    delete[] chars;
-    return result;
+    const int length=[nsstr length];
+    if (length == 0) return QString();
+    QString string(length,Qt::Uninitialized);
+    [nsstr getCharacters:(UniChar*)string.unicode() range:NSMakeRange(0,length)];
+    return QString::fromUtf16(string.unicode(), length);
+#else
+    return QString::fromNSString((__bridge NSString*)source);
+#endif
 }
 
 const QString qt_mac_CFStringToQString(const void* source)
 {
+#if (QT_VERSION < QT_VERSION_CHECK(5, 2, 0))
+    if (!source) return QString();
     CFStringRef str=(CFStringRef)source;
-    if (!str)
-        return QString();
-
-    CFIndex length = CFStringGetLength(str);
-    if (length == 0)
-        return QString();
-
+    const CFIndex length = CFStringGetLength(str);
+    if (length == 0) return QString();
     QString string(length, Qt::Uninitialized);
-    CFStringGetCharacters(str, CFRangeMake(0, length), reinterpret_cast<UniChar *>
-                          (const_cast<QChar *>(string.unicode())));
+    CFStringGetCharacters(str, CFRangeMake(0, length),(UniChar*)string.unicode());
     return string;
+#else
+    return QString::fromCFString(static_cast<CFStringRef>(source));
+#endif
 }

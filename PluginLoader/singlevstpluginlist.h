@@ -2,18 +2,35 @@
 #define SINGLEVSTPLUGINLIST_H
 
 #include <QtCore>
-#include <Cocoa/Cocoa.h>
+#include <QProcess>
+//#include <Cocoa/Cocoa.h>
+#include "macbundles.h"
+
+#ifndef Q_OS_IOS
+void runAppleScript(const QString& script)
+{
+    QProcess::execute("osascript", {"-e", script});
+}
+#endif
 
 class SingleVSTPlugInList : public QMap<QString,QStringList>
 {
 public:
+    static const QStringList categories()
+    {
+        return getInstance()->keys();
+    }
+    static const QStringList files(const QString& category)
+    {
+        return getInstance()->value(category);
+    }
+private:
     static SingleVSTPlugInList* getInstance()
     {
         static SingleVSTPlugInList    instance; // Guaranteed to be destroyed.
         // Instantiated on first use.
         return &instance;
     }
-private:
     SingleVSTPlugInList()
     {
         if (isEmpty())
@@ -35,52 +52,80 @@ private:
         while (iterator.hasNext())
         {
             iterator.next();
+            qDebug() << iterator.fileName();
             if (iterator.fileInfo().isBundle())
             {
+                qDebug() << iterator.fileName() << "isBundle";
                 QString filename = iterator.filePath();
-                if ((filename.toLower().endsWith(".vst")) | (filename.toLower().endsWith(".vst3")))
+                if ((filename.endsWith(".vst",Qt::CaseInsensitive)) || (filename.endsWith(".vst3",Qt::CaseInsensitive)))
                 {
-                    CFStringRef vstBundlePath =
-                            CFStringCreateWithCString(kCFAllocatorDefault,
-                                                      filename.toUtf8().constData(), kCFStringEncodingMacRoman );
-                    CFURLRef vstBundleURL =
-                            CFURLCreateWithFileSystemPath(kCFAllocatorDefault,
-                                                          vstBundlePath,
-                                                          kCFURLPOSIXPathStyle,
-                                                          true);
-                    //CFBundleRef vstBundle = CFBundleCreate(kCFAllocatorDefault, vstBundleURL);
-                    CFArrayRef archArrayRef = CFBundleCopyExecutableArchitecturesForURL(vstBundleURL);
-
-                    if (archArrayRef)
-                    {
-                        BOOL isI386 = [(NSArray*)archArrayRef containsObject:[NSNumber numberWithInt:kCFBundleExecutableArchitectureI386]];
-                        if (isI386)
+                    qDebug() << iterator.fileName() << "ends with vst";
+                    const CFBundleRef TempBundle = pathToCFBundleRef(filename);
+                    qDebug() << iterator.fileName() << "path to bundle" << TempBundle;
+                    try {
+                        if ((functionPointerInBundle("VSTPluginMain",TempBundle)) || (functionPointerInBundle("main_macho",TempBundle))  || (functionPointerInBundle("main",TempBundle))  || (functionPointerInBundle("main_plugin",TempBundle)))
                         {
-                            qDebug() << filename;
-                            l.append(filename);
+                            qDebug() << iterator.fileName() << "has pointer";
+    #ifndef __x86_64
+                            if (bundleIsI386(filename))
+                            {
+                                qDebug() << "x86" << filename;
+                                l.append(filename);
+                            }
+                            else if (bundleIsX86_64(filename))
+                            {
+                                qDebug() << "x86_64" << filename;
+                            }
+                            else
+                            {
+                                qDebug() << "Unknown" << filename;
+                            }
+    #else
+                            if (bundleIsX86_64(filename))
+                            {
+                                qDebug() << "x86_64" << filename;
+                                l.append(filename);
+                            }
+                            else if (bundleIsI386(filename))
+                            {
+                                qDebug() << "x86" << filename;
+                                moveFile(filename);
+                            }
+                            else
+                            {
+                                qDebug() << "Unknown" << filename;
+                                moveFile(filename);
+                            }
+#endif
                         }
+                        else
+                        {
+                            qDebug() << "No function" << filename;
+                            moveFile(filename);
+                        }
+                        CFRelease(TempBundle);
                     }
-                    CFRelease(vstBundlePath);
-                    CFRelease(vstBundleURL);
-
-                    /*
-                    if (vstBundle != NULL)
-                    {
-                        void* main = CFBundleGetFunctionPointerForName(vstBundle, CFSTR("VSTPluginMain"));
-                        if (!main) {
-                            main = CFBundleGetFunctionPointerForName(vstBundle, CFSTR("main_macho"));
-                        }
-                        if (main)
-                        {
-                            qDebug() << filename;
-                            l.append(filename);
-                        }
-                        CFRelease(vstBundle);
-                        */
+                    catch(...) {
+                        qDebug() << iterator.fileName() << "catch error!";
+                    }
                 }
             }
         }
         return l;
+    }
+    void moveFile(const QString& filename)
+    {
+        QString p = QString(filename).replace("/Library/Audio/Plug-Ins/","/Library/Audio/Plug-Ins/Incopatible/");
+        if (!p.startsWith(QDir::homePath())) p = QDir::homePath()+p;
+        QString d = QFileInfo(p).absoluteDir().absolutePath();
+        if (!QDir(d).exists()) qDebug() << "Create path" << d << QDir(d).mkpath(d);
+#ifdef Q_OS_IOS
+        QFile(filename).rename(p);
+#else
+        runAppleScript("tell application \"Finder\"\n"
+                      "move POSIX file \""+filename+"\" to POSIX file \""+d+"\" with replacing \n"
+                      "end tell\n");
+#endif
     }
 };
 

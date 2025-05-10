@@ -1,7 +1,6 @@
 #include "crange.h"
-#include "softsynthsclasses.h"
-#include <QFileInfo>
-#include "cpitchtrackerclass.h"
+//#include <QFileInfo>
+#include "cpitchdetect.h"
 
 int FindZeroXing(float* Buffer,int Samples,int Position,bool BackwardsOnly,int NearestValuePointer)
 {
@@ -14,12 +13,12 @@ int FindZeroXing(float* Buffer,int Samples,int Position,bool BackwardsOnly,int N
     bool BActive=false;
     float NearestValue=0;
     if (NearestValuePointer>-1) NearestValue=Buffer[NearestValuePointer];
-    for (int i=Position;i>0;i--)
+    for (int i = Position; i > 0; i--)
     {
         BActive=true;
         if (Prev>0 && Buffer[i]<=0)
         {
-            if (fabs(Prev-NearestValue)>fabs(Buffer[i]-NearestValue))
+            if (fabsf(Prev-NearestValue)>fabsf(Buffer[i]-NearestValue))
             {
                 BPos=i;
                 if (BackwardsOnly) return BPos;
@@ -39,14 +38,7 @@ int FindZeroXing(float* Buffer,int Samples,int Position,bool BackwardsOnly,int N
         FActive=true;
         if (Prev<=0 && Buffer[i]>0)
         {
-            if (fabs(Prev-NearestValue)>fabs(Buffer[i]-NearestValue))
-            {
-                FPos=i;
-            }
-            else
-            {
-                FPos=i-1;
-            }
+            FPos = (fabsf(Prev-NearestValue)>fabsf(Buffer[i]-NearestValue)) ? i : i-1;
             break;
         }
         FSteps++;
@@ -66,90 +58,93 @@ int FindZeroXing(float* Buffer,int Samples,int Position,bool BackwardsOnly,int N
         {
             return BPos;
         }
-        else
-        {
-            return FPos;
-        }
+        return FPos;
     }
     return Position;
 }
 
-void CSampleKeyRange::PitchDetect(int Tune)
+void CSampleKeyRange::pitchDetect(int Tune)
 {
-    float* Buffer=WG.BufferPointer(0);
+    /*
+    const CChannelBuffer* Buffer=generator.buffer();
+    if (!Buffer) return;
     int HalfLength=16384*2;
-    int StartPos=WG.GetLength()-(HalfLength*6);
+    int StartPos=generator.size()-(HalfLength*6);
     while (StartPos<0)
     {
         HalfLength=HalfLength/2;
-        StartPos=WG.GetLength()-(HalfLength*6);
+        StartPos=generator.size()-(HalfLength*6);
     }
-    qDebug() << "Halflength" << HalfLength << WG.GetLength() << WG.LP.End << StartPos+(HalfLength*4);
-    CPitchTrackerClass* PT=new CPitchTrackerClass(HalfLength,CPresets::Presets.SampleRate);
-    PT->InTune=Tune;
-    for (int i=0;i<HalfLength;i++)
-    {
-        PT->coeffs[i]=Buffer[StartPos+(i*4)];
+    qDebug() << "Halflength" << HalfLength << generator.size() << generator.LP.End << StartPos+(HalfLength*4);
+    //CPitchTrackerClass* PT=new CPitchTrackerClass(HalfLength,presets.SampleRate);
+*/
+    CPitchDetect PD(presets.SampleRate);
+    PD.setTune(Tune);
+    PD.ProcessBuffer(generator.buffer()->data(),generator.size());
+    CPitchDetect::PitchRecord r=PD.CurrentPitchRecord();
+    if (r.MidiKey > 0) {
+        generator.LP.MIDIKey=r.MidiKey;
+        generator.LP.MIDICents=r.MidiCents;
     }
-    PT->Process();
-    WG.LP.MIDINote=PT->CurrentNote-24;
-    WG.LP.Tune=PT->CurrentDiff*1000.0;
-    delete PT;
+    qDebug() << r.MidiKey << r.MidiCents;
+    //PT->InTune=Tune;
+    //for (int i=0;i<HalfLength;i++)
+    //{
+    //    PT->coeffs[i]=Buffer->at(StartPos+(i*4),0);
+    //}
+    //PT->process();
+    //generator.LP.MIDINote=PT->CurrentNote-24;
+    //generator.LP.Tune=factor2Centf(diff2Factorf(PT->CurrentDiff));//PT->CurrentDiff*1000.0;
+
+    //delete PT;
 }
 
-void CSampleKeyRange::AutoLoop(int Cycles)
+void CSampleKeyRange::autoLoop(int Cycles)
 {
-    float Freq=MIDItoFreq(WG.LP.MIDINote,440.0);
-    float TempTune=pow(2.0,(float)(WG.LP.Tune)*0.001);
-    float CycleLength=(float)CPresets::Presets.SampleRate/(Freq*TempTune);
+    float Freq=MIDIkey2Freqf(generator.LP.MIDIKey,440.f,generator.LP.MIDICents);
+    float CycleLength=float(presets.SampleRate)/Freq;
     float Length=CycleLength*Cycles;
-    WG.LP.LoopType=CWaveGenerator::ltForward;
-    WG.LP.LoopEnd=FindZeroXing(WG.BufferPointer(0),WG.GetLength(),WG.LP.End-CycleLength,true,-1);
-    WG.LP.LoopStart=FindZeroXing(WG.BufferPointer(0),WG.GetLength(),WG.LP.LoopEnd-Length,false,WG.LP.LoopEnd);
+    generator.LP.LoopType=CWaveGenerator::ltForward;
+    generator.LP.LoopEnd=FindZeroXing(generator.channelPointer(0),generator.size(),generator.LP.End-CycleLength,true,-1);
+    generator.LP.LoopStart=FindZeroXing(generator.channelPointer(0),generator.size(),generator.LP.LoopEnd-Length,false,generator.LP.LoopEnd);
 }
 
-void CSampleKeyRange::AutoTune()
+void CSampleKeyRange::autoTune()
 {
-    float Length=WG.LP.LoopEnd-WG.LP.LoopStart;
-    if (Length<=0)
-    {
-        return;
-    }
-    float Freq=MIDItoFreq(WG.LP.MIDINote,440.0);
-    float CycleLength=(float)CPresets::Presets.SampleRate/Freq;
-    float Cycles=qRound(Length/CycleLength);
-    float ActualFreq=((float)CPresets::Presets.SampleRate/Length)*Cycles;
-    float FreqDiff=(Freq-ActualFreq)/Freq;
-    qDebug() << "Freq" << Freq << "CycleLength" << CycleLength << "Cycles" << Cycles << "ActualFreq" << ActualFreq << "FreqDiff" << FreqDiff;
-    int TuneVar=FreqDiff*1000.0;
-    WG.LP.Tune=TuneVar;
+    float Length=generator.LP.LoopEnd-generator.LP.LoopStart;
+    if (Length<=0) return;
+    float Freq=MIDIkey2Freqf(generator.LP.MIDIKey,440.f);
+    float CycleLength=float(presets.SampleRate)/Freq;
+    float Cycles=qMax(1,qRound(Length/CycleLength));
+    float ActualFreq=(float(presets.SampleRate)/Length)*Cycles;
+    float FreqFactor=Freq/ActualFreq;
+    generator.LP.MIDICents=factor2Centf(FreqFactor);
+    qDebug() << "Freq" << Freq << "CycleLength" << CycleLength << "Cycles" << Cycles << "Looplength" << Length << "ActualFreq" << ActualFreq << "FreqFactor" << FreqFactor << "Cents" << generator.LP.MIDICents;
 }
 
-void CSampleKeyRange::AutoFix(int Cycles, int Tune)
+void CSampleKeyRange::autoFix(int Cycles, int Tune)
 {
-    PitchDetect(Tune);
-    AutoLoop(Cycles);
-    AutoTune();
+    pitchDetect(Tune);
+    autoLoop(Cycles);
+    autoTune();
 }
 
 CSampleKeyRange::CSampleKeyRange(const QString& WavePath,int Upper,int Lower)
 {
+    QMutexLocker locker(&mutex);
     qDebug() << "Create TCSampleKeyRange";
-    RP.UpperZero=Upper;
-    RP.UpperTop=Upper;
-    RP.LowerZero=Lower;
-    RP.LowerTop=Lower;
-    RP.Volume=100;
+    parameters.reset(Upper,Lower);
     PlayVol=1;
-    ChangePath(WavePath);
+    changePath(WavePath);
 }
 
 CSampleKeyRange::CSampleKeyRange(const QString& WavePath,CSampleKeyRange::RangeParams RangeParams)
 {
+    QMutexLocker locker(&mutex);
     qDebug() << "Create TCSampleKeyRange";
-    RP=RangeParams;
+    parameters=RangeParams;
     PlayVol=1;
-    ChangePath(WavePath);
+    changePath(WavePath);
 }
 
 CSampleKeyRange::~CSampleKeyRange()
@@ -157,45 +152,15 @@ CSampleKeyRange::~CSampleKeyRange()
     qDebug() << "Delete TCSampleKeyRange";
 }
 
-void CSampleKeyRange::ChangePath(const QString& WavePath)
+void CSampleKeyRange::changePath(const QString& WavePath)
 {
-    if (WavePath==FileName) return;
-    if (QFileInfo(WavePath).exists())
+    if (WavePath==fileName) return;
+    QMutexLocker locker(&mutex);
+    if (QFileInfo::exists(WavePath))
     {
-        WG.open(WavePath,CPresets::Presets.SampleRate,CPresets::Presets.ModulationRate);
-        WG.LP.Start=0;
-        WG.LP.End=WG.GetLength();
-        WG.LP.LoopStart=0;
-        WG.LP.LoopEnd=0;
-        WG.LP.MIDINote=69;
-        WG.LP.Tune=0;
-        WG.LP.LoopType=CWaveGenerator::ltForward;
-        WG.LP.FadeIn=0;
-        WG.LP.FadeOut=0;
-        WG.LP.XFade=0;
-        WG.LP.Volume=100;
-        FileName=WavePath;
+        generator.load(WavePath);
+        generator.LP.reset(generator.size());
+        fileName=WavePath;
     }
-}
-
-float CSampleKeyRange::GetVolume(int MIDIKey)
-{
-    if ((MIDIKey<RP.LowerZero+1) || (MIDIKey>RP.UpperZero))
-    {
-        return 0;
-    }
-    if (MIDIKey<RP.LowerTop+1)
-    {
-        float diff=RP.LowerTop-RP.LowerZero;
-        float Val=MIDIKey-(RP.LowerZero+1);
-        return 0.01 * Val*(float)RP.Volume/diff;
-    }
-    if (MIDIKey>RP.UpperTop)
-    {
-        float diff=-(RP.UpperTop-RP.UpperZero);
-        float Val=-(MIDIKey-(RP.UpperZero-1));
-        return 0.01 * Val*(float)RP.Volume/diff;
-    }
-    return (float)RP.Volume*0.01;
 }
 

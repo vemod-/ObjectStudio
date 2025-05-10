@@ -4,12 +4,10 @@
 #include <QWidget>
 #include <QComboBox>
 #include <QDoubleSpinBox>
-#include <QMenu>
+#include "qsignalmenu.h"
 #include <QMouseEvent>
 #include <QWidgetAction>
-#include <QSignalMapper>
-#include "softsynthsdefines.h"
-#include "softsynthsclasses.h"
+#include "cparameter.h"
 
 namespace Ui {
     class CKnobControl;
@@ -19,26 +17,35 @@ class CKnobControl : public QWidget
 {
     Q_OBJECT
 public:
+    enum KnobType {
+        Knob,
+        Switch,
+        Checkbox
+    };
     explicit CKnobControl(QWidget *parent = 0);
     ~CKnobControl();
-    void setValue(int Value, const ParameterType& p);
-    void setLabels(int Value, const ParameterType &p);
+    void setValue(CParameter* p);
+    void setLabels(CParameter* p);
     int value();
 protected:
     void mousePressEvent(QMouseEvent *);
 signals:
     void valueChanged(int Value);
+    void requestAutomation(CParameter*);
 private:
-    ParameterType Parameter;
+    CParameter* m_Parameter;
     Ui::CKnobControl *ui;
-    QMenu* popup;
+    QSignalMenu* popup;
     QWidgetAction* spinboxAction;
     QDoubleSpinBox* spinbox;
-    QSignalMapper* mapper;
-
+    KnobType m_KnobType;
+    //QRecursiveMutex mutex;
 private slots:
     void SetNumericValue(double Value);
     void SetdBValue(double Value);
+    void sendAutomationRequest() {
+        emit requestAutomation(m_Parameter);
+    }
 };
 
 #endif // CKNOBCONTROL_H

@@ -16,10 +16,8 @@ CInsertPatternForm::~CInsertPatternForm()
 void CInsertPatternForm::SelectPattern(QList<PatternType*>& Patterns,int PatternIndex,int Repeats,bool InsertBefore)
 {
     ui->comboBox->clear();
-    for (int i=0;i<Patterns.count();i++)
-    {
-        ui->comboBox->addItem(Patterns[i]->Name);
-    }
+    for (PatternType* p : Patterns)
+        ui->comboBox->addItem(p->Name);
     ui->comboBox->setCurrentIndex(PatternIndex);
     ui->spinBox->setValue(Repeats);
     ui->checkBox->setChecked(Repeats==0);

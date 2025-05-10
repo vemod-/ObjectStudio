@@ -1,117 +1,90 @@
 #include "csf2generator.h"
-#include "softsynthsclasses.h"
 
-bool CSF2Generator::LoadFile(const QString& Path)
+bool CSF2Generator::load(const QString& Path)
 {
-    QString m_Path=QFileInfo(Path).absoluteFilePath();
-    Ready=false;
-    Unref();
-    if (!SF2Files->contains(m_Path.toLower()))
-    {
-        if (!QFileInfo(m_Path).exists())
-        {
-            return false;
-        }
-        SFFile=new CSF2File;
-        if (!SFFile->Open(m_Path))
-        {
-            delete SFFile;
-            SFFile=NULL;
-            return false;
-        }
-        SF2Files->insert(m_Path.toLower(),SFFile);
-    }
-    else
-    {
-        SFFile=SF2Files->value(m_Path.toLower());
-    }
+    QMutexLocker locker(&mutex);
+    endNote();
     MidiBank=0;
     MidiPreset=0;
-    pitchWheel=0;
-    transpose=0;
-    SFFile->ReferenceCount++;
-    qDebug() << SFFile->ReferenceCount;
-    FinishedPlaying=true;
+    m_PitchWheel=0;
+    m_PortamentoStep=0;
+    finished=true;
     ID=0;
-    Channel=0;
+    channel=0;
+    QString m_Path = QFileInfo(Path).absoluteFilePath();
+    Ready=false;
+    Unref();
+    if (!QFileInfo::exists(m_Path)) return false;
+    SFFile=CSingleMap<QString, CSF2File>::addItem(m_Path.toLower());
+    if (SFFile->refCount==1)
+    {
+        if (!SFFile->load(m_Path))
+        {
+            Unref();
+            return false;
+        }
+    }
     return true;
 }
 
-CSF2Generator::CSF2Generator()
+CSF2Generator::CSF2Generator() :
+    ISoundGenerator()
 {
-    SF2Files=SingleSF2Map::getInstance();
     Ready=false;
-    SFFile=NULL;
-    OscCount=0;
-    FinishedPlaying=true;
-    ID=0;
-    Channel=0;
+    SFFile=nullptr;
     MidiBank=0;
     MidiPreset=0;
-    pitchWheel=0;
-    transpose=0;
-    m_ModulationRate=CPresets::Presets.ModulationRate;
-    AudioL=new float[m_ModulationRate*2];
-    AudioR=AudioL +m_ModulationRate;
-    ZeroMemory(AudioL,m_ModulationRate*sizeof(float)*2);
 }
 
 CSF2Generator::~CSF2Generator()
 {
     Unref();
-    delete [] AudioL;
-    qDeleteAll(Osc);
+    //qDeleteAll(Osc);
 }
 
 void CSF2Generator::Unref()
 {
-    if (SFFile!=NULL)
+    QMutexLocker locker(&mutex);
+    if (SFFile!=nullptr)
     {
-        if (--SFFile->ReferenceCount==0)
-        {
-            sfUnloadSFBank(SFFile->BankID);
-            SF2Files->remove(SFFile->Path.toLower());
-            qDebug() << "SF2Generator destructor" << SF2Files->count();
-            delete SFFile;
-        }
-        SFFile=NULL;
+        CSingleMap<QString, CSF2File>::removeItem(SFFile->path.toLower());
+        SFFile=nullptr;
     }
 }
 
-void CSF2Generator::setPitchWheel(int cent)
+void CSF2Generator::setPitchWheel(const int cent)
 {
-    pitchWheel=cent;
-    foreach (OscType* O, Osc) O->setPitchWheel(cent);
+    ISoundGenerator::setPitchWheel(cent);
+    for (CSFOscillator& O : Osc) O.setPitchWheel(cent);
 }
 
-void CSF2Generator::addTranspose(int steps)
+void CSF2Generator::addPortamento(const int steps)
 {
-    transpose+=steps;
-    foreach (OscType* O, Osc) O->setTranspose(transpose);
+    ISoundGenerator::addPortamento(steps);
+    for (CSFOscillator& O : Osc) O.setTranspose(m_PortamentoStep);
 }
 
-void CSF2Generator::setAftertouch(short value)
+void CSF2Generator::setAftertouch(const int value)
 {
-    float val=(value*0.001)+1;
-    foreach (OscType* O, Osc) O->setAftertouch(val);
+    ISoundGenerator::setAftertouch(value);
+    const float val=(value*0.001f)+1;
+    for (CSFOscillator& O : Osc) O.setAftertouch(val);
 }
 
-void CSF2Generator::resetTranspose()
+void CSF2Generator::resetPortamento()
 {
-    transpose=0;
-    foreach (OscType* O, Osc) O->setTranspose(0);
+    ISoundGenerator::resetPortamento();
+    for (CSFOscillator& O : Osc) O.setTranspose(0);
 }
 
-void CSF2Generator::ResetSample(const short MidiNote, const short MidiVelo)
+void CSF2Generator::startNote(const short MidiNote, const short MidiVelo)
 {
     Ready=false;
     if (!SFFile) return;
     PlayEnd=false;
-    FinishedPlaying=false;
-    sfData* OscData = sfNav(SFFile->BankID,MidiBank,MidiPreset,MidiNote,MidiVelo,&OscCount);
-    //    SmpHdrs=sfGetSampHdrs(MidiBank,&SmpCnt);
-
-    if (OscCount <= 0) return;
+    finished=false;
+    std::vector<sfData> OscData = SFFile->SF2Enabler.Nav(ushort(bankPresetNumber(MidiBank,MidiPreset)),ushort(MidiNote),ushort(MidiVelo));
+    if (OscData.empty()) return;
     /*
     Debug("Osc count " + QString::number(OscCount) +
         " Offset " + QString::number(SFFile->Offset) +
@@ -121,141 +94,149 @@ void CSF2Generator::ResetSample(const short MidiNote, const short MidiVelo)
         " SF Bank " + QString::number(SFFile->BankID)
     );
     */
-    //OscFactor=1/sqrt(OscCount);
-    for (int i=Osc.size();i<OscCount;i++)
+    //OscFactor=mixFactor(OscCount);
+    Osc.resize(OscData.size());//for (ulong i=Osc.size();i<OscCount;i++) Osc.push_back(new CSFOscillator);
+    for (uint i=0;i<OscData.size();i++)
     {
-        Osc.push_back(new OscType);
-    }
-    for (int i=0;i<OscCount;i++)
-    {
-        OscType* O=Osc[i];
-        O->Init(&OscData[i],SFFile,MidiNote,MidiVelo);
-        O->setPitchWheel(pitchWheel);
-        O->setTranspose(transpose);
-        O->Start();
+        CSFOscillator& O=Osc[i];
+        O.Silent=true;
+        if (SFFile->sampleCount > 0)
+        {
+            O.setTune(m_Tune);
+            O.Init(&OscData[i],MidiNote,MidiVelo);
+            O.setPitchWheel(m_PitchWheel);
+            O.setTranspose(m_PortamentoStep);
+            O.Start();
+        }
     }
     Ready=true;
 }
 
-void CSF2Generator::EndSample()
+void CSF2Generator::endNote()
 {
     PlayEnd=true;
     ID=0;
-    foreach (OscType* O, Osc) O->End();
+    for (CSFOscillator& O : Osc) O.Finish();
 }
 
-float* CSF2Generator::GetNext()
+float* CSF2Generator::getNext()
 {
-    //short I;
-    if ((!Ready) | FinishedPlaying)
+    if ((!Ready) | finished | (SFFile==nullptr)) return nullptr;
+    ushort SilentCount=0;
+    for (CSFOscillator& O : Osc)
     {
-        return NULL;
-    }
-    short SilentCount=0;
-    foreach (OscType* O, Osc)
-    {
-        if (O->Silent)
+        if (!O.Silent) break;
+        if (++SilentCount==Osc.size())
         {
-            SilentCount++;
-        }
-        else
-        {
-            break;
+            finished=true;
+            return nullptr;
         }
     }
-    if (SilentCount==OscCount)
+    Buffer.zeroBuffer();
+    for (CSFOscillator& O : Osc)
     {
-        FinishedPlaying=true;
-        return NULL;
-    }
-    ZeroMemory(AudioL,m_ModulationRate*sizeof(float)*2);
-    foreach (OscType* O, Osc)
-    {
-        if (!O->Silent)
+        if (!O.Silent)
         {
-            O->Modulate();
-            char SmpMd=O->SampleMode & 3;
-            if (O->Stereo==OscType::StereoL)
+            O.Modulate();
+            //const char SmpMd = O.SampleMode & 3;
+            const bool DoLoop = ((O.SampleMode & 0x01) | (!PlayEnd & (O.SampleMode & 0x02)));
+            if (O.Stereo==CSFOscillator::StereoL)
             {
-                if ((SmpMd & 1) | (!PlayEnd & (SmpMd & 2)))
+                if (DoLoop)
                 {
-                    for (unsigned int s=0;s<m_ModulationRate;s++)
+                    for (uint s=0;s<Buffer.size();s++)
                     {
-                        O->Loop();
-                        AudioL[s]+=O->UpdatePos();
+                        O.Loop();
+                        Buffer.addAtL(s,O.UpdatePos(SFFile));
                     }
                 }
                 else //if (SmpMd==0)
                 {
-                    for (unsigned int s=0;s<m_ModulationRate;s++)
+                    for (uint s=0;s<Buffer.size();s++)
                     {
-                        if (O->NoLoop()) break;
-                        AudioL[s]+=O->UpdatePos();
+                        if (O.NoLoop()) break;
+                        Buffer.addAtL(s,O.UpdatePos(SFFile));
                     }
                 }
             }
-            else if (O->Stereo==OscType::StereoR)
+            else if (O.Stereo==CSFOscillator::StereoR)
             {
-                if ((SmpMd & 1) | (!PlayEnd & (SmpMd & 2)))
+                if (DoLoop)
                 {
-                    for (unsigned int s=0;s<m_ModulationRate;s++)
+                    for (uint s=0;s<Buffer.size();s++)
                     {
-                        O->Loop();
-                        AudioR[s]+=O->UpdatePos();
+                        O.Loop();
+                        Buffer.addAtR(s,O.UpdatePos(SFFile));
                     }
                 }
                 else //if (SmpMd==0)
                 {
-                    for (unsigned int s=0;s<m_ModulationRate;s++)
+                    for (uint s=0;s<Buffer.size();s++)
                     {
-                        if (O->NoLoop()) break;
-                        AudioR[s]+=O->UpdatePos();
+                        if (O.NoLoop()) break;
+                        Buffer.addAtR(s,O.UpdatePos(SFFile));
                     }
                 }
             }
             else
             {
-                float LeftPan=O->LeftPan;
-                float RightPan=O->RightPan;
-                if ((SmpMd & 1) | (!PlayEnd & (SmpMd & 2)))
+                const float LeftPan=float(O.LeftPan);
+                const float RightPan=float(O.RightPan);
+                if (DoLoop)
                 {
-                    //Debug("Buffer");
-                    for (unsigned int s=0;s<m_ModulationRate;s++)
+                    for (uint s=0;s<Buffer.size();s++)
                     {
-                        O->Loop();
-                        float a=O->UpdatePos();
-                        AudioL[s]+=a*LeftPan;
-                        AudioR[s]+=a*RightPan;
+                        O.Loop();
+                        const float a=O.UpdatePos(SFFile);
+                        Buffer.addAt(s,a*LeftPan,a*RightPan);
                     }
                 }
                 else //if (SmpMd==0)
                 {
-                    for (unsigned int s=0;s<m_ModulationRate;s++)
+                    for (uint s=0;s<Buffer.size();s++)
                     {
-                        if (O->NoLoop()) break;
-                        float a=O->UpdatePos();
-                        AudioL[s]+=a*LeftPan;
-                        AudioR[s]+=a*RightPan;
+                        if (O.NoLoop()) break;
+                        const float a=O.UpdatePos(SFFile);
+                        Buffer.addAt(s,a*LeftPan,a*RightPan);
                     }
                 }
             }
         }
     }
-    return AudioL;
+    return Buffer.data();
 }
 
-short CSF2Generator::PresetCount()
+int CSF2Generator::banknumber(const int program) const
 {
-    unsigned short cnt;
-    sfGetPresetHdrs(SFFile->BankID,&cnt );
-    return cnt;
+    return (!SFFile) ? 0 : SFFile->programHeaders[uint(program)].wPresetBank;
 }
 
-SFPRESETHDRPTR CSF2Generator::Preset(short Index)
+int CSF2Generator::presetnumber(const int program) const
 {
-    unsigned short cnt;
-    SFPRESETHDRPTR PresetHeaders=sfGetPresetHdrs(SFFile->BankID,&cnt );
-    if (Index < cnt) return &PresetHeaders[Index];
-    return NULL;
+    return  (!SFFile) ? 0 : SFFile->programHeaders[uint(program)].wPresetNum;
 }
 
+const QString CSF2Generator::bankPresetName(const int program) const
+{
+    return  (!SFFile) ? QString() : SFFile->programHeaders[uint(program)].achPresetName;
+}
+
+const QString CSF2Generator::presetName(const int bank, const int preset) const
+{
+    return (!SFFile) ? QString() : SFFile->banks[bank].presets[preset].presetName;
+}
+
+int CSF2Generator::bankPresetNumber(const int bank, const int preset) const
+{
+    return  (!SFFile) ? 0 : SFFile->banks[bank].presets[preset].programNumber;
+}
+
+const QList<int> CSF2Generator::bankNumbers() const
+{
+    return  (!SFFile) ? QList<int>() : SFFile->banks.keys();
+}
+
+const QList<int> CSF2Generator::presetNumbers(const int bank) const
+{
+    return  (!SFFile) ? QList<int>() : SFFile->banks[bank].presets.keys();
+}

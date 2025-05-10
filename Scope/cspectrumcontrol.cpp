@@ -1,222 +1,13 @@
 #include "cspectrumcontrol.h"
 #include "ui_cspectrumcontrol.h"
+#include <array>
 
-#include <complex>
-typedef std::complex<float> Complex;
-
-
-class Fft
-{
-public:
-    Fft (unsigned int points, unsigned int sampleRate);
-    // Hard work
-    ~Fft(){delete [] _aBitRev; delete [] _X; delete [] _W;}
-    void    Transform (float* data);
-    // Output: from i = 0 to points-1
-    float inline  GetIntensity (unsigned int i) const
-    {
-        return abs (_X[i])*_sqrtPoints;
-    }
-    unsigned  Points () const { return _points; }
-    // return frequency in Hz of a given point
-    int GetFrequency (unsigned int point) const
-    {
-        //assert (point < _points);
-        long x =_sampleRate * point;
-        return x / _points;
-    }
-    int HzToPoint (int freq) const
-    {
-        return (int)_points * freq / _sampleRate;
-    }
-    int MaxFreq() const { return _sampleRate; }
-    float _volume;
-
-private:
-    void DataIn (float* data);
-    //    void inline PutAt (unsigned int i, int val)
-    //    {
-    //        _X [_aBitRev[i]] = Complex (val);
-    //    }
-private:
-    unsigned int	_points;
-    unsigned int	_sampleRate;
-    unsigned int	_logPoints;		// binary log of _points
-    float		_sqrtPoints;	// square root of _points
-
-    unsigned int*			_aBitRev;	// bit reverse vector
-    Complex*				_X;	// in-place fft array
-    Complex*	_W;	// exponentials
-    //int*				 _tape;	// recording tape
-};
-
-const float PI = 2.0 * asin (1.0);
-
-Fft::Fft (unsigned int points, unsigned int sampleRate)
-    : _volume (1), _points (points), _sampleRate (sampleRate)
-{
-    //_tape=new int[_points];
-    _sqrtPoints = 1.0/sqrtf (_points);
-    // calculate binary log
-    _logPoints = 0;
-    points--;
-    while (points != 0)
-    {
-        points >>= 1;
-        _logPoints++;
-    }
-
-    _aBitRev=new unsigned int[_points];
-    _X=new Complex[_points];
-    _W=new Complex[_logPoints*_points];
-    // Precompute complex exponentials
-    int _2_l = 2;
-    for (unsigned int l = 1; l <= _logPoints; l++)
-    {
-        //_W[l].resize (_points);
-
-        for (unsigned int i = 0; i != _points; i++ )
-        {
-            float re =  cos (2. * PI * i / _2_l);
-            float im = -sin (2. * PI * i / _2_l);
-            _W[((l-1)*_points)+i] = Complex (re, im);
-        }
-        _2_l *= 2;
-    }
-
-    // set up bit reverse mapping
-    int rev = 0;
-    unsigned int halfPoints = _points/2;
-    for (unsigned int i = 0; i < _points - 1; i++)
-    {
-        _aBitRev [i] = rev;
-        int mask = halfPoints;
-        // add 1 backwards
-        while (rev >= mask)
-        {
-            rev -= mask; // turn off this bit
-            mask >>= 1;
-        }
-        rev += mask;
-    }
-    _aBitRev [_points-1] = _points-1;
-}
-
-void Fft::DataIn (float* data)
-{
-    /*
-        if (Size  > _points)
-                throw Exception ("Sample buffer larger than FFT capacity");
-    // make space for samples at the end of tape
-    // shifting previous samples towards the beginning
-        // to           from
-        // v-------------|
-        // xxxxxxxxxxxxxxyyyyyyyyy
-        // yyyyyyyyyoooooooooooooo
-        // <- old -><- free tail->
-        if (_points-Size>0)  memcpy(_tape,_tape+(Size*sizeof(int)),(_points-Size)*sizeof(int));
-        if (data==NULL)
-        {
-            ZeroMemory(_tape + ((_points - Size )*sizeof(int)),Size*sizeof(int));
-        }
-        else
-        {
-            memcpy(_tape + ((_points - Size )*sizeof(int)),data,Size*sizeof(int));
-        }
-
-        //std::copy (_tape.begin () + data.size (), _tape.end (), _tape.begin ());
-        //std::copy (data.begin (), data.end (), _tape.begin () + (_points - data.size ()));
- */
-    // Initialize the FFT buffer
-    for (unsigned int i = 0; i < _points; i++)
-        //       PutAt (i, data[i]);
-        _X [_aBitRev[i]] = Complex (data[i]*_volume);
-}
-
-//----------------------------------------------------------------
-//               0   1   2   3   4   5   6   7
-//  level   1
-//  step    1                                     0
-//  increm  2                                   W
-//  j = 0        <--->   <--->   <--->   <--->   1
-//  level   2
-//  step    2
-//  increm  4                                     0
-//  j = 0        <------->       <------->      W      1
-//  j = 1            <------->       <------->   2   W
-//  level   3                                         2
-//  step    4
-//  increm  8                                     0
-//  j = 0        <--------------->              W      1
-//  j = 1            <--------------->           3   W      2
-//  j = 2                <--------------->            3   W      3
-//  j = 3                    <--------------->             3   W
-//                                                              3
-//----------------------------------------------------------------
-
-void Fft::Transform (float* data)
-{
-    DataIn (data);
-
-    unsigned int step = 1;
-    unsigned int increm,i,j;
-    unsigned int BufferNum;
-    unsigned int istep;
-    Complex U,T;
-    for (unsigned int level = 1; level <= _logPoints; level++)
-    {
-        BufferNum=(level-1)*_points;
-        increm = step << 1;
-        for (j = 0; j < step; j++)
-        {
-            U = _W [BufferNum+j];
-            for (i = j; i < _points; i += increm)
-            {
-                istep=step+i;
-                // butterfly
-                T = U *_X [istep];
-                _X [istep] = _X[i]-T;
-                _X [i] += T;
-            }
-        }
-        step=step << 1;
-    }
-}
-
-
+//#define MaxBuffers 8192
 
 //class Fft;
 //class SampleIter;
-
-class ViewFreq
-{
-public:
-    ViewFreq (int Width,int Height,int ScaleWidth);
-    ~ViewFreq (){}
-    void Update (Fft const & fftTransformer);
-    void Clear ();
-    void Fake ();
-    void Init (int points, int point1kHz);
-    void PaintScale ();
-    void SetBounds (int Width,int Height,int ScaleWidth);
-    QImage img;
-    QImage Scale;
-    int Mode;
-private:
-    int _xRecord;
-    int	_width;
-    int	_height;
-    int ImgHeight;
-    int _points2; // Half the number of points = max freq
-    int	_point1kHz;	// Point corresponding to 1kHz
-    QImage BackBitmap;
-    QRect R;
-    void inline MoveTo(int X, int Y);
-    void inline LineTo(int X, int Y,QPainter* p);
-    QPoint CurrentPoint;
-};
-
-int ColorScale [] =
+/*
+uint ColorScale [] =
 {
     0x800000,	//RGB(0, 0, 128), // dk blue
     0xFF0000,//RGB(0, 0, 255), // lt blue
@@ -237,325 +28,380 @@ int ColorScale [] =
     0xFF//RGB(255, 0, 0) // lt red
 };
 
-int inline MapColor (unsigned int s)
+uint inline MapColor (uint s)
 {
     s /= 16;
     if (s >= sizeof (ColorScale))
         s = sizeof (ColorScale) - 1;
     return ColorScale [s];
 }
-
+*/
 // ViewFreq -------------
 
-static int SCALE_WIDTH = 30;
-static int NOTCH_1 = 5;
-static int NOTCH_2 = 10;
-static int NOTCH_3 = SCALE_WIDTH;
-
-ViewFreq::ViewFreq (int Width,int Height,int ScaleWidth):
+//static int SCALE_WIDTH = 30;
+//static int NOTCH_1 = 5;
+//static int NOTCH_2 = 10;
+//static int NOTCH_3 = SCALE_WIDTH;
+/*
+ViewFreq::ViewFreq():
     _xRecord (1),
     _points2 (0),
-    _point1kHz (0)
+    Mode(0)
 {
-    Mode=0;
-    SetBounds(Width,Height,ScaleWidth);
 }
-
-void ViewFreq::SetBounds (int Width,int Height,int ScaleWidth)
-{
-    img=QImage(Width,Height,QImage::Format_RGB32);
-    Scale=QImage(ScaleWidth,Height,QImage::Format_RGB32);
-    _width = Width;
-    _height = Height;
-    BackBitmap=QImage(1,_height,QImage::Format_RGB32);
-    ImgHeight=_height;
-}
-
-void ViewFreq::Clear ()
-{
-    QPainter(&img).fillRect(img.rect(),Qt::black);
-    QPainter(&BackBitmap).fillRect(BackBitmap.rect(),Qt::black);
-}
-
-void ViewFreq::Init (int points, int point1kHz)
-{
-    _points2 = points / 2;
-    _point1kHz = point1kHz;
-    _height=_points2;
-    BackBitmap=QImage(1,_height,QImage::Format_RGB32);
-}
-
-void inline ViewFreq::MoveTo(int X, int Y)
-{
-    CurrentPoint=QPoint(X,Y);
-}
-
-void inline ViewFreq::LineTo(int X, int Y, QPainter* p)
-{
-    p->drawLine(CurrentPoint.x(),CurrentPoint.y(),X,Y);
-    MoveTo(X,Y);
-}
-
-void ViewFreq::PaintScale ()
-{
-    if (_points2 == 0)
-    {
-        return;
-    }
-    QRect r(Scale.rect());
-    QPainter p(&Scale);
-    p.fillRect(r,Qt::black);
-    int x0 = r.right();
-    int y0 = r.height();
-    r.setHeight(_height);
-    p.setPen(Qt::lightGray);
-    //QFontMetrics fm(QFont());
-    int charY;//, charX;
-    charY=0;//fm.height();
-    MoveTo(x0, 0);
-    LineTo(x0, ImgHeight,&p);
-    // draw a notch every 100 Hz
-    float s1000 = (float)ImgHeight/(float)(CPresets::Presets.SampleRate/2000);
-    int s100 = s1000 / 10;
-    int count = 0;
-    //int xx = x0;
-    int bigNotchCount = 0;
-    if (s100 < 3)
-    {
-        //for (int s = 0; s < maxS; s += s1000)
-        forever
-        {
-            int y= y0 -(count*s1000);
-            //int y = y0 - ((float)s*ScaleY);
-            if (y <= 0)
-                break;
-            if (count % 10 == 0) // very big notch
-            {
-                MoveTo(x0 - NOTCH_3,y);
-                LineTo(x0, y, &p);
-                if (bigNotchCount == 1)
-                {
-                    p.drawText(0,(y)-(charY/2),"10k");
-                    //canvas.Text ("10k", 0, y - charY/2);
-                }
-                ++bigNotchCount;
-            }
-            else
-            {
-                MoveTo(x0 - NOTCH_2, y);
-                LineTo(x0, y, &p);
-            }
-            count++;
-        }
-    }
-    else
-    {
-        forever
-        {
-            int y= y0 -(count*s100);
-            if ( y <= 0 )
-                break;
-            if (count % 10 == 0) // big notch
-            {
-                MoveTo(x0 - NOTCH_2, y);
-                LineTo(x0, y, &p);
-                if (bigNotchCount == 1)
-                {
-                    p.drawText(0,(y)-(charY/2),"1k");
-                }
-                ++bigNotchCount;
-            }
-            else
-            {
-                MoveTo(x0 - NOTCH_1, y);
-                LineTo(x0, y, &p);
-            }
-            count++;
-        }
-    }
-    Clear();
-}
-
-void ViewFreq::Update (Fft const &fftTransformer)
-{
-    if (Mode==2)
-    {
-        img.fill(0);
-        QPainter p(&img);
-        int s;
-        int xwidth=(_width*2)/3;
-        p.setPen(Qt::darkGray);
-        p.drawLine(xwidth,0,xwidth,ImgHeight);
-        float step = (float)ImgHeight/(float)(_height);
-        for (int i = 0; i < _height; i++ )
-        {
-            int y=ImgHeight-(step*i);
-            s = fftTransformer.GetIntensity(i)* xwidth/10.0;
-            if (s>xwidth)
-            {
-                p.fillRect(0,y,xwidth,1,Qt::green);
-                p.fillRect(xwidth,y,s-xwidth,1,Qt::red);
-            }
-            else
-            {
-                p.fillRect(0,y,s,1,Qt::green);
-            }
-        }
-        _xRecord=0;
-    }
-    else
-    {
-        QPainter p(&BackBitmap);
-        //p.setRenderHint(QPainter::Antialiasing);
-        p.fillRect(BackBitmap.rect(),Qt::black);
-        int s;
-        int y=_height;//+pts;
-        QColor color;
-        for (int i = 0; i < _height; i++ )
-        {
-            y--;
-            s = fftTransformer.GetIntensity(i)* 128;
-            if (s > 8)
-            {
-                if (s>170)
-                {
-                    s=(s-170)*3;
-                    if (s>255) s=255;
-                    color=QColor(s,s,0);
-                }
-                else if (s>85)
-                {
-                    color=QColor((s-85)*3,0,0);
-                }
-                else
-                {
-                    color=QColor(0,0,s*3);
-                }
-                p.setPen(color);
-                p.drawPoint(0,y);
-            }
-        }
-
-        if (Mode==0)
-        {
-            QPainter imgPainter(&img);
-            imgPainter.setRenderHint(QPainter::SmoothPixmapTransform);
-            imgPainter.drawImage(QRect(_xRecord,0,1,ImgHeight),BackBitmap,BackBitmap.rect());
-        }
-        else if (Mode==1)
-        {
-            img=img.copy(1,0,_width,ImgHeight);
-            QPainter imgPainter(&img);
-            imgPainter.setRenderHint(QPainter::SmoothPixmapTransform);
-            imgPainter.drawImage(QRect(_width-1,0,1,ImgHeight),BackBitmap,BackBitmap.rect());
-            _xRecord=0;
-        }
-    }
-    _xRecord++;
-    /*
-    img->Canvas->CopyRect(TRect(_xRecord,0,_xRecord+1,ImgHeight),BackBitmap->Canvas,R);
-    _xRecord++;
-    img->Canvas->CopyRect(TRect(_xRecord,0,_xRecord+1,ImgHeight),BackBitmap->Canvas,R);
-    _xRecord++;
-    */
-    if (_xRecord >= _width)
-    {
-        _xRecord = 0;
-    }
-}
-
-void ViewFreq::Fake ()
-{
-    if (Mode==2)
-    {
-        img.fill(0);
-        QPainter p(&img);
-        int xwidth=(_width*2)/3;
-        p.setPen(Qt::darkGray);
-        p.drawLine(xwidth,0,xwidth,ImgHeight);
-        _xRecord=0;
-    }
-    else if (Mode==1)
-    {
-        img=img.copy(1,0,_width,ImgHeight);
-        _xRecord=0;
-    }
-    else if (Mode==0)
-    {
-        QPainter(&img).fillRect(_xRecord,0,_xRecord+1,ImgHeight,Qt::black);
-        //img->Canvas->FillRect(TRect(_xRecord,0,_xRecord+2,_height));
-    }
-    _xRecord ++;
-    if (_xRecord >= _width)
-    {
-        _xRecord =  0;
-    }
-}
-
-//---------------------------------------------------------------------------
+*/
 
 CSpectrumControl::CSpectrumControl(QWidget *parent) :
     QFrame(parent),
-    ui(new Ui::CSpectrumControl)
+    ui(new Ui::CSpectrumControl),
+    m_fft(FFTPoints),
+    window(FFTPoints),
+    m_CB(FFTPoints*10)
 {
     ui->setupUi(this);
-    m_ViewFreq=new ViewFreq(width()-24,height(),24);
-    m_Fft=new Fft(CPresets::Presets.ModulationRate,CPresets::Presets.SampleRate);
-    ViewFreq* VF=(ViewFreq*)m_ViewFreq;
-    Fft* F=(Fft*)m_Fft;
-    VF->Init(F->Points (), F->HzToPoint (1000));
+    QMutexLocker locker(&mutex);
+    for (int i=0;i<=240;i++)
+    {
+        int hiVal=-i;
+        hiVal+=240+360;
+        int g = sqrt(i/240.0)*400.0;
+        if (g>255) g=255;
+        QColor c;
+        c.setHsv(hiVal,255,g);
+        colorMap.push_back(c);
+    }
+    SetBounds(width(),height(),26);
+    SetUpdateRate(50);
 }
 
 CSpectrumControl::~CSpectrumControl()
 {
-    delete (ViewFreq*)m_ViewFreq;
-    delete (Fft*)m_Fft;
-
     delete ui;
+}
+
+void CSpectrumControl::SetBounds(int Width,int Height,int ScaleWidth)
+{
+    QMutexLocker locker(&mutex);
+    BackImage=QImage(Width-ScaleWidth,Height,QImage::Format_RGB32);
+    ScaleImage=QImage(ScaleWidth,Height,QImage::Format_RGB32);
+    _width = Width-ScaleWidth;
+    _height = Height;
+    WorkImage=QImage(1,_height,QImage::Format_RGB32);
+    pointMap.clear();
+    pointMap.resize(freq2point(Range));
+    for (uint i=0; i<pointMap.size();i++) pointMap[i]=freq2y(point2freq(i));
+    peakMap.clear();
+    peakMap.resize(freq2point(Range),0);
+    avgMap.clear();
+    avgMap.resize(freq2point(Range),0);
+    avgCount = 0;
+}
+
+void CSpectrumControl::PaintScale()
+{
+    static const int notches[11] = {10,20,50,100,200,500,1000,2000,5000,10000,20000};
+    static const QString notchtext[11] = {"10Hz","20Hz","50Hz","100Hz","200Hz","500Hz","1kHz","2kHz","5kHz","10kHz","20kHz"};
+    //if (_points2 == 0) return;
+    QPainter p(&ScaleImage);
+    p.fillRect(ScaleImage.rect(),Qt::black);
+    const int x0 = ScaleImage.rect().width();
+    for (int y=0;y<_height;y++)
+    {
+        const uint i=(double)(_height-y)*colorMap.size()/_height;
+        p.setPen(colorMap[i]);
+        p.drawLine(x0-2,y,x0,y);
+    }
+    p.setPen(Qt::lightGray);
+    QFont f(p.font()); f.setPointSizeF(8); p.setFont(f);
+    for (int i=0;i<11;i++)
+    {
+        const int y=freq2y(notches[i]);
+        p.drawLine(0,y,x0,y);
+        p.drawText(0,y-1,notchtext[i]);
+    }
+    QPainter(&BackImage).fillRect(BackImage.rect(),Qt::black);
+    QPainter(&WorkImage).fillRect(WorkImage.rect(),Qt::black);
+}
+
+int CSpectrumControl::freq2y(double freq)
+{
+    if (ScaleMode==0) return _height - (_height * freq2Cent(freq) / RangeCent);
+    return _height - (_height * freq2point(freq) / pointMap.size());
+}
+
+double CSpectrumControl::y2freq(int y)
+{
+    if (ScaleMode==0) return cent2Freq((_height - y) * RangeCent /_height);
+    return point2freq((_height - y) * pointMap.size() /_height);
+}
+
+double CSpectrumControl::point2freq(uint point)
+{
+    return double(presets.SampleRate * point) / FFTPoints;
+}
+
+uint CSpectrumControl::freq2point(double freq)
+{
+    return FFTPoints * freq / presets.SampleRate;
+}
+
+void CSpectrumControl::Update()
+{
+    QPainter imgPainter(&BackImage);
+    int lasty=-1;
+    int hiVal=0;
+    int* pm = pointMap.data();
+    int* peak = peakMap.data();
+    long64* avg = avgMap.data();
+    if (Mode>=2)
+    {
+        if (avgCount == 0) avgCount++;
+        BackImage.fill(0);
+        const int xwidth=(_width*2)/3;
+        const float FFTwidth = (float)xwidth/(float)FFTPoints2;
+        QPen pen(Qt::darkGray,1,Qt::DotLine);
+        imgPainter.setPen(pen);
+        imgPainter.drawLine(xwidth,0,xwidth,_height);
+        imgPainter.setPen(Qt::yellow);
+        bool sign = false;
+        for (uint i = 0; i < pointMap.size(); i++ )
+        {
+            const int y=pm[i];
+            const int s = m_fft.magn(i)*FFTwidth;
+            if (y==lasty)
+            {
+                hiVal=qMax<int>(s,hiVal);
+            }
+            else
+            {
+                if (lasty>-1)
+                {
+                    if (hiVal>0)
+                    {
+                        avg[i] += hiVal;
+                        sign = true;
+                        peak[i] = qMax<int>(peak[i],hiVal);
+                        if (hiVal>xwidth)
+                        {
+                            imgPainter.fillRect(0,lasty,xwidth,y-lasty,Qt::green);
+                            imgPainter.fillRect(xwidth,lasty,hiVal-xwidth,y-lasty,Qt::red);
+                        }
+                        else
+                        {
+                            imgPainter.fillRect(0,lasty,hiVal,y-lasty,Qt::green);
+                        }
+                    }
+                    if (Mode == 3)
+                    {
+                        if (peak[i] > 0) imgPainter.drawLine(peak[i],lasty,peak[i],y);
+                    }
+                    else if (Mode == 4)
+                    {
+                        const int a = avg[i] / avgCount;
+                        imgPainter.drawLine(a,lasty,a,y);
+                    }
+                }
+                lasty=y;
+                hiVal=s;
+            }
+            _xRecord=0;
+        }
+        if (sign) avgCount++;
+    }
+    else
+    {
+        const QColor* cm = colorMap.data();
+        WorkImage.fill(Qt::black);
+        QPainter p(&WorkImage);
+        for (uint i = 0; i < pointMap.size(); i++ )
+        {
+            const int y=pm[i];
+            const double v = sqrt(m_fft.magn(i)/FFTPoints2);
+            const int s = v*180.0;//*levelFactor;
+            if (y==lasty)
+            {
+                hiVal=qMax<int>(s,hiVal);
+            }
+            else
+            {
+                if (lasty>-1)
+                {
+                    if (hiVal>0)
+                    {
+                        //if (hiVal>240) hiVal=240;
+                        p.setPen(cm[qMin<int>(hiVal,240)]);
+                        p.drawLine(0,lasty,0,y);
+                    }
+                }
+                lasty=y;
+                hiVal=s;
+            }
+        }
+        if (Mode==0)
+        {
+            imgPainter.drawImage(QRect(_xRecord,0,Speed,_height),WorkImage,WorkImage.rect());
+        }
+        else if (Mode==1)
+        {
+            imgPainter.drawImage(QRect(0,0,_width-Speed,_height),BackImage,QRect(Speed,0,_width-Speed,_height));
+            imgPainter.drawImage(QRect(_width-Speed,0,Speed,_height),WorkImage,WorkImage.rect());
+            _xRecord=0;
+        }
+    }
+    _xRecord+=Speed;
+    if (_xRecord >= _width) _xRecord = 0;
+}
+
+void CSpectrumControl::Fake()
+{
+    QPainter p(&BackImage);
+    if (Mode>=2)
+    {
+        BackImage.fill(Qt::black);
+        int xwidth=(_width*2)/3;
+        QPen pen(Qt::darkGray,1,Qt::DotLine);
+        p.setPen(pen);
+        p.drawLine(xwidth,0,xwidth,_height);
+        _xRecord=0;
+    }
+    else if (Mode==1)
+    {
+        p.drawImage(QRect(0,0,_width-Speed,_height),BackImage,QRect(2,0,_width-Speed,_height));
+        p.fillRect(_width-Speed,0,Speed,_height,Qt::black);
+        _xRecord=0;
+    }
+    else if (Mode==0)
+    {
+        p.fillRect(_xRecord,0,Speed,_height,Qt::black);
+    }
+    _xRecord += Speed;
+    if (_xRecord >= _width) _xRecord =  0;
 }
 
 void CSpectrumControl::resizeEvent(QResizeEvent *event)
 {
     QFrame::resizeEvent(event);
-    ViewFreq* VF=(ViewFreq*)m_ViewFreq;
-    Fft* F=(Fft*)m_Fft;
-    VF->SetBounds(width()-24,height(),24);
-    VF->Init(F->Points (), F->HzToPoint (1000));
-    VF->PaintScale();
-    VF->Clear();
+    QMutexLocker locker(&mutex);
+    SetBounds(width(),height(),26);
+    PaintScale();
 }
 
 void CSpectrumControl::paintEvent(QPaintEvent* /*event*/)
 {
-    ViewFreq* VF=(ViewFreq*)m_ViewFreq;
-    QPainter p(this);
-    p.drawImage(VF->img.rect().translated(24,0),VF->img);
-    p.drawImage(VF->Scale.rect(),VF->Scale);
+    if (!pointMap.empty())
+    {
+        QPainter p(this);
+        p.drawImage(BackImage.rect().translated(24,0),BackImage);
+        p.drawImage(ScaleImage.rect(),ScaleImage);
+    }
 }
 
-void CSpectrumControl::Process(float* Buffer)
+void CSpectrumControl::process(float* data, uint size)
 {
-    ViewFreq* VF=(ViewFreq*)m_ViewFreq;
-    Fft* F=(Fft*)m_Fft;
-    if (Buffer==NULL)
+    m_CB.write(data,size);
+    while (m_CB.isAvail(FFTPoints)) process(m_CB.read(FFTPoints));
+}
+
+void CSpectrumControl::process(float* Buffer)
+{
+    if (!pointMap.empty())
     {
-        VF->Fake();
-    }
-    else
-    {
-        F->Transform(Buffer);
-        VF->Update(*F);
+        if (Buffer==nullptr)
+        {
+            Fake();
+        }
+        else
+        {
+            float* Win=window.WinCoeff;
+            if (Win)
+            {
+                m_fft.Forward(Buffer,Win);
+            }
+            else
+            {
+                m_fft.Forward(Buffer);
+            }
+            Update();
+        }
     }
 }
 
 void CSpectrumControl::SetVol(int Vol)
 {
-    Fft* F=(Fft*)m_Fft;
-    F->_volume=(float)Vol*0.01;
+    m_Vol=Vol*0.01f;
 }
 
-void CSpectrumControl::SetMode(int Mode)
+void CSpectrumControl::SetMode(int m)
 {
-    ViewFreq* VF=(ViewFreq*)m_ViewFreq;
-    VF->Mode=Mode;
+    QMutexLocker locker(&mutex);
+    if (m != Mode)
+    {
+        Mode=m;
+        PaintScale();
+        for (uint i = 0; i < peakMap.size(); i++) peakMap[i] = 0;
+        for (uint i = 0; i < avgMap.size(); i++) avgMap[i] = 0;
+        avgCount = 0;
+    }
+}
+
+void CSpectrumControl::SetWindow(int w)
+{
+    QMutexLocker locker(&mutex);
+    WindowType=w;
+    switch (WindowType)
+    {
+    case 1:
+        window.SetWindow(CSpectralWindow::wtHANNING,0,0,true);
+        break;
+    case 2:
+        window.SetWindow(CSpectralWindow::wtGAUSS,0,0,true);
+        break;
+    case 3:
+        window.SetWindow(CSpectralWindow::wtFLATTOP,0,0,true);
+        break;
+    default:
+        window.SetWindow(CSpectralWindow::wtNONE,0,0,true);
+        break;
+    }
+}
+
+void CSpectrumControl::SetScale(int s)
+{
+    QMutexLocker locker(&mutex);
+    if (ScaleMode != s)
+    {
+        ScaleMode=s;
+        SetBounds(_width+26,_height,26);
+        PaintScale();
+    }
+}
+
+void CSpectrumControl::SetRange(int r)
+{
+    QMutexLocker locker(&mutex);
+    if (Range != r)
+    {
+        Range=r;
+        RangeCent = freq2Cent(Range);
+        SetBounds(_width+26,_height,26);
+        PaintScale();
+    }
+}
+
+void CSpectrumControl::SetUpdateRate(int s)
+{
+    QMutexLocker locker(&mutex);
+    s = qBound<int>(1,s,1000);
+    if (m_UpdateRate != s)
+    {
+        m_UpdateRate = s;
+        double stepSize = s * presets.SamplesPermSec;
+        if (stepSize > FFTPoints) stepSize = FFTPoints;
+        if (stepSize < 1) stepSize = 1;
+        m_CB.setStepSize(stepSize);
+        Speed = qMax<int>(1,qRound(4.0*(stepSize / FFTPoints)));
+        _xRecord=0;
+        PaintScale();
+        qDebug() << stepSize << Speed;
+    }
 }

@@ -2,28 +2,25 @@
 
 CSamplerDevice::CSamplerDevice()
 {
-    CurrentLayerIndex=0;
-    CurrentRangeIndex=0;
+    currentLayerIndex=0;
+    currentRangeIndex=0;
     m_Modulation=1;
-    TestMode=st_NoTest;
-    Looping=false;
-    AddLayer();
+    testMode=st_NoTest;
+    looping=false;
+    addLayer();
 }
 
-void CSamplerDevice::NoteOn(short channel, short pitch, short velocity)
+void CSamplerDevice::noteOn(short channel, short pitch, short velocity)
 {
     if (channelSettings[channel].portNote)
     {
-        for (int i=0;i<Sampler::samplervoices;i++)
+        for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
         {
-            if ((channel) == SamplerGenerator[i].Channel)
+            if (g.matches(channel,channelSettings[channel].portNote))
             {
-                if (SamplerGenerator[i].ID==channelSettings[channel].portNote)
-                {
-                    SamplerGenerator[i].ID=pitch;
-                    SamplerGenerator[i].addTranspose(pitch-channelSettings[channel].portNote);
-                    break;
-                }
+                g.ID=pitch;
+                g.addPortamento(pitch-channelSettings[channel].portNote);
+                break;
             }
         }
     }
@@ -40,57 +37,52 @@ void CSamplerDevice::NoteOn(short channel, short pitch, short velocity)
         }
         if (FreeIndex>-1)
         {
-            SamplerGenerator[FreeIndex].ID=pitch;
-            SamplerGenerator[FreeIndex].Channel=channel;
-            SamplerGenerator[FreeIndex].resetTranspose();
-            SamplerGenerator[FreeIndex].ResetSample(pitch+m_Transpose,velocity & 0x7F);
+            SamplerGenerator[FreeIndex].setID(channel,pitch);
+            SamplerGenerator[FreeIndex].startNote(pitch,velocity & 0x7F);
         }
     }
     channelSettings[channel].portNote=0;
 }
 
-void CSamplerDevice::NoteOff(short channel, short pitch)
+void CSamplerDevice::noteOff(short channel, short pitch)
 {
-    for (int i=0;i<Sampler::samplervoices;i++)
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        if ((channel) == SamplerGenerator[i].Channel)
+        if ((channel) == g.channel)
         {
             if (channelSettings[channel].pedal)
             {
                 channelSettings[channel].pedalnotes.append(pitch);
             }
-            else if (pitch==SamplerGenerator[i].ID)
+            else if (pitch==g.ID)
             {
-                SamplerGenerator[i].EndSample();
+                g.endNote();
                 break;
             }
         }
     }
 }
 
-void CSamplerDevice::Aftertouch(const short channel, const short pitch, const short value)
+void CSamplerDevice::aftertouch(const short channel, const short pitch, const short value)
 {
-    for (int i=0;i<Sampler::samplervoices;i++)
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        if ((channel) == SamplerGenerator[i].Channel)
+        if (g.matches(channel,pitch))
         {
-            if (pitch==SamplerGenerator[i].ID)
-            {
-                SamplerGenerator[i].setAftertouch(value);
-            }
+            g.setAftertouch(value);
         }
     }
 }
 
 void CSamplerDevice::allNotesOff()
 {
-    TestMode=st_NoTest;
-    Looping=false;
-    for (int i=0;i<Sampler::samplervoices;i++)
+    testMode=st_NoTest;
+    looping=false;
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        if (!SamplerGenerator[i].FinishedPlaying)
+        if (!g.finished)
         {
-            SamplerGenerator[i].EndSample();
+            g.endNote();
         }
     }
 }
@@ -98,215 +90,173 @@ void CSamplerDevice::allNotesOff()
 float* CSamplerDevice::getNext(const int voice)
 {
     SamplerGenerator[voice].setPitchWheel(channelSettings[voiceChannel(voice)].pitchWheel);
-    return SamplerGenerator[voice].GetNext(m_Modulation);
+    SamplerGenerator[voice].setModulation(m_Modulation);
+    return SamplerGenerator[voice].getNext();
 }
 
-void CSamplerDevice::LoopTest(float* BufferL,float* BufferR,int Samples)
+void CSamplerDevice::loopTest(CStereoBuffer* b)
 {
-    CWaveGenerator* WG=&CurrentRange()->WG;
-    if (!Looping)
+    CWaveGenerator* WG=&currentRange()->generator;
+    if (!looping)
     {
-        Looping=true;
-        WG->Reset();
+        looping=true;
+        WG->reset();
     }
-    if (WG->Channels==1)
+    (WG->channels()==1) ? b->addMono(WG->getNextFreq(),0.5,0.5) : b->addBuffer(WG->getNextFreq(),0.5);
+}
+
+void CSamplerDevice::tuneTest(CStereoBuffer* b)
+{
+    CWaveGenerator* WG=&currentRange()->generator;
+    if (!looping)
     {
-        float* B=WG->GetNext((float)0);
-        if (B)
+        looping=true;
+        int TempTune=WG->LP.MIDICents;
+        WG->LP.MIDICents=0;
+        WG->reset();
+        WG->LP.MIDICents=TempTune;
+    }
+
+    float PlayFreq=cent2Factorf(WG->LP.MIDICents)*440.f;
+
+    if (WG->channels()==1)
+    {
+        CMonoBuffer B(WG->getNextFreq(PlayFreq));
+        if (B.isValid())
         {
-            for (int i=0;i<Samples;i++)
+            for (uint i=0;i<b->size();i++)
             {
-                float Signal=B[i]*0.5;
-                BufferL[i]+=Signal;
-                BufferR[i]+=Signal;
+                b->addAt(i,(B.at(i)+(waveBank.getNextFreq(440,CWaveBank::Sawtooth)*0.1))*0.5);
             }
         }
     }
     else
     {
-        float* BL=WG->GetNext((float)0);
-        if (BL)
+        const CStereoBuffer B(WG->getNextFreq(PlayFreq));
+        if (B.isValid())
         {
-            float* BR=BL+Samples;
-            for (int i=0;i<Samples;i++)
+            for (uint i=0;i<b->size();i++)
             {
-                BufferL[i]+=BL[i]*0.5;
-                BufferR[i]+=BR[i]*0.5;
+                float SawWave=waveBank.getNextFreq(440,CWaveBank::Sawtooth)*0.1;
+                b->addAt(i,(SawWave+B.at(i))*0.5,(SawWave+B.atR(i)*0.5));
             }
         }
     }
 }
 
-void CSamplerDevice::TuneTest(float* BufferL,float* BufferR,int Samples)
+short CSamplerDevice::voiceChannel(const int voice) const
 {
-    CWaveGenerator* WG=&CurrentRange()->WG;
-    int SmpRate=CPresets::Presets.SampleRate;
-    if (!Looping)
-    {
-        Looping=true;
-        int TempTune=WG->LP.Tune;
-        WG->LP.Tune=0;
-        WG->Reset();
-        WG->LP.Tune=TempTune;
-        WavePos=0;
-    }
-
-    float PlayFreq=pow(2.0,(float)WG->LP.Tune*0.001)*440.0;
-
-    if (WG->Channels==1)
-    {
-        float* B=WG->GetNext(PlayFreq);
-        if (B)
-        {
-            for (int i=0;i<Samples;i++)
-            {
-                WavePos=WavePos+440;
-                while (WavePos>=SmpRate)
-                {
-                    WavePos-=SmpRate;
-                }
-
-                float Signal=B[i];
-                Signal=(B[i]+(WB.GetNext(WavePos,CWaveBank::Sawtooth)*0.1))*0.5;
-                BufferL[i]+=Signal;
-                BufferR[i]+=Signal;
-            }
-        }
-    }
-    else
-    {
-        float* BL=WG->GetNext(PlayFreq);
-        if (BL)
-        {
-            float* BR=BL+Samples;
-            for (int i=0;i<Samples;i++)
-            {
-                WavePos=WavePos+440;
-                while (WavePos>=SmpRate)
-                {
-                    WavePos-=SmpRate;
-                }
-                float SawWave=WB.GetNext(WavePos,CWaveBank::Sawtooth)*0.1;
-                BufferL[i]+=(SawWave+BL[i])*0.5;
-                BufferR[i]+=(SawWave+BR[i])*0.5;
-            }
-        }
-    }
+    return SamplerGenerator[voice].channel;
 }
 
-short CSamplerDevice::voiceChannel(const int voice)
-{
-    return SamplerGenerator[voice].Channel;
-}
-
-int CSamplerDevice::voiceCount()
+int CSamplerDevice::voiceCount() const
 {
     return Sampler::samplervoices;
 }
 
 void CSamplerDevice::reset()
 {
-    TestMode=st_NoTest;
-    Looping=false;
-    for (int i=0; i < Sampler::samplervoices; i++)
+    testMode=st_NoTest;
+    looping=false;
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].resetTranspose();
-        SamplerGenerator[i].ID=0;
-        SamplerGenerator[i].Channel=0;
+        g.resetPortamento();
+        g.ID=0;
+        g.channel=0;
     }
-    for (int i = 0; i < 16; i++)
+    for (ChannelData& d : channelSettings)//(int i = 0; i < 16; i++)
     {
-        channelSettings[i].reset();
-    }
-}
-
-CSampleKeyRange::RangeParams CSamplerDevice::RangeParams(int Layer, int Range)
-{
-    return SamplerGenerator[0].RangeParams(Layer,Range);
-}
-
-CSampleKeyRange::RangeParams CSamplerDevice::RangeParams()
-{
-    return RangeParams(CurrentLayerIndex,CurrentRangeIndex);
-}
-
-void CSamplerDevice::setRangeParams(CSampleKeyRange::RangeParams RangeParams, int Layer, int Range)
-{
-    for (int i=0; i < Sampler::samplervoices; i++)
-    {
-        SamplerGenerator[i].setRangeParams(RangeParams,Layer,Range);
+        d.resetAll();
     }
 }
 
-void CSamplerDevice::setRangeParams(CSampleKeyRange::RangeParams RangeParams)
+const CSampleKeyRange::RangeParams CSamplerDevice::RangeParams(const int Layer, const int Range) const
 {
-    setRangeParams(RangeParams,CurrentLayerIndex,CurrentRangeIndex);
+    return SamplerGenerator[0].rangeParameters(Layer,Range);
 }
 
-CWaveGenerator::LoopParameters CSamplerDevice::LoopParams(int Layer, int Range)
+const CSampleKeyRange::RangeParams CSamplerDevice::RangeParams() const
 {
-    return SamplerGenerator[0].LoopParams(Layer,Range);
+    return RangeParams(currentLayerIndex,currentRangeIndex);
 }
 
-CWaveGenerator::LoopParameters CSamplerDevice::LoopParams()
+void CSamplerDevice::setRangeParams(const CSampleKeyRange::RangeParams& RangeParams, const int Layer, const int Range)
 {
-    return LoopParams(CurrentLayerIndex,CurrentRangeIndex);
-}
-
-void CSamplerDevice::setLoopParams(CWaveGenerator::LoopParameters LoopParams, int Layer, int Range)
-{
-    for (int i=0; i < Sampler::samplervoices; i++)
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].setLoopParams(LoopParams,Layer,Range);
+        g.setRangeParameters(RangeParams,Layer,Range);
     }
 }
 
-void CSamplerDevice::setLoopParams(CWaveGenerator::LoopParameters LoopParams)
+void CSamplerDevice::setRangeParams(const CSampleKeyRange::RangeParams& RangeParams)
 {
-    setLoopParams(LoopParams,CurrentLayerIndex,CurrentRangeIndex);
+    setRangeParams(RangeParams,currentLayerIndex,currentRangeIndex);
 }
 
-CLayer::LayerParams CSamplerDevice::LayerParams(int Layer)
+const CWaveGenerator::LoopParameters CSamplerDevice::LoopParams(const int Layer, const int Range) const
 {
-    return SamplerGenerator[0].LayerParams(Layer);
+    return SamplerGenerator[0].loopParameters(Layer,Range);
 }
 
-CLayer::LayerParams CSamplerDevice::LayerParams()
+const CWaveGenerator::LoopParameters CSamplerDevice::LoopParams() const
 {
-    return LayerParams(CurrentLayerIndex);
+    return LoopParams(currentLayerIndex,currentRangeIndex);
 }
 
-void CSamplerDevice::setLayerParams(CLayer::LayerParams LayerParams, int Layer)
+void CSamplerDevice::setLoopParams(const CWaveGenerator::LoopParameters& LoopParams, const int Layer, const int Range)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].setLayerParams(LayerParams,Layer);
+        g.setLoopParameters(LoopParams,Layer,Range);
     }
 }
 
-void CSamplerDevice::setLayerParams(CLayer::LayerParams LayerParams)
+void CSamplerDevice::setLoopParams(const CWaveGenerator::LoopParameters& LoopParams)
 {
-    setLayerParams(LayerParams,CurrentLayerIndex);
+    setLoopParams(LoopParams,currentLayerIndex,currentRangeIndex);
 }
 
-CADSR::ADSRParams CSamplerDevice::ADSRParams()
+const CLayer::LayerParams CSamplerDevice::LayerParams(const int Layer) const
+{
+    return SamplerGenerator[0].layerParameters(Layer);
+}
+
+const CLayer::LayerParams CSamplerDevice::LayerParams() const
+{
+    return LayerParams(currentLayerIndex);
+}
+
+void CSamplerDevice::setLayerParams(const CLayer::LayerParams& LayerParams, const int Layer)
+{
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
+    {
+        g.setLayerParameters(LayerParams,Layer);
+    }
+}
+
+void CSamplerDevice::setLayerParams(const CLayer::LayerParams& LayerParams)
+{
+    setLayerParams(LayerParams,currentLayerIndex);
+}
+
+const CADSR::ADSRParams CSamplerDevice::ADSRParams() const
 {
     return SamplerGenerator[0].ADSRParameters();
 }
 
-void CSamplerDevice::setADSRParams(CADSR::ADSRParams ADSRParams)
+void CSamplerDevice::setADSRParams(const CADSR::ADSRParams& ADSRParams)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].setADSRParams(ADSRParams);
+        g.setADSRParams(ADSRParams);
     }
 }
 
 void CSamplerDevice::setTune(const float tune)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].Tune=tune;
+        g.setTune(tune);
     }
 }
 
@@ -315,117 +265,128 @@ void CSamplerDevice::setModulation(const float modulation)
     m_Modulation=modulation;
 }
 
-void CSamplerDevice::AddRange(int Layer, const QString &WavePath, int Upper, int Lower)
+void CSamplerDevice::addRange(int Layer, const QString &WavePath, int Upper, int Lower)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    QMutexLocker locker(&mutex);
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].AddRange(Layer,WavePath,Upper,Lower);
+        g.addRange(Layer,WavePath,Upper,Lower);
     }
 }
 
-void CSamplerDevice::AddRange(const QString &WavePath, int Upper, int Lower)
+void CSamplerDevice::addRange(const QString &WavePath, int Upper, int Lower)
 {
-    AddRange(CurrentLayerIndex,WavePath,Upper,Lower);
+    QMutexLocker locker(&mutex);
+    addRange(currentLayerIndex,WavePath,Upper,Lower);
 }
 
-void CSamplerDevice::ChangePath(int Layer, int Range, const QString &WavePath)
+void CSamplerDevice::changePath(int Layer, int Range, const QString &WavePath)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    QMutexLocker locker(&mutex);
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].ChangePath(Layer,Range,WavePath);
+        g.changePath(Layer,Range,WavePath);
     }
 }
 
-void CSamplerDevice::ChangePath(const QString &WavePath)
+void CSamplerDevice::changePath(const QString &WavePath)
 {
-    ChangePath(CurrentLayerIndex,CurrentRangeIndex,WavePath);
+    QMutexLocker locker(&mutex);
+    changePath(currentLayerIndex,currentRangeIndex,WavePath);
 }
 
-void CSamplerDevice::RemoveRange(int Layer, int Index)
+void CSamplerDevice::removeRange(int Layer, int Index)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    QMutexLocker locker(&mutex);
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].RemoveRange(Layer,Index);
+        g.removeRange(Layer,Index);
     }
 }
 
-void CSamplerDevice::RemoveRange(int Index)
+void CSamplerDevice::removeRange(int Index)
 {
-    RemoveRange(CurrentLayerIndex,Index);
+    QMutexLocker locker(&mutex);
+    removeRange(currentLayerIndex,Index);
 }
 
-void CSamplerDevice::RemoveRange()
+void CSamplerDevice::removeRange()
 {
-    RemoveRange(CurrentLayerIndex,CurrentRangeIndex);
+    QMutexLocker locker(&mutex);
+    removeRange(currentLayerIndex,currentRangeIndex);
 }
 
-void CSamplerDevice::AddLayer(int Upper, int Lower)
+void CSamplerDevice::addLayer(int Upper, int Lower)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    QMutexLocker locker(&mutex);
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].AddLayer(Upper,Lower);
+        g.addLayer(Upper,Lower);
     }
 }
 
-void CSamplerDevice::RemoveLayer(int index)
+void CSamplerDevice::removeLayer(int index)
 {
-    for (int i=0; i < Sampler::samplervoices; i++)
+    QMutexLocker locker(&mutex);
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].RemoveLayer(index);
+        g.removeLayer(index);
     }
 }
 
-void CSamplerDevice::RemoveLayer()
+void CSamplerDevice::removeLayer()
 {
-    RemoveLayer(CurrentLayerIndex);
+    QMutexLocker locker(&mutex);
+    removeLayer(currentLayerIndex);
 }
 
-int CSamplerDevice::RangeCount(int Layer)
+int CSamplerDevice::rangeCount(const int Layer) const
 {
-    return SamplerGenerator[0].RangeCount(Layer);
+    return SamplerGenerator[0].rangeCount(Layer);
 }
 
-int CSamplerDevice::RangeCount()
+int CSamplerDevice::rangeCount() const
 {
-    return RangeCount(CurrentLayerIndex);
+    return rangeCount(currentLayerIndex);
 }
 
-int CSamplerDevice::LayerCount()
+int CSamplerDevice::layerCount() const
 {
-    return SamplerGenerator[0].LayerCount();
+    return SamplerGenerator[0].layerCount();
 }
 
-CLayer* CSamplerDevice::Layer(int Index)
+CLayer* CSamplerDevice::layer(int Index)
 {
-    return SamplerGenerator[0].Layer(Index);
+    return SamplerGenerator[0].layer(Index);
 }
 
-CSampleKeyRange* CSamplerDevice::Range(int Layer, int Index)
+CSampleKeyRange* CSamplerDevice::range(int Layer, int Index)
 {
-    return this->Layer(Layer)->Range(Index);
+    return this->layer(Layer)->range(Index);
 }
 
-CLayer* CSamplerDevice::CurrentLayer()
+CLayer* CSamplerDevice::currentLayer()
 {
-    return Layer(CurrentLayerIndex);
+    return layer(currentLayerIndex);
 }
 
-CSampleKeyRange* CSamplerDevice::CurrentRange()
+CSampleKeyRange* CSamplerDevice::currentRange()
 {
-    return Range(CurrentLayerIndex,CurrentRangeIndex);
+    return range(currentLayerIndex,currentRangeIndex);
 }
 
-const QString CSamplerDevice::Save()
+void CSamplerDevice::serialize(QDomLiteElement* xml) const
 {
-    return SamplerGenerator[0].Save();
+    SamplerGenerator[0].serialize(xml);
 }
 
-void CSamplerDevice::Load(const QString &XML)
+void CSamplerDevice::unserialize(const QDomLiteElement* xml)
 {
-    TestMode=st_NoTest;
-    Looping=false;
-    for (int i=0; i < Sampler::samplervoices; i++)
+    QMutexLocker locker(&mutex);
+    testMode=st_NoTest;
+    looping=false;
+    for (CSamplerGenerator& g : SamplerGenerator)//(int i=0;i<Sampler::samplervoices;i++)
     {
-        SamplerGenerator[i].Load(XML);
+        g.unserialize(xml);
     }
 }

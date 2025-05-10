@@ -5,46 +5,28 @@
 #-------------------------------------------------
 
 TARGET = Scope
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
+LIBS += -lSoftSynthsWidgets
+
+LIBS += -lPitchTracker
+
+INCLUDEPATH += ../../QCanvas
+INCLUDEPATH += ../PitchTracker
 
 DEFINES += SCOPE_LIBRARY
 
 SOURCES += cscope.cpp \
     cscopeform.cpp \
-    cscopecontrol.cpp \
-    cspectrumcontrol.cpp
+    cscopecontrol.cpp
 
 HEADERS += cscope.h \
     cscopeform.h \
-    cscopecontrol.h \
-    cspectrumcontrol.h
-
-symbian {
-    MMP_RULES += EXPORTUNFROZEN
-    TARGET.UID3 = 0xEAFC5194
-    TARGET.CAPABILITY = 
-    TARGET.EPOCALLOWDLLDATA = 1
-    addFiles.sources = Scope.dll
-    addFiles.path = !:/sys/bin
-    DEPLOYMENT += addFiles
-}
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
+    cscopecontrol.h
 
 FORMS += \
     cscopeform.ui \
-    cscopecontrol.ui \
-    cspectrumcontrol.ui
+    cscopecontrol.ui
 
 
 

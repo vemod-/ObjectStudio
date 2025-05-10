@@ -1,15 +1,15 @@
 #include "cvstform.h"
 #include "ui_cvstform.h"
 #include <QVBoxLayout>
+#include "idevice.h"
 
 CVSTForm::CVSTForm(IAudioPlugInHost* plug, IDevice *Device, QWidget *parent) :
     CSoftSynthsForm(Device,true,parent),
     ui(new Ui::CVSTForm)
 {
+    setAttribute(Qt::WA_MacShowFocusRect,false);
     ui->setupUi(this);
-
-    QVBoxLayout* l=new QVBoxLayout(this);
-    l->setMargin(0);
+    auto l=new QVBoxLayout(this);
     l->setSpacing(0);
     l->setContentsMargins(0,0,0,0);
     l->setSizeConstraint(QVBoxLayout::SetFixedSize);
@@ -17,90 +17,135 @@ CVSTForm::CVSTForm(IAudioPlugInHost* plug, IDevice *Device, QWidget *parent) :
     listHolder=new QWidget(this);
     l->addWidget(listHolder);
 
-    QVBoxLayout* bl=new QVBoxLayout(listHolder);
-    bl->setMargin(0);
+    auto bl=new QVBoxLayout(listHolder);
     bl->setSpacing(0);
     bl->setContentsMargins(0,0,0,0);
 
     li=new QComboBox;
-    //li->setFocusPolicy(Qt::ClickFocus);
     li->setAttribute(Qt::WA_MacShowFocusRect,false);
 
     bl->addWidget(li);
 
     listHolder->hide();
 
-    connect(li,SIGNAL(currentIndexChanged(int)),this,SLOT(ChangeProgram(int)));
+    connect(li,SIGNAL(currentIndexChanged(int)),this,SLOT(ChangeBankPreset(int)));
 
-    PlugIn=plug;
-    connect(PlugIn,SIGNAL(PlugInChanged()),this,SLOT(PlugInIndexChanged()));
-    l->addWidget(PlugIn);
-    startTimer(0);
+    plugIn=plug;
+    connect(plugIn,SIGNAL(PlugInChanged()),this,SLOT(PlugInIndexChanged()));
+    l->addWidget(plugIn);
+    m_TimerID=startTimer(200);
+    updateTimer.setSingleShot(true);
+    updateTimer.setInterval(1000);
+    connect(&updateTimer,&QTimer::timeout,this,&CVSTForm::updateHost);
+    updateHost();
+    updateTimer.start();
 }
 
 CVSTForm::~CVSTForm()
 {
+    qDebug() << "~VSTForm";
+    killTimer(m_TimerID);
+    m_TimerID=0;
+    delete plugIn;
     delete ui;
+    qDebug() << "Exit VSTForm";
 }
 
-void CVSTForm::FillList(int CurrentProgram)
+void CVSTForm::fillList(int CurrentProgram)
 {
+    qDebug() << "vstform filllist";
     li->blockSignals(true);
     li->clear();
-    li->addItems(PlugIn->ProgramNames());
-    listHolder->setVisible(li->count() > 1);
+    li->addItems(plugIn->bankPresetNames());
     if (CurrentProgram > -1)
     {
         li->setCurrentIndex(CurrentProgram);
     }
     li->blockSignals(false);
+    listHolder->setVisible(li->count() > 1);
+    updateHost();
 }
 
 void CVSTForm::PlugInIndexChanged()
 {
-    FillList();
+    qDebug() << "vstform plugin index changed";
+    fillList();
     setVisible(true);
-    m_Device->UpdateHost();
+    updateHost();
+    updateTimer.start();
 }
 
-void CVSTForm::ChangeProgram(int programIndex)
+void CVSTForm::ChangeBankPreset(int programIndex)
 {
-    PlugIn->SetProgram(programIndex);
+    qDebug() << "vstform change bankpreset";
+    plugIn->setBankPreset(programIndex);
+    updateHost();
 }
 
-void CVSTForm::SetProgram(const int programIndex)
+void CVSTForm::setBankPreset(const int programIndex)
 {
-    ChangeProgram(programIndex);
+    qDebug() << "vstform set bankpreset";
+    ChangeBankPreset(programIndex);
     if (li->count() > programIndex)
     {
         li->blockSignals(true);
         li->setCurrentIndex(programIndex);
         li->blockSignals(false);
+        updateHost();
     }
 }
 
 bool CVSTForm::event(QEvent *event)
 {
+    //qDebug() << "CVSTform event" << event->type();
+    bool ret = CSoftSynthsForm::event(event);
     if (event->type()==QEvent::NonClientAreaMouseButtonPress)
     {
-        if (((QMouseEvent*)event)->button()==Qt::RightButton)
+        qDebug() << "CVSTform event" << event->type() << dynamic_cast<QMouseEvent*>(event)->button();
+        if (dynamic_cast<QMouseEvent*>(event)->button()==Qt::RightButton)
         {
-            PlugIn->Popup(mapToGlobal(((QMouseEvent*)event)->pos()));
+            plugIn->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(event)->pos()));
         }
     }
-    return CSoftSynthsForm::event(event);
+    /*
+    else if (event->type()==QEvent::Resize) {
+        qDebug() << "CVSTform event 1";
+        //if (isVisible()) plugIn->repaint();
+    }
+    else if (event->type()==QEvent::Show) {
+        qDebug() << "CVSTform event 2";
+        //plugIn->repaint();
+    }
+*/
+    return ret;
 }
 
 void CVSTForm::timerEvent(QTimerEvent */*event*/)
 {
+    if (!m_TimerID) return;
+    //qDebug() << "vstform timer";
     if (li->count())
     {
-        int p=PlugIn->CurrentProgram();
+        const int p=plugIn->currentBankPreset();
         if (p != li->currentIndex())
         {
             li->blockSignals(true);
             li->setCurrentIndex(p);
             li->blockSignals(false);
+            updateHost();
         }
     }
 }
+/*
+void CVSTForm::updateHost()
+{
+    //qDebug() << "CVSTform updateHost 1";
+    //adjustSize();
+    //updateGeometry();
+    //qDebug() << "CVSTform updateHost 2";
+    //plugIn->repaint();
+    qDebug() << "CVSTform updateHost 3";
+    CSoftSynthsForm::updateHost();
+    //qDebug() << "CVSTform updateHost 4";
+}
+*/

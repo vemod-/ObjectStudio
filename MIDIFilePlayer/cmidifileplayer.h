@@ -1,60 +1,53 @@
 #ifndef CMIDIFILEPLAYER_H
 #define CMIDIFILEPLAYER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "cmidifilereader.h"
+#include "cmseccounter.h"
 
 namespace MIDIFilePlayer
 {
 const QString MIDIFilter("MIDI files (*.mid;*.kar)");
 }
 
-class CMIDIFilePlayer : public IDevice
+class CMIDIFilePlayer : public IDevice, public IFileLoader
 {
 public:
+    enum ParameterNames
+    {pnTrack,pnTempoAdjust,pnHumanize};
     CMIDIFilePlayer();
     ~CMIDIFilePlayer()
     {
     }
-
-    unsigned long CurrentTick;
-    unsigned long CurrentMilliSecond;
-
-    void Init(const int Index,void* MainWindow);
-    void Tick();
-    void Skip(const unsigned long mSec);
-    void* GetNextP(const int ProcIndex);
-    void Play(const bool FromStart);
-    void Pause();
-    void Execute(const bool Show);
-    const QString Save();
-    void Load(const QString& XML);
-    bool IsPlaying();
-    unsigned long Duration();
-    unsigned long MilliSeconds();
-    void OpenPtr(const char* Pnt, const int Length);
+/*
+    inline ulong currentTick() { return mSecCount.currentTick(); }
+    inline ulong currentMilliSecond() { return mSecCount.currentmSec(); }
+*/
+    void init(const int Index, QWidget* MainWindow);
+    void tick();
+    void skip(const ulong64 samples);
+    CMIDIBuffer* getNextP(const int ProcIndex);
+    void play(const bool FromStart);
+    //void pause();
+    void execute(const bool Show);
+    bool isPlaying();
+    ulong ticks() const;
+    ulong milliSeconds() const;
+    ulong64 samples() const;
+    void assign(const QByteArray& b, const QString& filename = QString());
+    bool loadFile(const QString& fn);
 private:
     enum JackNames
     {jnMIDI};
-    enum ParameterNames
-    {pnTrack};
-    int Ticks;
-    int uSPQ;
-    float SamplesPerTick;
-    double SampleCount;
-    float SamplesPermSec;
-    float mSecCount;
-    bool Playing;
+    //bool Playing;
     bool SkipBuffer;
     CMIDIBuffer MIDIBuffer;
     CMIDIFileReader MFR;
-    float uSPerTick;
     QList<CMIDIFileTrack*> PlayingTracks;
 
-    void OpenMidiFile(const QString& fn);
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
     void inline Reset();
-    void inline CalcTempo();
+    CTickCounter mSecCount;
 };
 
 #endif // CMIDIFILEPLAYER_H

@@ -4,30 +4,65 @@
 #
 #-------------------------------------------------
 TARGET = StereoMixer
-TEMPLATE = lib
 
 DEFINES += STEREOMIXER_LIBRARY
 
 include(../SoftSynthsIncludes.pri)
-include(../../EffectLabel/EffectLabel.pri)
-include(../../SynthKnob/QSynthKnob.pri)
-include(../../SynthSlider/QSynthSlider.pri)
-include(../../SynthPanel/QSynthPanel.pri)
+LIBS += -lSoftSynthsWidgets
+LIBS += -lEffectRack
 
-include(../../QSignalMenu/QSignalMenu.pri)
-include(../RtAudioBuffer/PeakMeter.pri)
-include(../../LCDLabel/QLCDLabel.pri)
+INCLUDEPATH += ../../EffectLabel\
+../../SynthKnob \
+../../SynthSlider \
+../../SynthPanel \
+../../ToggleButton \
+../../QSignalMenu \
+../RtAudioBuffer \
+../../LCDLabel \
+../../QCanvas
+
+INCLUDEPATH += ../PlugInLoader
+INCLUDEPATH += ../Preamp
+INCLUDEPATH += ../EffectRack
+
+##include(../../EffectLabel/EffectLabel.pri)
+##include(../../SynthKnob/QSynthKnob.pri)
+##include(../../SynthSlider/QSynthSlider.pri)
+##include(../../SynthPanel/QSynthPanel.pri)
+##include(../../ToggleButton/QToggleButton.pri)
+
+##include(../../QSignalMenu/QSignalMenu.pri)
+##include(../RtAudioBuffer/PeakMeter.pri)
+##include(../../LCDLabel/QLCDLabel.pri)
 
 SOURCES += cstereomixer.cpp \
     cstereomixerform.cpp \
-    cstereochannelwidget.cpp \
-    cmasterwidget.cpp
+    csf2channelwidget.cpp \
+    cmasterwidget.cpp \
+    cmastervol.cpp \
+    cchannelvol.cpp \
+    cchanneleffects.cpp \
+    cmixerwidget.cpp \
+    cchanneleq.cpp \
+    cchannelgain.cpp
 HEADERS += cstereomixer.h \
     cstereomixerform.h \
-    cstereochannelwidget.h \
-    cmasterwidget.h
+    csf2channelwidget.h \
+    cmasterwidget.h \
+    cmastervol.h \
+    cchannelvol.h \
+    cchanneleffects.h \
+    cmixerwidget.h \
+    cchanneleq.h \
+    cchannelgain.h
 
 FORMS += \
     cstereomixerform.ui \
-    cstereochannelwidget.ui \
-    cmasterwidget.ui
+    csf2channelwidget.ui \
+    cmasterwidget.ui \
+    cmastervol.ui \
+    cchannelvol.ui \
+    cchanneleffects.ui \
+    cmixerwidget.ui \
+    cchanneleq.ui \
+    cchannelgain.ui

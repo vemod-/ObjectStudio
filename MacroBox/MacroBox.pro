@@ -5,23 +5,13 @@
 #-------------------------------------------------
 
 TARGET = MacroBox
-TEMPLATE = lib
 
 DEFINES += MACROBOX_LIBRARY
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
 
-include(../RtAudioBuffer/DesktopComponent.pri)
+include(MacroBox.pri)
 
-SOURCES += cmacrobox.cpp \
-    cmacroboxform.cpp
-
-HEADERS += cmacrobox.h \
-    cmacroboxform.h
-
-FORMS += \
-    cmacroboxform.ui
 
 
 

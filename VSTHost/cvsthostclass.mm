@@ -1,176 +1,163 @@
 #include "cvsthostclass.h"
-#import <Cocoa/Cocoa.h>
+//#import <Cocoa/Cocoa.h>
 #include <QFileDialog>
 #include "singlevstpluginlist.h"
 #include "macstrings.h"
 #include <QApplication>
+#include "qsignalmenu.h"
 
-CVSTHostClass::CVSTHostClass(unsigned int sampleRate, unsigned int bufferSize, QWidget* parent)
-    : IAudioPlugInHost(sampleRate,bufferSize,parent)
+char CVSTHostClass::returnString[1024];
+VstTimeInfo CVSTHostClass::returnInfo;
+char** CVSTHostClass::FileStrings=nullptr;
+int CVSTHostClass::nFileStrings=0;
+
+CVSTHostClass::CVSTHostClass(QWidget* parent)
+    : IAudioPlugInHost(parent)
 {
-    ptrPlug=NULL;
-    InBuffers=NULL;
-    OutBuffers=NULL;
-    startTimer(0);
+    ptrPlug=nullptr;
     mMainMenu=new QMenu(this);
-    foreach (QString s,VSTCategories())
+    for (const QString& s : VSTCategories())
     {
-        QSignalMenu* m=new QSignalMenu(s,this);
+        QSignalMenu* m=new QSignalMenu(s,mMainMenu);
         connect(m,SIGNAL(menuClicked(QString)),this,SLOT(LoadFromMenu(QString)));
-        mSubMenus.append(m);
         mMainMenu->addMenu(m);
         QStringList l=VSTFiles(s);
-        for (int j=0;j<l.count();j++)
-        {
-            m->addAction(QFileInfo(l[j]).baseName(),l[j]);
-        }
+        for (const QString& s : std::as_const(l)) m->addAction(QFileInfo(s).baseName(),"VSTHost&&&&&&" + s);
     }
+    //m_TimerID=startTimer(200);
 }
 
-void CVSTHostClass::Popup(QPoint pos)
+void CVSTHostClass::popup(QPoint pos)
 {
-    foreach(QSignalMenu* m,mSubMenus) m->checkAction(m_Filename);
+    for(QSignalMenu* m : (const QList<QSignalMenu*>)mMainMenu->findChildren<QSignalMenu*>()) m->checkAction("VSTHost&&&&&&" + filename());
     mMainMenu->popup(pos);
 }
 
 CVSTHostClass::~CVSTHostClass()
 {
+    qDebug() << "~VSTHostClass";
+    //killTimer(m_TimerID);
+    //m_TimerID=0;
     KillPlug();
-    qDebug() << "Exit TVSTHost";
+    qDebug() << "Exit VSTHostClass";
 }
 
 const QStringList CVSTHostClass::VSTCategories()
 {
-    return SingleVSTPlugInList::getInstance()->keys();
+    return SingleVSTPlugInList::categories();
 }
 
 const QStringList CVSTHostClass::VSTFiles(QString category)
 {
-    return SingleVSTPlugInList::getInstance()->value(category);
+    return SingleVSTPlugInList::files(category);
 }
 
 void CVSTHostClass::LoadFromMenu(QString Filename)
 {
-    Load(Filename);
+    QStringList l = Filename.split("&&&&&&");
+    fileParameter->openFile(l[1]);
 }
 
 QString getPlugString(AEffect* eff,AEffectOpcodes OpCode,const long index)
 {
     char s[256];
-    ZeroMemory(s,256);
+    zeroMemory(s,256);
     eff->dispatcher(eff,OpCode,index,0,s,0.0f);
     return qt_mac_MacRomanToQString(s).trimmed();
 }
 
-bool CVSTHostClass::Load(QString Filename)
+bool CVSTHostClass::loadFile(const QString& Filename)
 {
+    setVisible(false);
+    //CFileIdentifier id(Filename);
+    //if (id == m_Filename) return true;
+
     AEffect* TempPlug;
     //find and load the DLL and get a pointer to its main function
     //this has a protoype like this: AEffect *main (audioMasterCallback audioMaster)
-    if (m_Filename==Filename) return true;
-
-    CFStringRef vstBundlePath =
-            CFStringCreateWithCString(kCFAllocatorDefault,
-                                      Filename.toUtf8().constData(), kCFStringEncodingMacRoman );
-    CFURLRef vstBundleURL =
-            CFURLCreateWithFileSystemPath(kCFAllocatorDefault,
-                                          vstBundlePath,
-                                          kCFURLPOSIXPathStyle,
-                                          true);
-    CFArrayRef archArrayRef = CFBundleCopyExecutableArchitecturesForURL(vstBundleURL);
-
-    if (archArrayRef)
+#ifndef __x86_64
+    if (!bundleIsI386(Filename))
     {
-        BOOL isI386 = [(NSArray*)archArrayRef containsObject:[NSNumber numberWithInt:kCFBundleExecutableArchitectureI386]];
-        if (!isI386)
-        {
-            CFRelease(vstBundlePath);
-            CFRelease(vstBundleURL);
-            return false;
-        }
+        qDebug() << "Plugin is not I386";
+        return false;
     }
+#else
+    if (!bundleIsX86_64(Filename))
+    {
+        qDebug() << Filename << "Plugin is not X86_64";
+        return false;
+    }
+#endif
+    const CFBundleRef TempBundle= pathToCFBundleRef(Filename);
 
-    CFBundleRef TempBundle = CFBundleCreate(kCFAllocatorDefault, vstBundleURL);
-
-    CFRelease(vstBundlePath);
-    CFRelease(vstBundleURL);
-
-    if (TempBundle == NULL)
+    if (TempBundle == nullptr)
     {
         qDebug() << "Not found!";
         return false;
     }
-    else
+    // use the result in a call to dlsym
+    qDebug() << "Found";
+    //DLL was loaded OK
+    AEffect* (VSTCALLBACK* getNewPlugInstance)(audioMasterCallback);
+
+    getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) functionPointerInBundle("VSTPluginMain",TempBundle);
+    if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) functionPointerInBundle("main_macho",TempBundle);
+    if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) functionPointerInBundle("main",TempBundle);
+    if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) functionPointerInBundle("main_plugin",TempBundle);
+    if (getNewPlugInstance == nullptr)
     {
-        // use the result in a call to dlsym
-        qDebug() << "Found";
-        //DLL was loaded OK
-        AEffect* (VSTCALLBACK* getNewPlugInstance)(audioMasterCallback);
-
-        getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) CFBundleGetFunctionPointerForName(TempBundle, CFSTR("VSTPluginMain"));
-        if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) CFBundleGetFunctionPointerForName(TempBundle, CFSTR("main_macho"));
-        if (!getNewPlugInstance) getNewPlugInstance =(AEffect* (VSTCALLBACK*)(audioMasterCallback)) CFBundleGetFunctionPointerForName(TempBundle, CFSTR("main"));
-        if (getNewPlugInstance != NULL)
-        {
-            //main function located OK
-            try
-            {
-                TempPlug=getNewPlugInstance(host);
-            }
-            catch (...)
-            {
-                qDebug() << "Load error";
-                CFRelease(TempBundle);
-                return false;
-            }
-
-            if (TempPlug!=NULL)
-            {
-                //plugin instantiated OK
-                qDebug() << "Plugin was loaded OK";
-
-                if (TempPlug->magic==kEffectMagic)
-                {
-                    qDebug() << "It's a valid VST plugin";
-                }
-                else
-                {
-                    qDebug() << "Not a VST plugin";
-                    CFRelease(TempBundle);
-                    return false;
-                }
-            }
-            else
-            {
-                qDebug() << "Plugin could not be instantiated";
-                CFRelease(TempBundle);
-                return false;
-            }
-        }
-        else
-        {
-            qDebug() << "Plugin main function could not be located";
-            CFRelease(TempBundle);
-            return false;
-        }
+        qDebug() << "Plugin could not be instantiated";
+        CFRelease(TempBundle);
+        return false;
+    }
+    //main function located OK
+    try
+    {
+        TempPlug=getNewPlugInstance(host);
+    }
+    catch (...)
+    {
+        qDebug() << "Load error";
+        CFRelease(TempBundle);
+        return false;
     }
 
-    if (!(TempPlug->flags & effFlagsHasEditor)) return false;
+    if (TempPlug == nullptr)
+    {
+        qDebug() << "Plugin main function could not be located";
+        CFRelease(TempBundle);
+        return false;
+    }
+    //plugin instantiated OK
+    qDebug() << "Plugin was loaded OK";
+    if (TempPlug->magic != kEffectMagic)
+    {
+        qDebug() << "Not a VST plugin";
+        CFRelease(TempBundle);
+        return false;
+    }
+    qDebug() << "It's a valid VST plugin";
+
+    if (!(TempPlug->flags & effFlagsHasEditor)) {
+        qDebug() << "VST No Editor";
+        CFRelease(TempBundle);
+        return false;
+    }
 
     KillPlug();
 
-    m_Filename=Filename;
+    //m_Filename=Filename;
 
     TempPlug->user=this;
     //switch the plugin off (calls Suspend)
-    TempPlug->dispatcher(TempPlug,effMainsChanged,0,0,NULL,0.0f);
+    TempPlug->dispatcher(TempPlug,effMainsChanged,0,0,nullptr,0.0f);
 
     qDebug() << ("Plug-In Loaded, OK");
     //set sample rate and block size
-    TempPlug->dispatcher(TempPlug,effSetSampleRate,0,0,NULL,m_Samplerate);
-    TempPlug->dispatcher(TempPlug,effSetBlockSize,0,m_Buffersize,NULL,0.0f);
+    TempPlug->dispatcher(TempPlug,effSetSampleRate,0,0,nullptr,m_Samplerate);
+    TempPlug->dispatcher(TempPlug,effSetBlockSize,0,m_Buffersize,nullptr,0.0f);
 
-    if (TempPlug->dispatcher(TempPlug,effGetVstVersion,0,0,NULL,0.0f)>=2)
+    if (TempPlug->dispatcher(TempPlug,effGetVstVersion,0,0,nullptr,0.0f) >= 2)
     {
         //get I/O configuration for synth plugins - they will declare their
         //own output and input channels
@@ -180,16 +167,13 @@ bool CVSTHostClass::Load(QString Filename)
             {
                 //input pin
                 VstPinProperties temp;
-
                 if (TempPlug->dispatcher(TempPlug,effGetInputProperties,i,0,&temp,0.0f)==1)
                 {
                     qDebug() << ("Input pin " + QString::number(i+1) + " label " + QString(temp.label));
-
                     if (temp.flags & kVstPinIsActive)
                     {
                         qDebug() << ("Input pin " + QString::number(i+1) + " is active");
                     }
-
                     if (temp.flags & kVstPinIsStereo)
                     {
                         // is index even or zero?
@@ -202,17 +186,19 @@ bool CVSTHostClass::Load(QString Filename)
                             qDebug() << ("Input pin " + QString::number(i+1) + " is right channel of a stereo pair");
                         }
                     }
+                    else
+                    {
+                        qDebug() << ("Input pin " + QString::number(i+1) + " is mono");
+                    }
                 }
             }
             else
             {
                 //output pin
                 VstPinProperties temp;
-
                 if (TempPlug->dispatcher(TempPlug,effGetOutputProperties,i-TempPlug->numInputs,0,&temp,0.0f)==1)
                 {
                     qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " label " + QString(temp.label));
-
                     if (temp.flags & kVstPinIsActive)
                     {
                         qDebug() << ("Output pin " + QString::number(i-TempPlug->numInputs+1) + " is active");
@@ -244,53 +230,40 @@ bool CVSTHostClass::Load(QString Filename)
     }	//end VST2 specific
 
     //switch the plugin back on (calls Resume)
-    TempPlug->dispatcher(TempPlug,effMainsChanged,0,1,NULL,0.0f);
+    qDebug() << "Mains on";
+    TempPlug->dispatcher(TempPlug,effMainsChanged,0,1,nullptr,0.0f);
 
-    //SetUp Buffers
-    if (TempPlug->numInputs)
-    {
-        //Plug requires independent input signals
-        InBuffers=new float*[TempPlug->numInputs];
+    qDebug() << "Zero buffers";
+    InBuffers.initZero(m_Buffersize,TempPlug->numInputs);
+    OutBuffers.initZero(m_Buffersize,TempPlug->numOutputs);
 
-        //create the input buffers
-        for (int i=0;i<TempPlug->numInputs;i++)
-        {
-            qDebug() << ("Input buffer " + QString::number(i+1) + " created");
-            InBuffers[i]=new float[m_Buffersize];
-            ZeroMemory(InBuffers[i],m_Buffersize*sizeof(float));
-        }
-    }
+    qDebug() << "Init view";
+    init(nullptr);
 
-    if (TempPlug->numOutputs)
-    {
-        OutBuffers=new float*[TempPlug->numOutputs];
-
-        //create the output buffers
-        for (int i=0;i<TempPlug->numOutputs;i++)
-        {
-            qDebug() << ("Output buffer " + QString::number(i+1) + " created");
-            OutBuffers[i]=new float[m_Buffersize];
-            ZeroMemory(OutBuffers[i],m_Buffersize*sizeof(float));
-        }
-    }
-
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    Init();
-    [pool drain];
-
-    TempPlug->dispatcher(TempPlug,effEditOpen,0,0,WindowReference(),0.0f);
+    /*
+    QSize s = UISize();
+    NSView* v = (__bridge NSView*)hostView;
+    [v setFrame:NSMakeRect(0,0,s.width(),s.height())];
+    */
+    qDebug() << "effEditOpen";
+    TempPlug->dispatcher(TempPlug,effEditOpen,0,0,superId(),0.0f);
 
     ptrPlug=TempPlug;
     vstBundle=TempBundle;
 
-    setFixedSize(GetEffRect().size());
+    //if (NSView* v = (__bridge NSView*)viewId()) [v setAutoresizingMask:NSViewNotSizable];
+    qDebug() << "Set viewSize";
+    setViewSize(UISize());
 
+    qDebug() << "Load programNames";
     LoadProgramNames();
 
-    SetProgram(0);
-
+    qDebug() << "Set bankpreset";
+    setBankPreset(0);
+    setVisible(true);
+    qDebug() << "Emit plugin changed";
     emit PlugInChanged();
-
+    qDebug() << "Return";
     return true;
 }
 
@@ -302,8 +275,8 @@ void CVSTHostClass::LoadProgramNames()
         QString s;
         for (long i=0;i<ptrPlug->numPrograms;i++)
         {
-            SetProgram(i);
-            QString pn=getPlugString(ptrPlug,effGetProgramName,i);
+            setBankPreset(i);
+            const QString pn=getPlugString(ptrPlug,effGetProgramName,i);
             if (s==pn) break;
             s=pn;
             m_ProgramNames.append(s);
@@ -316,18 +289,17 @@ void CVSTHostClass::LoadProgramNames()
 //
 VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstInt32 index, VstIntPtr /*value*/, void* ptr, float opt)
 {
-    char S[1024];
-    char** FileStrings=NULL;
-    int nFileStrings=0;
-    VstTimeInfo VTI;
+    //char S[1024];
+    //VstTimeInfo VTI;
     long retval=0;
-    VstFileSelect* FS=(VstFileSelect*)ptr;
-    //QFileDialog OD;
+    VstFileSelect* FS=static_cast<VstFileSelect*>(ptr);
+    char* p = static_cast<char*>(ptr);
     QStringList FileNames;
     QString Filename;
     QString Filter;
     VstFileType* FT;
-
+    QByteArray b;
+    //qDebug() << "VSTHostClass callback" << opcode;
     switch (opcode)
     {
     //VST 1.0 opcodes
@@ -378,13 +350,13 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //Sleep(1);
         //Debug("plug called audioMasterIdle");
         /* 2.4
-                        effect->dispatcher(effect,effIdle,0,0,NULL,0.0f);
+                        effect->dispatcher(effect,effIdle,0,0,nullptr,0.0f);
                         for (int i=0;i<Plugs.count();i++)
                         {
                             AEffect* E=Plugs[i];
                             if (E->flags & effFlagsHasEditor)
                             {
-                                E->dispatcher(E,effEditIdle,0,0,NULL,0.0f);
+                                E->dispatcher(E,effEditIdle,0,0,nullptr,0.0f);
                             }
                         }
                         */
@@ -426,15 +398,15 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //Return Value:
         //ptr to populated const VstTimeInfo structure (or 0 if not supported)
 
-        VTI.sampleRate =  CPresets::Presets.SampleRate;
-        VTI.timeSigNumerator = 4;
-        VTI.timeSigDenominator = 4;
-        VTI.smpteFrameRate = 1;
-        VTI.samplePos = 0;
-        VTI.ppqPos = 0;
+        returnInfo.sampleRate =  CPresets::presets().SampleRate;
+        returnInfo.timeSigNumerator = 4;
+        returnInfo.timeSigDenominator = 4;
+        returnInfo.smpteFrameRate = 1;
+        returnInfo.samplePos = 0;
+        returnInfo.ppqPos = 0;
         //Flags := [vtiNanosValid, vtiPpqPosValid, vtiTempoValid, vtiBarsValid,
         // vtiCyclePosValid, vtiTimeSigValid, vtiSmpteValid, vtiClockValid];
-        retval=(long)&VTI;
+        retval=(long)&returnInfo;
         //NB - this structure will have to be held in memory for long enough
         //for the plug to safely make use of it
         //Debug("plug called audioMasterGetTime");
@@ -516,10 +488,10 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                         //editor is open
                         //Check despatcher notes for any return codes from effIdle
                         //Debug("plug called audioMasterNeedIdle");
-                        effect->dispatcher(effect,effIdle,0,0,NULL,0.0f);
+                        effect->dispatcher(effect,effIdle,0,0,nullptr,0.0f);
                         if (effect->flags & effFlagsHasEditor)
                         {
-                            effect->dispatcher(effect,effEditIdle,0,0,NULL,0.0f);
+                            effect->dispatcher(effect,effEditIdle,0,0,nullptr,0.0f);
                         }
                         retval=1;
                         break;
@@ -547,8 +519,8 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //Check despatcher notes for any return codes from effSetSampleRate
         //Debug("plug called audioMasterGetSampleRate");
         //TempF=Presets().SampleRate;
-        //effect->dispatcher(effect,effSetSampleRate,0,0,NULL,TempF);
-        retval=CPresets::Presets.SampleRate;
+        //effect->dispatcher(effect,effSetSampleRate,0,0,nullptr,TempF);
+        retval=CPresets::presets().SampleRate;
         break;
 
     case audioMasterGetBlockSize:
@@ -563,8 +535,8 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //Check despatcher notes for any return codes from effSetBlockSize
         //Debug("plug called audioMasterGetBlockSize");
         //TempL=Presets().ModulationRate;
-        //effect->dispatcher(effect,effSetBlockSize,0,TempL,NULL,0.0f);
-        retval=CPresets::Presets.ModulationRate;
+        //effect->dispatcher(effect,effSetBlockSize,0,TempL,nullptr,0.0f);
+        retval=CPresets::presets().ModulationRate;
         break;
 
     case audioMasterGetInputLatency:
@@ -590,7 +562,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                         //None
 
                         //Return Value:
-                        //pointer to AEffect structure or NULL if not known?
+                        //pointer to AEffect structure or nullptr if not known?
 
                         //NB - ***possibly bugged***
                         //Steinberg notes say "input pin in <value> (-1: first to come)"
@@ -603,7 +575,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                         //None
 
                         //Return Value:
-                        //pointer to AEffect structure or NULL if not known?
+                        //pointer to AEffect structure or nullptr if not known?
 
                         //NB - ***possibly bugged***
                         //Steinberg notes say "output pin in <value> (-1: first to come)"
@@ -658,9 +630,10 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //0 if error
         //non-zero value if OK
         //Debug("plug called audioMasterGetVendorString");
-        ZeroMemory(S,1024);
-        strcpy (S, "Veinge Musik och Data");
-        ptr=S;
+        zeroMemory(ptr,64);
+        b = "Veinge Musik och Data";
+        strlcpy((char*)ptr, b.constData(), b.size());
+        //ptr=S;
         retval=1;
         break;
 
@@ -672,9 +645,10 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //0 if error
         //non-zero value if OK
         //Debug("plug called audioMasterGetProductString");
-        ZeroMemory(S,1024);
-        strcpy (S, "Object Studio");
-        ptr=S;
+        zeroMemory(ptr,64);
+        b = "Object Studio";
+        strlcpy((char*)ptr, b.constData(), b.size());
+        //ptr=S;
         retval=1;
         break;
 
@@ -727,14 +701,15 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //"supplyIdle",
         //"supportShell"
         //Debug("plug called audioMasterCanDo" + AnsiString((char*)ptr));
-
-        if (strcmp((char*)ptr,"sendVstEvents")==0 ||
-                strcmp((char*)ptr,"sendVstMidiEvent")==0 ||
-                strcmp((char*)ptr,"sendVstTimeInfo")==0 ||
-                strcmp((char*)ptr,"asyncProcessing")==0 ||
-                strcmp((char*)ptr,"offline")==0 ||
-                strcmp((char*)ptr,"sizeWindow")==0 ||
-                strcmp((char*)ptr,"supplyIdle")==0)
+        if (strcmp(p,"sendVstEvents")==0 ||
+                strcmp(p,"receiveVstMidiEvent")==0 ||
+                strcmp(p,"receiveVstEvents")==0 ||
+                strcmp(p,"sendVstMidiEvent")==0 ||
+                strcmp(p,"sendVstTimeInfo")==0 ||
+                strcmp(p,"asyncProcessing")==0 ||
+                strcmp(p,"offline")==0 ||
+                strcmp(p,"sizeWindow")==0 ||
+                strcmp(p,"supplyIdle")==0)
         {
             retval=1;
         }
@@ -792,9 +767,10 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
 
         //NB Refers to which directory, exactly?
         //Debug("plug called audioMasterGetDirectory");
-        ZeroMemory(S,1024);
-        strcpy (S, CPresets::Presets.VSTPath.toUtf8().constData());
-        retval=(long)&S[0];
+        b = CPresets::presets().VSTPath.toUtf8();
+        zeroMemory(returnString,1024);
+        strlcpy(returnString, b.constData(),b.size());
+        retval=(long)&returnString[0];
         break;
 
     case audioMasterUpdateDisplay:
@@ -806,7 +782,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
         //Debug("plug called audioMasterUpdateDisplay");
         if (effect->flags & effFlagsHasEditor)
         {
-            effect->dispatcher(effect,effEditIdle,0,0,NULL,0.0f);
+            effect->dispatcher(effect,effEditIdle,0,0,nullptr,0.0f);
         }
         break;
         //---from here VST 2.1 extension opcodes------------------------------------------------------
@@ -825,7 +801,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
             switch (FS->type)
             {
             case kVstFileLoad:
-                FT=(VstFileType*)FS->fileTypes;
+                FT=static_cast<VstFileType*>(FS->fileTypes);
                 for (int i=0;i<FS->nbFileTypes;i++)
                 {
                     Filter = QString(QString(FT[i].name) + " (*." +
@@ -835,14 +811,17 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                 Filename=QFileDialog::getOpenFileName(0,FS->title,FS->initialPath,Filter);
                 if (!Filename.isEmpty())
                 {
-                    ZeroMemory(S,1024);
-                    strcpy(S,Filename.toUtf8().constData());
-                    FS->returnPath=S;
-                    FS->sizeReturnPath=Filename.length();
+                    b = Filename.toUtf8();
+                    nFileStrings = 1;
+                    FileStrings = new char*[nFileStrings];
+                    FileStrings[0] = new char[b.size()];
+                    strlcpy(FileStrings[0],b.constData(),b.size());
+                    FS->returnPath=FileStrings[0];
+                    FS->sizeReturnPath=b.size();
                 }
                 break;
             case kVstFileSave:
-                FT=(VstFileType*)FS->fileTypes;
+                FT=static_cast<VstFileType*>(FS->fileTypes);
                 for (int i=0;i<FS->nbFileTypes;i++)
                 {
                     Filter = QString(QString(FT[i].name) + " (*." +
@@ -852,14 +831,17 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                 Filename=QFileDialog::getSaveFileName(0,FS->title,FS->initialPath,Filter);
                 if (!Filename.isEmpty())
                 {
-                    ZeroMemory(S,1024);
-                    strcpy(S,Filename.toUtf8().constData());
-                    FS->returnPath=S;
-                    FS->sizeReturnPath=Filename.length();
+                    b = Filename.toUtf8();
+                    nFileStrings = 1;
+                    FileStrings = new char*[nFileStrings];
+                    FileStrings[0] = new char[b.size()];
+                    strlcpy(FileStrings[0],b.constData(),b.size());
+                    FS->returnPath=FileStrings[0];
+                    FS->sizeReturnPath=b.size();
                 }
                 break;
             case kVstMultipleFilesLoad:
-                FT=(VstFileType*)FS->fileTypes;
+                FT=static_cast<VstFileType*>(FS->fileTypes);
                 for (int i=0;i<FS->nbFileTypes;i++)
                 {
                     Filter = QString(QString(FT[i].name) + " (*." +
@@ -867,14 +849,15 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                                      QString(FT[i].dosType) + "|");
                 }
                 FileNames=QFileDialog::getOpenFileNames(0,FS->title,FS->initialPath,Filter);
-                if (FileNames.count())
+                if (FileNames.size())
                 {
-                    nFileStrings=FileNames.count();
+                    nFileStrings=FileNames.size();
                     FileStrings=new char*[nFileStrings];
                     for (int i=0;i<nFileStrings;i++)
                     {
-                        FileStrings[i]=new char[FileNames[i].length()];
-                        strcpy(FileStrings[i],FileNames[i].toUtf8().constData());
+                        b = FileNames[i].toUtf8();
+                        FileStrings[i]=new char[b.size()];
+                        strlcpy(FileStrings[i],b.constData(),b.size());
                     }
                     FS->nbReturnPath=nFileStrings;
                     FS->returnMultiplePaths=FileStrings;
@@ -884,10 +867,13 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                 Filename=QFileDialog::getExistingDirectory(0,FS->title,FS->initialPath);
                 if (!Filename.isEmpty())
                 {
-                    ZeroMemory(S,1024);
-                    strcpy(S,Filename.toUtf8().constData());
-                    FS->returnPath=S;
-                    FS->sizeReturnPath=Filename.length();
+                    b = Filename.toUtf8();
+                    nFileStrings = 1;
+                    FileStrings = new char*[nFileStrings];
+                    FileStrings[0] = new char[b.size()];
+                    strlcpy(FileStrings[0],b.constData(),b.size());
+                    FS->returnPath=FileStrings[0];
+                    FS->sizeReturnPath=b.size();
                 }
                 break;
 
@@ -913,7 +899,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                                     if (OD->Title.AnsiCompare(FS->title)==0)
                                     {
                                         delete OD;
-                                        //OD=NULL;
+                                        //OD=nullptr;
                                     }
                                     break;
                                 case kVstFileSave:
@@ -921,7 +907,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                                     if (SD->Title.AnsiCompare(FS->title)==0)
                                     {
                                         delete SD;
-                                        //SD=NULL;
+                                        //SD=nullptr;
                                     }
                                     break;
                                 case kVstMultipleFilesLoad:
@@ -929,7 +915,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                                     if (OD->Title.AnsiCompare(FS->title)==0)
                                     {
                                         delete OD;
-                                        //OD=NULL;
+                                        //OD=nullptr;
                                     }
                                     break;
                                 case kVstDirectorySelect:
@@ -937,7 +923,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                                     if (BD->CaptionTitle.AnsiCompare(FS->title)==0)
                                     {
                                         delete BD;
-                                        //BD=NULL;
+                                        //BD=nullptr;
                                     }
                                     break;
                             }
@@ -950,7 +936,7 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
                 delete[] FileStrings[i];
             }
             delete[] FileStrings;
-            FileStrings=NULL;
+            FileStrings=nullptr;
         }
 
         //Debug("plug called audioMasterCloseFileSelector");
@@ -971,50 +957,52 @@ VstIntPtr VSTCALLBACK CVSTHostClass::host(AEffect* effect, VstInt32 opcode, VstI
     return retval;
 }
 
-int CVSTHostClass::ParameterCount()
+int CVSTHostClass::parameterCount() const
 {
     if (ptrPlug) return ptrPlug->numParams;
     return 0;
 }
 
-float CVSTHostClass::GetParameter(const long index)
+float CVSTHostClass::parameter(const long index) const
 {
     if (ptrPlug) return ptrPlug->getParameter(ptrPlug,index);
     return 0;
 }
 
-void CVSTHostClass::SetParameter(const long index, const float value)
+void CVSTHostClass::setParameter(const long index, const float value)
 {
     if (ptrPlug) ptrPlug->setParameter(ptrPlug,index,value);
 }
 
-const QString CVSTHostClass::ParameterName(const long index)
+const QString CVSTHostClass::parameterName(const long index)
 {;
     QString retVal;
     if (ptrPlug)
     {
+        //qDebug() << "VSTHostClass parameterName";
         retVal = getPlugString(ptrPlug,effGetParamName,index).trimmed();
         if (retVal.isEmpty()) retVal = getPlugString(ptrPlug,effGetParamLabel,index).trimmed();
     }
     return retVal;
 }
 
-const QString CVSTHostClass::ParameterValue(const long index)
+const QString CVSTHostClass::parameterValue(const long index)
 {
     if (ptrPlug)
     {
+        //qDebug() << "VSTHostClass parameterValue";
         return getPlugString(ptrPlug,effGetParamDisplay,index).trimmed();
     }
     return QString();
 }
 
-int CVSTHostClass::NumInputs()
+int CVSTHostClass::inputCount()
 {
     if (ptrPlug) return ptrPlug->numInputs;
     return 0;
 }
 
-int CVSTHostClass::NumOutputs()
+int CVSTHostClass::outputCount()
 {
     if (ptrPlug) return ptrPlug->numOutputs;
     return 0;
@@ -1022,30 +1010,31 @@ int CVSTHostClass::NumOutputs()
 
 float CVSTHostClass::VSTVersion()
 {
-    if  (!ptrPlug){return 0;}
-    return ptrPlug->dispatcher(ptrPlug,effGetVstVersion,0,0,NULL,0.0f);
+    if (!ptrPlug) return 0;
+    return ptrPlug->dispatcher(ptrPlug,effGetVstVersion,0,0,nullptr,0.0f);
 }
 
-bool CVSTHostClass::Process()
+bool CVSTHostClass::process()
 {
     if (!ptrPlug) return false;
-    ptrPlug->dispatcher(ptrPlug,effStartProcess,0,0,NULL,0.0f);
+        //qDebug() << "VSTHostClass Process";
+    ptrPlug->dispatcher(ptrPlug,effStartProcess,0,0,nullptr,0.0f);
     // Called before the start of process call
 
     //ProcessEvents
-    if (ptrPlug && vstMidiEvents.count()) {
-          vstEventsBuffer.resize(sizeof(VstEvents) +
-                                 (sizeof(VstEvent *) * vstMidiEvents.count()));
-          VstEvents *vstEvents = (VstEvents *) &vstEventsBuffer.front();
+    if (ptrPlug && vstMidiEvents.size()) {
+        vstEventsBuffer.resize(sizeof(VstEvents) +
+                               (sizeof(VstEvent *) * vstMidiEvents.size()));
+        VstEvents *vstEvents = reinterpret_cast<VstEvents*>(&vstEventsBuffer.front());
 
-          vstEvents->numEvents = vstMidiEvents.count();
-          vstEvents->reserved = 0;
-          for (size_t i = 0, n = vstEvents->numEvents; i < n; i++)
-          {
-            vstEvents->events[i] = (VstEvent *) &vstMidiEvents[i];
-          }
-          ptrPlug->dispatcher(ptrPlug,effProcessEvents,0,0,vstEvents,0.0f);
+        vstEvents->numEvents = vstMidiEvents.size();
+        vstEvents->reserved = 0;
+        for (ulong64 i = 0, n = vstEvents->numEvents; i < n; i++)
+        {
+            vstEvents->events[i] = vstMidiEvents[i];
         }
+        ptrPlug->dispatcher(ptrPlug,effProcessEvents,0,0,vstEvents,0.0f);
+    }
 
     //Some plugs don't replace even if processReplacing is called so we must flush buffers
     //Some people don't do that for you !!!
@@ -1059,7 +1048,7 @@ bool CVSTHostClass::Process()
     //if (ptrPlug->flags & effFlagsCanReplacing)
     //{
     if (!ptrPlug) return false;
-    ptrPlug->processReplacing(ptrPlug,InBuffers,OutBuffers,m_Buffersize);
+    ptrPlug->processReplacing(ptrPlug,InBuffers.channelPointers(),OutBuffers.channelPointers(),m_Buffersize);
     /* 2.4
                 }
                 else
@@ -1070,204 +1059,159 @@ bool CVSTHostClass::Process()
     //((TfrmVSTHost*)m_EditForm)->EditIdle();
     // Called after the stop of process call
     if (!ptrPlug) return false;
-    ptrPlug->dispatcher(ptrPlug,effStopProcess,0,0,NULL,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effStopProcess,0,0,nullptr,0.0f);
+    qDeleteAll(vstMidiEvents);
     vstMidiEvents.clear();
+    vstSysExData.clear();
     return true;
 }
 
-VstMidiEvent createEvent(BYTE Message, QVarLengthArray<BYTE> &data)
+VstEvent* createVSTEvent(const CMIDIEvent* Event)
 {
-    VstMidiEvent e;
-    e.type=kVstMidiType;
-    e.byteSize=24L;
-    e.deltaFrames=0L;
-    e.flags=0L;
-    e.noteLength=0L;
-    e.noteOffset=0L;
+    VstMidiEvent* e=new VstMidiEvent;
+    e->type=kVstMidiType;
+    e->byteSize = sizeof(VstMidiEvent);
+    e->deltaFrames=0L;
+    e->flags=0L;
+    e->noteLength=0L;
+    e->noteOffset=0L;
 
-    e.midiData[0]=Message;	//status & channel
-    e.midiData[1]=data.at(0);	//MIDI byte #2
-    if (data.size() > 1)
+    e->midiData[0]=Event->message();	//status & channel
+    e->midiData[1]=Event->data(0);	//MIDI byte #2
+    if (Event->dataSize() > 1)
     {
-        e.midiData[2]=data.at(1);	//MIDI byte #3
+        e->midiData[2]=Event->data(1);	//MIDI byte #3
     }
     else
     {
-        e.midiData[2]=0x00;
+        e->midiData[2]=0x00;
     }
-    e.midiData[3]=0x00;	//MIDI byte #4 - blank
+    e->midiData[3]=0x00;	//MIDI byte #4 - blank
 
-    e.detune=0x00;
-    e.noteOffVelocity=0x00;
-    e.reserved1=0x00;
-    e.reserved2=0x00;
-    return e;
+    e->detune=0x00;
+    e->noteOffVelocity=0x00;
+    e->reserved1=0x00;
+    e->reserved2=0x00;
+    return reinterpret_cast<VstEvent*>(e);
 }
 
-void CVSTHostClass::DumpMIDI(CMIDIBuffer* MB, bool PatchChange)
+VstEvent* createVSTSysExEvent(std::vector<byte>& sysExData)
 {
-    if (!MB) return;
+    VstMidiSysexEvent* e=new VstMidiSysexEvent;
+    e->type = kVstSysExType;
+    e->byteSize = sizeof(VstMidiSysexEvent);
+    e->deltaFrames = 0L;
+    e->flags = 0L;
+    e->dumpBytes = sysExData.size();
+    e->resvd1 = 0x00;
+    e->sysexDump = reinterpret_cast<char*>(sysExData.data());
+    e->resvd2 = 0x00;
+    return reinterpret_cast<VstEvent*>(e);
+}
+
+void CVSTHostClass::parseEvent(const CMIDIEvent* Event)
+{
     if (!ptrPlug) return;
-    foreach(CMIDIEvent Event,MB->Events())
+    if (Event->isSysEx())
     {
-        if (Event.command == 0xF0)
-        {
-        }
-        else if ((m_MIDIChannel==0) | (m_MIDIChannel==Event.channel+1))
-        {
-            if (Event.data.size()==1)
-            {
-                if (Event.command == 0xC0)
-                {
-                    if (PatchChange) vstMidiEvents.append(createEvent(Event.message,Event.data));
-                }
-                else
-                {
-                    vstMidiEvents.append(createEvent(Event.message,Event.data));
-                }
-            }
-            if (Event.data.size()==2)
-            {
-                if ((Event.command == 0xB0) & ((Event.data.at(0)==0) | (Event.data.at(0)==0x20)))
-                {
-                    if (PatchChange) vstMidiEvents.append(createEvent(Event.message,Event.data));
-                }
-                else
-                {
-                    vstMidiEvents.append(createEvent(Event.message,Event.data));
-                }
-            }
-        }
+        std::vector<byte> v(Event->toVector());
+        vstMidiEvents.append(createVSTSysExEvent(v));
+        vstSysExData.append(v);
+    }
+    else
+    {
+        Event->transpose(m_Transpose);
+        vstMidiEvents.append(createVSTEvent(Event));
     }
 }
 
 void CVSTHostClass::KillPlug()
 {
+    qDeleteAll(vstMidiEvents);
+    vstMidiEvents.clear();
+    vstSysExData.clear();
+
     if (!ptrPlug) return;
 
-    AEffect* TempPlug=ptrPlug;
+    AEffect* TempPlug = ptrPlug;
+    ptrPlug=nullptr;
+
     CFBundleRef TempBundle=(CFBundleRef)vstBundle;
 
+    qDebug() << "effEditClose";
     if (TempPlug->flags & effFlagsHasEditor)
     {
-        TempPlug->dispatcher(TempPlug,effEditClose,0,0,NULL,0.0f);
+        //try {
+            //TempPlug->dispatcher(TempPlug,effEditClose,0,0,nullptr,0.0f);
+        //}
+        //catch(...) {}
     }
-    qDebug() << 1;
-    DestroyMacWindow();
+    qDebug() << "Destroy Macwin";
+    destroyMacWindow();
 
-    qDebug() << 2;
+    qDebug() << "effMainsChanged";
+    TempPlug->dispatcher(TempPlug,effMainsChanged,0,0,nullptr,0.0f); //calls suspend
 
-    ////////////////////////////////////////////////////////////////////////////
-
-    TempPlug->dispatcher(TempPlug,effMainsChanged,0,0,NULL,0.0f);	//calls suspend
-
-    ////////////////////////////////////////////////////////////////////////////
-
-    qDebug() << 3;
-
-    //delete the input buffers
-    if (TempPlug->numInputs>0)
-    {
-        for (int i=0;i<TempPlug->numInputs;i++)
-        {
-            delete[] InBuffers[i];
-        }
-        //remove the pointers to the buffers
-        delete[] InBuffers;
-    }
-
-    qDebug() << 4;
-
-    //delete the output buffers
-    if (TempPlug->numOutputs>0)
-    {
-        for (int i=0;i<TempPlug->numOutputs;i++)
-        {
-            delete[] OutBuffers[i];
-        }
-
-        //remove the pointers to the buffers
-        delete[] OutBuffers;
-    }
-
-    qDebug() << 5;
-
-
+    qDebug() << "clear programnames";
     m_ProgramNames.clear();
-    ptrPlug=NULL;
-    InBuffers=NULL;
-    OutBuffers=NULL;
-    //ptrEvents=NULL;
-    //ptrEventBuffer=NULL;
+    qDebug() << "clear bank";
     CurrentBank.clear();
+    qDebug() << "clear preset";
     CurrentPreset.clear();
-    m_Filename.clear();
+    qDebug() << "clear fileparameter";
+    //fileParameter->clear();
 
     //Shut the plugin down and free the library (this deletes the C++ class
     //memory and calls the appropriate destructors...)
-    TempPlug->dispatcher(TempPlug,effClose,0,0,NULL,0.0f);
-
+    qDebug() << "effClose";
+    TempPlug->dispatcher(TempPlug,effClose,0,0,nullptr,0.0f);
+    TempPlug = nullptr;
+    qDebug() << "CFRelease";
     CFRelease(TempBundle);
-
-    qDebug() << 6;
-    ////////////////////////////////////////////////////////////////////////////
 }
 
-const QString CVSTHostClass::SaveXML()
+void CVSTHostClass::serialize(QDomLiteElement* xml) const
 {
-    QDomLiteElement xml("Settings");
-    QString RelPath=QDir(CPresets::Presets.VSTPath).relativeFilePath(CurrentBank);
-    xml.setAttribute("BankPath",RelPath);
+    xml->setAttribute("BankPath",QDir(presets.VSTPath).relativeFilePath(CurrentBank));
+    xml->setAttribute("PresetPath",QDir(presets.VSTPath).relativeFilePath(CurrentPreset));
+    int p = currentBankPreset();
+    xml->setAttribute("Preset",p);
+    xml->setAttribute("NumParams",parameterCount());
+    QDomLiteElement* Params = xml->appendChild("Parameters");
+    for (int i=0;i<parameterCount();i++) Params->setAttribute("Param" + QString::number(i),parameter(i));
+    //IAudioPlugInHost::serialize(xml);
+}
 
-    RelPath=QDir(CPresets::Presets.VSTPath).relativeFilePath(CurrentPreset);
-
-    xml.setAttribute("PresetPath",RelPath);
-    int p = CurrentProgram();
-    xml.setAttribute("Preset",p);
-    xml.setAttribute("NumParams",ParameterCount());
-    QDomLiteElement* Params = xml.appendChild("Parameters");
-    for (int i=0;i<ParameterCount();i++)
+void CVSTHostClass::unserialize(const QDomLiteElement* xml)
+{
+    if (!xml) return;
+    CurrentBank=xml->attribute("BankPath");
+    CurrentPreset=xml->attribute("PresetPath");
+    if (!CurrentBank.isEmpty())
     {
-        Params->setAttribute("Param" + QString::number(i),GetParameter(i));
+        const QString Expath=QDir(presets.VSTPath).absoluteFilePath(CurrentBank);
+        loadBank(Expath);
     }
-    return xml.toString();
-}
-
-void CVSTHostClass::LoadXML(const QString &XML)
-{
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Settings")
+    if (!CurrentPreset.isEmpty())
     {
-        CurrentBank=xml.attribute("BankPath");
-        CurrentPreset=xml.attribute("PresetPath");
-        if (!CurrentBank.isEmpty())
+        const QString Expath=QDir(presets.VSTPath).absoluteFilePath(CurrentPreset);
+        loadPreset(Expath);
+    }
+    const int nParams=xml->attributeValueInt("NumParams");
+    const int p=xml->attributeValueInt("Preset");
+    setBankPreset(p);
+    if (const QDomLiteElement* Params = xml->elementByTag("Parameters"))
+    {
+        for (int i = nParams-1; i >- 1; i--)
         {
-            QString Expath=QDir(CPresets::Presets.VSTPath).absoluteFilePath(CurrentBank);
-            LoadBank(Expath);
-        }
-        if (!CurrentPreset.isEmpty())
-        {
-            QString Expath=QDir(CPresets::Presets.VSTPath).absoluteFilePath(CurrentPreset);
-            LoadPreset(Expath);
-        }
-        int nParams=xml.attributeValue("NumParams");
-        int p=xml.attributeValue("Preset");
-        SetProgram(p);
-        QDomLiteElement* Params = xml.elementByTag("Parameters");
-        if (Params)
-        {
-            for (int i=nParams-1;i>-1;i--)
-            {
-                float Param=Params->attributeValue("Param" + QString::number(i));
-                SetParameter(i,Param);
-                qDebug() << i << Param << GetParameter(i) << ParameterName(i) << ParameterValue(i);
-            }
+            const float Param = Params->attributeValue("Param" + QString::number(i));
+            setParameter(i,Param);
         }
     }
+    //IAudioPlugInHost::unserialize(xml);
 }
 
-void CVSTHostClass::LoadBank(QString FileName)
+void CVSTHostClass::loadBank(QString FileName)
 {
     QFile f(FileName);
     if (!f.exists())
@@ -1277,79 +1221,72 @@ void CVSTHostClass::LoadBank(QString FileName)
     }
     if (f.open(QIODevice::ReadOnly))
     {
-        LoadBank(f);
-        if (CurrentBank.isEmpty())
-        {
-            CurrentBank=FileName;
-        }
+        loadBank(f);
+        if (CurrentBank.isEmpty()) CurrentBank=FileName;
     }
 }
 
-void CVSTHostClass::LoadPreset(QString FileName)
+void CVSTHostClass::loadPreset(QString FileName)
 {
     QFile f(FileName);
     if (!f.exists())
     {
-        qDebug() << "Preset does not exist";
         return;
     }
     if (f.open(QIODevice::ReadOnly))
     {
-        LoadPreset(f);
-        if (CurrentPreset.isEmpty())
-        {
-            CurrentPreset=FileName;
-        }
+        loadPreset(f);
+        if (CurrentPreset.isEmpty()) CurrentPreset=FileName;
     }
 }
 
-fxPreset CVSTHostClass::GetPreset(long Index)
+fxPreset CVSTHostClass::GetPreset(long Index) const
 {
     fxPreset result;
-    ptrPlug->dispatcher(ptrPlug,effSetProgram,0,Index,NULL,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effSetProgram,0,Index,nullptr,0.0f);
     setDescriptor(result.chunkMagic,"CcnK");
     setDescriptor(result.fxMagic,"FxCk");
-    result.version=qToBigEndian<qint32>(1);
-    result.fxID=qToBigEndian<qint32>(ptrPlug->uniqueID);
-    result.fxVersion=qToBigEndian<qint32>((int)ptrPlug->version);
-    result.numParams=qToBigEndian<qint32>((int)ptrPlug->numParams);
+    result.version=qToBigEndian<int>(1);
+    result.fxID=qToBigEndian<int>(ptrPlug->uniqueID);
+    result.fxVersion=qToBigEndian<int>((int)ptrPlug->version);
+    result.numParams=qToBigEndian<int>((int)ptrPlug->numParams);
     char temp[256];
     ptrPlug->dispatcher(ptrPlug,effGetProgramName,0,0,temp,0.0f);
-    CopyMemory(result.prgName,temp,256);
+    copyMemory(result.prgName,temp,256);
     result.params=new float[ptrPlug->numParams];//calloc(ptrPlug->numParams,sizeof(float));
-    int* pc=(int*)result.params;
+    int* pc=static_cast<int*>(result.params);
     for (long i=0;i<ptrPlug->numParams;i++)
     {
         float si=ptrPlug->getParameter(ptrPlug,i);
-        int x=*((int*)&si);
-        x=qToBigEndian<qint32>(x);
+        int x=*(reinterpret_cast<int*>(&si));
+        x=qToBigEndian<int>(x);
         *pc=x;
         pc++;
     }
-    result.byteSize=qToBigEndian<qint32>(sizeof(result)-sizeof(int)*2+(ptrPlug->numParams-1)*sizeof(float));
+    result.byteSize=qToBigEndian<int>(sizeof(result)-sizeof(int)*2+(ptrPlug->numParams-1)*sizeof(float));
     return result;
 }
 
-void CVSTHostClass::SaveBank(QString FileName)
+void CVSTHostClass::saveBank(QString FileName)
 {
     QFile f(FileName);
     if (f.open(QIODevice::WriteOnly))
     {
-        SaveBank(f);
+        saveBank(f);
         CurrentBank=FileName;
     }
 }
 
-void CVSTHostClass::SavePreset(QString FileName)
+void CVSTHostClass::savePreset(QString FileName)
 {
     QFile f(FileName);
     if (f.open(QIODevice::WriteOnly))
     {
-        SavePreset(f);
+        savePreset(f);
     }
 }
 
-int CVSTHostClass::GetChunk(void* pntr,bool isPreset)
+int CVSTHostClass::GetChunk(void* pntr,bool isPreset) const
 {
     return ptrPlug->dispatcher(ptrPlug,effGetChunk,long(isPreset),0,pntr,0.0f);
 }
@@ -1360,61 +1297,61 @@ int CVSTHostClass::SetChunk(void* data,long byteSize,bool isPreset)
 }
 
 
-void CVSTHostClass::SavePreset(QFile& str)
+void CVSTHostClass::savePreset(QFile& str) const
 {
-    if (!ptrPlug){return;}
+    if (!ptrPlug) return;
     if (ptrPlug->flags & effFlagsProgramChunks)
     {
         fxChunkSet p2;
         setDescriptor(p2.chunkMagic,"CcnK");
         setDescriptor(p2.fxMagic,"FPCh");
-        p2.version=qToBigEndian<qint32>(1);
-        p2.fxID=qToBigEndian<qint32>(ptrPlug->uniqueID);
-        p2.fxVersion=qToBigEndian<qint32>(ptrPlug->version);
-        p2.numPrograms=qToBigEndian<qint32>(ptrPlug->numPrograms);
+        p2.version=qToBigEndian<int>(1);
+        p2.fxID=qToBigEndian<int>(ptrPlug->uniqueID);
+        p2.fxVersion=qToBigEndian<int>(ptrPlug->version);
+        p2.numPrograms=qToBigEndian<int>(ptrPlug->numPrograms);
         char temp[256];
         ptrPlug->dispatcher(ptrPlug,effGetProgramName,0,0,temp,0.0f);
-        CopyMemory(p2.prgName,temp,256);
+        copyMemory(p2.prgName,temp,256);
         void* PBuffer;
         int x=GetChunk(&PBuffer,true);
-        p2.chunkSize=qToBigEndian<qint32>(x);
-        p2.byteSize=qToBigEndian<qint32>(sizeof(p2) - sizeof(int) * 2 + x - 8);
+        p2.chunkSize=qToBigEndian<int>(x);
+        p2.byteSize=qToBigEndian<int>(sizeof(p2) - sizeof(int) * 2 + x - 8);
         str.write((char*)&p2,sizeof(p2)-sizeof(void*));
         str.write((char*)PBuffer, x);
     }
     else
     {
-        long i=ptrPlug->dispatcher(ptrPlug,effGetProgram,0,0,NULL,0.0f);
+        long i=ptrPlug->dispatcher(ptrPlug,effGetProgram,0,0,nullptr,0.0f);
         fxPreset pp=GetPreset(i);
         str.write((char*)&pp,sizeof(pp)-sizeof(float));
         str.write((char*)pp.params, sizeof(float) * ptrPlug->numParams);
-        free(pp.params);
+        delete[] (float*)pp.params;
     }
 }
 
-void CVSTHostClass::LoadBank(QFile& str)
+void CVSTHostClass::loadBank(QFile& str)
 {
-    if (!ptrPlug){return;}
+    if (!ptrPlug) return;
     if (ptrPlug->flags & effFlagsProgramChunks)
     {
         fxChunkBank p2;
-        str.read((char*)&p2,sizeof(fxChunkBank)-sizeof(void*));
-        if (qFromBigEndian<qint32>(p2.fxID) != ptrPlug->uniqueID)
+        str.read(reinterpret_cast<char*>(&p2),sizeof(fxChunkBank)-sizeof(void*));
+        if (qFromBigEndian<int>(p2.fxID) != ptrPlug->uniqueID)
         {
             qDebug() << "Bank file not for this Plug-in";
             return;
         }
-        int x=str.size() - str.pos();
+        const int x=str.size() - str.pos();
         void* pb2=calloc(1,x+1);
-        long j=str.read((char*)pb2,x);
+        const long j=str.read(reinterpret_cast<char*>(pb2),x);
         SetChunk(pb2,j,false);
         free(pb2);
     }
     else
     {
         fxSet p;
-        str.read((char*)&p,sizeof(fxSet)-sizeof(void*));
-        if (qFromBigEndian<qint32>(p.fxID) != ptrPlug->uniqueID)
+        str.read(reinterpret_cast<char*>(&p),sizeof(fxSet)-sizeof(void*));
+        if (qFromBigEndian<int>(p.fxID) != ptrPlug->uniqueID)
         {
             qDebug() << "Bank file not for this Plug-in";
             return;
@@ -1425,39 +1362,39 @@ void CVSTHostClass::LoadBank(QFile& str)
         pci.pluginVersion=ptrPlug->version;
         pci.numElements=ptrPlug->numPrograms;
         ptrPlug->dispatcher(ptrPlug,effBeginLoadBank,0,0,&pci,0.0f);
-        p.numPrograms=qFromBigEndian<qint32>(p.numPrograms);
+        p.numPrograms=qFromBigEndian<int>(p.numPrograms);
         for (long j=0;j<p.numPrograms;j++)
         {
             fxPreset pp;
-            str.read((char*)&pp,sizeof(fxPreset)-sizeof(void*));
-            ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,NULL,0.0f);
-            ptrPlug->dispatcher(ptrPlug,effSetProgram,0,j,NULL,0.0f);
-            ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
+            str.read(reinterpret_cast<char*>(&pp),sizeof(fxPreset)-sizeof(void*));
+            ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,nullptr,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effSetProgram,0,j,nullptr,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,nullptr,0.0f);
             ptrPlug->dispatcher(ptrPlug,effSetProgramName,0,0,pp.prgName,0.0f);
-            pp.numParams=qFromBigEndian<qint32>(pp.numParams);
+            pp.numParams=qFromBigEndian<int>(pp.numParams);
             int x;
             for (long i=0;i<pp.numParams;i++)
             {
-                str.read((char*)&x,sizeof(int));
-                x=qFromBigEndian<qint32>(x);
-                float s=*((float*)&x);
+                str.read(reinterpret_cast<char*>(&x),sizeof(int));
+                x=qFromBigEndian<int>(x);
+                const float s=*(reinterpret_cast<float*>(&x));
                 ptrPlug->setParameter(ptrPlug,i,s);
             }
         }
     }
-    ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,NULL,0.0f);
-    ptrPlug->dispatcher(ptrPlug,effSetProgram,0,0,NULL,0.0f);
-    ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,nullptr,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effSetProgram,0,0,nullptr,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,nullptr,0.0f);
 }
 
-void CVSTHostClass::LoadPreset(QFile& str)
+void CVSTHostClass::loadPreset(QFile& str)
 {
-    if (!ptrPlug){return;}
+    if (!ptrPlug) return;
     if (ptrPlug->flags & effFlagsProgramChunks)
     {
         fxChunkSet p2;
-        str.read((char*)&p2,sizeof(fxChunkSet)-sizeof(void*));
-        if (qFromBigEndian<qint32>(p2.fxID) != ptrPlug->uniqueID)
+        str.read(reinterpret_cast<char*>(&p2),sizeof(fxChunkSet)-sizeof(void*));
+        if (qFromBigEndian<int>(p2.fxID) != ptrPlug->uniqueID)
         {
             qDebug() << "Preset file not for this Plug-in";
             return;
@@ -1465,15 +1402,15 @@ void CVSTHostClass::LoadPreset(QFile& str)
         ptrPlug->dispatcher(ptrPlug,effSetProgramName,0,0,p2.prgName,0.0f);
         int x=str.size()-str.pos();
         void* pb2=calloc(1,x+1);
-        long j=str.read((char*)pb2,x);
+        long j=str.read(reinterpret_cast<char*>(pb2),x);
         SetChunk(pb2,j,true);
         free(pb2);
     }
     else
     {
         fxPreset p;
-        str.read((char*)&p,sizeof(fxPreset)-sizeof(void*));
-        if (qFromBigEndian<qint32>(p.fxID) != ptrPlug->uniqueID)
+        str.read(reinterpret_cast<char*>(&p),sizeof(fxPreset)-sizeof(void*));
+        if (qFromBigEndian<int>(p.fxID) != ptrPlug->uniqueID)
         {
             qDebug() << "Preset file not for this Plug-in";
             return;
@@ -1485,113 +1422,117 @@ void CVSTHostClass::LoadPreset(QFile& str)
         pci.numElements=ptrPlug->numParams;
         ptrPlug->dispatcher(ptrPlug,effBeginLoadProgram,0,0,&pci,0.0f);
         ptrPlug->dispatcher(ptrPlug,effSetProgramName,0,0,p.prgName,0.0f);
-        p.numParams=qFromBigEndian<qint32>(p.numParams);
+        p.numParams=qFromBigEndian<int>(p.numParams);
         int x;
         for (long i=0;i<p.numParams;i++)
         {
-            str.read((char*)&x,sizeof(int));
-            x=qFromBigEndian<qint32>(x);
-            float s=*((float*)&x);
+            str.read(reinterpret_cast<char*>(&x),sizeof(int));
+            x=qFromBigEndian<int>(x);
+            const float s=*(reinterpret_cast<float*>(&x));
             ptrPlug->setParameter(ptrPlug,i,s);
         }
     }
-    ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,NULL,0.0f);
-    ptrPlug->dispatcher(ptrPlug,effSetProgram,0,0,NULL,0.0f);
-    ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,nullptr,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effSetProgram,0,0,nullptr,0.0f);
+    ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,nullptr,0.0f);
 }
 
-void CVSTHostClass::SaveBank(QFile& str)
+void CVSTHostClass::saveBank(QFile& str) const
 {
-    if (!ptrPlug){return;}
+    if (!ptrPlug) return;
     if (ptrPlug->flags & effFlagsProgramChunks)
     {
         fxChunkBank p2;
         setDescriptor(p2.chunkMagic,"Ccnk");
         setDescriptor(p2.fxMagic,"FBCh");
-        p2.version=qToBigEndian<qint32>(1);
-        p2.fxID=qToBigEndian<qint32>(ptrPlug->uniqueID);
-        p2.fxVersion=qToBigEndian<qint32>(ptrPlug->version);
-        p2.numPrograms=qToBigEndian<qint32>(ptrPlug->numPrograms);
-        void* PBuffer=NULL;
+        p2.version=qToBigEndian<int>(1);
+        p2.fxID=qToBigEndian<int>(ptrPlug->uniqueID);
+        p2.fxVersion=qToBigEndian<int>(ptrPlug->version);
+        p2.numPrograms=qToBigEndian<int>(ptrPlug->numPrograms);
+        void* PBuffer=nullptr;
         int x=GetChunk(PBuffer,false);
-        p2.chunkSize=qToBigEndian<qint32>(x);
-        p2.byteSize=qToBigEndian<qint32>(sizeof(p2) - sizeof(int) * 3 + x + 8);
-        str.write((char*)&p2,sizeof(p2)-sizeof(void*));
-        str.write((char*)PBuffer,x);
+        p2.chunkSize=qToBigEndian<int>(x);
+        p2.byteSize=qToBigEndian<int>(sizeof(p2) - sizeof(int) * 3 + x + 8);
+        str.write(reinterpret_cast<char*>(&p2),sizeof(p2)-sizeof(void*));
+        str.write(reinterpret_cast<char*>(PBuffer),x);
     }
     else
     {
         fxSet p;
         setDescriptor(p.chunkMagic,"Ccnk");
         setDescriptor(p.fxMagic,"FxBk");
-        p.version=qToBigEndian<qint32>(1);
-        p.fxID=qToBigEndian<qint32>(ptrPlug->uniqueID);
-        p.fxVersion=qToBigEndian<qint32>(ptrPlug->version);
-        p.numPrograms=qToBigEndian<qint32>(ptrPlug->numPrograms);
-        p.byteSize=qToBigEndian<qint32>(sizeof(p) - sizeof(int) + (sizeof(fxPreset) + (ptrPlug->numParams-1) * sizeof(float)) * ptrPlug->numParams);
-        str.write((char*)&p,sizeof(p)-sizeof(float));
+        p.version=qToBigEndian<int>(1);
+        p.fxID=qToBigEndian<int>(ptrPlug->uniqueID);
+        p.fxVersion=qToBigEndian<int>(ptrPlug->version);
+        p.numPrograms=qToBigEndian<int>(ptrPlug->numPrograms);
+        p.byteSize=qToBigEndian<int>(sizeof(p) - sizeof(int) + (sizeof(fxPreset) + (ptrPlug->numParams-1) * sizeof(float)) * ptrPlug->numParams);
+        str.write(reinterpret_cast<char*>(&p),sizeof(p)-sizeof(float));
         for (int j=0;j<ptrPlug->numPrograms;j++)
         {
             fxPreset pp =GetPreset(j);
-            str.write((char*)&pp,sizeof(pp)-sizeof(float));
-            str.write((char*)pp.params,sizeof(float)*ptrPlug->numParams);
+            str.write(reinterpret_cast<char*>(&pp),sizeof(pp)-sizeof(float));
+            str.write(reinterpret_cast<char*>(pp.params),sizeof(float)*ptrPlug->numParams);
             free(pp.params);
         }
     }
 }
 
-const QString CVSTHostClass::ProgramName()
+const QString CVSTHostClass::bankPresetName() const
 {
     return m_ProgramName;
 }
 
-const QStringList CVSTHostClass::ProgramNames()
+const QStringList CVSTHostClass::bankPresetNames() const
 {
     return m_ProgramNames;
 }
 
-void CVSTHostClass::SetProgram(const long index)
+void CVSTHostClass::setBankPreset(const long index)
 {
     if (ptrPlug)
     {
         m_ProgramName.clear();
-        if ((index > -1) & (index < ptrPlug->numPrograms))
+        if ((index > -1) && (index < ptrPlug->numPrograms))
         {
-            ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,NULL,0.0f);
-            ptrPlug->dispatcher(ptrPlug,effSetProgram,0,index,NULL,0.0f);
-            ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,NULL,0.0f);
-            ptrPlug->dispatcher(ptrPlug,effEditIdle,0,0,NULL,0.0f);
-            m_ProgramName=getPlugString(ptrPlug,effGetProgramName,CurrentProgram());
+            ptrPlug->dispatcher(ptrPlug,effBeginSetProgram,0,0,nullptr,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effSetProgram,0,index,nullptr,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effEndSetProgram,0,0,nullptr,0.0f);
+            ptrPlug->dispatcher(ptrPlug,effEditIdle,0,0,nullptr,0.0f);
+            m_ProgramName=getPlugString(ptrPlug,effGetProgramName,currentBankPreset());
         }
+        IAudioPlugInHost::setBankPreset(index);
     }
 }
 
-long CVSTHostClass::CurrentProgram()
+long CVSTHostClass::currentBankPreset(const int /*channel*/) const
 {
-    if (ptrPlug) return ptrPlug->dispatcher(ptrPlug,effGetProgram,0,0,NULL,0.0f);
+    if (ptrPlug) return ptrPlug->dispatcher(ptrPlug,effGetProgram,0,0,nullptr,0.0f);
     return -1;
 }
 
-QRect CVSTHostClass::GetEffRect()
+const QSize CVSTHostClass::UISize() const
 {
     VSTRect* FormRect;
     if (ptrPlug)
     {
+        //qDebug() << "VSTHostClass UISize";
         ptrPlug->dispatcher(ptrPlug,effEditGetRect,0,0,&FormRect,0.0f);
-        return QRect(0,0,FormRect->right-FormRect->left,FormRect->bottom-FormRect->top);
+        //NSView* v = (__bridge NSView*)hostView;
+        //NSRect r = [v frame];
+        //qDebug() << FormRect->top << FormRect->left << FormRect->right << FormRect->bottom << r.origin.x << r.origin.y << r.size.width << r.size.height;
+        return QSize(FormRect->right-FormRect->left,FormRect->bottom-FormRect->top);
     }
-    return QRect();
+    return QSize(0,0);
 }
 
+/*
 void CVSTHostClass::timerEvent(QTimerEvent *)
 {
+    if (!m_TimerID) return;
     if (ptrPlug)
     {
-        QSize s(GetEffRect().size());
-        if (s != size())
-        {
-            setFixedSize(s);
-            //Size();
-        }
+        QSize s(UISize());
+        if (s != contentSize()) setContentSize(s);
     }
 }
+*/

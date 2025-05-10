@@ -1,71 +1,82 @@
 #include "cpeakcontrol.h"
 #include "ui_cpeakcontrol.h"
-#include <QDebug>
+//#include <math.h>
 
 CPeakControl::CPeakControl(QWidget *parent) :
     QCanvas(parent,1),
     ui(new Ui::CPeakControl)
 {
     ui->setupUi(this);
+    m_MaxValue=150;
     m_Value=0;
-    m_OldValue=0;
     m_Margin=Border;
     m_HalfMargin=HalfBorder;
+    updateSize();
 }
 
-void CPeakControl::Reset()
+void CPeakControl::reset()
 {
     m_Max=0;
+    m_MaxY=val2y(m_Max);
     m_Value=0;
-    m_OldValue=0;
+    m_OldY=m_HalfHeight+m_HalfMargin;
+
     QLinearGradient gradient;
     gradient.setStart(0,0);
     gradient.setFinalStop(0,height());
     gradient.setColorAt(0, QColor(60,60,60));
     gradient.setColorAt(0.8, Qt::black);
-    SetPen(QPen(Qt::NoPen));
-    SetBrush(gradient);
-    Rectangle(rect());
-    SetPen(Qt::darkGray);
-    SetBrush(QBrush(Qt::NoBrush));
-    Rectangle(HalfBorder,m_Margin-HalfBorder,width()-Border-1,height()-m_Margin-m_Margin+Border);
-    CanvasLayers[0]->ClearTransparent();
+    setPen(QPen(Qt::NoPen));
+    setBrush(gradient);
+    drawRectangle(rect());
+    setPen(Qt::darkGray);
+    setBrush(QBrush(Qt::NoBrush));
+    drawRectangle(HalfBorder,m_Margin-HalfBorder,width()-Border-1,height()-m_Margin-m_Margin+Border);
+    canvasLayers[0]->clearTransparent();
+    QCanvasLayer* L=canvasLayers[0];
+    L->setBrush(lgBlack);
+    L->setPen(QPen(Qt::NoPen));
+    for (int i=val2y(1.5);i<=val2y(0);i++) drawLED(i,L);
     update();
 }
 
-void CPeakControl::SetSize()
+void CPeakControl::updateSize()
 {
-    Reset();
-    int Left=Border;
-    int Right=width()-Border;
-    int Width=Right-Left;
-    lgBlack.setStart(Left,0);
-    lgBlack.setFinalStop(Width,0);
-    lgBlack.setColorAt(0,Qt::darkYellow);
-    lgBlack.setColorAt(0.5,Qt::black);
+    m_HalfHeight=(height()/2)-m_Margin;
+    m_Left=Border;
+    m_Right=width()-Border;
+    m_Width=m_Right-m_Left;
+    //const double f=100.0/m_MaxValue;
+    m_Zero=(m_HalfHeight*100)/m_MaxValue;
+    m_YellowBreak=val2y(1.f);
+    m_RedBreak=val2y(1.12f);
 
-    lgYellow.setStart(Left,0);
-    lgYellow.setFinalStop(Width,0);
+    lgBlack.setStart(m_Left,0);
+    lgBlack.setFinalStop(m_Width,0);
+    lgBlack.setColorAt(0,QColor("#666"));
+    lgBlack.setColorAt(0.5,QColor("#333"));
+    lgBlack.setColorAt(0.9,QColor("#222"));
+    lgBlack.setColorAt(1,Qt::black);
+
+    lgYellow.setStart(m_Left,0);
+    lgYellow.setFinalStop(m_Width,0);
     lgYellow.setColorAt(0,Qt::white);
     lgYellow.setColorAt(0.3,Qt::yellow);
     lgYellow.setColorAt(1,Qt::darkYellow);
 
-    lgDarkRed.setStart(Left,0);
-    lgDarkRed.setFinalStop(Width,0);
-    lgDarkRed.setColorAt(0,Qt::darkRed);
-    lgDarkRed.setColorAt(0.5,Qt::black);
-
-    lgRed.setStart(Left,0);
-    lgRed.setFinalStop(Width,0);
+    lgRed.setStart(m_Left,0);
+    lgRed.setFinalStop(m_Width,0);
     lgRed.setColorAt(0,Qt::white);
     lgRed.setColorAt(0.3,Qt::red);
     lgRed.setColorAt(1,Qt::darkRed);
 
-    lgGreen.setStart(Left,0);
-    lgGreen.setFinalStop(Width,0);
+    lgGreen.setStart(m_Left,0);
+    lgGreen.setFinalStop(m_Width,0);
     lgGreen.setColorAt(0,Qt::white);
     lgGreen.setColorAt(0.3,Qt::green);
     lgGreen.setColorAt(1,Qt::darkGreen);
+
+    reset();
 }
 
 CPeakControl::~CPeakControl()
@@ -73,78 +84,76 @@ CPeakControl::~CPeakControl()
     delete ui;
 }
 
-int CPeakControl::val2y(const float val, const float height)
+void CPeakControl::setValue(const float Value)
 {
-    return height-((val*height*2)/3);
-}
-
-const QLinearGradient CPeakControl::y2col(const int y, const int height)
-{
-    if (height-y<((height*2.0)/3.0)) return lgGreen;
-    if (height-y<((height*3.0)/4.0)) return lgYellow;
-    return lgRed;
-}
-
-void CPeakControl::SetValue(const float Value)
-{
-    QCanvasLayer* L=CanvasLayers[0];
-    if (Value>=m_Value-0.02)
+    QCanvasLayer* L=canvasLayers[0];
+    if (Value > m_Value)
     {
         m_Value=Value;
-        if (m_Value > m_Max) m_Max=m_Value;
+        m_Max=fmaxf(m_Value,m_Max);
+        m_MaxY=val2y(m_Max);
     }
     else
     {
-        if (m_Value>0) m_Value-=0.02;
+        m_Value = (m_Value>0.00005f) ? qMin<float>(m_Value*0.96f,2) : 0;
     }
-    int HalfHeight=(height()/2.0)-m_Margin;
-    int val=val2y(m_Value,HalfHeight)+m_HalfMargin;
-    if (val<m_HalfMargin) val=m_HalfMargin;
-    int oldval=val2y(m_OldValue,HalfHeight)+m_HalfMargin;
-    if (oldval<m_HalfMargin) oldval=m_HalfMargin;
-    int Left=Border;
-    int Right=width()-Border;
-    int Width=Right-Left;
-    L->SetPen(QPen(Qt::NoPen));
-    QRect UpdateRect;
-    if (m_Value>m_OldValue)
+    const int y=val2y(m_Value);
+    if (y==m_OldY) return;
+
+    L->setPen(QPen(Qt::NoPen));
+    LEDColors lc=LEDBlack;
+    if (m_OldY>y)
     {
-        for (int i=oldval;i>=val;i--)
+        for (int i=m_OldY;i>=y;i--)
         {
-            L->SetBrush(y2col(i-m_HalfMargin,HalfHeight));
-            L->Rectangle(Left,i*2,Width,1);
+            const LEDColors currentLC = LEDColor(i);
+            if (lc != currentLC)
+            {
+                lc=currentLC;
+                drawColorLED(i,L);
+            }
+            else
+            {
+                drawLED(i,L);
+            }
         }
-        UpdateRect.setRect(Left,val*2,Width,((oldval-val)*2)+1);
+        repaint(m_Left,y*2,m_Width,((m_OldY-y)*2)+1);
     }
-    else if (m_Value<m_OldValue)
+    else if (m_MaxY<y)
     {
-        UpdateRect.setRect(Left,oldval*2,Width,((val-oldval)*2)+1);
-        L->EraseTransparent(UpdateRect);
+        L->setBrush(lgBlack);
+        if (m_MaxY==m_OldY)
+        {
+            for (int i=m_OldY+1;i<=y;i++) drawLED(i,L);
+        }
+        else
+        {
+            for (int i=m_OldY;i<=y;i++) drawLED(i,L);
+        }
+        repaint(m_Left,m_OldY*2,m_Width,((y-m_OldY)*2)+1);
     }
-    if (m_Max>0)
-    {
-        val=val2y(m_Max,HalfHeight)+m_HalfMargin;
-        if (val<m_HalfMargin) val=m_HalfMargin;
-        L->SetBrush(y2col(val-m_HalfMargin,HalfHeight));
-        L->Rectangle(Left,val*2,Width,1);
-    }
-    m_OldValue=m_Value;
-    repaint(UpdateRect);
+    m_OldY=y;
 }
 
 void CPeakControl::resizeEvent(QResizeEvent *event)
 {
     QCanvas::resizeEvent(event);
-    SetSize();
+    updateSize();
 }
 
 void CPeakControl::setMargin(int margin)
 {
-    int hm=margin*0.5;
+    const int hm=margin/2;
     if (hm != m_HalfMargin)
     {
         m_HalfMargin=hm;
         m_Margin=hm*2;
-        SetSize();
+        updateSize();
     }
+}
+
+void CPeakControl::setMax(int max)
+{
+    m_MaxValue=max;
+    updateSize();
 }

@@ -8,19 +8,18 @@ Phaser::Phaser() : _fb( .7f )
   , _lfoPhase( 0.f )
   , _depth( 1.f )
   , _zm1( 0.f )
-  , _SampleRate(CPresets::Presets.SampleRate)
-  , _pi(DoublePi) {
+  , _pi(PI_F) {
     Range( 440.f, 1600.f );
     Rate( .5f );
 }
 
 void Phaser::Range(float fMin, float fMax) { // Hz
-    _dmin = fMin / (_SampleRate/2.f);
-    _dmax = fMax / (_SampleRate/2.f);
+    _dmin = fMin / presets.HalfRate;
+    _dmax = fMax / presets.HalfRate;
 }
 
 void Phaser::Rate(float rate) { // cps
-    _lfoInc = 2.f * _pi * (rate / _SampleRate);
+    _lfoInc = 2.f * _pi * (rate / presets.SampleRate);
 }
 
 void Phaser::Feedback(float fb) { // 0 -> <1.
@@ -33,7 +32,7 @@ void Phaser::Depth(float depth) {  // 0 -> 1.
 
 float Phaser::Update(float inSamp) {
     //calculate and update phaser sweep lfo...
-    float d  = _dmin + (_dmax-_dmin) * ((sin( _lfoPhase ) + 1.f)/2.f);
+    const float d  = _dmin + (_dmax-_dmin) * ((sinf( _lfoPhase ) + 1.f)/2.f);
     _lfoPhase += _lfoInc;
     if( _lfoPhase >= _pi * 2.f )
     {
@@ -47,7 +46,7 @@ float Phaser::Update(float inSamp) {
     }
 
     //calculate output
-    float y = 	_alps[0].Update(
+    const float y = 	_alps[0].Update(
                 _alps[1].Update(
                 _alps[2].Update(
                 _alps[3].Update(
@@ -66,39 +65,41 @@ void Phaser::AllpassDelay::Delay(float delay) { //sample delay time
 }
 
 float Phaser::AllpassDelay::Update(float inSamp) {
-    float y = inSamp * -_a1 + _zm1;
+    const float y = inSamp * -_a1 + _zm1;
     _zm1 = y * _a1 + inSamp;
 
     return y;
 }
 
-void CPhaser::Init(const int Index, void *MainWindow) {
+void CPhaser::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveOut(jnOut);
-    AddJackWaveIn();
-    AddParameter(ParameterType::Numeric,"Range Min","Hz",20,m_Presets.SampleRate / 2.f,0,"",440);
-    AddParameter(ParameterType::Numeric,"Range Max","Hz",20,m_Presets.SampleRate / 2.f,0,"",1600);
-    AddParameter(ParameterType::Numeric,"Rate","Sweeps/sec",5,200,100,"",50);
-    AddParameterPercent("Feedback",70);
-    AddParameterPercent("Depth",100);
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackWaveOut(jnOut);
+    addJackWaveIn();
+    startParameterGroup();
+    addParameterCutOff("Range Min",440);
+    addParameterCutOff("Range Max",1600);
+    endParameterGroup();
+    addParameterRate("Rate",50);
+    addParameterPercent("Feedback",70);
+    addParameterPercent("Depth",100);
+    updateDeviceParameter();
 }
 
-float *CPhaser::GetNextA(const int ProcIndex) {
-    float* InSignal=FetchA(jnIn);
-    if (!InSignal) return NULL;
-    float* Buffer=AudioBuffers[ProcIndex]->Buffer;
-    for (int i=0;i<m_BufferSize;i++)
+CAudioBuffer *CPhaser::getNextA(const int ProcIndex) {
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    if (!InBuffer->isValid()) return nullptr;
+    CMonoBuffer* OutBuffer=MonoBuffer(ProcIndex);
+    for (uint i=0;i<m_BufferSize;i++)
     {
-        Buffer[i]=P.Update(InSignal[i]);
+        OutBuffer->setAt(i,P.Update(InBuffer->at(i)));
     }
-    return Buffer;
+    return OutBuffer;
 }
 
-void CPhaser::CalcParams() {
-    P.Range(m_ParameterValues[pnRangeMin],m_ParameterValues[pnRangeMax]);
-    P.Rate(m_ParameterValues[pnRate]*0.01);
-    P.Feedback(m_ParameterValues[pnFeedback]*0.0098);
-    P.Depth(m_ParameterValues[pnDepth]*0.01);
+void CPhaser::updateDeviceParameter(const CParameter* /*p*/) {
+    P.Range(m_Parameters[pnRangeMin]->Value,m_Parameters[pnRangeMax]->Value);
+    P.Rate(m_Parameters[pnRate]->PercentValue);
+    P.Feedback(m_Parameters[pnFeedback]->scaleValue(0.0098f));
+    P.Depth(m_Parameters[pnDepth]->PercentValue);
 }

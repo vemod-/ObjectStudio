@@ -43,7 +43,7 @@
 //    Class Methods      //
 ///////////////////////////
 
-OmegaClass::OmegaClass(void)
+OmegaClass::OmegaClass()
 {
  shOmega      = SUCCESS; 
  ErrorArray  = 0;
@@ -58,7 +58,7 @@ OmegaClass::OmegaClass(void)
 
 
 
-void OmegaClass::ReportError(void)
+void OmegaClass::ReportError()
 //*****************************************************************************
 // 
 // Implementation Notes: 

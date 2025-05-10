@@ -21,9 +21,11 @@ signals:
     void Changed(int val);
 private:
     Ui::CMIDINoteEdit *ui;
+    int m_Minimum;
+    int m_Maximum;
+    void fill();
 private slots:
-    void fromText();
-    void fromSpin();
+    void fromSpin(int val);
 };
 
 #endif // CMIDINOTEEDIT_H

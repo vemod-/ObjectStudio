@@ -5,24 +5,33 @@
 #-------------------------------------------------
 
 TARGET = StereoBox
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
 
+LIBS += -lSoftSynthsWidgets
+
+INCLUDEPATH += $$PWD/../SoftSynthsWidgets
+INCLUDEPATH += ../../SynthKnob
+INCLUDEPATH += ../../QCanvas
 INCLUDEPATH += ../MacroBox
 
-include(../RtAudioBuffer/DesktopComponent.pri)
+INCLUDEPATH += ../RtAudioBuffer
+INCLUDEPATH += ../PlugInLoader
+INCLUDEPATH += ../../QiPhotoRubberband
+INCLUDEPATH += ../../QSignalMenu
+INCLUDEPATH += ../../SynthPanel
 
 DEFINES += STEREOBOX_LIBRARY
 
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L../ -lPluginLoader
+        LIBS += -lz
+    }
+}
+
 SOURCES += \
-    cstereobox.cpp \
-    ../MacroBox/cmacroboxform.cpp
+    cstereobox.cpp ##\
 
 HEADERS += \
-    cstereobox.h \
-    ../MacroBox/cmacroboxform.h
-
-FORMS += \
-    ../MacroBox/cmacroboxform.ui
+    cstereobox.h ##\

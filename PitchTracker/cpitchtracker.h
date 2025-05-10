@@ -1,8 +1,11 @@
 #ifndef CPITCHTRACKER_H
 #define CPITCHTRACKER_H
 
-#include "softsynthsclasses.h"
-#include "cpitchtrackerclass.h"
+#include "idevice.h"
+//#include "cpitchtrackerclass.h"
+#include "cpitchdetect.h"
+#include "cffttracker.h"
+#include "bcf2.h"
 
 #define BufferCount 2
 
@@ -12,21 +15,20 @@ private:
     enum JackNames
     {jnIn,jnFrequencyOut,jnMIDIFreqOut,jnMIDIOut,jnDiffOut};
     enum ParameterNames
-    {pnThreshold,pnTune,pnPriority};
-    int BufferFill;
+    {pnThreshold,pnTune,pnMaxFreq,pnRate,pnOverlap};
     int LastNote;
-    int BufferDivide;
-    int NewBufferDivide;
+    double tuneFactor;
     CMIDIBuffer MIDIBuffer;
-    CPitchTrackerClass* PT;
-    void inline CalcParams();
+    CPitchDetect PD;
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
+    //CFFTTracker m_FFTTracker;
+    //CBinaryAutoCorrelation m_BAC;
 public:
     CPitchTracker();
-    ~CPitchTracker();
-    void Init(const int Index,void* MainWindow);
-    float GetNext(const int ProcIndex);
-    void Process();
-    void* GetNextP(int /*ProcIndex*/);
+    void init(const int Index, QWidget* MainWindow);
+    float getNext(const int ProcIndex);
+    void process();
+    CMIDIBuffer* getNextP(int /*ProcIndex*/);
 };
 
 #endif // CPITCHTRACKER_H

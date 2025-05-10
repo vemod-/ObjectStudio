@@ -5,17 +5,28 @@
 #-------------------------------------------------
 
 TARGET = SF2Player
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../SynthKnob/QSynthKnob.pri)
-include(../../SynthPanel/QSynthPanel.pri)
-##include(../SF2Generator/SF2Generator.pri)
 
-LIBS += -L../ -lSF2Generator
+LIBS += -lSoftSynthsWidgets
+INCLUDEPATH += ../../SynthKnob \
+../../SynthPanel \
+../../EffectLabel \
+../../ToggleButton \
+../../LCDLabel \
+../../QSignalMenu
+
+LIBS += -lSF2Generator
 
 INCLUDEPATH += ../SF2Generator
+INCLUDEPATH += ../Envelope
 INCLUDEPATH += ../WaveBank
+
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L../ -lWaveBank
+    }
+}
 
 HEADERS += csf2player.h \
     csf2device.h \
@@ -26,10 +37,6 @@ SOURCES += csf2player.cpp \
     csf2playerform.cpp
 
 FORMS += csf2playerform.ui
-
-##HEADERS += ../WaveBank/cwavebank.h
-
-##SOURCES += ../WaveBank/cwavebank.cpp
 
 DEFINES += SF2PLAYER_LIBRARY
 

@@ -1,50 +1,43 @@
 #include "cenvelope.h"
-#include "cenevelopeform.h"
+#include "cenvelopeform.h"
 
-CEnvelope::CEnvelope()
-{
-}
+CEnvelope::CEnvelope() : VolumeFactor(0) {}
 
-void CEnvelope::Init(const int Index,void* MainWindow)
+void CEnvelope::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJack("Trigger In",IJack::Amplitude,IJack::In,0);
-    AddJack("Out",IJack::Amplitude,IJack::Out,0);
-    AddParameter(ParameterType::Numeric,"Attack Time","mSec",0,2000,0,"",0);
-    AddParameter(ParameterType::Numeric,"Decay Time","mSec",0,2000,0,"",0);
-    AddParameterPercent("Sustain Level",100);
-    AddParameter(ParameterType::Numeric,"Release Time","mSec",0,2000,0,"",0);
-    AddParameterVolume();
-    AddParameter(ParameterType::SelectBox,"Input Mode","",0,1,0,"Analog§Binary",0);
-    m_Form=new CEnvelopeForm(this,(QWidget*)MainWindow);
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackModulationIn("Trigger In");
+    addJackModulationOut(jnOut,"Out");
+    startParameterGroup();
+    addParameterTime("Delay Time");
+    addParameterTime("Attack Time");
+    addParameterTime("Hold Time");
+    addParameterTime("Decay Time");
+    addParameterPercent("Sustain Level",100);
+    addParameterTime("Release Time");
+    endParameterGroup();
+    addParameterLevel();
+    addParameterSelect("Input Mode","Analog§Binary");
+    m_Form=new CEnvelopeForm(this,MainWindow);
+    updateDeviceParameter();
 }
 
-float CEnvelope::GetNext(int /*ProcIndex*/)
+float CEnvelope::getNext(int /*ProcIndex*/)
 {
     return ADSR.GetVol(Fetch(jnTriggerIn))*VolumeFactor;
 }
 
-void inline CEnvelope::CalcParams()
+void inline CEnvelope::updateDeviceParameter(const CParameter* /*p*/)
 {
-    ADSR.AP.Attack=m_ParameterValues[pnAttackTime];
-    ADSR.AP.Decay=m_ParameterValues[pnDecayTime];
-    ADSR.AP.Sustain=m_ParameterValues[pnSustainLevel];
-    ADSR.AP.Release=m_ParameterValues[pnReleaseTime];
-    ADSR.Mode=m_ParameterValues[pnMode];
-    VolumeFactor=m_ParameterValues[pnVolume]*0.01;
-    ((CEnvelopeForm*)m_Form)->ADSRWidget->Update(ADSR.AP);
-    ADSR.CalcParams();
+    ADSR.AP.Delay=m_Parameters[pnDelayTime]->Value;
+    ADSR.AP.Attack=m_Parameters[pnAttackTime]->Value;
+    ADSR.AP.Hold=m_Parameters[pnHoldTime]->Value;
+    ADSR.AP.Decay=m_Parameters[pnDecayTime]->Value;
+    ADSR.AP.Sustain=m_Parameters[pnSustainLevel]->Value;
+    ADSR.AP.Release=m_Parameters[pnReleaseTime]->Value;
+    ADSR.Mode=m_Parameters[pnMode]->Value;
+    VolumeFactor=m_Parameters[pnVolume]->PercentValue;
+    ADSR.calcParams();
 }
 
-void CEnvelope::UpdateHost()
-{
-    ADSR.AP=((CEnvelopeForm*)m_Form)->AP;
-    m_ParameterValues[pnAttackTime]=ADSR.AP.Attack;
-    m_ParameterValues[pnDecayTime]=ADSR.AP.Decay;
-    m_ParameterValues[pnSustainLevel]=ADSR.AP.Sustain;
-    m_ParameterValues[pnReleaseTime]=ADSR.AP.Release;
-    ADSR.CalcParams();
-    IDevice::UpdateHost();
-}

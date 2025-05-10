@@ -1,12 +1,12 @@
-     /*********************************************************************
-     
+/*********************************************************************
+  
      sfreader.cpp
      
      Copyright (c) Creative Technology Ltd. 1994-1995. All Rights Reserved.
      
-     THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY 
-     KIND,  EITHER EXPRESSED OR IMPLIED,  INCLUDING BUT NOT LIMITED TO THE 
-     IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR 
+     THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
+     KIND,  EITHER EXPRESSED OR IMPLIED,  INCLUDING BUT NOT LIMITED TO THE
+     IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
      PURPOSE.
      
      *********************************************************************/
@@ -19,8 +19,6 @@
 */
 
 #include "sfreader.h"
-#include "win_mem.h"
-#include <QDebug>
 
 #define DEBUG
 
@@ -28,8 +26,7 @@
 #include <QDebug>
 #endif
 
-
-#include <stdlib.h>
+//#include <stdlib.h>
 /*============================================================================
 * @(#)sfreader.cpp	1.2 13:56:04 3/22/95 13:56:06
 *                          
@@ -56,9 +53,17 @@
 ////////////////////////////
 //  The first Constructor
 ////////////////////////////
-sfReader::sfReader(void) 
+sfReader::sfReader()
 {
-  ConstructSFReader();
+    /* Private members */
+    bySFDataLoc = SFR_NO_DATA;       // Flag to indicate storage medium
+    bySFStorageStatus = SFR_CLOSED; // Flag to indicate if storage medium is open
+    pathName.clear();
+    
+    for (std::string& s : infoCkValues)  // Insures we are not 'delete'-ing any data
+        s.clear();   // which was not 'new'-ed.
+    
+    resetSampleCollector();
 } // end constructor 1
 
 
@@ -67,40 +72,8 @@ sfReader::sfReader(void)
 ////////////////////////////
 sfReader::~sfReader()
 {
-  DestructSFReader();
-} /* end destructor */ 
-
-
-//////////////////////////////////
-// The first callable Constructor
-//////////////////////////////////
-void sfReader::ConstructSFReader(void)
-{
-  SetError(SUCCESS); 
-  /* Private members */
-  bySFDataLoc = SFR_NO_DATA;       // Flag to indicate storage medium
-  bySFStorageStatus = SFR_CLOSED; // Flag to indicate if storage medium is open
-  pathName = NULL;
-
-  for(INT i=0;i<CkCount;i++)  // Insures we are not 'delete'-ing any data
-    infoCkValues[i] = NULL;   // which was not 'new'-ed.
-
-  resetSampleCollector();
-}
-
-
-//////////////////////////////////////
-// The callable Destructor
-//////////////////////////////////////
-void sfReader::DestructSFReader(void)
-{
-  resetInfoCkValues();
-
-  if( pathName != NULL) { 
-     delete [] pathName; 
-     pathName = NULL; 
-  }
-}
+    closeRiff();
+} /* end destructor */
 
 /*
 *****************************************************************************
@@ -109,51 +82,7 @@ void sfReader::DestructSFReader(void)
 *
 *****************************************************************************
 */
-void sfReader::
-OpenSFBFile(CHAR * pFilename)
-{
-  SetError(SUCCESS);
-
-  if (bySFStorageStatus == SFR_OPEN)
-  {
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-  }
-
-  resetInfoCkValues(); // dealloc InfoCkValues from last read file, (if any).
-
-  if(pathName != NULL) {
-      delete [] pathName;
-      pathName = NULL;
-  }
-
-  if ((pathName = new CHAR[strlen(pFilename)+1]) == NULL)
-  {
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return;
-  }
-
-  memset(pathName,0,strlen(pFilename) +1);
-  strcpy(pathName,pFilename);
-
-  if (tRIFF.OpenRIFF(pFilename) != SUCCESS) {
-    SetError(EHC_OPENFILEERROR);
-    return;
-  }
-
-  storeInfoCks();
-  bySFDataLoc = SFR_ONDISK;
-  bySFStorageStatus = SFR_OPEN;
-}
-
-void  sfReader::
-CloseSFBFile(void)
-{
-  tRIFF.CloseRIFF();
-  bySFStorageStatus = SFR_CLOSED;
-}
-
-HydraClass *sfReader::ReadSFBFile(const CHAR* pFilename, const CHAR * pchReqdWaveTable)
+HydraClass *sfReader::ReadSFBFile(const std::string& pFilename, const char * pchReqdWaveTable)
 /*
 *****************************************************************************
 *
@@ -161,70 +90,44 @@ HydraClass *sfReader::ReadSFBFile(const CHAR* pFilename, const CHAR * pchReqdWav
 *****************************************************************************
 */
 {
-
-  SetError(SUCCESS);
-
-  resetInfoCkValues(); // dealloc InfoCkValues from last read file, (if any).
-	
-  if(pathName != NULL) { 
-      delete [] pathName;
-      pathName = NULL;
-  }
-
-  if ((pathName = new CHAR[strlen(pFilename)+1]) == NULL)
-  {
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  memset(pathName,0,strlen(pFilename) +1);
-  strcpy(pathName,pFilename);
-	
-  if (tRIFF.OpenRIFF(pFilename) != SUCCESS) {
-    SetError(EHC_OPENFILEERROR);
-    return (NULL);
-  }
-
-  bySFDataLoc       = SFR_ONDISK;
-  bySFStorageStatus = SFR_OPEN;
-
-  return (ReadSFBData(pchReqdWaveTable));
-
+    closeRiff();
+    pathName=pFilename;
+    resetInfoCkValues(); // dealloc InfoCkValues from last read file, (if any).
+    if (!tRIFF.OpenRIFF(pFilename.c_str())) return nullptr;
+    bySFDataLoc       = SFR_ONDISK;
+    bySFStorageStatus = SFR_OPEN;
+    return (ReadSFBData(pchReqdWaveTable));
 }
 
-#ifdef USE_MACINTOSH
-HydraClass *sfReader::ReadSFBFile(FSSpec * pFSSpec, CHAR *pchReqdWaveTable)
-/*
-*****************************************************************************
-*
-* ReadSFBFile: Setup for reading SoundFont from a file.
-*
-*****************************************************************************
-*/
+void sfReader::closeRiff()
 {
-
-  SetError(SUCCESS);
-
-  resetInfoCkValues(); // dealloc InfoCkValues from last read file, (if any).
-
-  pSpecifier = pFSSpec;
-
-  if (tRIFF.OpenRIFF(pFSSpec) != SUCCESS) {
-    SetError(EHC_OPENFILEERROR);
-    return (NULL);
-  }
-
-  bBypassSFProcess = FALSE;
-  bySFDataLoc = SFR_ONMACDISK;
-  bySFStorageStatus = SFR_OPEN;
-
-  return (ReadSFBData(pchReqdWaveTable));
-
+    if (bySFStorageStatus == SFR_OPEN)
+    {
+        tRIFF.CloseRIFF();
+        bySFStorageStatus = SFR_CLOSED;
+    }
 }
-#endif // USE_MACINTOSH
 
-HydraClass* sfReader::
-ReadSFBData (const CHAR * pchReqdWaveTable)
+HydraClass* sfReader::bailOut(HydraClass *hf)
+{
+    delete hf;
+    closeRiff();
+    return nullptr;
+}
+
+bool sfReader::findToken(ushort wCurToken,const char* errMsg)
+{
+    if (!tRIFF.FindCk(tRIFF.GetRIFFToken(wCurToken)))
+    {
+#ifdef DEBUG
+        if (errMsg) qDebug()<< errMsg << " in " << pathName.c_str();
+#endif
+        return false;
+    }
+    return true;
+}
+
+HydraClass* sfReader::ReadSFBData (const char * pchReqdWaveTable)
 /*****************************************************************************
 * 
 * Implementation Notes: 
@@ -240,659 +143,243 @@ ReadSFBData (const CHAR * pchReqdWaveTable)
 */
 
 {
- HydraClass *hf; 
-
-  sfVersion *fversion = NULL;
-  CHAR      *pchIROMChunk;
-  WORD         uiCount;
-  bool      bROMSamples = FALSE;
-
-  if ((hf = new HydraClass) == NULL)
-  {
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-  tRIFF.Reset();
-  resetSampleCollector();
-
-  /*
+    HydraClass *hf;
+    
+    bool      bROMSamples = false;
+    
+    if ((hf = new HydraClass) == nullptr) return nullptr;
+    tRIFF.Reset();
+    resetSampleCollector();
+    /*
    * Verify SoundFont data format
    */
-
-  if ( (tRIFF.GetCkID() != MAKE_ID(tRIFF.GetRIFFToken(Riff) ) &&
-       (tRIFF.GetCkFormID() != MAKE_ID(tRIFF.GetRIFFToken(Sfbk)) )))  
-  {
-	
-       if(tRIFF.GetCkFormID() == MAKE_ID("SFBK")) /* all caps is a no no */
-       {                                          /* accept it anyway   */ 
-
-      /* cout<<"%ReadSFBK-I-found upcase SFBK fixing..."; */
-
-       }                                 
-       else {  /* really was a format error */ 
-
-         delete hf;
-         tRIFF.CloseRIFF();
-         bySFStorageStatus = SFR_CLOSED;
-	 SetError(EHC_RIFFERROR);
-	 return (NULL);
-       }
-  }
-
-  storeInfoCks(); /* stores all present infoSub chunks in the array */ 
-		  /* infoCkValues...                                */
-  
-  fversion = (sfVersion*)(infoCkValues[Ifil]);
-
-  if(fversion == NULL) { 
-   // can't set the version of our hydraClass object. ifil is a _manditory_ 
-   // info sub-chunk. We looked for "ifil" and "IFIL" (the second is illegal,
-   // but does exist in otherwise valid banks, so we accept it as well....
-   SetError(SF_INVALIDBANK);
+    if ( (!descriptorMatch(tRIFF.GetCkID(),tRIFF.GetRIFFToken(RIFFClass::Riff) ) &&
+          (!descriptorMatch(tRIFF.GetCkFormID(),tRIFF.GetRIFFToken(RIFFClass::Sfbk)) )))
+    {
+        if(!descriptorMatch(tRIFF.GetCkFormID(),"SFBK")) /* all caps is a no no accept it anyway   */
+        {  /* really was a format error */
+            return bailOut(hf);
+        }
+    }
+    storeInfoCks(); /* stores all present infoSub chunks in the array */
+    /* infoCkValues...                                */
+    auto fversion = reinterpret_cast<const sfVersion*>(infoCkValues[RIFFClass::Ifil].data());
+    if(fversion == nullptr) {
+        // can't set the version of our hydraClass object. ifil is a _manditory_
+        // info sub-chunk. We looked for "ifil" and "IFIL" (the second is illegal,
+        // but does exist in otherwise valid banks, so we accept it as well....
 #ifdef DEBUG
-   qDebug()<<"%ReadSFBFile()-E-Bad Format, ifil (file version)"
-         <<" info subchunk missing";
+        qDebug()<<"%ReadSFBFile()-E-Bad Format, ifil (file version)"
+               <<" info subchunk missing";
 #endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-   return NULL;
-  }
-
-  hf->SetVersion(fversion->wMajor, fversion->wMinor);
-
-  // Only reads SoundFont 2.x banks
-  if (fversion->wMajor != 2)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(SF_INVALIDBANK);
-    return NULL;
-  }
-
-  // Inam is a REQUIRED Info sub-chunk!
-  if (hf->SetBankName(infoCkValues[Inam]) != SUCCESS) { 
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);                 
-    return NULL;
-  }
-
-  /*
+        return bailOut(hf);
+    }
+    hf->SetVersion(fversion->wMajor, fversion->wMinor);
+    // Only reads SoundFont 2.x banks
+    if (fversion->wMajor != 2) return bailOut(hf);
+    // Inam is a REQUIRED Info sub-chunk!
+    hf->achBankName=infoCkValues[RIFFClass::Inam];
+    /*
    *  Read SoundFont data into the 'nine heads'
    */
-
-  /* Move to the Articulation Data chunk... */ 
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Pdta))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding PDTA chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-
-  /* Allocate system memory for the Preset Table  */ 
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Phdr)))
-  {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding PHDR chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-  presetCnt = (WORD)((tRIFF.GetCkSize() / PRSTHDR_SIZE) - 1);
-
-  hf->pPHdr = (SFPRESETHDRPTR) Allocate(prstHdr, sizeof(sfPresetHdr),
-				      PRSTHDR_SIZE, tRIFF.GetCkSize() , hf);
-
-  if (hf->pPHdr == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-  /*  Move to pbag */
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Pbag))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding PBAG chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR );
-    return (NULL);
-  }
-  hf->pPBag = (SFBAGNDXPTR)Allocate(prstBagNdx, sizeof(sfBagNdx),
-				  PRSTBAGNDX_SIZE, tRIFF.GetCkSize(), hf);
-
-  if (hf->pPBag == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  /* Move to pmod  */
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Pmod))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding PMOD chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-
-  hf->pPMod = (SFMODLISTPTR)Allocate(prstModList, sizeof(sfModList),
-				PRSTMODLIST_SIZE, tRIFF.GetCkSize(), hf);
-  if (hf->pPMod == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  /*  Move to pgen  */
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Pgen))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding PGEN chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-
-  hf->pPGen = (SFGENLISTPTR)Allocate(prstGenList, sizeof(sfGenList),
-				 PRSTGENLIST_SIZE, tRIFF.GetCkSize(), hf);
-  if (hf->pPGen == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  /* Move to inst */
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Inst)))  {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding INST chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-
-  hf->pInst = (SFINSTPTR)Allocate(inst, sizeof(sfInst),
-				INST_SIZE, tRIFF.GetCkSize(), hf );
-
-  if (hf->pInst == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  /* Move to ibag  */
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Ibag))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding IBAG chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-
-  hf->pIBag = (SFBAGNDXPTR)Allocate(instBagNdx, sizeof(sfBagNdx),
-				INSTBAGNDX_SIZE, tRIFF.GetCkSize(), hf);
-
-  if (hf->pIBag == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-  /*  Move to imod  */
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Imod))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding IMOD chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-
-  hf->pIMod = (SFMODLISTPTR) Allocate(instModList, sizeof(sfModList),
-				   INSTMODLIST_SIZE, tRIFF.GetCkSize(), hf);
-
-  if (hf->pIMod == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  /*  Move to igen  */
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Igen))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding IGEN chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
-  hf->pIGen = (SFGENLISTPTR) Allocate(instGenList, sizeof(sfGenList),
-				 INSTGENLIST_SIZE, tRIFF.GetCkSize(), hf);
-
-  if (hf->pIGen == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-  /*  Move to shdr */
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Shdr))) {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding SHDR chunk in " << pathName;
-#endif
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_RIFFERROR);
-    return (NULL);
-  }
- 
-  hf->pSHdr = (SFSAMPLEHDRPTR) Allocate(sampHdr,               // kind
-	                                  sizeof(sfSampleHdr),  // in mem size
- 	   			          SAMPHDRV2_SIZE,      // file size
-               				  tRIFF.GetCkSize(),  // chunk size 
-                                          hf );              // update size
-
-  if (hf->pSHdr == NULL)
-  {
-    delete hf;
-    tRIFF.CloseRIFF();
-    bySFStorageStatus = SFR_CLOSED;
-    SetError(EHC_ALLOCATE_PMEM_ERROR);
-    return(NULL);
-  }
-
-  /*
+    /* Move to the Articulation Data chunk... */
+    if (!findToken(RIFFClass::Pdta,"ReadSFBFile-E-Error finding PDTA chunk")) return bailOut(hf);
+    
+    /* Allocate system memory for the Preset Table  */
+    if (!findToken(RIFFClass::Phdr,"ReadSFBFile-E-Error finding PHDR chunk")) return bailOut(hf);
+    long64 sz=tRIFF.GetCkSize();
+    hf->pPHdr.resize(sz/sizeof(sfPresetHdr));
+    tRIFF.RIFFRead(hf->pPHdr.data(),sz);
+    
+    /*  Move to pbag */
+    if (!findToken(RIFFClass::Pbag,"ReadSFBFile-E-Error finding PBAG chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pPBag.resize(sz/sizeof(sfBagNdx));
+    tRIFF.RIFFRead(hf->pPBag.data(),sz);
+    
+    /* Move to pmod  */
+    if (!findToken(RIFFClass::Pmod,"ReadSFBFile-E-Error finding PMOD chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pPMod.resize(sz/sizeof(sfModList));
+    tRIFF.RIFFRead(hf->pPMod.data(),sz);
+    
+    /*  Move to pgen  */
+    if (!findToken(RIFFClass::Pgen,"ReadSFBFile-E-Error finding PGEN chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pPGen.resize(sz/sizeof(sfGenList));
+    tRIFF.RIFFRead(hf->pPGen.data(),sz);
+    
+    /* Move to inst */
+    if (!findToken(RIFFClass::Inst,"ReadSFBFile-E-Error finding INST chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pInst.resize(sz/sizeof(sfInst));
+    tRIFF.RIFFRead(hf->pInst.data(),sz);
+    
+    /* Move to ibag  */
+    if (!findToken(RIFFClass::Ibag,"ReadSFBFile-E-Error finding IBAG chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pIBag.resize(sz/sizeof(sfBagNdx));
+    tRIFF.RIFFRead(hf->pIBag.data(),sz);
+    
+    /*  Move to imod  */
+    if (!findToken(RIFFClass::Imod,"ReadSFBFile-E-Error finding IMOD chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pIMod.resize(sz/sizeof(sfModList));
+    tRIFF.RIFFRead(hf->pIMod.data(),sz);
+    
+    /*  Move to igen  */
+    if (!findToken(RIFFClass::Igen,"ReadSFBFile-E-Error finding IGEN chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pIGen.resize(sz/sizeof(sfGenList));
+    tRIFF.RIFFRead(hf->pIGen.data(),sz);
+    
+    /*  Move to shdr */
+    if (!findToken(RIFFClass::Shdr,"ReadSFBFile-E-Error finding SHDR chunk")) return bailOut(hf);
+    sz=tRIFF.GetCkSize();
+    hf->pSHdr.resize(sz/sizeof(sfSampleHdr));
+    tRIFF.RIFFRead(hf->pSHdr.data(),sz);
+    /*
    *  Store sample size and/or offset for future use
    */
-
-  if (SUCCESS != tRIFF.FindCk(tRIFF.GetRIFFToken(Smpl)))
-  {
-#ifdef DEBUG
-    qDebug()<<"%ReadSFBFile-E-Error finding SMPL chunk in " << pathName;
-#endif
-    dwSampleSize = 0;
-    dwSampleOffset = 0;
-  }
-  else
-  {
-    dwSampleSize = tRIFF.GetCkSize();
-    dwSampleOffset = 0;
-  }
-
-  /*
-   * The following stuffs data structure members which were not in the
-   * original SoundFont data structures. 
-   */
-
-  for (WORD x=0;x<hf->awStructSize[inst];x++){
-     hf->pInst[x].wRefCount = 0;
-  }
-  for (WORD y=0;y<hf->awStructSize[sampHdr];y++){
-     hf->pSHdr[y].wRefCount   = 0;
-  }
-
-  tRIFF.CloseRIFF();
-  bySFStorageStatus = SFR_CLOSED;
-
-  /*
+    if (!findToken(RIFFClass::Smpl,"ReadSFBFile-E-Error finding SMPL chunk"))
+    {
+        dwSampleSize = 0;
+        dwSampleOffset = 0;
+    }
+    else
+    {
+        dwSampleSize = tRIFF.GetCkSize();
+        dwSampleOffset = uint(tRIFF.RIFFTellAbs()); // defaults to RIFFTell for all but
+    }
+    
+    closeRiff();
+    /*
    * Do Processing of SoundFont data based on system and audio hardware
    */
-
-  /* Swap the order of the bytes in the data structs */
-
-  for (uiCount = 0; uiCount < hf->awStructSize[prstHdr]; uiCount++) {
-
-    tRIFF.SwapBytes(&hf->pPHdr[uiCount].wPresetNum);
-    tRIFF.SwapBytes(&hf->pPHdr[uiCount].wPresetBank);
-    tRIFF.SwapBytes(&hf->pPHdr[uiCount].wBagNdx);
-
-    /* We now need to swap the DWORDS  */
-
-  }
-  for (uiCount = 0; uiCount < hf->awStructSize[prstBagNdx]; uiCount++) {
-
-    tRIFF.SwapBytes(&hf->pPBag[uiCount].wGenNdx);
-    tRIFF.SwapBytes(&hf->pPBag[uiCount].wModNdx);
-  }
-  for (uiCount = 0; uiCount < hf->awStructSize[prstGenList]; uiCount++){
-    tRIFF.SwapBytes(&hf->pPGen[uiCount].sfGenOper);
-    tRIFF.SwapBytes((WORD*)(&hf->pPGen[uiCount].unAmt));
-
-    // The SoundFont 2.0 specification dictates that unknown generators
-    // be ignored. We are doing that by changing its operator value to the
-    // 'nop' operator for the purposes of the enabler. These lines may not
-    // be desirable for an edit engine, which would want to leave data in
-    // tact, and would instead want to be in a seperate verification routine.
-    if (hf->pPGen[uiCount].sfGenOper > endOper)
-      hf->pPGen[uiCount].sfGenOper = nop;
-  }
-  for (uiCount = 0; uiCount < hf->awStructSize[prstModList]; uiCount++) {
-    tRIFF.SwapBytes(&hf->pPMod[uiCount].wModSrcOper);
-    tRIFF.SwapBytes(&hf->pPMod[uiCount].wModDestOper);
-    tRIFF.SwapBytes((WORD*)(&hf->pPMod[uiCount].shAmount));
-  }
-  /* The instrument layers */ 
-  for (uiCount = 0; uiCount < hf->awStructSize[inst]; uiCount++) {
-    tRIFF.SwapBytes(&hf->pInst[uiCount].wBagNdx);
-  }
-  for (uiCount = 0; uiCount < hf->awStructSize[instBagNdx]; uiCount++) {
-    tRIFF.SwapBytes(&hf->pIBag[uiCount].wGenNdx);
-    tRIFF.SwapBytes(&hf->pIBag[uiCount].wModNdx);
-  }
-  for (uiCount = 0; uiCount < hf->awStructSize[instGenList]; uiCount++) {
-    tRIFF.SwapBytes(&hf->pIGen[uiCount].sfGenOper);
-    tRIFF.SwapBytes((WORD*)(&hf->pIGen[uiCount].unAmt));
-
-    // The SoundFont 2.0 specification dictates that unknown generators
-    // be ignored. We are doing that by changing its operator value to the
-    // 'nop' operator for the purposes of the enabler. These lines may not
-    // be desirable for an edit engine, which would want to leave data in
-    // tact, and would instead want to be in a seperate verification routine.
-    if (hf->pIGen[uiCount].sfGenOper > endOper)
-      hf->pIGen[uiCount].sfGenOper = nop;
-  }
-  for (uiCount = 0; uiCount < hf->awStructSize[instModList]; uiCount++) {
-    tRIFF.SwapBytes(&hf->pIMod[uiCount].wModSrcOper);
-    tRIFF.SwapBytes(&hf->pIMod[uiCount].wModDestOper);
-    tRIFF.SwapBytes((WORD*)(&hf->pIMod[uiCount].shAmount));
-  }
-  //// Sample Headers ////
-  for (uiCount = 0; uiCount < hf->awStructSize[sampHdr]; uiCount++) {
-
-
-    tRIFF.SwapDWORD(&hf->pSHdr[uiCount].dwStart);
-    tRIFF.SwapDWORD(&hf->pSHdr[uiCount].dwEnd);
-    tRIFF.SwapDWORD(&hf->pSHdr[uiCount].dwStartloop);
-    tRIFF.SwapDWORD(&hf->pSHdr[uiCount].dwEndloop);
-
-    tRIFF.SwapDWORD(&hf->pSHdr[uiCount].dwSampleRate);
-
-    //twoByteUnion temp;
-    //temp.byVals.by1 = hf->pSHdr[uiCount].byOriginalKey;
-    //temp.byVals.by0 = hf->pSHdr[uiCount].chFineCorrection;
-    //tRIFF.SwapBytes(&temp.wVal);
-    //hf->pSHdr[uiCount].byOriginalKey    = temp.byVals.by1;
-    //hf->pSHdr[uiCount].chFineCorrection = temp.byVals.by0;
-
-    tRIFF.SwapBytes(&hf->pSHdr[uiCount].wSampleLink);
-    tRIFF.SwapBytes(&hf->pSHdr[uiCount].sfSampleType);
-
-    if ((hf->pSHdr[uiCount].sfSampleType & romSample) == romSample)
-      bROMSamples = TRUE;
-
-    hf->pSHdr[uiCount].bSampleLoaded = FALSE;
-  }
-
-  /* It is here that we can do a valid WaveTable ID Check */
-
-  pchIROMChunk = GetInfoSubCkVal(Irom);
-  
-  if ((bROMSamples == TRUE) && (pchIROMChunk == NULL))
-  {
+#ifdef SF_BYTE_ORDER_BIG_ENDIAN
+    
+    /* Swap the order of the bytes in the data structs */
+    
+    for (uiCount = 0; uiCount < hf->pPHdr.size(); uiCount++) {
+        
+        tRIFF.SwapBytes(hf->pPHdr[uiCount].wPresetNum);
+        tRIFF.SwapBytes(hf->pPHdr[uiCount].wPresetBank);
+        tRIFF.SwapBytes(hf->pPHdr[uiCount].wBagNdx);
+        
+        /* We now need to swap the DWORDS  */
+        
+    }
+    for (uiCount = 0; uiCount < hf->pPBag.size(); uiCount++) {
+        
+        tRIFF.SwapBytes(hf->pPBag[uiCount].wGenNdx);
+        tRIFF.SwapBytes(hf->pPBag[uiCount].wModNdx);
+    }
+    for (uiCount = 0; uiCount < hf->pPGen.size(); uiCount++){
+        tRIFF.SwapBytes(hf->pPGen[uiCount].sfGenOper);
+        tRIFF.SwapBytes((WORD*)(&hf->pPGen[uiCount].unAmt));
+    }
+    for (uiCount = 0; uiCount < hf->pPMod.size(); uiCount++) {
+        tRIFF.SwapBytes(hf->pPMod[uiCount].wModSrcOper);
+        tRIFF.SwapBytes(hf->pPMod[uiCount].wModDestOper);
+        tRIFF.SwapBytes((WORD*)(&hf->pPMod[uiCount].shAmount));
+    }
+    /* The instrument layers */
+    for (uiCount = 0; uiCount < hf->pInst.size(); uiCount++) {
+        tRIFF.SwapBytes(hf->pInst[uiCount].wBagNdx);
+    }
+    for (uiCount = 0; uiCount < hf->pIBag.size(); uiCount++) {
+        tRIFF.SwapBytes(hf->pIBag[uiCount].wGenNdx);
+        tRIFF.SwapBytes(hf->pIBag[uiCount].wModNdx);
+    }
+    for (uiCount = 0; uiCount < hf->pIGen.size(); uiCount++) {
+        tRIFF.SwapBytes(hf->pIGen[uiCount].sfGenOper);
+        tRIFF.SwapBytes((WORD*)(&hf->pIGen[uiCount].unAmt));
+    }
+    for (uiCount = 0; uiCount < hf->pIMod.size(); uiCount++) {
+        tRIFF.SwapBytes(hf->pIMod[uiCount].wModSrcOper);
+        tRIFF.SwapBytes(hf->pIMod[uiCount].wModDestOper);
+        tRIFF.SwapBytes((WORD*)(&hf->pIMod[uiCount].shAmount));
+    }
+    //// Sample Headers ////
+    for (uiCount = 0; uiCount < hf->pSHdr.size(); uiCount++) {
+        
+        
+        tRIFF.SwapDWORD(hf->pSHdr[uiCount].dwStart);
+        tRIFF.SwapDWORD(hf->pSHdr[uiCount].dwEnd);
+        tRIFF.SwapDWORD(hf->pSHdr[uiCount].dwStartloop);
+        tRIFF.SwapDWORD(hf->pSHdr[uiCount].dwEndloop);
+        
+        tRIFF.SwapDWORD(hf->pSHdr[uiCount].dwSampleRate);
+        
+        //twoByteUnion temp;
+        //temp.byVals.by1 = hf->pSHdr[uiCount].byOriginalKey;
+        //temp.byVals.by0 = hf->pSHdr[uiCount].chFineCorrection;
+        //tRIFF.SwapBytes(&temp.wVal);
+        //hf->pSHdr[uiCount].byOriginalKey    = temp.byVals.by1;
+        //hf->pSHdr[uiCount].chFineCorrection = temp.byVals.by0;
+        
+        tRIFF.SwapBytes(hf->pSHdr[uiCount].wSampleLink);
+        tRIFF.SwapBytes(hf->pSHdr[uiCount].sfSampleType);
+        
+        if ((hf->pSHdr[uiCount].sfSampleType & romSample) == romSample)
+            bROMSamples = TRUE;
+        
+        //hf->pSHdr[uiCount].bSampleLoaded = FALSE;
+    }
+#endif
+    for (sfGenList& g : hf->pPGen) {//for (ushort uiCount = 0; uiCount < hf->pPGen.size(); uiCount++){
+        // The SoundFont 2.0 specification dictates that unknown generators
+        // be ignored. We are doing that by changing its operator value to the
+        // 'nop' operator for the purposes of the enabler. These lines may not
+        // be desirable for an edit engine, which would want to leave data in
+        // tact, and would instead want to be in a seperate verification routine.
+        if (g.sfGenOper > endOper)
+            g.sfGenOper = nop;
+    }
+    for (sfGenList& g : hf->pIGen) {//for (ushort uiCount = 0; uiCount < hf->pIGen.size(); uiCount++) {
+        // The SoundFont 2.0 specification dictates that unknown generators
+        // be ignored. We are doing that by changing its operator value to the
+        // 'nop' operator for the purposes of the enabler. These lines may not
+        // be desirable for an edit engine, which would want to leave data in
+        // tact, and would instead want to be in a seperate verification routine.
+        if (g.sfGenOper > endOper)
+            g.sfGenOper = nop;
+    }
+    
+    /* It is here that we can do a valid WaveTable ID Check */
+    const char* pchIROMChunk = GetInfoSubCkVal(RIFFClass::Irom);
     /* ROM samples in a bank with no IROM chunk. Illegal bank. */
-    SetError(EHC_WRONGWAVETABLE);
-    delete hf;
-    return NULL;
-  }  
-
-  if ((pchReqdWaveTable != NULL)  && 
-      (pchIROMChunk     != NULL))
-  { 
-
-    /* If the CLIENT did NOT demand that loaded banks using ROM data
+    if ((bROMSamples) && (pchIROMChunk == nullptr)) return bailOut(hf);
+    
+    if ((pchReqdWaveTable != nullptr)  && (pchIROMChunk != nullptr))
+    {
+        
+        /* If the CLIENT did NOT demand that loaded banks using ROM data
        match a particular WaveTable ID, bypass.
-       If the ROM ID in the SoundFont bank is a null string, there is no 
+       If the ROM ID in the SoundFont bank is a null string, there is no
        required WaveTable for the SF, so bypass.
        If neither is a null string, AND if the SoundFont bank DOES INDEED
-       contain samples for a particular a WaveTable ROM, do a string 
+       contain samples for a particular a WaveTable ROM, do a string
        comparison between the CLIENT's ID and the SoundFont bank's ID.
     */
-    if ((pchReqdWaveTable[0] != '\0')                   && 
-	(pchIROMChunk[0]     != '\0')                   &&
-        (bROMSamples == TRUE)                           &&
-	(strcmp(pchReqdWaveTable, pchIROMChunk) != 0))
-    {
-
-      /* Non-matching wavetable ID when matching ID demanded, AND the
+        if ((pchReqdWaveTable[0] != '\0')                   &&
+                (pchIROMChunk[0]     != '\0')                   &&
+                (bROMSamples)                           &&
+                (strcmp(pchReqdWaveTable, pchIROMChunk) != 0))
+        {
+            
+            /* Non-matching wavetable ID when matching ID demanded, AND the
          Loaded SoundFont bank does contain samples expected to be
          in WaveTable ROM. This is an invalid bank for the current synth.
       */
-      SetError(EHC_WRONGWAVETABLE);
-      delete hf;
-      return NULL;
+            return bailOut(hf);
+        }
     }
-  }
-  /* Return the hydraClass ptr. */
-
-  return hf;
-
+    /* Return the hydraClass ptr. */
+    return hf;
 } // end ReadSFBFile
 
-BYTEPTR sfReader::Allocate(SHORT        iHydraSymbol,
-			   SHORT        iMemStructSize,
-			   SHORT        iFileStructSize,
-			   DWORD        dwChkSize,
-	                   HydraClass   *hf)
-//*************************************************************************
-//
-// Parameters: iHydraSymbol:    The SoundFont Data Structure symbol
-//
-//             iMemStructSize:  The size in bytes of memory required by
-//                              a HydraFont head, (ie sizeof(whatever)
-//
-//             iFileStructSize: The size in bytes occupied in a file
-//                              by a HydraFont head, 
-//
-//  Systems with different byte boundries will allocate memory from
-//  the heap differently. Thus when allocating and accessing memory,
-//  the iMemStructSize tells use the padded size of memory if applicable.
-//
-//***************************************************************************
-{
-
-sfVersion  *fileVersion; 
-DWORD      rcnt; 
-BYTEPTR    pData = NULL; 
-
-WORD       mono =        monoSample; 
-
-
-  tRIFF.SwapBytes(&mono);
-
-  fileVersion = (sfVersion*)(infoCkValues[Ifil]);
-
-  if ( iHydraSymbol == sampHdr )  {
-     
-    fileVersion = (sfVersion*)(infoCkValues[Ifil] );
-
-    // get the count of how many sampleHdr elements in the array...
-
-    hf->awStructSize[iHydraSymbol] = 
-           (WORD) (dwChkSize /(DWORD) SAMPHDRV2_SIZE); // 46 bytes/element
-
-    // now allocate our in memory representation... based on elements
-    // times the inmemory size, (ie sizeof from the invocation ) 
-
-    if ((pData = (BYTEPTR) Alloc((DWORD) hf->awStructSize[iHydraSymbol] * 
-				       iMemStructSize)) == 0)   {
-      SetError(EHC_ALLOCATE_PMEM_ERROR); 
-      return (pData);
-    }
-    Memset( pData,0,hf->awStructSize[iHydraSymbol]*iMemStructSize);
-
-    // now for however many elements we have lets do the reading...
-
-    //
-    // Element for element read of data, to serve as an example of a possible
-    // issue with cross platform code. See comments below.
-    //
-    for(WORD curHdr=0; curHdr < hf->awStructSize[iHydraSymbol]; curHdr++) { 
-
-        rcnt = 0; 
-
-        rcnt += tRIFF.RIFFRead((VOIDPTR)
-                               &((sfSampleHdr*)pData)[curHdr].achSampleName, 
-				             1, SAMPLENAMESIZE);
-
-        rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].dwStart,       
-	                                     1, sizeof(DWORD));
-
-        rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].dwEnd, 
-	 	 		             1, sizeof(DWORD));
-
-        rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].dwStartloop, 
- 					     1, sizeof(DWORD));
-
-        rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].dwEndloop,  
- 					     1, sizeof(DWORD));
-
-        rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].dwSampleRate,
-                                               1, sizeof(DWORD));
-
-	rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].byOriginalKey,
-					       1, sizeof(BYTE));
-
-	rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].chFineCorrection,
-					       1, sizeof(CHAR));
-
-	rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].wSampleLink,
-                                               1, sizeof(WORD));
-
-        rcnt += tRIFF.RIFFRead( &((sfSampleHdr*)pData)[curHdr].sfSampleType,
-                                               1, sizeof(WORD));
-
-        if( rcnt != SAMPHDRV2_SIZE) { 
-#ifdef DEBUG
-        qDebug()<<"%Allocate-E-error reading sampleHdr V2 ";
-#endif
-          Dealloc(pData);
-          SetError(SF_INVALIDBANK);
-          return (NULL);
-        }
-     }// end for all elements
-  }  // do sampleHdr reading, 
-
-  else { 
-
-    hf->awStructSize[iHydraSymbol] = (WORD) (dwChkSize /
-					  (DWORD) iFileStructSize);
-    if ((pData = (BYTEPTR) Alloc((DWORD) hf->awStructSize[iHydraSymbol] * 
-				       iMemStructSize)) == 0)
-    {
-      SetError(EHC_ALLOCATE_PMEM_ERROR); 
-      return (pData);
-    }
-
-    DWORD dwNdx;
-
-
-    for (WORD wNdx= 0; wNdx< hf->awStructSize[iHydraSymbol]; wNdx++)
-    {
-      dwNdx = (DWORD)((DWORD)wNdx* (DWORD)iMemStructSize);
-
-      //
-      // NOTE: ANSI makes NO specification about how elements in a 
-      //       data structure is ALIGNED within that data structure.
-      //       Although a byte-for-byte copy from the file image into
-      //       the memory image of the Data Structure like what is happening
-      //       below works with many major commercial compilers for Intel
-      //       Motorola, and Sparc microprocessors under DOS, Windows,
-      //       Mac System 7, SunOS 4.3, and other major operating systems there 
-      //       are no guarantees it will work EVERYWHERE. 
-      //
-      //       This READ may need to be re-written to stuff all ELEMENTS
-      //       of each Data Structure INDIVIDUALLY to guarantee alignment!
-      //       (See how the SampleHeader reads are done above)
-      //
-      //       On the OTHER hand...
-      //       A possible OPTIMIZATION is that if you are on a 16 bit 
-      //       bounded system, AND you are NOT reading the defined
-      //       INST and SHDR structures (iHydraSymbol == inst OR sampHdr)
-      //       you can do large reads spanning multiple data structures.
-      //       and get all data in one shot...
-      //
-      //       IE Kill the 'for' loop and do:
-      //           tRIFF.RIFFRead((VOIDPTR)pData, 1, 
-      //                          hf->awStructSize[iHydraSymbol] * 
-      //                          iMemStructSize);
-      //
-      //       To do this for ALL data structures, remove the RefCount and
-      //       sampleLoaded fields from the definitons of the inst and 
-      //       sampHdr structs FIRST!
-      //
-      if (0 == tRIFF.RIFFRead((VOIDPTR)(&pData[dwNdx]),
-			      1,
-			      iFileStructSize))
-      {
-        Dealloc(pData);
-        pData = NULL;
-        SetError(EHC_READFILEERROR); 
-	break;
-      }
-    }  // end to read all elements
-  } // end to new else do normal thing.
-
-  return (pData);
-
-}// end Allocate
-
-SHORT sfReader::storeInfoCks(void)
+void sfReader::storeInfoCks()
 /*
 ===============================================================================
 * 
@@ -900,7 +387,7 @@ SHORT sfReader::storeInfoCks(void)
 *   Called from ReadSFBData(), this routine is responsible for allocating and 
 * storing the info sub-chunks values that are preset in the currently loaded
 * SoundFont Bank file, (if any). Many of these sub-chunks are optional, these
-* values will remain NULL. These values are stored in the static file global
+* values will remain nullptr. These values are stored in the static file global
 * object "infoCkValues" which is an array with extent infoSubCkCount of 
 * CHAR pointers. 
 *
@@ -914,146 +401,62 @@ SHORT sfReader::storeInfoCks(void)
 ===============================================================================
 */
 {
-WORD curToken; 
-INT stat = 0;
-sfVersion *ver;
-
-   /*  range is Ifil..Icmt */ 
-
-   resetInfoCkValues();   /* Make sure we are playing with a clean slate */
-
-   for(curToken = Ifil; curToken <= Icmt; curToken++) { 
-
-       if( tRIFF.FindCk(tRIFF.GetRIFFToken(curToken)) == SUCCESS ) {
-
-	 infoCkValues[curToken ] = new CHAR[ tRIFF.GetCkSize() + 1];
-
-	 if (infoCkValues[curToken] == NULL)
-	 {
-	   SetError(EHC_ALLOCATE_PMEM_ERROR);
-	   //resetInfoCkValues();
-	   return EHC_ALLOCATE_PMEM_ERROR;
-	 }
-
-	 memset(infoCkValues[curToken], 0, (size_t)(tRIFF.GetCkSize() +1));
-
-	 stat = tRIFF.RIFFRead(infoCkValues[curToken], 
-			       1, (size_t) tRIFF.GetCkSize());
-
-	 if ( (curToken == Ifil) || ( curToken == Iver )) { /*its a struct...*/
-
-	   ver = (sfVersion*)infoCkValues[curToken];
-	   tRIFF.SwapBytes(&ver->wMajor);
-	   tRIFF.SwapBytes(&ver->wMinor);
+    /*  range is Ifil..Icmt */
+    resetInfoCkValues();   /* Make sure we are playing with a clean slate */
+    for (ushort curToken = RIFFClass::Ifil; curToken <= RIFFClass::Icmt; curToken++) {
+        
+        if (findToken(curToken)) {
+            infoCkValues[curToken].resize(tRIFF.GetCkSize());
+            auto d=const_cast<char*>(infoCkValues[curToken].data());
+            tRIFF.RIFFRead(d, tRIFF.GetCkSize());
+            if ( (curToken == RIFFClass::Ifil) || ( curToken == RIFFClass::Iver )) { /*its a struct...*/
+                auto ver = reinterpret_cast<sfVersion*>(d);
+                ver->wMajor = qFromLittleEndian<ushort>(ver->wMajor);
+                ver->wMinor = qFromLittleEndian<ushort>(ver->wMinor);
+                //tRIFF.SwapBytes(ver->wMajor);
+                //tRIFF.SwapBytes(ver->wMinor);
 #ifdef DEBUG
-      qDebug() <<"%StoreInfoCks-I-saw token "<<
-	     tRIFF.GetRIFFToken(curToken)
-	       <<" and stored the value  "
-           << ver->wMajor<< "."<< ver->wMinor;
-	 }
-	 else { /* its just a string... */ 
-     qDebug()<<"%StoreInfoCks-I-saw token "<<tRIFF.GetRIFFToken(curToken)
-          <<" and stored the value "<< infoCkValues[curToken];
+                qDebug() <<"StoreInfoCks-I-saw token "<< QByteArray(tRIFF.GetRIFFToken(curToken),4) <<" and stored the value  " << ver->wMajor<< "."<< ver->wMinor;
+            }
+            else { /* its just a string... */
+                qDebug()<<"StoreInfoCks-I-saw token "<< QByteArray(tRIFF.GetRIFFToken(curToken),4) <<" and stored the value "<< infoCkValues[curToken].c_str();
 #endif
-	}       
-     }//
-     else { // we didn't find the current chunk, but wait! is it the ifil?
-       if(curToken == Ifil) { // check if the uppercase equiv it present...
-         if( tRIFF.FindCk("IFIL") == SUCCESS ) {
-  	   infoCkValues[curToken ] = new CHAR[ tRIFF.GetCkSize() + 1];
-  	   stat = tRIFF.RIFFRead(infoCkValues[curToken], 
-			         1, (SHORT) tRIFF.GetCkSize());
-	   ver = (sfVersion*)infoCkValues[curToken];
-	   tRIFF.SwapBytes(&ver->wMajor);
-	   tRIFF.SwapBytes(&ver->wMinor);
-         }
-       }
-     }//end else
-
-   }// end for all chunks
-  
-  /*  ok we make sure there is some kind of name for the bank, if there was
-   *  was no INAM chunk found, we'll put in a default of SoundFont Bank  
-   */ 
-
-  if(infoCkValues[Inam] == NULL) {
-
-     if ((infoCkValues[Inam] = new CHAR[15]) == NULL)
-     {
-       //resetInfoCkValues();
-       SetError(EHC_ALLOCATE_PMEM_ERROR);
-       return EHC_ALLOCATE_PMEM_ERROR;
-     } 
-     strcpy(infoCkValues[Inam],"SoundFont Bank");
-  }
-
- return stat;     
+            }
+        }//
+        else { // we didn't find the current chunk, but wait! is it the ifil?
+            if (curToken == RIFFClass::Ifil) { // check if the uppercase equiv it present...
+                if (tRIFF.FindCk("IFIL")) {
+                    infoCkValues[curToken].resize(tRIFF.GetCkSize());
+                    auto d=const_cast<char*>(infoCkValues[curToken].data());
+                    tRIFF.RIFFRead(d, tRIFF.GetCkSize());
+                    auto ver = reinterpret_cast<sfVersion*>(d);
+                    ver->wMajor = qFromLittleEndian<ushort>(ver->wMajor);
+                    ver->wMinor = qFromLittleEndian<ushort>(ver->wMinor);
+                    //tRIFF.SwapBytes(ver->wMajor);
+                    //tRIFF.SwapBytes(ver->wMinor);
+                }
+            }
+        }//end else
+        
+    }// end for all chunks
+    /*  ok we make sure there is some kind of name for the bank, if there was
+   *  was no INAM chunk found, we'll put in a default of SoundFont Bank
+   */
+    if (infoCkValues[RIFFClass::Inam].empty()) infoCkValues[RIFFClass::Inam]="SoundFont Bank";
 }/*  end storeInfoCks; */ 
 
 
 
-CHAR* sfReader::GetInfoSubCkVal(RiffCkTokenType token)
-/*===========================================================================
-* 
-* Implementation Notes: 
-*
-*   Simply return the value stored a position indicated by the 
-* value of token. The only check is to see if the given tokens
-* value is between Ifil and Icmt inclusive...
-* If the particular token values you asked for is null, the function
-* returns NULL. -be aware-
-*
-===============================================================================
-*/
+const char* sfReader::GetInfoSubCkVal(RIFFClass::RiffCkTokenType token)
 {
-  if(( token < Ifil)||(token > Icmt)) { 
-   SetError(EHC_NOTINFOTOKEN);       /* out of range, not an infosubchunk */
-   return NULL;
-   }
-  return infoCkValues[token];
+    if(( token < RIFFClass::Ifil)||(token > RIFFClass::Icmt)) { return nullptr; }
+    return infoCkValues[token].c_str();
 } /*  end GetSubkVal */ 
 
 
-void sfReader::resetInfoCkValues(void)
-
-/*****************************************************************************
-*
-* Implementation Notes:
-*
-*   This routine must deallocate last infosubChunk values if needed, 
-* this is to say, if we are going read _another_ file with this same
-* instance of the sfReader class, we had better deallocate and 'erase'
-* the previous files info sub-chunk values. If a client has erronously 
-* copied our pointers, rather than make explict deep copies of the data, 
-* they will find out the error of their ways upon dereferencing bogosity.
-*
-******************************************************************************
-*/
+void sfReader::resetInfoCkValues()
 {
-  for(INT i=0; i<CkCount; i++)
-  {
-    if (infoCkValues[i] != NULL) 
-    {
-#ifdef DEBUG
-      qDebug() <<"%ResetInfoCks-I-saw deleting info chunk "<< i <<" which was ";
-       if ( (i == Ifil) || ( i == Iver ))
-       { /*its a struct...*/
-#endif
-           sfVersion *ver;
-	   ver = (sfVersion*)infoCkValues[i];
-	   tRIFF.SwapBytes(&ver->wMajor);
-	   tRIFF.SwapBytes(&ver->wMinor);
-#ifdef DEBUG
-       qDebug() << ver->wMajor<< "."<< ver->wMinor;
-       }
-       else
-       qDebug() << infoCkValues[i];
-#endif
-      delete [] infoCkValues[i];
-      infoCkValues[i] = NULL;
-    }
-  }
-
+    for (std::string& s : infoCkValues) s.clear();
 }/* end resetInfoCkValues; */ 
 
 /*****************************************************************************
@@ -1068,81 +471,24 @@ void sfReader::resetInfoCkValues(void)
 *
 ******************************************************************************
 */
-void sfReader::
-SetupToFillSampleBuckets(void)
+void sfReader::SetupToFillSampleBuckets()
 {
-  EMUSTAT emuStat = SUCCESS;
-  SetError(SUCCESS);
+    if (bySFStorageStatus == SFR_CLOSED)
+    {
+        if (!tRIFF.OpenRIFF(pathName.c_str())) return;
+    }
+    bySFDataLoc       = SFR_ONDISK;
+    bySFStorageStatus = SFR_OPEN;
 
-  if (bySFStorageStatus == SFR_CLOSED)
-  {
-  switch (bySFDataLoc)
-  {
-    case SFR_ONDISK:
-      emuStat = tRIFF.OpenRIFF(pathName);
-      break;
-    case SFR_ONMACDISK:
-      #ifdef USE_MACINTOSH
-      emuStat = tRIFF.OpenRIFF(pSpecifier);
-      break;
-      #endif // Yes, no USE_MACINTOSH has this case go to default
-    default:
-      SetError(EHC_NOFONT);
-      return;
-  }
-  }
+    if (!findToken(RIFFClass::Smpl)) {
+        closeRiff();
+        return;
+    }
 
-  if (emuStat != SUCCESS)
-  {
-    SetError(EHC_OPENFILEERROR);
-    return;
-  }
-
-  if (tRIFF.FindCk(tRIFF.GetRIFFToken(Smpl)) != SUCCESS )
-  {
-    SetError(EHC_RIFFERROR);
-    bySFStorageStatus = SFR_CLOSED;
-    tRIFF.CloseRIFF();
-  }
-
-  dwSampleSize = tRIFF.GetCkSize();
-  dwSampleOffset = tRIFF.RIFFTellAbs(); // defaults to RIFFTell for all but
-					// SoundROM data.
-  dwSampleBytesCollected = 0L;
-  return;
-}
-
-/*****************************************************************************
-* 
-* sfReader::SetupToFillSampleBuckets
-*
-* Implementation Notes:  
-*
-*  The reader is being called upon for SOME OF the sample data. The data storage
-* medium must be reopened (the reader should have the keys required to do 
-* so) and the variables for the sample dump routine must be set up properly.
-*
-* Note what is passed in is the start and end points IN WORDS and RELATIVE
-* to the FIRST Sample Start point. This way, the dwStart and dwEnd parameters
-* pass in ARE the SoundFont Sample Header dwStart and dwEnd values.
-* 
-* IE: SetupToFillSampleBuckets(pHF->pSHdr[sample].dwStart, 
-*                              pHF->pSHdr[sample].dwEnd);
-*
-******************************************************************************
-*/
-void sfReader::
-SetupToFillSampleBuckets(DWORD dwStart, DWORD dwEnd)
-{
-  //EMUSTAT emuStat = SUCCESS;
-  SetError(SUCCESS);
-
-  SetupToFillSampleBuckets();
-  if ( GetError() !=  SUCCESS) return;
-
-  dwSampleSize = (dwEnd - dwStart) << 1;
-  tRIFF.RIFFSeek(dwSampleOffset+(dwStart<<1), SEEK_SET);
-  dwSampleOffset = tRIFF.RIFFTellAbs();
+    dwSampleSize = tRIFF.GetCkSize();
+    dwSampleOffset = uint(tRIFF.RIFFTellAbs()); // defaults to RIFFTell for all but
+    // SoundROM data.
+    dwSampleBytesCollected = 0L;
 }
 
 /*****************************************************************************
@@ -1174,61 +520,32 @@ SetupToFillSampleBuckets(DWORD dwStart, DWORD dwEnd)
 *
 ******************************************************************************
 */
-void sfReader::
-FillSampleBucket(BYTE *pbyBucket, DWORD * pdwSize)
+void sfReader::FillSampleBucket(byte *pbyBucket, uint * pdwSize)
 {
-
-  SHORT iReadSize;
-  SHORT iReadSizeAct;
-  WORD uiNdx = 0; //, uiCount;
-  DWORD dwThisBucketSize = *pdwSize;
-
-  if (dwSampleBytesCollected >= dwSampleSize)
-  {
+    uint dwThisBucketSize = *pdwSize;
+    if (dwSampleBytesCollected >= dwSampleSize)
+    {
+        *pdwSize = 0;
+        return;
+    }
+    if ((dwSampleSize - dwSampleBytesCollected) < dwThisBucketSize) dwThisBucketSize = dwSampleSize - dwSampleBytesCollected;
     *pdwSize = 0;
-    return;
-  }
-
-  if ((dwSampleSize - dwSampleBytesCollected) < dwThisBucketSize)
-       dwThisBucketSize = dwSampleSize - dwSampleBytesCollected;
-
-  *pdwSize = 0;
-
-  for (; dwThisBucketSize > 0; dwThisBucketSize -= iReadSizeAct, uiNdx++)
-  {
-
-    iReadSize = (dwThisBucketSize > MAX_READ_SIZE) ? MAX_READ_SIZE:
-							 (SHORT)dwThisBucketSize;
-
-    iReadSizeAct =
-      tRIFF.RIFFRead(&pbyBucket[uiNdx*MAX_READ_SIZE], iReadSize, 1);
-
-    if (iReadSizeAct != 1)
-      return;
-
-    iReadSizeAct = iReadSize;
-    #ifdef __BYTE_INCOHERENT
+    dwSampleBytesCollected+=tRIFF.RIFFRead(pbyBucket,dwThisBucketSize);
+    *pdwSize+=dwThisBucketSize;
+#ifdef SF_BYTE_ORDER_BIG_ENDIAN
     //*******************************************
     // Yes, samples need to be byte-swapped too!
     //*******************************************
-    for (uiCount = 0; uiCount < iReadSizeAct; uiCount +=2)
+    for (ulong64 uiCount = 0; uiCount < dwThisBucketSize; uiCount +=2)
     {
-      tRIFF.SwapBytes((WORD *)&pbyBucket[uiCount]);
+        tRIFF.SwapBytes((WORD *)&pbyBucket[uiCount]);
     }
-    #endif
-
-    *pdwSize += iReadSize;
-
-    dwSampleBytesCollected += iReadSize;
-
+#endif
     if (dwSampleBytesCollected >= dwSampleSize)
     {
-      resetSampleCollector();
-      tRIFF.CloseRIFF();
-      bySFStorageStatus = SFR_CLOSED;
-      break;
+        resetSampleCollector();
+        closeRiff();
     }
-  }
 }
 
 /*****************************************************************************
@@ -1237,16 +554,14 @@ FillSampleBucket(BYTE *pbyBucket, DWORD * pdwSize)
 *
 * Implementation Notes:  
 *
-*  A simple BOOLean function to query whether or not the reader has actually
+*  A simple boolean function to query whether or not the reader has actually
 * read something yet.
 *
 ******************************************************************************
 */
-bool sfReader::
-IsValid(void)
+bool sfReader::IsValid()
 {
-  if (bySFDataLoc == SFR_NO_DATA) return(FALSE);
-  return(TRUE);
+    return (bySFDataLoc != SFR_NO_DATA);
 }
 
 /*****************************************************************************
@@ -1259,11 +574,10 @@ IsValid(void)
 *
 ******************************************************************************
 */
-void sfReader::
-resetSampleCollector(void)
+void sfReader::resetSampleCollector()
 {
-  dwSampleSize = 0;
-  dwSampleBytesCollected = 0;
-  dwSampleOffset = 0;
+    dwSampleSize = 0;
+    dwSampleBytesCollected = 0;
+    dwSampleOffset = 0;
 }
 

@@ -1,10 +1,11 @@
 #ifndef CADSR_H
 #define CADSR_H
 
-#include <QtCore>
-#include "softsynthsclasses.h"
+//#include <QtCore>
+#include "cpresets.h"
+#include "qdomlite.h"
 
-class CADSR
+class CADSR : protected IPresetRef
 {
 public:
     enum EnvelopeStates
@@ -15,41 +16,51 @@ public:
     };
     struct ADSRParams
     {
-        size_t Attack;
-        size_t Decay;
-        size_t Sustain;
-        size_t Release;
+        ulong64 Delay;
+        ulong64 Attack;
+        ulong64 Hold;
+        ulong64 Decay;
+        int Sustain;
+        ulong64 Release;
     };
     CADSR();
-    float GetVol(float Trigger);
-    const QString Save();
-    void Load(const QString& XML);
+    float GetVol(const float Trigger);
+    float GetVol();
+    void serialize(QDomLiteElement* xml) const;
+    void unserialize(const QDomLiteElement* xml);
+    void clear();
+    void Start(float Vel=1.f);
+    void Finish();
     ADSRParams AP;
     int Mode;
-    float HoldTrigger;
     EnvelopeStates State;
-    void CalcParams();
+    void calcParams();
+    ldouble Buffer2mSec(const ldouble buffer);
+    ulong64 mSec2Buffer(const ulong64 mSec);
 private:
-    float AttackStep;
-    float DecayStep;
-    float ReleaseStep;
-    size_t AttackLen;
-    size_t DecayLen;
-    size_t ReleaseLen;
-    float SustainVol;
-    size_t Length;
-    float LastGet;
-    float AttackOffset;
+    ulong64 DelayLen;
+    ulong64 AttackLen;
+    ulong64 HoldLen;
+    ulong64 DecayLen;
+    ulong64 ReleaseLen;
+    double SustainVol;
+    ulong64 ReleaseTime;
+    double LastGet;
     float LastTrigger;
-    size_t TimeCount;
-    float CurrentVolume;
-    float VolumeFactor;
-    float VelocityFactor;
-    size_t inline TimeConv(size_t mSec);
-    float inline VolConv(float Percent);
-    void inline Start();
-    void inline Finish();
-    PresetsType m_Presets;
+    ulong64 TimeCount;
+    double CurrentVolume;
+    double VolumeFactor;
+    double VelocityFactor;
+    double inline VolConv(const double Percent);
+    double attackCoef;
+    double decayCoef;
+    double releaseCoef;
+    double targetRatioA;
+    double targetRatioDR;
+    double attackBase;
+    double decayBase;
+    double releaseBase;
+    double calcCoef(double rate, double targetRatio);
 };
 
 #endif // CADSR_H

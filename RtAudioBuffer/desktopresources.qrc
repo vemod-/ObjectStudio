@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../../SynthPanel/Aluminium Verde Tile.bmp</file>
+        <file>../../SynthPanel/Brushed Aluminium 3 Tile.bmp</file>
+        <file>../../SynthPanel/Sky Aluminium Tile.bmp</file>
+        <file>../../SynthPanel/Stainless Aluminium Tile.bmp</file>
+        <file>../../SynthPanel/Brushed Aluminium Tile.bmp</file>
+        <file>../../SynthPanel/Black Aluminium Tile.jpg</file>
+        <file>paper-texture.jpg</file>
+        <file>grey-paper-texture.jpg</file>
+    </qresource>
+</RCC>

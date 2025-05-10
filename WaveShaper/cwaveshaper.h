@@ -1,7 +1,7 @@
 #ifndef CWAVESHAPER_H
 #define CWAVESHAPER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 
 class CWaveShaper : public IDevice
 {
@@ -16,15 +16,15 @@ private:
     float k2;
     int a;
     float a1;
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
     int inline sign(float x);
     float inline max (float x, float a);
     float inline min (float x, float b);
     float inline clip (float x, float a, float b);
 public:
     CWaveShaper();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
 };
 
 #endif // CWAVESHAPER_H

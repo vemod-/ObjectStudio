@@ -5,31 +5,58 @@
 #-------------------------------------------------
 
 TARGET = Sampler
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
+
+LIBS += -lSoftSynthsWidgets
+INCLUDEPATH += ../../QCanvas
 
 LIBS += -lWaveGenerator
-LIBS += -L../ -lWaveBank
-
 INCLUDEPATH += ../WaveGenerator
+
+LIBS += -lWaveBank
 INCLUDEPATH += ../WaveBank
+
+LIBS += -lEnvelope
 INCLUDEPATH += ../Envelope
+
+LIBS += -lPitchTracker
 INCLUDEPATH += ../PitchTracker
+
+LIBS += -lWaveRecorder
 INCLUDEPATH += ../WaveRecorder
+
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L/usr/local/Cellar/ffmpeg/6.0/lib
+        LIBS += -lavformat
+        LIBS += -lavcodec
+        LIBS += -lswresample
+        LIBS += -lavutil
+    }
+}
+
+ios {
+    contains(DEFINES,FFMPEGLIB) {
+        QMAKE_FRAMEWORKPATH += $$QT_INSTALL_LIBS/ffmpeg
+        LIBS += -framework libavformat
+        LIBS += -framework libavcodec
+        LIBS += -framework libswresample
+        LIBS += -framework libavutil
+    }
+}
 
 SOURCES += csamplerform.cpp \
     cwavelayers.cpp \
-    ../Envelope/cadsrwidget.cpp \
-    ../Envelope/cadsrcontrol.cpp \
-    ../Envelope/cadsr.cpp \
+    ##../Envelope/cadsrwidget.cpp \
+    ##../Envelope/cadsrcontrol.cpp \
+    ##../Envelope/cadsr.cpp \
     ckeylayoutcontrol.cpp \
     clayer.cpp \
     crange.cpp \
-    ../PitchTracker/cpitchtrackerclass.cpp \
-    ../WaveRecorder/cwaveeditwidget.cpp \
-    ../WaveRecorder/cwaveeditcontrol.cpp \
+    ##../PitchTracker/cpitchtrackerclass.cpp \
+    ##../WaveRecorder/cwaveeditwidget.cpp \
+    ##../WaveRecorder/cwaveeditcontrol.cpp \
     ckeyrangescontrol.cpp \
     csamplergenerator.cpp \
     csamplerdevice.cpp \
@@ -37,15 +64,15 @@ SOURCES += csamplerform.cpp \
     cmidinoteedit.cpp
 HEADERS += csamplerform.h \
     cwavelayers.h \
-    ../Envelope/cadsrwidget.h \
-    ../Envelope/cadsrcontrol.h \
-    ../Envelope/cadsr.h \
+    ##../Envelope/cadsrwidget.h \
+    ##../Envelope/cadsrcontrol.h \
+    ##../Envelope/cadsr.h \
     ckeylayoutcontrol.h \
     clayer.h \
     crange.h \
-    ../PitchTracker/cpitchtrackerclass.h \
-    ../WaveRecorder/cwaveeditwidget.h \
-    ../WaveRecorder/cwaveeditcontrol.h \
+    ##../PitchTracker/cpitchtrackerclass.h \
+    ##../WaveRecorder/cwaveeditwidget.h \
+    ##../WaveRecorder/cwaveeditcontrol.h \
     ckeyrangescontrol.h \
     csamplergenerator.h \
     csamplerdevice.h \
@@ -58,42 +85,24 @@ SOURCES += csampler.cpp
 
 HEADERS += csampler.h
 
-symbian {
-    MMP_RULES += EXPORTUNFROZEN
-    TARGET.UID3 = 0xEA56FDE0
-    TARGET.CAPABILITY = 
-    TARGET.EPOCALLOWDLLDATA = 1
-    addFiles.sources = Sampler.dll
-    addFiles.path = !:/sys/bin
-    DEPLOYMENT += addFiles
-}
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
 
 FORMS += \
     csamplerform.ui \
     cwavelayers.ui \
-    ../Envelope/cadsrwidget.ui \
-    ../Envelope/cadsrcontrol.ui \
+    ##../Envelope/cadsrwidget.ui \
+    ##../Envelope/cadsrcontrol.ui \
     ckeylayoutcontrol.ui \
-    ../WaveRecorder/cwaveeditwidget.ui \
-    ../WaveRecorder/cwaveeditcontrol.ui \
+    ##../WaveRecorder/cwaveeditwidget.ui \
+    ##../WaveRecorder/cwaveeditcontrol.ui \
     ckeyrangescontrol.ui \
     ckeylayerscontrol.ui \
     cmidinoteedit.ui
 
-HEADERS += \
-    ../MIDI2CV/ccvdevice.h
+##HEADERS += \
+##    ../MIDI2CV/ccvdevice.h
 
-SOURCES += \
-    ../MIDI2CV/ccvdevice.cpp
+##SOURCES += \
+##    ../MIDI2CV/ccvdevice.cpp
 
 RESOURCES += \
     Resources.qrc

@@ -1,18 +1,25 @@
 #include "cwavefile.h"
-#include "mp3lib/MP3Play.h"
+//#include "mp3lib/mp3play.h"
+//#include "cminimp3.h"
+#ifdef FFMPEGLIB
+    #include "audiorw.h"
+#endif
+#ifdef QTMMLIB
+    #include "qaudiorw.h"
+#endif
 
 /* ************************* ConvertFloat() *****************************
  * Converts an 80 bit IEEE Standard 754 floating point number to an unsigned
  * long.
  ********************************************************************** */
 
-unsigned int ConvertFloat(BYTE* buffer)
+uint x80_2_uint(const byte* buffer)
 {
-   unsigned int mantissa;
-   unsigned int last = 0;
-   BYTE exp;
+   uint mantissa;
+   uint last = 0;
+   byte exp;
 
-   mantissa = qFromBigEndian<unsigned int>(*(unsigned int *)(buffer+2));
+   mantissa = qFromBigEndian<uint>(*reinterpret_cast<const uint*>(buffer+2));
    exp = 30 - *(buffer+1);
    while (exp--)
    {
@@ -23,62 +30,60 @@ unsigned int ConvertFloat(BYTE* buffer)
    return(mantissa);
 }
 
-bool CAiffFile::Open(BYTE* pSrc, const size_t Size)
+bool CAiffFile::assign(const QByteArray& b)
 {
-    FormChunk* header=(FormChunk*)pSrc;
-    if (!descriptorMatch(header->descriptor.id, "FORM"))
-    {
-        return false;
-    }
+    QMutexLocker locker(&mutex);
+    const auto header=reinterpret_cast<const FormChunk*>(b.constData());
+    if (!descriptorMatch(header->descriptor.id, "FORM")) return false;
     if (descriptorMatch(header->formType,"AIFF"))
     {
-        byteOrder=IWaveFile::BigEndian;
+        m_ByteOrder=IWaveFile::BigEndian;
     }
     else if (descriptorMatch(header->formType,"AIFC"))
     {
-        byteOrder=IWaveFile::BigEndian;
+        m_ByteOrder=IWaveFile::BigEndian;
     }
     else
     {
         return false;
     }
-    size_t ptr=sizeof(FormChunk);
-    if (findChunk("COMM",ptr,pSrc,Size))
+    ulong64 ptr=sizeof(FormChunk);
+    if (findChunk("COMM",ptr,b))
     {
-        CommonChunk* CommonHeader=(CommonChunk*)(pSrc + ptr);
+        const auto CommonHeader=reinterpret_cast<const CommonChunk*>(b.constData() + ptr);
         if (descriptorMatch(CommonHeader->descriptor.id,"COMM"))
         {
-            ptr += sizeof(chunk)+getInt(CommonHeader->descriptor.size);
-            qDebug() << ptr << getInt(CommonHeader->descriptor.size) << CommonHeader->descriptor.size;
-            if (findChunk("SSND",ptr,pSrc,Size))
+            ptr += sizeof(chunk)+getUInt(CommonHeader->descriptor.size);
+            qDebug() << ptr << getUInt(CommonHeader->descriptor.size) << CommonHeader->descriptor.size;
+            if (findChunk("SSND",ptr,b))
             {
                 // Read off remaining header information
-                SoundDataChunk* dataheader=(SoundDataChunk*)(pSrc + ptr);
-                chunkSize=getInt(dataheader->descriptor.size)-8;
-                channels = getShort(CommonHeader->numChannels);
-                frequency = ConvertFloat(CommonHeader->sampleRate);
-                sampleSize = getShort(CommonHeader->sampleSize);
+                const auto dataheader=reinterpret_cast<const SoundDataChunk*>(b.constData() + ptr);
+                m_ChunkSize=getUInt(dataheader->descriptor.size)-8;
+                m_Channels = getUShort(CommonHeader->numChannels);
+                m_Frequency = x80_2_uint(CommonHeader->sampleRate);
+                m_SampleBitSize = getUShort(CommonHeader->sampleSize);
                 AiffEncoding=QString(QByteArray(CommonHeader->compressionType,4)).toLower();
-                WaveStart=pSrc + ptr + sizeof(SoundDataChunk);
+                m_WaveStart=reinterpret_cast<byte*>(const_cast<char*>(b.data()) + ptr + sizeof(SoundDataChunk));
                 if (AiffEncoding=="fl32")
                 {
-                    sampleSize=32;
-                    AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
+                    m_SampleBitSize=32;
+                    m_AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
                 }
                 if (AiffEncoding=="fl64")
                 {
-                    sampleSize=32;
-                    AuEncoding=AUDIO_FILE_ENCODING_DOUBLE;
+                    m_SampleBitSize=64;
+                    m_AuEncoding=AUDIO_FILE_ENCODING_DOUBLE;
                 }
                 if (AiffEncoding=="alaw")
                 {
-                    sampleSize=8;
-                    AuEncoding=AUDIO_FILE_ENCODING_ALAW_8;
+                    m_SampleBitSize=8;
+                    m_AuEncoding=AUDIO_FILE_ENCODING_ALAW_8;
                 }
                 if (AiffEncoding=="ulaw")
                 {
-                    sampleSize=8;
-                    AuEncoding=AUDIO_FILE_ENCODING_MULAW_8;
+                    m_SampleBitSize=8;
+                    m_AuEncoding=AUDIO_FILE_ENCODING_MULAW_8;
                 }
                 return true;
             }
@@ -87,327 +92,267 @@ bool CAiffFile::Open(BYTE* pSrc, const size_t Size)
     return false;
 }
 
-size_t CAiffFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerate)
+void CAiffFile::createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplerate)
 {
-    size_t Length=0;
-    float* TempBuffer=NULL;
+    QMutexLocker locker(&mutex);
     if (AiffEncoding=="ima4")
     {
-        Length = DecompressIMA(channels, WaveStart, TempBuffer, chunkSize);
-        WaveStart=(BYTE*)TempBuffer;
-        AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
-        sampleSize=32;
-        chunkSize=Length*channels*sizeof(float);
+        CChannelBuffer b;
+        DecompressIMA(m_Channels, m_WaveStart, b, m_ChunkSize);
+        m_WaveStart=reinterpret_cast<byte*>(b.data());
+        m_AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
+        m_SampleBitSize=32;
+        m_ChunkSize=b.chunkSize();
+        IWaveFile::createFloatBuffer(OutBuffer,Samplerate);
     }
-    if (sampleSize)
+    else if (m_SampleBitSize)
     {
-        if (AiffEncoding=="sowt") byteOrder=LittleEndian;
-        Length = IWaveFile::CreateFloatBuffer(OutBuffer,Samplerate);
+        if (AiffEncoding=="sowt") m_ByteOrder=LittleEndian;
+        IWaveFile::createFloatBuffer(OutBuffer,Samplerate);
     }
-    if (TempBuffer) delete [] TempBuffer;
-    return Length;
 }
 
-bool CAuFile::Open(BYTE* pSrc, const size_t Size)
+bool CAuFile::assign(const QByteArray& b)
 {
-    Audio_filehdr* auHeader=(Audio_filehdr*)pSrc;
-    int HeaderSize=0;
-    if (qFromLittleEndian<qint32>(auHeader->magic) == AUDIO_FILE_MAGIC)
+    QMutexLocker locker(&mutex);
+    const auto auHeader=reinterpret_cast<const Audio_filehdr*>(b.constData());
+    //int HeaderSize=0;
+    if (qFromLittleEndian<uint>(auHeader->magic) == AUDIO_FILE_MAGIC)
     {
-        byteOrder=IWaveFile::LittleEndian;
+        m_ByteOrder=IWaveFile::LittleEndian;
     }
-    else if (qFromBigEndian<qint32>(auHeader->magic) == AUDIO_FILE_MAGIC)
+    else if (qFromBigEndian<uint>(auHeader->magic) == AUDIO_FILE_MAGIC)
     {
-        byteOrder=IWaveFile::BigEndian;
+        m_ByteOrder=IWaveFile::BigEndian;
     }
     else
     {
         return false;
     }
-    WaveStart=pSrc + getInt(auHeader->hdr_size);
-    channels=getInt(auHeader->channels);
-    AuEncoding=getInt(auHeader->encoding);
-    frequency=getInt(auHeader->sample_rate);
-    HeaderSize=getInt(auHeader->hdr_size);
-    switch (AuEncoding)
+    m_WaveStart=reinterpret_cast<byte*>(const_cast<char*>(b.constData()) + getUInt(auHeader->hdr_size));
+    m_Channels=getUInt(auHeader->channels);
+    m_AuEncoding=getUInt(auHeader->encoding);
+    m_Frequency=getUInt(auHeader->sample_rate);
+    //HeaderSize=getInt(auHeader->hdr_size);
+    switch (m_AuEncoding)
     {
     case AUDIO_FILE_ENCODING_ADPCM_G723_3:
-        sampleSize=3;
+        m_SampleBitSize=3;
         break;
     case AUDIO_FILE_ENCODING_ADPCM_G723_5:
-        sampleSize=5;
+        m_SampleBitSize=5;
         break;
     case AUDIO_FILE_ENCODING_ADPCM_G721:
-        sampleSize=4;
+        m_SampleBitSize=4;
         break;
     case AUDIO_FILE_ENCODING_MULAW_8:
     case AUDIO_FILE_ENCODING_LINEAR_8:
     case AUDIO_FILE_ENCODING_ALAW_8:
     case AUDIO_FILE_ENCODING_ADPCM_G722:
-        sampleSize=8;
+        m_SampleBitSize=8;
         break;
     case AUDIO_FILE_ENCODING_LINEAR_16:
-        sampleSize=16;
+        m_SampleBitSize=16;
         break;
     case AUDIO_FILE_ENCODING_LINEAR_24:
-        sampleSize=24;
+        m_SampleBitSize=24;
         break;
     case AUDIO_FILE_ENCODING_LINEAR_32:
     case AUDIO_FILE_ENCODING_FLOAT:
-        sampleSize=32;
+        m_SampleBitSize=32;
         break;
     case AUDIO_FILE_ENCODING_DOUBLE:
-        sampleSize=64;
+        m_SampleBitSize=64;
         break;
     default:
-        sampleSize=8;
+        m_SampleBitSize=8;
         break;
     }
-    chunkSize=Size-HeaderSize;
+    m_ChunkSize=ulong64(b.size())-getUInt(auHeader->hdr_size);
     return true;
 }
 
-bool CAuFile::Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate)
+bool CAuFile::save(const QString &filename, CChannelBuffer& data, const uint SampleRate)
 {
-    Audio_filehdr WH;
-    int* WaveBuffer=new int[Length*Channels];
-    size_t t=0;
-    for (size_t i=0;i<Length;i++)
-    {
-        for (int c=0;c<Channels;c++)
-        {
-            WaveBuffer[t++]=qToBigEndian<qint32>(data[i+(Length*c)]*MAXINT);
-        }
-    }
-    size_t PCMSize = Length*Channels;
+    QMutexLocker locker(&mutex);
+    std::vector<int> b=data.toIntInterleaved();
+    ulong64 PCMSize = data.dataSize();
 
-    WH.magic=qToBigEndian<qint32>(AUDIO_FILE_MAGIC);
-    WH.channels=qToBigEndian<qint32>(Channels);
-    WH.data_size=qToBigEndian<qint32>(PCMSize*sizeof(int));
-    WH.encoding=qToBigEndian<qint32>(AUDIO_FILE_ENCODING_LINEAR_32);
-    WH.hdr_size=qToBigEndian<qint32>(sizeof(Audio_filehdr));
-    WH.sample_rate=qToBigEndian<qint32>(SampleRate);
+    Audio_filehdr WH;
+    WH.magic=qToBigEndian<uint>(AUDIO_FILE_MAGIC);
+    WH.hdr_size=qToBigEndian<uint>(sizeof(Audio_filehdr));
+    WH.data_size=qToBigEndian<uint>(uint(PCMSize)*sizeof(int));
+    WH.encoding=qToBigEndian<uint>(AUDIO_FILE_ENCODING_LINEAR_32);
+    WH.sample_rate=qToBigEndian<uint>(SampleRate);
+    WH.channels=qToBigEndian<uint>(data.channels());
 
     QFile m_RecordFile(filename);
     if (m_RecordFile.open(QIODevice::WriteOnly))
     {
-        m_RecordFile.write((char*)&WH,sizeof(WH));
-        m_RecordFile.write((char*)WaveBuffer,PCMSize*sizeof(int));
+        m_RecordFile.write(reinterpret_cast<const char*>(&WH),sizeof(WH));
+        m_RecordFile.write(reinterpret_cast<const char*>(b.data()),long64(PCMSize*sizeof(int)));
         m_RecordFile.close();
     }
-    delete [] WaveBuffer;
     return true;
 
 }
 
-bool CWavFile::Open(BYTE* pSrc, const size_t Size)
+bool CWavFile::assign(const QByteArray& b)
 {
-    CombinedHeader* header=(CombinedHeader*)pSrc;
-    short audioFormat=-1;
-    if (descriptorMatch(header->riff.descriptor.id, "RIFF"))
+    QMutexLocker locker(&mutex);
+    //const auto header=reinterpret_cast<const CombinedHeader*>(b.constData());
+    const auto riffHeader=reinterpret_cast<const RIFFHeader*>(b.constData());
+    ushort audioFormat=0;
+    if (descriptorMatch(riffHeader->descriptor.id, "RIFF"))
     {
-        byteOrder = IWaveFile::LittleEndian;
+        m_ByteOrder = IWaveFile::LittleEndian;
     }
-    else if (descriptorMatch(header->riff.descriptor.id, "RIFX"))
+    else if (descriptorMatch(riffHeader->descriptor.id, "RIFX"))
     {
-        byteOrder = IWaveFile::BigEndian;
+        m_ByteOrder = IWaveFile::BigEndian;
     }
     else
     {
         return false;
     }
-    audioFormat=getShort(header->wave.audioFormat);
-    if (descriptorMatch(header->riff.type, "WAVE") && descriptorMatch(header->wave.descriptor.id,"fmt ") && (audioFormat == 1 || audioFormat == 0 || audioFormat == 3))
+    if (!descriptorMatch(riffHeader->type,"WAVE")) return false;
+    ulong64 ptr = sizeof(RIFFHeader);
+    if (!findChunk("fmt ",ptr,b)) return false;
+    auto waveHeader = reinterpret_cast<const WAVEHeader*>(b.constData() + ptr);
+    audioFormat=getUShort(waveHeader->audioFormat);
+    if (audioFormat == 1 || audioFormat == 0 || audioFormat == 3 || audioFormat == 6 || audioFormat == 7)
     {
-        size_t ptr = getInt(header->wave.descriptor.size)+sizeof(RIFFHeader)+sizeof(chunk);
-        if (findChunk("data",ptr,pSrc,Size))
+        ptr += sizeof(WAVEHeader);
+        if (findChunk("data",ptr,b))
         {
-            DATAHeader* dataheader=(DATAHeader*)(pSrc + ptr);
-            chunkSize=getInt(dataheader->descriptor.size);
-            channels = getShort(header->wave.numChannels);
-            frequency = getInt(header->wave.sampleRate);
-            sampleSize = getShort(header->wave.bitsPerSample);
+            auto dataheader=reinterpret_cast<const DATAHeader*>(b.constData() + ptr);
+            m_ChunkSize=getUInt(dataheader->descriptor.size);
+            m_Channels = getUShort(waveHeader->numChannels);
+            m_Frequency = getUInt(waveHeader->sampleRate);
+            m_SampleBitSize = getUShort(waveHeader->bitsPerSample);
+            m_AuEncoding = 0;
             if (audioFormat==3)
             {
-                AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
-                sampleSize=32;
+                m_AuEncoding=AUDIO_FILE_ENCODING_FLOAT;
+                m_SampleBitSize=32;
             }
             if (audioFormat==6)
             {
-                AuEncoding=AUDIO_FILE_ENCODING_ALAW_8;
-                sampleSize=8;
+                m_AuEncoding=AUDIO_FILE_ENCODING_ALAW_8;
+                m_SampleBitSize=8;
             }
             if (audioFormat==7)
             {
-                AuEncoding=AUDIO_FILE_ENCODING_MULAW_8;
-                sampleSize=8;
+                m_AuEncoding=AUDIO_FILE_ENCODING_MULAW_8;
+                m_SampleBitSize=8;
             }
-            WaveStart=pSrc + ptr + sizeof(DATAHeader);
+            m_WaveStart=reinterpret_cast<byte*>(const_cast<char*>(b.constData()) + ptr + sizeof(DATAHeader));
             return true;
         }
     }
     return false;
 }
 
-bool CWavFile::Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate)
+bool CWavFile::save(const QString &filename, CChannelBuffer& data, const uint SampleRate)
 {
+    QMutexLocker locker(&mutex);
+
+    const std::vector<short> b=data.toShortInterleaved();
+    const ulong64 PCMSize = data.dataSize();
+
     CombinedHeader WH;
-
-    short* WaveBuffer=new short[Length*Channels];
-    size_t t=0;
-    for (size_t i=0;i<Length;i++)
-    {
-        for (int c=0;c<Channels;c++)
-        {
-            WaveBuffer[t++]=data[i+(Length*c)]*MAXSHORT;
-        }
-    }
-    size_t PCMSize = Length*Channels;
-
     setDescriptor(WH.riff.descriptor.id,"RIFF");
-    WH.riff.descriptor.size=qToLittleEndian<qint32>(sizeof(WAVEHeader)+sizeof(DATAHeader)+(PCMSize*sizeof(short)));
+    WH.riff.descriptor.size=qToLittleEndian<uint>(uint(sizeof(WAVEHeader)+sizeof(DATAHeader)+(PCMSize*sizeof(ushort))));
     setDescriptor(WH.riff.type,"WAVE");
     setDescriptor(WH.wave.descriptor.id,"fmt ");
-    WH.wave.descriptor.size=qToLittleEndian<qint32>(sizeof(WAVEHeader)-sizeof(WH.wave.descriptor));
+    WH.wave.descriptor.size=qToLittleEndian<uint>(sizeof(WAVEHeader)-sizeof(WH.wave.descriptor));
 
     WH.wave.audioFormat=WAVE_FORMAT_PCM;         // Format category
-    WH.wave.numChannels=qToLittleEndian<qint16>(Channels);          // Number of channels
-    WH.wave.sampleRate=qToLittleEndian<qint32>(SampleRate);
-    WH.wave.bitsPerSample=qToLittleEndian<qint16>(sizeof(short)*8);
-    WH.wave.blockAlign=qToLittleEndian<qint16>(Channels*sizeof(short));        // Data block size
-    WH.wave.byteRate=qToLittleEndian<qint32>(SampleRate*Channels*sizeof(short));   // For buffer estimation
+    WH.wave.numChannels=qToLittleEndian<ushort>(ushort(data.channels()));          // Number of channels
+    WH.wave.sampleRate=qToLittleEndian<uint>(SampleRate);
+    WH.wave.bitsPerSample=qToLittleEndian<ushort>(sizeof(short)*8);
+    WH.wave.blockAlign=qToLittleEndian<ushort>(ushort(data.channels()*sizeof(short)));        // Data block size
+    WH.wave.byteRate=qToLittleEndian<uint>(SampleRate*data.channels()*sizeof(short));   // For buffer estimation
 
     DATAHeader WDI;
     setDescriptor(WDI.descriptor.id,"data");
-    WDI.descriptor.size=qToLittleEndian<qint32>(PCMSize*sizeof(short));
+    WDI.descriptor.size=qToLittleEndian<uint>(uint(PCMSize*sizeof(short)));
 
     QFile m_RecordFile(filename);
     if (m_RecordFile.open(QIODevice::WriteOnly))
     {
-        m_RecordFile.write((char*)&WH,sizeof(WH));
-        m_RecordFile.write((char*)&WDI,sizeof(WDI));
-        m_RecordFile.write((char*)WaveBuffer,PCMSize*sizeof(short));
+        m_RecordFile.write(reinterpret_cast<const char*>(&WH),sizeof(WH));
+        m_RecordFile.write(reinterpret_cast<const char*>(&WDI),sizeof(WDI));
+        m_RecordFile.write(reinterpret_cast<const char*>(b.data()),long64(PCMSize*sizeof(short)));
         m_RecordFile.close();
     }
-    delete [] WaveBuffer;
     return true;
 }
 
 CWaveFile::CWaveFile()
 {
-    refCount=0;
-    data=NULL;
-    m_PushBufferSize=0;
 }
 
-bool CWaveFile::open(const QString &fileName, const unsigned int SampleRate)
+bool CWaveFile::load(const QString &fileName, const uint SampleRate)
 {
+    QMutexLocker locker(&mutex);
     m_SampleRate=SampleRate;
-    IWaveFile* WF=NULL;
-    QFile f(fileName);
-    if (f.open(QIODevice::ReadOnly))
-    {
-        if (fileName.toLower().endsWith(".wav")) WF=new CWavFile;
-        if (fileName.toLower().endsWith(".au")) WF=new CAuFile;
-        if (fileName.toLower().endsWith(".mp3")) WF=new CMP3File;
-        if (fileName.toLower().endsWith(".aif") || fileName.toLower().endsWith(".aiff")) WF=new CAiffFile;
-        if (WF)
-        {
-            if (WF->OpenFile(f))
-            {
-                if (data)
-                {
-                    delete [] data;
-                    data=NULL;
-                }
-                Length=WF->CreateFloatBuffer(data,m_SampleRate);
-                channels=WF->Channels();
-                frequency=WF->Rate();
-                qDebug() << "Length" << Length << "Channels" << channels << "Frequency" << frequency << "Data" << data;
-                delete WF;
-                return true;
-            }
+    IWaveFile* WF=nullptr;
+    const QString s = fileName.toLower();
+    if (s.endsWith(".wav") || s.endsWith(".wave")) WF=new CWavFile(fileName);
+    else if (s.endsWith(".au")) WF=new CAuFile(fileName);
+#ifdef FFMPEGLIB
+    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CFFMpegReader(fileName); //WF=new CMiniMP3;//CMP3File;
+#endif
+#ifdef QTMMLIB
+    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CQAudioDecoderReader(fileName); //WF=new CMiniMP3;//CMP3File;
+#endif
+    else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile(fileName);
+    if (WF) {
+        if (WF->channels()) {
+            WF->createFloatBuffer(data,m_SampleRate);
+            frequency=WF->rate();
+            qDebug() << "Length" << data.size() << "Channels" << data.channels() << "Frequency" << frequency << "Data" << data.data();
             delete WF;
+            return true;
         }
+        delete WF;
     }
     return false;
 }
 
-void CWaveFile::pushBuffer(float *&buffer, const size_t Size)
+void CWaveFile::startRecording(const uint Channels, const uint SampleRate)
 {
-    if (m_PushBufferSize==0)
-    {
-        if (data)
-        {
-            delete [] data;
-            data=NULL;
-        }
-        Length=0;
-    }
-    while (Length+Size>m_PushBufferSize)
-    {
-        size_t OldSize=m_PushBufferSize;
-        m_PushBufferSize+=0xFFFF;
-        float* t=new float[channels*m_PushBufferSize];
-        if (data)
-        {
-            for (int c=0;c<channels;c++) CopyMemory(t+(c*m_PushBufferSize),data+(c*OldSize),Length*sizeof(float));
-            delete [] data;
-        }
-        data=t;
-    }
-    for (int c=0;c<channels;c++)
-    {
-        if (buffer != NULL)
-        {
-            CopyMemory(data+Length+(m_PushBufferSize*c),buffer+(Size*c),Size*sizeof(float));
-        }
-        else
-        {
-            ZeroMemory(data+Length+(m_PushBufferSize*c),Size*sizeof(float));
-        }
-    }
-    Length+=Size;
-}
-
-void CWaveFile::startRecording(const int Channels, const unsigned int SampleRate)
-{
-    m_PushBufferSize=0;
-    channels=Channels;
+    data.init(0,Channels);
     frequency=SampleRate;
-    Length=0;
     m_SampleRate=SampleRate;
-    if (data)
-    {
-        delete [] data;
-        data=NULL;
-    }
 }
 
 void CWaveFile::finishRecording()
 {
-    if (Length != m_PushBufferSize)
-    {
-        float* t=new float[channels*Length];
-        for (int c=0;c<channels;c++) CopyMemory(t+(Length*c),data+(m_PushBufferSize*c),Length*sizeof(float));
-        m_PushBufferSize=Length;
-        delete [] data;
-        data=t;
-    }
+    data.squeeze();
+    data.normalize();
 }
 
 bool CWaveFile::save(const QString &fileName)
 {
-    if (!data) return false;
+    QMutexLocker locker(&mutex);
+    if (data.isEmpty()) return false;
     finishRecording();
-    IWaveFile* WF=NULL;
-    if (fileName.toLower().endsWith(".wav")) WF=new CWavFile;
-    if (fileName.toLower().endsWith(".au")) WF=new CAuFile;
-    if (fileName.toLower().endsWith(".mp3")) WF=new CMP3File;
-    if (fileName.toLower().endsWith(".aif") || fileName.toLower().endsWith(".aiff")) WF=new CAiffFile;
+    IWaveFile* WF=nullptr;
+    const QString s = fileName.toLower();
+    if (s.endsWith(".wav") || s.endsWith(".wave")) WF=new CWavFile;
+    else if (s.endsWith(".au")) WF=new CAuFile;
+#ifdef FFMPEGLIB
+    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CFFMpegWriter(); //WF=new CMiniMP3;//CMP3File;
+#endif
+#ifdef QTMMLIB
+    //else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CQAudioRecorderWriter(); //WF=new CMiniMP3;//CMP3File;
+#endif
+    else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile;
     if (WF)
     {
-        bool Result = WF->Save(fileName,data,channels,Length,m_SampleRate);
+        bool Result = WF->save(fileName,data,m_SampleRate);
         delete WF;
         return Result;
     }
@@ -416,5 +361,4 @@ bool CWaveFile::save(const QString &fileName)
 
 CWaveFile::~CWaveFile()
 {
-    if (data != NULL) delete [] data;
 }

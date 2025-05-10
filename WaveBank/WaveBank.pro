@@ -4,30 +4,30 @@
 #
 #-------------------------------------------------
 
-QT += core gui
-QT -= network opengl sql svg xml xmlpatterns qt3support
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-CONFIG += qt x86
-CONFIG -= x86_64 ppc64 ppc
-
 TARGET = WaveBank
-TEMPLATE = lib
+DESTDIR = ../
+include(../SoftSynthsFrameworks.pri)
 
-LIBS += -L../ -lSoftSynthsClasses
+macx {
+    contains(DEFINES,BUILD_WITH_FRAMEWORKS) {
+        LIBS += -F$$PWD/../SoftSynthsClasses
+    } else {
+        LIBS += -L../ -lSoftSynthsClasses
+    }
+}
+ios {
+    contains(DEFINES,BUILD_WITH_FRAMEWORKS) {
+        LIBS += -F$$PWD/../SoftSynthsClasses
+    }
+    contains(DEFINES,BUILD_WITH_STATIC) {
+        LIBS += -L$$PWD/../ -lSoftSynthsClasses
+    }
+}
+
 INCLUDEPATH += ../SoftSynthsClasses
 INCLUDEPATH += ../../QDomLite
 
-DESTDIR = ../
-
-SOURCES += cwavebank.cpp
-
 HEADERS += cwavebank.h
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
+
+SOURCES += \
+    cwavebank.cpp

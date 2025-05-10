@@ -1,29 +1,22 @@
 #ifndef CSCOPE_H
 #define CSCOPE_H
 
-#include "softsynthsclasses.h"
-
-#define MaxBuffers 8
+#include "idevice.h"
 
 class CScope : public IDevice
 {
 public:
     CScope();
     ~CScope();
-    void Init(const int Index,void* MainWindow);
-    void Tick();
-    void DrawBuffers();
+    void init(const int Index, QWidget* MainWindow);
+    void tick();
 private:
     enum JackNames
-    {jnIn};
+    {jnIn,jnModulationIn};
     enum ParameterNames
-    {pnVolume,pnFrequency,pnMode};
+    {pnVolume,pnScopeRate,pnFrequency,pnDetectPitch,pnScopeMode};
     void Reset();
-    void inline CalcParams();
-    float* m_Buffer[MaxBuffers];
-    float* PlotBuffer[MaxBuffers];
-    int CurrentBuffer;
-    int NullBuffers;
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 };
 
 #endif // CSCOPE_H

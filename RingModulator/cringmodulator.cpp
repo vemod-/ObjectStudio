@@ -5,37 +5,31 @@ CRingModulator::CRingModulator():ModulationFactor(0)
 
 }
 
-void CRingModulator::Init(const int Index, void *MainWindow) {
+void CRingModulator::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveOut(jnOut);
-    AddJackWaveIn();
-    AddJack("Modulation",IJack::Wave,IJack::In);
-    AddParameterPercent();
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackWaveOut(jnOut);
+    addJackWaveIn();
+    addJackWaveIn("Modulation");
+    addParameterPercent();
+    updateDeviceParameter();
 }
 
-float *CRingModulator::GetNextA(const int ProcIndex) {
-    float* InSignal=FetchA(jnIn);
-    float* InModulation=FetchA(jnModulation);
-    if (!InSignal)
+CAudioBuffer *CRingModulator::getNextA(const int ProcIndex) {
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InModulationBuffer = FetchAMono(jnModulation);
+    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
+    if (!InBuffer->isValid()) return nullptr;
+    if (!InModulationBuffer->isValid()) return nullptr;
+    for (uint i=0;i<m_BufferSize;i++)
     {
-        return NULL;
+        const float Modulation=(InModulationBuffer->at(i)*ModulationFactor)*InBuffer->at(i);
+        OutBuffer->setAt(i,InBuffer->at(i)*CleanFactor + Modulation);//Modulation;
     }
-    if (!InModulation)
-    {
-        return InSignal;
-    }
-    for (int i=0;i<m_BufferSize;i++)
-    {
-        //float Modulation=1-((((float)*(InModulation+i))*ModulationFactor)+(m_ParameterValues[pnModulation] * 0.005));
-        float Modulation=(InModulation[i]*ModulationFactor)*InSignal[i];
-        *(AudioBuffers[ProcIndex]->Buffer+i)= InSignal[i]*CleanFactor + Modulation;//Modulation;
-    }
-    return AudioBuffers[ProcIndex]->Buffer;
+    return m_AudioBuffers[ProcIndex];
 }
 
-void CRingModulator::CalcParams() {
-    ModulationFactor=m_ParameterValues[pnModulation] * 0.01;
+void CRingModulator::updateDeviceParameter(const CParameter* /*p*/) {
+    ModulationFactor=m_Parameters[pnModulation]->PercentValue;
     CleanFactor=1-ModulationFactor;
 }

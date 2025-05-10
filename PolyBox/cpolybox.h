@@ -1,7 +1,7 @@
 #ifndef CPOLYBOX_H
 #define CPOLYBOX_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "ccvdevice.h"
 
 class CPolyBox : public IDevice
@@ -9,24 +9,27 @@ class CPolyBox : public IDevice
 public:
     CPolyBox();
     ~CPolyBox();
-    void Play(const bool FromStart);
-    void Pause();
-    void Init(const int Index,void* MainWindow);
-    float GetNext(const int ProcIndex);
-    void* GetNextP(const int ProcIndex);
-    float* GetNextA(const int ProcIndex);
-    void Tick();
-    void HideForm();
+    void play(const bool FromStart);
+    void pause();
+    void skip(const ulong64 samples);
+    void init(const int Index, QWidget* MainWindow);
+    float getNext(const int ProcIndex);
+    CMIDIBuffer* getNextP(const int ProcIndex);
+    CAudioBuffer* getNextA(const int ProcIndex);
+    void process();
 private:
     enum JackNames
-    {jnOut,jnMIDIIn};
+    {jnOut,jnOutLeft,jnOutRight,jnMIDIIn};
     enum ParameterNames
     {pnMIDIChannel,pnTranspose,pnTune};
     void Reset();
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
     QList<IJack*> JacksCreated;
-    CInJack* WaveOut;
+    QList<CInJack*> WaveOut;
     CCVDevice CVDevice;
+    CMIDIBuffer MIDIBuffer;
+    int prevMIDIkey[CVDevice::CVVoices];
+    int prevVel[CVDevice::CVVoices];
 };
 
 #endif // CPOLYBOX_H

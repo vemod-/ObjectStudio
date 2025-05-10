@@ -2,7 +2,6 @@
 #define CSTEREOPEAK_H
 
 #include <QFrame>
-#include "cpeakcontrol.h"
 
 namespace Ui {
     class CStereoPeak;
@@ -13,11 +12,12 @@ class CStereoPeak : public QFrame
     Q_OBJECT
 
 public:
-    explicit CStereoPeak(QWidget *parent = 0);
+    explicit CStereoPeak(QWidget *parent = nullptr);
     ~CStereoPeak();
-    void SetValues(const float L, const float R);
-    void Reset();
+    void setValues(const float L, const float R);
+    void reset();
     void setMargin(int margin);
+    void setMax(int max);
 private:
     Ui::CStereoPeak *ui;
 };

@@ -2,182 +2,333 @@
 #define CAUDIOBUFFER_H
 
 #include "ijackbase.h"
-#include "softsynthsdefines.h"
+#include "cfloatbuffer.h"
 #include "cpresets.h"
+;
+#pragma pack(push,1)
 
-class CAudioBuffer
+class CAudioBuffer : public CFloatBuffer, protected IPresetRef
 {
 protected:
-    IJackBase::AttachModes AttachMode;
-    int m_BufferSize;
-    int m_WaveBufferSize;
+    IJackBase::AttachModes m_AttachMode;
+    ulong64 m_WaveBufferSize;
+    bool m_Shadow;
+    float* m_DataR;
+    inline CAudioBuffer(float* b, IJackBase::AttachModes a) : m_AttachMode(a)
+    {
+        m_Size=presets.ModulationRate;
+        m_Shadow=true;
+        m_WaveBufferSize=(m_AttachMode==IJackBase::Stereo) ? m_Size*2 : m_Size;
+        m_Data=b;
+        m_DataR=(m_Data != nullptr) ? m_Data+m_Size : nullptr;
+    }
+    inline bool isValid() const { return (m_Data != nullptr); }
+    inline void fromRawData(void* d, IJackBase::AttachModes a)
+    {
+        deleteData();
+        m_Shadow=true;
+        m_AttachMode=a;
+        m_Size=presets.ModulationRate;
+        m_WaveBufferSize=(m_AttachMode==IJackBase::Stereo) ? m_Size*2 : m_Size;
+        m_Data=static_cast<float*>(d);
+        m_DataR=(m_Data != nullptr) ? m_Data+m_Size : nullptr;
+    }
+    inline void deleteData() { if (!m_Shadow) if (m_Data) delete [] m_Data; }
 public:
-    CAudioBuffer(IJackBase::AttachModes a) : AttachMode(a), m_BufferSize(CPresets::Presets.ModulationRate)
+    inline CAudioBuffer(IJackBase::AttachModes a) : m_AttachMode(a)
     {
-        m_WaveBufferSize=m_BufferSize;
-        if (AttachMode==IJackBase::Stereo) m_WaveBufferSize=m_BufferSize*2;
-        Buffer=new float[m_WaveBufferSize];
-        ZeroBuffer();
+        m_Size=presets.ModulationRate;
+        m_Shadow=false;
+        m_WaveBufferSize=(m_AttachMode==IJackBase::Stereo) ? m_Size*2 : m_Size;
+        m_Data=new float[m_WaveBufferSize];
+        m_DataR=m_Data+m_Size;
+        zeroBuffer();
     }
-    virtual ~CAudioBuffer()
-    {
-        delete [] Buffer;
+    virtual ~CAudioBuffer();
+    inline float* zeroBuffer() {
+        zeroFloatBuffer(m_Data,m_WaveBufferSize);
+        return m_Data;
     }
-    inline float* ZeroBuffer() {
-        ZeroMemory(Buffer,m_WaveBufferSize*sizeof(float));
-        return Buffer;
+    inline float* writeBuffer(const float* b,bool zero=false) {
+        if (!b) return (zero) ? zeroBuffer() : nullptr;
+        copyFloatBuffer(m_Data,b,m_WaveBufferSize);
+        return m_Data;
     }
-    inline float* WriteBuffer(float* b) {
-        if (!b) return NULL;
-        CopyMemory(Buffer,b,m_WaveBufferSize*sizeof(float));
-        return Buffer;
+    inline float* writeBuffer(const float *b, const float factor,bool zero=false) {
+        if (!b) return (zero) ? zeroBuffer() : nullptr;
+        copyFloatBuffer(m_Data,b,factor,m_WaveBufferSize);
+        return m_Data;
     }
-    inline float* WriteBuffer(float *b, float factor) {
-        if (!b) return NULL;
-        if (factor==0) return ZeroBuffer();
-        CopyMemory(Buffer,b,m_WaveBufferSize*sizeof(float));
-        return Multiply(factor);
-    }
-    inline float* WriteBuffer(float* b, IJackBase::AttachModes a) {
-        if (!b) return NULL;
-        if (a==AttachMode) return WriteBuffer(b);
-        if (AttachMode==IJackBase::Wave)
-        {
-            WriteBuffer(b);
-            AddBuffer(b+m_BufferSize);
-            return Multiply(SQRT2MULTIPLY);
+    inline float* writeBuffer(const float* b, const IJackBase::AttachModes a,bool zero=false) {
+        if (!b) return (zero) ? zeroBuffer() : nullptr;
+        if (a==m_AttachMode) return writeBuffer(b);
+        if (m_AttachMode==IJackBase::Wave) {
+            copyAddMultiplyFloatBuffer(m_Data,b,b+m_Size,M_SQRT1_2_F,m_Size);
         }
-        CopyMemory(Buffer,b,m_BufferSize*sizeof(float));
-        float* BufferR=Buffer+m_BufferSize;
-        CopyMemory(BufferR,b,m_BufferSize*sizeof(float));
-        return Buffer;
+        else {
+            copyFloatBuffer(m_Data,b,m_Size);
+            copyFloatBuffer(m_DataR,b,m_Size);
+        }
+        return m_Data;
     }
-    inline float* AddBuffer(float* b) {
-        if (b) for (int i=0;i<m_WaveBufferSize;i++) Buffer[i]+=b[i];
-        return Buffer;
+    inline float* writeBuffer(const CAudioBuffer* b, const float factor=1) {
+        if (!b) return zeroBuffer();
+        if ((!b->isValid()) || (isZero(factor))) {
+            return zeroBuffer();
+        }
+        if (isOne(factor)) return writeBuffer(b->data(),b->attachmode());
+        if (b->attachmode()==m_AttachMode) return writeBuffer(b->data(),factor);
+        if (m_AttachMode==IJackBase::Wave) {
+            copyAddMultiplyFloatBuffer(m_Data,b->data(),b->data()+m_Size,M_SQRT1_2_F*factor,m_Size);
+        }
+        else {
+            copyFloatBuffer(m_Data,b->data(),factor,m_Size);
+            copyFloatBuffer(m_DataR,m_Data,m_Size);
+            //copyFloatBuffer(m_DataR,b->data(),factor,m_Size);
+        }
+        return m_Data;
     }
-    inline float* AddBuffer(float *b, float factor) {
-        if (b) if (factor > 0) for (int i=0;i<m_WaveBufferSize;i++) Buffer[i]+=b[i]*factor;
-        return Buffer;
+    inline float* writeBuffer(const CAudioBuffer* b, const IJackBase::AttachModes a,bool zero=false) {
+        return (!b) ? zeroBuffer() : writeBuffer(b->data(), a, zero);
     }
-    inline float* AddBuffer(float* b, IJackBase::AttachModes a) {
+    inline float* addBuffer(const float *b, const float factor=1) {
+        if (b) addFloatBuffer(m_Data,b,factor,m_WaveBufferSize);
+        return m_Data;
+    }
+    inline float* addBuffer(const float* b, const IJackBase::AttachModes a) {
         if (b)
         {
-            if (a==AttachMode) return AddBuffer(b);
-            if (AttachMode==IJackBase::Wave)
-            {
-                AddBuffer(b,SQRT2MULTIPLY);
-                return AddBuffer(b+m_BufferSize,SQRT2MULTIPLY);
+            if (a==m_AttachMode) return addBuffer(b);
+            if (m_AttachMode==IJackBase::Wave) {
+                addAddFloatBuffer(m_Data,b,b+m_Size,M_SQRT1_2_F,m_Size);
             }
-            float* BufferR=Buffer+m_BufferSize;
-            for (int i=0;i<m_BufferSize;i++)
-            {
-                Buffer[i]+=b[i];
-                BufferR[i]+=b[i];
+            else {
+                addFloatBuffer(m_Data,b,m_Size);
+                addFloatBuffer(m_DataR,b,m_Size);
             }
         }
-        return Buffer;
+        return m_Data;
     }
-    inline float* Multiply(float factor) {
-        if (factor==1) return Buffer;
-        if (factor==0) return ZeroBuffer();
-        for (int i=0;i<m_WaveBufferSize;i++) Buffer[i]*=factor;
-        return Buffer;
+    inline float* addBuffer(const CAudioBuffer* b, const float factor=1) {
+        if (!b) return zeroBuffer();
+        if (b->isValid() && (!isZero(factor)))
+        {
+            if (isOne(factor)) return addBuffer(b->data(),b->attachmode());
+            if (b->attachmode()==m_AttachMode) return addBuffer(b->data(),factor);
+            if (m_AttachMode==IJackBase::Wave) {
+                addAddFloatBuffer(m_Data,b->data(),b->data()+m_Size,M_SQRT1_2_F*factor,m_Size);
+            }
+            else {
+                addFloatBuffer(m_Data,b->data(),factor,m_Size);
+                addFloatBuffer(m_DataR,b->data(),factor,m_Size);
+            }
+        }
+        return m_Data;
     }
-    float* Buffer;
+    inline void updateBuffer(const float *b, const IJackBase::AttachModes a, bool overwrite) {
+        if (b)
+        {
+            (overwrite) ? writeBuffer(b,a) : addBuffer(b,a);
+        }
+    }
+    inline void updateBuffer(const CAudioBuffer *b, const IJackBase::AttachModes a, bool overwrite) {
+        if (b) updateBuffer(b->data(), a, overwrite);
+    }
+    inline float* multiplyBuffer(const float factor) {
+        multiplyFloatBuffer(m_Data,factor,m_WaveBufferSize);
+        return m_Data;
+    }
+    inline void peakBuffer(float* p, const float factor=1, const float max=2) const {
+        *p=peakFloatBuffer(m_Data,m_WaveBufferSize,*p,factor,max);
+    }
+    inline void operator *= (const float factor) { multiplyBuffer(factor); }
+    inline void operator /= (const float divisor) { multiplyBuffer(1/divisor); }
+    inline void operator += (const CAudioBuffer* b) { if (b) addBuffer(b->m_Data,b->m_AttachMode); }
+    inline void operator += (const CAudioBuffer& b) { addBuffer(b.m_Data,b.m_AttachMode); }
+    inline void operator += (const float* b) { addBuffer(b); }
+    inline void operator = (CAudioBuffer& b) { writeBuffer(b.m_Data,b.m_AttachMode); }
+    inline void operator = (const float* b) { writeBuffer(b); }
+    inline IJackBase::AttachModes attachmode() const { return m_AttachMode; }
 };
 
 class CMonoBuffer : public CAudioBuffer
 {
 public:
-    CMonoBuffer() : CAudioBuffer(IJackBase::Wave){}
-    inline float* FromStereo(float* b) {
-        if (!b) return NULL;
-        WriteBuffer(b);
-        AddBuffer(b+m_BufferSize);
-        return Multiply(SQRT2MULTIPLY);
+    inline CMonoBuffer() : CAudioBuffer(IJackBase::Wave){}
+    inline CMonoBuffer(float*b) : CAudioBuffer(b,IJackBase::Wave){}
+    virtual ~CMonoBuffer();
+    inline float* fromStereo(const float* b) { return CAudioBuffer::writeBuffer(b,IJackBase::Stereo); }
+    inline float* addStereo(const float* b) { return CAudioBuffer::addBuffer(b,IJackBase::Stereo); }
+    inline void fromRawData(void* d)
+    {
+        deleteData();
+        m_Shadow=true;
+        m_Data=static_cast<float*>(d);
     }
-    inline float* AddStereo(float* b) {
-        AddBuffer(b,SQRT2MULTIPLY);
-        return AddBuffer(b+m_BufferSize,SQRT2MULTIPLY);
+    inline void makeNull()
+    {
+        fromRawData(nullptr);
     }
+    inline bool isValid() const { return CAudioBuffer::isValid(); }
 };
 
 class CStereoBuffer : public CAudioBuffer
 {
 public:
-    CStereoBuffer() : CAudioBuffer(IJackBase::Stereo), BufferR(Buffer+m_BufferSize){}
-    inline float* WriteBuffer(float* b) { return CAudioBuffer::WriteBuffer(b); }
-    inline float* WriteBuffer(float* b, float factor) { return CAudioBuffer::WriteBuffer(b,factor); }
-    inline float* WriteBuffer(float* b, float factorL, float factorR) {
-        if (!b) return NULL;
-        CopyMemory(Buffer,b,m_WaveBufferSize*sizeof(float));
-        return Multiply(factorL,factorR);
+    inline CStereoBuffer(float*b) : CAudioBuffer(b,IJackBase::Stereo) {
+        leftBuffer=new CMonoBuffer(m_Data);
+        rightBuffer=new CMonoBuffer(m_DataR);
     }
-    inline float* FromMono(float* L, float* R, float factor) {
-        FromMono(L,R);
-        return Multiply(factor);
+    inline CStereoBuffer() : CAudioBuffer(IJackBase::Stereo) {
+        leftBuffer=new CMonoBuffer(m_Data);
+        rightBuffer=new CMonoBuffer(m_DataR);
     }
-    inline float* FromMono(float* L, float* R) {
-        if (L) CopyMemory(Buffer,L,m_BufferSize*sizeof(float));
-        else ZeroMemory(Buffer,m_BufferSize*sizeof(float));
-        if (R) CopyMemory(BufferR,R,m_BufferSize*sizeof(float));
-        else ZeroMemory(BufferR,m_BufferSize*sizeof(float));
-        return Buffer;
+    virtual ~CStereoBuffer();
+    inline void zeroLeftBuffer() { zeroFloatBuffer(m_Data,m_Size); }
+    inline void zeroRightBuffer() { zeroFloatBuffer(m_DataR,m_Size); }
+    inline float* writeStereoBuffer(const float* b, const float factorL=1, const float factorR=1) {
+        if (!b) return nullptr;
+        writeLeftBuffer(b,factorL);
+        writeRightBuffer(b+m_Size,factorR);
+        return m_Data;
     }
-    inline float* FromMono(float* b) {
-        if (!b) return NULL;
-        CopyMemory(Buffer,b,m_BufferSize*sizeof(float));
-        CopyMemory(BufferR,b,m_BufferSize*sizeof(float));
-        return Buffer;
+    inline float* writeStereoBuffer(const CStereoBuffer* b, const float factorL=1, const float factorR=1) {
+        if (!b) return zeroBuffer();
+        if (!b->isValid()) return zeroBuffer();
+        writeLeftBuffer(b->data(),factorL);
+        writeRightBuffer(b->dataR(),factorR);
+        return m_Data;
     }
-    inline float* AddBuffer(float *b) { return CAudioBuffer::AddBuffer(b); }
-    inline float* AddBuffer(float *b, float factor) { return CAudioBuffer::AddBuffer(b,factor); }
-    inline float* AddBuffer(float *b, float factorL, float factorR) {
-        AddLeftBuffer(b, factorL);
-        AddRightBuffer(b+m_BufferSize, factorR);
-        return Buffer;
+    inline void writeLeftBuffer(const float* b, const float factor=1) {
+        (b) ? copyFloatBuffer(m_Data,b,factor,m_Size) : zeroLeftBuffer();
     }
-    inline void AddLeftBuffer(float* b) {
-        if (!b) return;
-        for (int i=0;i<m_BufferSize;i++) Buffer[i]+=b[i];
+    inline void writeRightBuffer(const float* b, const float factor=1) {
+        (b) ? copyFloatBuffer(m_DataR,b,factor,m_Size) : zeroRightBuffer();
     }
-    inline void AddLeftBuffer(float* b, float factor) {
-        if (!b) return;
-        if (factor > 0) for (int i=0;i<m_BufferSize;i++) Buffer[i]+=b[i]*factor;
+    inline float* fromDualMono(const float* L, const float* R, const float factor=1) {
+        writeLeftBuffer(L,factor);
+        writeRightBuffer(R,factor);
+        return m_Data;
     }
-    inline void AddRightBuffer(float* b) {
-        if (!b) return;
-        for (int i=0;i<m_BufferSize;i++) BufferR[i]+=b[i];
+    inline float* fromDualMono(const CMonoBuffer* bL, const CMonoBuffer* bR, const float factor=1) {
+        writeLeftBuffer(bL->data(),factor);
+        writeRightBuffer(bR->data(),factor);
+        return m_Data;
     }
-    inline void AddRightBuffer(float* b, float factor) {
-        if (!b) return;
-        if (factor > 0) for (int i=0;i<m_BufferSize;i++) BufferR[i]+=b[i]*factor;
+    inline float* fromMono(const float* b) { return CAudioBuffer::writeBuffer(b,IJackBase::Wave); }
+    inline float* fromMono(const float* b, const float factorL, const float factorR) {
+        if (!b) return nullptr;
+        writeLeftBuffer(b,factorL);
+        writeRightBuffer(b,factorR);
+        return m_Data;
     }
-    inline float* AddMono(float* L, float* R) {
-        if (L) for (int i=0;i<m_BufferSize;i++) Buffer[i]+=L[i];
-        if (R) for (int i=0;i<m_BufferSize;i++) BufferR[i]+=R[i];
-        return Buffer;
+    inline float* addStereoBuffer(const float *b, const float factorL=1, const float factorR=1) {
+        addLeftBuffer(b, factorL);
+        if (b) addRightBuffer(b+m_Size, factorR);
+        return m_Data;
     }
-    inline float* AddMono(float* b) {
-        if (!b) return Buffer;
-        for (int i=0;i<m_BufferSize;i++)
-        {
-            Buffer[i]+=b[i];
-            BufferR[i]+=b[i];
-        }
-        return Buffer;
+    inline float* addStereoBuffer(const CStereoBuffer* b, const float factorL=1, const float factorR=1) {
+        if (!b) return m_Data;
+        if (!b->isValid()) return m_Data;
+        addLeftBuffer(b->data(), factorL);
+        addRightBuffer(b->dataR(), factorR);
+        return m_Data;
     }
-    inline float* Multiply(float factor) { return CAudioBuffer::Multiply(factor); }
-    inline float* Multiply(float factorL,float factorR) {
-        if (factorL==0) ZeroMemory(Buffer,m_BufferSize*sizeof(float));
-        if (factorL != 1) for (int i=0;i<m_BufferSize;i++) Buffer[i]*=factorL;
-        if (factorR==0) ZeroMemory(BufferR,m_BufferSize*sizeof(float));
-        if (factorR != 1) for (int i=0;i<m_BufferSize;i++) BufferR[i]*=factorR;
-        return Buffer;
-
+    inline void addLeftBuffer(const float* b, float factor=1) { if (b) addFloatBuffer(m_Data,b,factor,m_Size); }
+    inline void addRightBuffer(const float* b, const float factor=1) { if (b) addFloatBuffer(m_DataR,b,factor,m_Size); }
+    inline float* addDualMono(const float* L, const float* R) {
+        addLeftBuffer(L);
+        addRightBuffer(R);
+        return m_Data;
     }
-    float* BufferR;
+    inline float* addDualMono(const CMonoBuffer* bL, CMonoBuffer* bR) {
+        addLeftBuffer(bL->data());
+        addRightBuffer(bR->data());
+        return m_Data;
+    }
+    inline float* addMono(const float* b) { return CAudioBuffer::addBuffer(b,IJackBase::Wave); }
+    inline float* addMono(const float* b,const float factorL=1, const float factorR=1) {
+        addLeftBuffer(b,factorL);
+        addRightBuffer(b,factorR);
+        return m_Data;
+    }
+    inline float* multiplyStereoBuffer(const float factorL,const float factorR) {
+        multiplyFloatBuffer(m_Data,factorL,m_Size);
+        multiplyFloatBuffer(m_DataR,factorR,m_Size);
+        return m_Data;
+    }
+    inline void peakStereoBuffer(float* pLeft, float* pRight, const float factorL=1, const float factorR=1 , const float max=2) const {
+        *pLeft = peakFloatBuffer(m_Data,m_Size,*pLeft,factorL,max);
+        *pRight = peakFloatBuffer(m_DataR,m_Size,*pRight,factorR,max);
+    }
+    inline float atR(const ulong64 p) const { return m_DataR[p]; }
+    inline void zeroAt(const ulong64 p) {
+        m_Data[p]=0;
+        m_DataR[p]=0;
+    }
+    inline void setAt(const ulong64 p,const float v) {
+        m_Data[p]=v;
+        m_DataR[p]=v;
+    }
+    inline void addAt(const ulong64 p,const float v) {
+        m_Data[p]+=v;
+        m_DataR[p]+=v;
+    }
+    inline void setAtL(const ulong64 p,const float v) {
+        m_Data[p]=v;
+    }
+    inline void addAtL(const ulong64 p,const float v) {
+        m_Data[p]+=v;
+    }
+    inline void setAtR(const ulong64 p,const float v) {
+        m_DataR[p]=v;
+    }
+    inline void addAtR(const ulong64 p,const float v) {
+        m_DataR[p]+=v;
+    }
+    inline void setAt(const ulong64 p,const float vL, const float vR) {
+        m_Data[p]=vL;
+        m_DataR[p]=vR;
+    }
+    inline void addAt(const ulong64 p,const float vL,const float vR) {
+        m_Data[p]+=vL;
+        m_DataR[p]+=vR;
+    }
+    inline void interleaveAt(const ulong64 p, float*& i, const float factor = 1)
+    {
+        *i++=m_Data[p]*factor;
+        *i++=m_DataR[p]*factor;
+    }
+    inline void setAtFromInterleaved(const ulong64 p, float*& i)
+    {
+        m_Data[p]=*i++;
+        m_DataR[p]=*i++;
+    }
+    inline void addAtInterleaved(const ulong64 p, float*& i)
+    {
+        m_Data[p]+=*i++;
+        m_DataR[p]+=*i++;
+    }
+    inline float* dataR() const { return m_DataR; }
+    inline int channels() const { return 2; }
+    inline void fromRawData(void* d)
+    {
+        deleteData();
+        m_Shadow=true;
+        m_Data=static_cast<float*>(d);
+        m_DataR=(m_Data != nullptr) ? m_Data+m_Size : nullptr;
+        leftBuffer->fromRawData(m_Data);
+        rightBuffer->fromRawData(m_DataR);
+    }
+    inline void makeNull()
+    {
+        fromRawData(nullptr);
+    }
+    inline bool isValid() const { return (m_Data != nullptr); }
+    CMonoBuffer* leftBuffer;
+    CMonoBuffer* rightBuffer;
 };
+
+#pragma pack(pop)
 
 #endif // CAUDIOBUFFER_H

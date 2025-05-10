@@ -16,14 +16,15 @@
 //               E-mu Systems Proprietary All rights Reserved.
 //                             
 //*****************************************************************************
-#ifndef __HYDRA_H_
-#define __HYDRA_H_
+#ifndef HYDRA_H_
+#define HYDRA_H_
 
 #include <stddef.h>
-#include "datatype.h"
 #include "sfdata.h"
 #include "sfenum.h"
-#include "emuerrs.h"
+#include <vector>
+#include <string>
+
 //*****************************************************************************
 // @(#)hydra.h	1.2 09:40:05 3/21/95 09:40:06
 // Description: 
@@ -61,24 +62,26 @@ enum SoundFontDS {
 //SoundFont Data Structures//
 /////////////////////////////
 
+#pragma pack (push,1)
+
 typedef struct sfVersionTag
 {
-  WORD wMajor;               // Reads the major ver (if present) -was uiHi
-  WORD wMinor;               // Reads the minor ver              -was uiLo
+  ushort wMajor;               // Reads the major ver (if present) -was uiHi
+  ushort wMinor;               // Reads the minor ver              -was uiLo
 } sfVersion;
 
 
 typedef struct sfINFOTag
 {
   sfVersion sfSFVer;
-  CHAR*     pchSoundEngine;
-  CHAR*     pchROMName;
+  char*     pchSoundEngine;
+  char*     pchROMName;
   sfVersion sfROMVer;
-  CHAR*     pchBankName;
-  CHAR*     pchProduct;
-  CHAR*     pchCopyright;
-  CHAR*     pchDate;
-  CHAR*     pchEngineer;
+  char*     pchBankName;
+  char*     pchProduct;
+  char*     pchCopyright;
+  char*     pchDate;
+  char*     pchEngineer;
 } sfINFO;
 
 // The stRanges data structure is applicable in the Generator List only.
@@ -95,40 +98,44 @@ typedef struct sfINFOTag
 // and NOT swapping those, it swaps bytes for ALL generator values 
 // and these data structures are re-designed to compensate for that.
 
-#ifdef __BYTE_COHERENT
-struct stRanges            // This is for both key and velocity ranges
-{
-  BYTE byLo;    
-  BYTE byHi;   
-};
-
-#elif defined (__BYTE_INCOHERENT)
+#ifdef SF_BYTE_ORDER_BIG_ENDIAN
 struct stRanges
 {
-  BYTE byHi;  
+  BYTE byHi;
   BYTE byLo;
+};
+#else
+struct stRanges            // This is for both key and velocity ranges
+{
+  byte byLo;
+  byte byHi;
 };
 
 #endif
 
-
 typedef union unGenAmtTag
 {
   struct stRanges stRange;    // Sometimes the generator is an stRange
-  SHORT             shAmount; //   and sometimes it is a short
+  short             shAmount; //   and sometimes it is a short
 } unGenAmt;
 
+bool inline outsideRange(const ushort v, const unGenAmt& range)
+{
+    if (v < range.stRange.byLo) return true;
+    if (v > range.stRange.byHi) return true;
+    return false;
+}
 
 //// Standard list used in Phdr (Preset lists) ////
 typedef struct sfPresetHdrTag
 {
-  CHAR   achPresetName[PRESETNAMESIZE];      // Name of preset  
-  WORD   wPresetNum;                   // The number of the preset
-  WORD   wPresetBank;                 // The preset bank number
-  WORD   wBagNdx;                    // The index to sfPresetBag
-  DWORD  dwLibrary;
-  DWORD  dwGenre;
-  DWORD  dwMorphology;
+  char   achPresetName[PRESETNAMESIZE];      // Name of preset  
+  ushort   wPresetNum;                   // The number of the preset
+  ushort   wPresetBank;                 // The preset bank number
+  ushort   wBagNdx;                    // The index to sfPresetBag
+  uint  dwLibrary;
+  uint  dwGenre;
+  uint  dwMorphology;
 
 } sfPresetHdr;
 
@@ -138,8 +145,8 @@ typedef struct sfPresetHdrTag
 typedef struct sfBagNdxTag
 
 {
-  WORD wGenNdx;          // Index to generator list
-  WORD wModNdx;          // Index to modulator list
+  ushort wGenNdx;          // Index to generator list
+  ushort wModNdx;          // Index to modulator list
 
 } sfBagNdx;
 
@@ -147,7 +154,7 @@ typedef struct sfBagNdxTag
 //// Standard list used in Pgen, Igen (Generator lists) ////
 typedef struct sfGenListTag
 {
-  WORD         sfGenOper; // Single generator 
+  ushort         sfGenOper; // Single generator 
   unGenAmt     unAmt;     // Amount applied to that generator
 } sfGenList;
 
@@ -155,21 +162,21 @@ typedef struct sfGenListTag
 //// Standard list used in Pmod, Imod (Modulator lists) ////
 typedef struct sfModListTag
 {
-  WORD    wModSrcOper;     // Source modulation operator
-  WORD    wModDestOper;    // Destination modulation operator
-  SHORT   shAmount;        // Source modulates destination by this amount
-  WORD    wModAmtSrcOper;  // If used, source modulates destination by 
+  ushort    wModSrcOper;     // Source modulation operator
+  ushort    wModDestOper;    // Destination modulation operator
+  short   shAmount;        // Source modulates destination by this amount
+  ushort    wModAmtSrcOper;  // If used, source modulates destination by 
                            // THIS source's current value instead.
-  WORD    wModTransOper;   // Send source through defined transform first
+  ushort    wModTransOper;   // Send source through defined transform first
 } sfModList;
 
 
 //// Standard list used in Inst (Instrument lists) ////
 typedef struct sfInstTag
 {
-  CHAR  achInstName[INSTNAMESIZE];     // Name of the instrument
-  WORD  wBagNdx;                      // Index to sfInstrumentBag
-  WORD  wRefCount; // This field is used in EDIT ENGINE for reference counts
+  char  achInstName[INSTNAMESIZE];     // Name of the instrument
+  ushort  wBagNdx;                      // Index to sfInstrumentBag
+  //WORD  wRefCount; // This field is used in EDIT ENGINE for reference counts
 
   //// For Windows 3.1 and Borland's huge pointers //// 
   #ifdef EMU_WINDOWS
@@ -198,29 +205,29 @@ typedef enum {
 }SFSampleLink; 
 
 
-const WORD smplHdrV2ExtensionSize    =  (3*sizeof(WORD)+sizeof(DWORD));
-const WORD smplHdrV2Size             =  36 + smplHdrV2ExtensionSize;
+//const WORD smplHdrV2ExtensionSize    =  (3*sizeof(WORD)+sizeof(DWORD));
+//const WORD smplHdrV2Size             =  36 + smplHdrV2ExtensionSize;
 
 //// Standard list used in Shdr (Sample header lists) ////
 typedef struct sfSampleHdrTag
 {
 
-  CHAR          achSampleName[SAMPLENAMESIZE];
-  DWORD         dwStart;          // Sample addresses
-  DWORD         dwEnd;
-  DWORD         dwStartloop;
-  DWORD         dwEndloop;
-  DWORD         dwSampleRate;     // In Hz, IE 44100, 22050, etc
-  BYTE          byOriginalKey;    // MIDI Key, 0 to 127
-  CHAR          chFineCorrection; // Tuning correction in cents
-  WORD          wSampleLink;   // index to 'next' sample in chain
-  WORD          sfSampleType;  // the kind (values: see enum SFSampleLink )
+  char          achSampleName[SAMPLENAMESIZE];
+  uint         dwStart;          // Sample addresses
+  uint         dwEnd;
+  uint         dwStartloop;
+  uint         dwEndloop;
+  uint         dwSampleRate;     // In Hz, IE 44100, 22050, etc
+  byte          byOriginalKey;    // MIDI Key, 0 to 127
+  char          chFineCorrection; // Tuning correction in cents
+  ushort          wSampleLink;   // index to 'next' sample in chain
+  ushort          sfSampleType;  // the kind (values: see enum SFSampleLink )
 
-  bool          bSampleLoaded; // This field is used in RUNTIME ENGINE ONLY
+  //bool          bSampleLoaded; // This field is used in RUNTIME ENGINE ONLY
                                // as a convenient flag to indicate loaded vs
                                // unloaded samples.
 
-  WORD  wRefCount; // This field is used in EDIT ENGINE for reference counts 
+  //WORD  wRefCount; // This field is used in EDIT ENGINE for reference counts
 
 } sfSampleHdr;
 
@@ -253,6 +260,7 @@ typedef sfSampleHdr* SFSAMPLEHDRPTR;
 
 #endif // Memory typedef dependencies
 
+#pragma pack(pop)
 
 /////////////////////////////////
 // DS for holding Sample Name  //
@@ -262,26 +270,26 @@ class HydraClass
 {
   public:
     //// Methods ////
-    HydraClass(void);
-    ~HydraClass(void);
-
-    void ConstructHydra(void);
-    void DestructHydra(void);
-
-    void  ZapHydra(void);
-    void  ResetDefault(void);
-
-    const sfData* getDefault(void) { return &sfDefault; }
-
-    void  SetVersion(WORD majorVersion, WORD minorVersion) 
-        {HydraVersion.wMajor = majorVersion; 
-         HydraVersion.wMinor = minorVersion;}
-    void  GetVersion(WORD *majorVersion, WORD *minorVersion) 
-        {*majorVersion = HydraVersion.wMajor;
-         *minorVersion = HydraVersion.wMinor;}
-
-    const CHAR *GetBankName(void) {return (const CHAR *)achBankName;}
-    EMUSTAT     SetBankName(CHAR *theNewName);
+    HydraClass()
+    {
+        HydraVersion.wMajor = HydraVersion.wMinor = 0;
+        ResetDefault();
+    }
+    ~HydraClass()
+    {
+    }
+    //const sfData* getDefault() { return &sfDefault; }
+    void  SetVersion(ushort majorVersion, ushort minorVersion) 
+    {
+        HydraVersion.wMajor = majorVersion;
+        HydraVersion.wMinor = minorVersion;
+    }
+    void  GetVersion(ushort *majorVersion, ushort *minorVersion) 
+    {
+        *majorVersion = HydraVersion.wMajor;
+        *minorVersion = HydraVersion.wMinor;
+    }
+    std::string achBankName;
 
     //// The public data ////
     
@@ -290,30 +298,30 @@ class HydraClass
     // and the data as it exists in the file itself are 
     // (1) The existence of 'reference count' fields in pInst and pSHdr
     // (2) The existence of 'sample loaded' boolean field in pSHdr
-    // (3) SFBanks loaded on BYTE_INCOHERENT drivers have appropriate bytes 
+    // (3) SFBanks loaded on BIG_ENDIAN drivers have appropriate bytes
     //     pre-swapped.
 
-    SFPRESETHDRPTR pPHdr;
-    SFBAGNDXPTR    pPBag;
-    SFGENLISTPTR   pPGen;
-    SFMODLISTPTR   pPMod;
-    SFINSTPTR      pInst;
-    SFBAGNDXPTR    pIBag;
-    SFGENLISTPTR   pIGen;
-    SFMODLISTPTR   pIMod;
-    SFSAMPLEHDRPTR pSHdr;
-
-    // This is an array used by the enabler and the edit engine to provide
-    // convenient way to detect and prevent over-indexing the various arrays.
-    WORD           awStructSize[SF_DATASTRUCTS]; // The count of each struct
+    std::vector<sfPresetHdr> pPHdr;
+    std::vector<sfBagNdx> pPBag;
+    std::vector<sfGenList> pPGen;
+    std::vector<sfModList> pPMod;
+    std::vector<sfInst> pInst;
+    std::vector<sfBagNdx> pIBag;
+    std::vector<sfGenList> pIGen;
+    std::vector<sfModList> pIMod;
+    std::vector<sfSampleHdr> pSHdr;
 
     // This contains the default SoundFont generator vector, IE what each 
     // generator value should be if NO generator of a particular type exists 
     // within all of the appropriate key/velocity SPLITS of given INSTRUMENT.
     sfData sfDefault;
-
-    CHAR      *achBankName; 
     sfVersion HydraVersion;
+    bool VerifySFBData(uint sampleRAMSizeInBytes);
+    bool GetSFNum(ushort wBank, ushort wPatch, ushort* pwSFID);
+private:
+    void  ResetDefault();
+    bool VerifyPDTAIndices();
+    bool VerifySamplePoints(uint sampleRAMSizeInBytes);
 };
 
-#endif // __HYDRA_H
+#endif // HYDRA_H

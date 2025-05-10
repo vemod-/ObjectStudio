@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>300</height>
+    <height>303</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,18 +16,30 @@
   <property name="styleSheet">
    <string notr="true">#ParametersComponent, #ParametersComponent QScrollArea{background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(230, 230, 230, 255), stop:0.8 rgba(200, 200, 200, 255));}</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
    <property name="spacing">
     <number>0</number>
    </property>
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
-    <widget class="CParametersComponent" name="ParametersComponent" native="true"/>
+    <widget class="CRackContainer" name="RackContainer" native="true"/>
    </item>
    <item>
     <widget class="CDesktopComponent" name="DesktopComponent"/>
+   </item>
+   <item>
+    <widget class="CUIMap" name="UIMap"/>
    </item>
   </layout>
  </widget>
@@ -38,10 +50,15 @@
    <header>cdesktopcomponent.h</header>
   </customwidget>
   <customwidget>
-   <class>CParametersComponent</class>
+   <class>CRackContainer</class>
    <extends>QWidget</extends>
-   <header>cparameterscomponent.h</header>
+   <header>crackcontainer.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CUIMap</class>
+   <extends>QGraphicsView</extends>
+   <header>cuimap.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

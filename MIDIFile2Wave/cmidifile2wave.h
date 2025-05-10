@@ -1,31 +1,74 @@
 #ifndef CMIDIFILE2WAVE_H
 #define CMIDIFILE2WAVE_H
 
-#include <QWidget>
-#include <softsynthsclasses.h>
-#include <cmidifileplayer.h>
-#include <cstereomixer.h>
-#include <cmixerwidget.h>
-#include <cmasterwidget.h>
-#include <QGridLayout>
-#include <cdevicecontainer.h>
+//#include <QWidget>
+//#include "idevice.h"
+#include "cdevicelist.h"
+#include "cmidifileplayer.h"
+#include "cmixerwidget.h"
+//#include <QGridLayout>
+#include "cdevicecontainer.h"
+#include "cuimap.h"
 
-class CDeviceListLite
+#define MIDIFILE2WAVECLASS DEVICEFUNC(CMIDIFile2Wave)
+
+namespace MIDIFile2Wave
+{
+const int effectCount=3;
+}
+
+class CMIDIFile2Wave : public IDevice, public IFileLoader
 {
 public:
-    CDeviceListLite();
-    void Play(const bool FromStart);
-    void Pause();
-    void Tick();
-    void DisconnectAll();
-    void Clear();
-    void AddJacks(IDevice* device);
-    void ConnectJacks(QString InJack, QString OutJack);
-    void DisconnectDevice(IDevice* device);
-    void AddDevice(IDevice* device, int index, void* MainWindow);
-    void RemoveDevice(IDevice* device);
-    QList<IDevice*> Devices;
-    QHash<QString,IJack*> Jacks;
+    CMIDIFile2Wave();
+    ~CMIDIFile2Wave();
+    //void tick();
+    void play(const bool FromStart);
+    //void pause();
+    CAudioBuffer* getNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow);
+    void unserializeCustom(const QDomLiteElement* xml);
+    void loadMixer(const QDomLiteElement* xml);
+    void clearMixer();
+    void serializeCustom(QDomLiteElement* xml) const;
+    void execute(const bool Show);
+    //void hideForm();
+    //void skip(const ulong milliSeconds);
+    ulong ticks() const;
+    ulong milliSeconds() const;
+    ulong64 samples() const;
+    void clear();
+    bool isEmpty();
+    bool isVisible();
+    bool refreshMIDIFile(const QString& filename);
+    void assign(const QByteArray& b);
+    void center();
+    void setTitle(const QString& t);
+    void NoteOn(int Track, byte Pitch, byte Channel=0, byte Velocity=127, byte Patch=0, byte Bank=0);
+    void NoteOff(int Track, byte Pitch, byte Channel=0);
+    MIDITimeList mSecList(const MIDITimeList& tickList);
+    ulong64 mSecsToEvent(const CMIDIEvent& event);
+    CMixerWidget* mixerWidget;
+    bool hideEmptyChannels() const { return HideEmptyChannels; }
+    void setHideEmptyChannels(const bool v) { HideEmptyChannels=v; }
+    CDeviceListBase* deviceList() { return &DeviceList; }
+    QStringList IDList;
+private:
+    enum JackNames
+    {jnOut};
+    enum ParameterNames
+    {pnTempoAdjust,pnTune,pnHumanize};
+    CMIDIFileReader MFR;
+    QList<CDeviceContainer*> Effects;
+    QList<CMIDIFilePlayer*> MIDIFilePlayers;
+    QList<CDeviceContainer*> Instruments;
+    bool loadFile(const QString& filename);
+    void initWithFile(const QString& path);
+    void loadEffect(int index, const QString& filename);
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
+    CStereoMixer* Mx;
+    CDeviceList DeviceList;
+    bool HideEmptyChannels;
 };
 
 class CMIDI2WavForm : public CSoftSynthsForm
@@ -33,59 +76,18 @@ class CMIDI2WavForm : public CSoftSynthsForm
     Q_OBJECT
 public:
     explicit CMIDI2WavForm(IDevice* Device, QWidget *parent = 0);
-    ~CMIDI2WavForm();
-    /*
-    const QString Save(){}
-    void Load(const QString& XML){}
-    void CustomLoad(const QString &XML){}
-    const QString CustomSave(){}
-    */
+    ~CMIDI2WavForm(){}
     CMixerWidget* MW;
-};
-
-namespace MIDIFile2Wave
-{
-const int effectCount=3;
-}
-
-class CMIDIFile2Wave : public IDevice
-{
-public:
-    CMIDIFile2Wave();
-    ~CMIDIFile2Wave();
-    void Tick();
-    void Play(const bool FromStart);
-    void Pause();
-    float* GetNextA(const int ProcIndex);
-    void Init(const int Index, void* MainWindow);
-    void Load(const QString &XML);
-    const QString Save();
-    void Execute(const bool Show);
-    void HideForm();
-    void Skip(unsigned long MilliSeconds);
-    bool IsPlaying();
-    unsigned long CurrentTick();
-    unsigned long Duration();
-    unsigned long CurrentmSec();
-    unsigned long MilliSeconds();
-    void clear();
-    bool isEmpty();
-    bool isVisible();
-    void OpenPtr(const char* Pnt, int Length);
-    void Center();
-    void SetTitle(const QString& t);
-    CMixerWidget* MW;
+    CUIMap* Map;
+protected:
+    bool event(QEvent* event);
 private:
-    enum JackNames
-    {jnOut};
-    CMIDIFileReader MFR;
-    QList<IDevice*> Effects;
-    QList<IDevice*> MIDIFilePlayers;
-    QList<IDevice*> Instruments;
-    void LoadFile(QString filename);
-    void LoadEffect(int index, QString filename);
-    CStereoMixer* Mx;
-    CDeviceListLite DeviceList;
+    QMenu* UIMenu;
+private slots:
+    void showMap();
+    void hideUIs();
+    void cascadeUIs();
+    void hideMap();
 };
 
 #endif // CMIDIFILE2WAVE_H

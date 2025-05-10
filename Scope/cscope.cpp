@@ -1,5 +1,6 @@
 #include "cscope.h"
 #include "cscopeform.h"
+#include "csimplebuffer.h"
 
 CScope::CScope()
 {
@@ -7,110 +8,55 @@ CScope::CScope()
 
 CScope::~CScope()
 {
-    if (m_Initialized)
-    {
-        for (int i=0;i<MaxBuffers;i++)
-        {
-            delete[] m_Buffer[i];
-        }
-    }
 }
 
-void CScope::DrawBuffers()
-{
-    if (m_Form)
-    {
-        if (m_Form->isVisible())
-        {
-            for (int i=0;i<CurrentBuffer;i++)
-            {
-                if (((CScopeForm*)m_Form)->Tab->currentIndex()==0)
-                {
-                    ((CScopeForm*)m_Form)->Scope->Process(PlotBuffer[i]);
-                }
-                else
-                {
-                    ((CScopeForm*)m_Form)->Spectrum->Process(PlotBuffer[i]);
-                }
-
-            }
-            CurrentBuffer=0;
-            for (int i=0;i<NullBuffers;i++)
-            {
-                if (((CScopeForm*)m_Form)->Tab->currentIndex()==0)
-                {
-                    ((CScopeForm*)m_Form)->Scope->Process(NULL);
-                }
-                else
-                {
-                    ((CScopeForm*)m_Form)->Spectrum->Process(NULL);
-                }
-            }
-            NullBuffers=0;
-        }
-    }
-}
-
-void CScope::Init(const int Index,void* MainWindow)
+void CScope::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    for (int i=0;i<MaxBuffers;i++)
-    {
-        m_Buffer[i]=new float[m_BufferSize];
-    }
-    CurrentBuffer=0;
-    NullBuffers=0;
-    m_Form=new CScopeForm(this,(QWidget*)MainWindow);
-    //m_Form=new TfrmScope(CallingApp,this,AnsiString(m_Name) + " " + AnsiString(Index));
-    AddJackWaveIn();
-    AddParameterVolume("Gain");
-    AddParameter(ParameterType::Numeric,"Scope Frequency","Hz",100,100000,100,"",44000);
-    AddParameter(ParameterType::SelectBox,"Spectrum Mode","",0,2,0,"Circular§Continuous§Diagram",0);
+    IDevice::init(Index,MainWindow);
+    addJackWaveIn();
+    addJackModulationIn("Voltage In");
+    addParameterVolume("Gain");
+    addParameter(CParameter::Numeric,"Rate","mSec",1,500,0,"",20);
+    startParameterGroup();
+    addParameterFrequency("Frequency");
+    addParameterSelect("Detect Pitch","Off§On");
+    endParameterGroup();
+    addParameterSelect("Mode","Audio§Voltage");
+    QMutexLocker locker(&mutex);
+    m_Form=new CScopeForm(this,MainWindow);
     Reset();
-    CalcParams();
+    updateDeviceParameter();
 }
 
-void CScope::Tick()
+void CScope::tick()
 {
     if (m_Form->isVisible())
     {
-
-        float* Signal=FetchA(jnIn);
-        if (CurrentBuffer<MaxBuffers)
+        auto f=FORMFUNC(CScopeForm);
+        const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+        const float Modulation = Fetch(jnModulationIn);
+        if (m_Parameters[pnScopeMode]->Value==0)
         {
-            if (!Signal)
-            {
-                PlotBuffer[CurrentBuffer]=NULL;
-            }
-            else
-            {
-                CopyMemory(m_Buffer[CurrentBuffer],Signal,m_BufferSize*sizeof(float));
-                PlotBuffer[CurrentBuffer]=m_Buffer[CurrentBuffer];
-            }
-            CurrentBuffer++;
+            (!InBuffer->isValid()) ?
+                        f->Scope->process(nullptr,presets.ModulationRate) :
+                        f->Scope->process(InBuffer->data(),presets.ModulationRate);
         }
         else
         {
-            NullBuffers++;
-        }
-        if (CurrentBuffer>=MaxBuffers)
-        {
-            DrawBuffers();
+            f->Scope->processVoltage(Modulation,presets.ModulationRate);
         }
     }
+    IDevice::tick();
 }
 
-void inline CScope::CalcParams()
+void inline CScope::updateDeviceParameter(const CParameter* /*p*/)
 {
-    ((CScopeForm*)m_Form)->Scope->SetFreq(m_ParameterValues[pnFrequency]*0.01,m_BufferSize);
-    ((CScopeForm*)m_Form)->Scope->SetVol(m_ParameterValues[pnVolume]);
-    ((CScopeForm*)m_Form)->Spectrum->SetVol(m_ParameterValues[pnVolume]);
-    ((CScopeForm*)m_Form)->Spectrum->SetMode(m_ParameterValues[pnMode]);
-    /*
-    ((TfrmScope*)m_Form)->TScopeComponent1->SetFreq(m_ParameterValues[pnFrequency]*0.01,m_BufferSize);
-    ((TfrmScope*)m_Form)->TScopeComponent1->SetVol(m_ParameterValues[pnVolume]);
-    */
+    auto f=FORMFUNC(CScopeForm);
+    f->Scope->SetRate(m_Parameters[pnScopeRate]->Value);
+    f->Scope->SetFreq(m_Parameters[pnFrequency]->PercentValue);
+    f->Scope->SetVol(m_Parameters[pnVolume]->Value);
+    f->Scope->SetDetectPitch(m_Parameters[pnDetectPitch]->Value);
 }
 
 void CScope::Reset()

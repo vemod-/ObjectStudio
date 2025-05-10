@@ -236,7 +236,20 @@
         </widget>
        </item>
        <item row="2" column="0">
-        <widget class="CMIDINoteEdit" name="MIDINoteEdit" native="true"/>
+        <widget class="CMIDINoteEdit" name="MIDINoteEdit" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>26</height>
+          </size>
+         </property>
+        </widget>
        </item>
        <item row="6" column="2">
         <widget class="QPushButton" name="TuneLoopButton">
@@ -331,7 +344,7 @@
        <item row="4" column="1">
         <widget class="QSpinBox" name="VolSpin">
          <property name="maximum">
-          <number>100</number>
+          <number>200</number>
          </property>
         </widget>
        </item>
@@ -399,16 +412,68 @@
         </widget>
        </item>
        <item row="2" column="1">
-        <widget class="CMIDINoteEdit" name="LowKeyFullEdit" native="true"/>
+        <widget class="CMIDINoteEdit" name="LowKeyFullEdit" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>26</height>
+          </size>
+         </property>
+        </widget>
        </item>
        <item row="2" column="2">
-        <widget class="CMIDINoteEdit" name="HighKeyFullEdit" native="true"/>
+        <widget class="CMIDINoteEdit" name="HighKeyFullEdit" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>26</height>
+          </size>
+         </property>
+        </widget>
        </item>
        <item row="2" column="3">
-        <widget class="CMIDINoteEdit" name="LowKeyXEdit" native="true"/>
+        <widget class="CMIDINoteEdit" name="LowKeyXEdit" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>26</height>
+          </size>
+         </property>
+        </widget>
        </item>
        <item row="2" column="4">
-        <widget class="CMIDINoteEdit" name="HighKeyXEdit" native="true"/>
+        <widget class="CMIDINoteEdit" name="HighKeyXEdit" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>26</height>
+          </size>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

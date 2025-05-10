@@ -2,22 +2,6 @@
 
 CFilter::CFilter()
 {
-}
-
-void CFilter::Init(const int Index, void *MainWindow) {
-    m_Name=devicename;
-    Maxcutoff=m_Presets.SampleRate * 0.425;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveOut(jnOut);
-    AddJackWaveIn();
-    AddJack("Modulation",(IJack::AttachModes)(IJack::Amplitude | IJack::Pitch),IJack::In);
-    AddParameterVolume("Gain");
-    AddParameterPercent("Cutoff Modulation");
-    AddParameter(ParameterType::Numeric,"Cutoff Frequency","Hz",20,Maxcutoff,0,"",Maxcutoff);
-    AddParameterPercent("Response Time",50);
-    AddParameterPercent("Resonance");
-    AddParameterVolume();
-    FreqGlider.SetSpeed(5);
     FiltCoefTab0=0;
     FiltCoefTab1=0;
     FiltCoefTab2=0;
@@ -29,77 +13,88 @@ void CFilter::Init(const int Index, void *MainWindow) {
     lx2=0;
     m_ExpResonance=0;
     MixFactor=0;
-    ModulationFactor=0;
     InVolumeFactor=0;
     LastResonance=0;
-    LastCO=0;
-    CalcExpResonance();
-    CalcParams();
+    //LastVoltage=0;
 }
 
-float *CFilter::GetNextA(const int ProcIndex) {
-    float* InSignal=FetchA(jnIn);
-    if (!InSignal) return NULL;
-    bool Recalc=false;
-    float CutOff=m_ParameterValues[pnCutOffFrequency];
-    if (ModulationFactor) CutOff*= pow(2,Fetch(jnModulation)*ModulationFactor);
-    if (m_ParameterValues[pnResonance] != LastResonance)
+void CFilter::init(const int Index, QWidget* MainWindow) {
+    m_Name=devicename;
+    IDevice::init(Index,MainWindow);
+    addJackWaveOut(jnOut);
+    addJackWaveIn();
+    addJackModulationIn();
+    addParameterVolume("Gain");
+    makeParameterGroup(2,"Cutoff",Qt::green);
+    addParameter(CParameter::Percent,"Cutoff Modulation","%",0,200,0,"",0);
+    addParameterCutOff();
+    addParameterPercent("Response Time",0);
+    addParameterPercent("Resonance");
+    addParameterVolume();
+    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnCutOffModulation]);
+    CalcExpResonance();
+    updateDeviceParameter();
+}
+
+CAudioBuffer *CFilter::getNextA(const int ProcIndex) {
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    if (!InBuffer->isValid()) return nullptr;
+    const float CurrentFreq = qBound<float>(20,Modulator.execFreq(m_Parameters[pnCutOffFrequency]->Value),presets.MaxCutoff);
+    bool Recalc=Modulator.changed();
+    if (m_Parameters[pnResonance]->Value != LastResonance)
     {
         CalcExpResonance();
-        LastResonance=m_ParameterValues[pnResonance];
+        LastResonance=m_Parameters[pnResonance]->Value;
         Recalc=true;
     }
-    if (CutOff>Maxcutoff) CutOff=Maxcutoff;
-    if (CutOff<20) CutOff=20;
-    if (LastCO!=CutOff)
-    {
-        FreqGlider.SetTargetFreq(CutOff);
-        LastCO=CutOff;
-        Recalc=true;
-    }
-    float CurrentFreq=FreqGlider.GetCurrentFreq();
-    if (LastCO != CurrentFreq) Recalc=true;
     if (Recalc)
     {
-        float Omega=(DoublePi * CurrentFreq) / m_Presets.HalfRate;
-        float sn=sin(Omega);
-        float cs=cos(Omega);
-        float Alpha=sn / m_ExpResonance;
-        float b1= 1-cs;
-        float b0= b1*0.5;
-        float b2= b0;
-        float a0=1+Alpha;
-        float a1=-2*cs;
-        float a2=1-Alpha;
+        const float Omega=(PI_F * CurrentFreq) / presets.HalfRate;
+        const float sn=sinf(Omega);
+        const float cs=cosf(Omega);
+        const float Alpha=sn / m_ExpResonance;
+        const float b1= 1-cs;
+        const float b0= b1*0.5f;
+        const float b2= b0;
+        const float a0=1+Alpha;
+        const float a1=-2*cs;
+        const float a2=1-Alpha;
         FiltCoefTab0=b0/a0;
         FiltCoefTab1=b1/a0;
         FiltCoefTab2=b2/a0;
         FiltCoefTab3=-a1/a0;
         FiltCoefTab4=-a2/a0;
-        MixFactor=((float)Maxcutoff / (float)CurrentFreq) * 0.004;
-        MixFactor=0.01 / ((m_ExpResonance*MixFactor)+(1-MixFactor));
+        MixFactor=(presets.MaxCutoff / CurrentFreq) * 0.004f;
+        MixFactor=0.01f / ((m_ExpResonance*MixFactor)+(1-MixFactor));
+        MixFactor*=m_Parameters[pnOutVolume]->Value;
     }
-    float* Buffer=AudioBuffers[ProcIndex]->Buffer;
-    for (int i=0;i<m_BufferSize;i++)
+    CMonoBuffer* OutBuffer=MonoBuffer(ProcIndex);
+    for (uint i=0;i<m_BufferSize;i++)
     {
-        float Signal=*(InSignal+i) * InVolumeFactor;
-        float Temp_y=(FiltCoefTab0 * Signal) + (FiltCoefTab1 * lx1) + (FiltCoefTab2 * lx2) + (FiltCoefTab3 * ly1) + (FiltCoefTab4 * ly2);
+        const float Signal=InBuffer->at(i) * InVolumeFactor;
+        const float Temp_y=(FiltCoefTab0 * Signal) + (FiltCoefTab1 * lx1) + (FiltCoefTab2 * lx2) + (FiltCoefTab3 * ly1) + (FiltCoefTab4 * ly2);
         ly2=ly1;
         ly1=Temp_y;
         lx2=lx1;
         lx1=Signal;
-        Buffer[i]=(Temp_y * MixFactor) * (float)m_ParameterValues[pnOutVolume];
+        OutBuffer->setAt(i,Temp_y*MixFactor);
     }
-    return Buffer;
+    return OutBuffer;
 }
 
 void CFilter::CalcExpResonance()
 {
-    m_ExpResonance=exp((float)m_ParameterValues[pnResonance]/16);
+    m_ExpResonance=expf(m_Parameters[pnResonance]->scaleValue(0.0625f));
 }
 
-void CFilter::CalcParams() {
-    ModulationFactor=(float)m_ParameterValues[pnCutOffModulation]* 0.01;
-    InVolumeFactor=(float)m_ParameterValues[pnInVolume]*0.01;
-    FreqGlider.SetGlide(m_ParameterValues[pnResponse]);
+void CFilter::updateDeviceParameter(const CParameter* /*p*/) {
+    InVolumeFactor=m_Parameters[pnInVolume]->PercentValue;
+    Modulator.setDefaultFreq(m_Parameters[pnCutOffFrequency]->Value);
+    Modulator.setGlide(m_Parameters[pnResponse]->Value);
+}
+
+void CFilter::play(const bool FromStart)
+{
+    Modulator.setDefaultFreq(m_Parameters[pnCutOffFrequency]->Value);
+    IDevice::play(FromStart);
 }

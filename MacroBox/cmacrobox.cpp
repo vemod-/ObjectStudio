@@ -1,86 +1,72 @@
 #include "cmacrobox.h"
 #include "cmacroboxform.h"
 
+#undef devicename
+#define devicename "MacroBox"
+
 CMacroBox::CMacroBox()
 {
+    m_Form=nullptr;
 }
 
 CMacroBox::~CMacroBox()
 {
+    qDebug() << "~CMacroBox";
     if (m_Initialized)
     {
-        ((CMacroBoxForm*)m_Form)->DesktopComponent->Clear();
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clear();
         qDeleteAll(JacksCreated);
     }
 }
 
-void CMacroBox::Init(const int Index, void *MainWindow)
+void CMacroBox::init(const int Index, QWidget* MainWindow)
 {
+    QMutexLocker locker(&mutex);
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
-    CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJackDualMonoOut(0);
-    AddJackMIDIOut(2);
-    AddJack("Amplitude Modulation Out",IJack::Amplitude,IJack::Out,3);
-    AddJack("Pitch Modulation Out",IJack::Pitch,IJack::Out,4);
-    AddJack("Frequency Out",IJack::Frequency,IJack::Out,5);
-    AddJack("Trigger Out",IJack::Trigger,IJack::Out,6);
-    AddJackDualMonoIn();
-    AddJackMIDIIn();
-    AddJack("Amplitude Modulation In",IJack::Amplitude,IJack::In);
-    AddJack("Pitch Modulation In",IJack::Pitch,IJack::In);
-    AddJack("Frequency In",IJack::Frequency,IJack::In);
-    AddJack("Trigger In",IJack::Trigger,IJack::In);
-    for (int i=0;i<m_Jacks.size();i++)
+    IDevice::init(Index,MainWindow);
+    addJackStereoOut(0);
+    addJackDualMonoOut(1);
+    addJackMIDIOut(3);
+    addJackModulationOut(4,"Modulation Out");
+    addJackModulationOut(5,"Frequency Out");
+    addJackModulationOut(6,"Trigger Out");
+    addJackStereoIn();
+    addJackDualMonoIn();
+    addJackMIDIIn();
+    addJackModulationIn("Modulation In");
+    addJackModulationIn("Frequency In");
+    addJackModulationIn("Trigger In");
+    m_Form=new CMacroBoxForm(this,MainWindow);
+    CDesktopComponent* d=FORMFUNC(CMacroBoxForm)->DesktopComponent;
+    addTickerDevice(d->deviceList());
+    setDeviceParent(d->deviceList());
+    for (uint i=0;i<m_Jacks.size();i++)
     {
         IJack* J=m_Jacks[i];
-        IJack* J1=d->AddJack(d->CreateInsideJack(i,J,this),0);
-        JacksCreated.push_back(J1);
-        if (J->Direction==IJack::Out)
-        {
-            InsideJacks.push_back(J1);
-        }
-        else
-        {
-            InsideJacks.push_back(J);
-        }
+        IJack* J1=d->addJack(J->createInsideJack(i,this),0);
+        JacksCreated.append(J1);
+        (J->isOutJack()) ? InsideJacks.append(dynamic_cast<CInJack*>(J1)) : InsideJacks.append(dynamic_cast<CInJack*>(J));
     }
 }
-
-void CMacroBox::Tick()
+/*
+void CMacroBox::hideForm()
 {
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Tick();
-}
-
-void CMacroBox::HideForm()
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->HideForms();
+    FORMFUNC(CMacroBoxForm)->DesktopComponent->hideForms();
     m_Form->setVisible(false);
 }
-
-float CMacroBox::GetNext(const int ProcIndex)
+*/
+float CMacroBox::getNext(const int ProcIndex)
 {
-    return ((CInJack*)InsideJacks[ProcIndex])->GetNext();
+    return InsideJacks[ProcIndex]->getNext();
 }
 
-void* CMacroBox::GetNextP(const int ProcIndex)
+CMIDIBuffer* CMacroBox::getNextP(const int ProcIndex)
 {
-    return ((CInJack*)InsideJacks[ProcIndex])->GetNextP();
+    return InsideJacks[ProcIndex]->getNextP();
 }
 
-float* CMacroBox::GetNextA(const int ProcIndex)
+CAudioBuffer* CMacroBox::getNextA(const int ProcIndex)
 {
-    return ((CInJack*)InsideJacks[ProcIndex])->GetNextA();
-}
-
-void CMacroBox::Play(const bool FromStart)
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Play(FromStart);
-}
-
-void CMacroBox::Pause()
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Pause();
+    return InsideJacks[ProcIndex]->getNextA();
 }
 

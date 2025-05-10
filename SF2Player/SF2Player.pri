@@ -20,6 +20,4 @@ FORMS += $$PWD/csf2playerform.ui
 INCLUDEPATH += $$PWD/../WaveBank
 
 HEADERS += $$PWD/../WaveBank/cwavebank.h
-
-SOURCES += $$PWD/../WaveBank/cwavebank.cpp
 }

@@ -1,14 +1,17 @@
 #ifndef STEREOMIXER_H
 #define STEREOMIXER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
+#include "../Preamp/c3bandfilter.h"
+#include "../Chorus/biquad.h"
+#include "../EffectRack/ceffectrack.h"
 
-class CStereoMixerChannel
+class CStereoMixerChannel : protected IPresetRef
 {
 public:
-    CStereoMixerChannel(int sends=3);
+    CStereoMixerChannel(const int sends=3);
     ~CStereoMixerChannel();
-    void MixChannel(float* Signal, CStereoBuffer* Out, CStereoBuffer** Send, const int BufferSize, const bool First, CStereoBuffer* WorkBuffer);
+    void mixChannel(CStereoBuffer& Signal, CStereoBuffer* Out, std::vector<CStereoBuffer*>& Send, const bool First, CStereoBuffer& WorkBuffer);
     float Level;
     float PanL;
     float PanR;
@@ -17,7 +20,15 @@ public:
     float* Effect;
     float PeakL;
     float PeakR;
-    int sendCount;
+    uint sendCount;
+    bool EQ;
+    C3BandFilter f3L;
+    C3BandFilter f3R;
+    CBiquad hpL;
+    CBiquad hpR;
+    float Gain;
+    bool LoCut;
+    CEffectRack EffectRack;
 };
 
 class CStereoMixer : public IDevice
@@ -27,11 +38,14 @@ public:
     {jnOut,jnSend};
     int jnIn;
     int jnReturn;
-    CStereoMixer(int channels=12, int sends=3);
+    CStereoMixer(const uint channelCount=12, const uint sendCount=3);
     ~CStereoMixer();
-    void Init(const int Index, void *MainWindow);
-    float* GetNextA(const int ProcIndex);
-    void Play(const bool FromStart);
+    void init(const int Index, QWidget* MainWindow);
+    void addEffectRacksToDeviceList(CDeviceList* dl, QWidget* mainWindow);
+    void removerEffectRacksFromDeviceList(CDeviceList* dl);
+    CAudioBuffer* getNextA(const int ProcIndex);
+    void play(const bool FromStart);
+    void connectionChanged();
 
     CStereoMixerChannel** channels;
     int SoloChannel;
@@ -40,13 +54,23 @@ public:
     float PeakL;
     float PeakR;
     float* Sends;
-    int sendCount;
-    int channelCount;
-    bool Disabled;
+    inline uint sendCount() const { return m_SendCount; }
+    inline uint channelCount() const { return m_ChannelCount; }
+    inline bool disabled() const { return m_Disabled; }
+    void setDisabled(bool Disabled) { m_Disabled = Disabled; }
+    std::vector<COutJack*> SendJacks;
+    std::vector<CInJack*> ReturnJacks;
+    std::vector<CStereoBuffer*> SendBuffers;
+    CStereoBuffer* OutBuffer;
 private:
+    uint m_SendCount;
+    uint m_ChannelCount;
+    bool m_Disabled;
     float MixFactor;
-    void Process();
+    void process();
     CStereoBuffer WorkBuffer;
+    CStereoBuffer** Signal;
+    std::vector<uint> OrigChannel;
 };
 
 #endif // STEREOMIXER_H

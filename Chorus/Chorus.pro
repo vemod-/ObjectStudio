@@ -5,7 +5,6 @@
 #-------------------------------------------------
 
 TARGET = Chorus
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
 
@@ -14,5 +13,5 @@ DEFINES += CHORUS_LIBRARY
 SOURCES += cchorus.cpp
 
 HEADERS += cchorus.h \
-    Biquad.h
+    biquad.h
 

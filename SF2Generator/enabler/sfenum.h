@@ -29,16 +29,8 @@
 *       possible FUTURE use!
 *******************************************************************************
 */
-#ifndef __SFENUM_H
-#define __SFENUM_H
-
-/////////////////////////////
-//       Includes          //
-/////////////////////////////
-
-/////////////////////////////
-//       Defines           //
-/////////////////////////////
+#ifndef SFENUM_H
+#define SFENUM_H
 
 /////////////////////////////
 //     Enumerations        //
@@ -136,9 +128,5 @@ typedef enum
   endMod
 } ModulatorTypes;
 
-
-
-
-
-#endif // __SFENUM_H
+#endif // SFENUM_H
 //////////////////////// End of SFENUM.H ////////////////////////////

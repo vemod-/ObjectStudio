@@ -1,14 +1,15 @@
 #include "cpitchtrackerclass.h"
+#include "softsynthsdefines.h"
 
 // FFT Functions
-void rdft(int n, int isgn, double *a)
+void rdft(int n, int isgn, float *a)
 {
-    void bitrv2(int n, double *a);
-    void cftfsub(int n, double *a);
-    void cftbsub(int n, double *a);
-    void rftfsub(int n, double *a);
-    void rftbsub(int n, double *a);
-    double xi;
+    void bitrv2(int n, float *a);
+    void cftfsub(int n, float *a);
+    void cftbsub(int n, float *a);
+    void rftfsub(int n, float *a);
+    void rftbsub(int n, float *a);
+    float xi;
 
     if (isgn >= 0) {
         if (n > 4) {
@@ -56,11 +57,13 @@ void rdft(int n, int isgn, double *a)
 #define DCST_LOOP_DIV 64
 #endif
 
+void cft1st(int n, float *a);
+void cftmdl(int n, int l, float *a);
 
-void bitrv2(int n, double *a)
+void bitrv2(int n, float *a)
 {
     int j0, k0, j1, k1, l, m, i, j, k;
-    double xr, xi, yr, yi;
+    float xr, xi, yr, yi;
 
     l = n >> 2;
     m = 2;
@@ -155,12 +158,10 @@ void bitrv2(int n, double *a)
     }
 }
 
-void cftfsub(int n, double *a)
+void cftfsub(int n, float *a)
 {
-    void cft1st(int n, double *a);
-    void cftmdl(int n, int l, double *a);
     int j, j1, j2, j3, l;
-    double x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
+    float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
 
     l = 2;
     if (n > 8) {
@@ -207,12 +208,10 @@ void cftfsub(int n, double *a)
 }
 
 
-void cftbsub(int n, double *a)
+void cftbsub(int n, float *a)
 {
-    void cft1st(int n, double *a);
-    void cftmdl(int n, int l, double *a);
     int j, j1, j2, j3, l;
-    double x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
+    float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
 
     l = 2;
     if (n > 8) {
@@ -259,11 +258,11 @@ void cftbsub(int n, double *a)
 }
 
 
-void cft1st(int n, double *a)
+void cft1st(int n, float *a)
 {
     int j, kj, kr;
-    double ew, wn4r, wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
-    double x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
+    float ew, wn4r, wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
+    float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
 
     x0r = a[0] + a[2];
     x0i = a[1] + a[3];
@@ -306,8 +305,8 @@ void cft1st(int n, double *a)
     kr = 0;
     for (j = 16; j < n; j += 16) {
         for (kj = n >> 2; kj > (kr ^= kj); kj >>= 1){};
-        wk1r = cos(ew * kr);
-        wk1i = sin(ew * kr);
+        wk1r = cosf(ew * kr);
+        wk1i = sinf(ew * kr);
         wk2r = 1 - 2 * wk1i * wk1i;
         wk2i = 2 * wk1i * wk1r;
         wk3r = wk1r - 2 * wk2i * wk1i;
@@ -365,11 +364,11 @@ void cft1st(int n, double *a)
 }
 
 
-void cftmdl(int n, int l, double *a)
+void cftmdl(int n, int l, float *a)
 {
     int j, j1, j2, j3, k, kj, kr, m, m2;
-    double ew, wn4r, wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
-    double x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
+    float ew, wn4r, wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
+    float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
 
     m = l << 2;
     for (j = 0; j < l; j += 2) {
@@ -424,8 +423,8 @@ void cftmdl(int n, int l, double *a)
     m2 = 2 * m;
     for (k = m2; k < n; k += m2) {
         for (kj = n >> 2; kj > (kr ^= kj); kj >>= 1){};
-        wk1r = cos(ew * kr);
-        wk1i = sin(ew * kr);
+        wk1r = cosf(ew * kr);
+        wk1i = sinf(ew * kr);
         wk2r = 1 - 2 * wk1i * wk1i;
         wk2i = 2 * wk1i * wk1r;
         wk3r = wk1r - 2 * wk2i * wk1i;
@@ -493,16 +492,16 @@ void cftmdl(int n, int l, double *a)
 }
 
 
-void rftfsub(int n, double *a)
+void rftfsub(int n, float *a)
 {
     int i, i0, j, k;
-    double ec, w1r, w1i, wkr, wki, wdr, wdi, ss, xr, xi, yr, yi;
+    float ec, w1r, w1i, wkr, wki, wdr, wdi, ss, xr, xi, yr, yi;
 
     ec = 2 * M_PI_2 / n;
     wkr = 0;
     wki = 0;
-    wdi = cos(ec);
-    wdr = sin(ec);
+    wdi = cosf(ec);
+    wdr = sinf(ec);
     wdi *= wdr;
     wdr *= wdr;
     w1r = 1 - 2 * wdr;
@@ -540,8 +539,8 @@ void rftfsub(int n, double *a)
         if (i0 == 4) {
             break;
         }
-        wkr = 0.5 * sin(ec * i0);
-        wki = 0.5 * cos(ec * i0);
+        wkr = 0.5 * sinf(ec * i0);
+        wki = 0.5 * cosf(ec * i0);
         wdr = 0.5 - (wkr * w1r - wki * w1i);
         wdi = wkr * w1i + wki * w1r;
         wkr = 0.5 - wkr;
@@ -558,16 +557,16 @@ void rftfsub(int n, double *a)
 }
 
 
-void rftbsub(int n, double *a)
+void rftbsub(int n, float *a)
 {
     int i, i0, j, k;
-    double ec, w1r, w1i, wkr, wki, wdr, wdi, ss, xr, xi, yr, yi;
+    float ec, w1r, w1i, wkr, wki, wdr, wdi, ss, xr, xi, yr, yi;
 
     ec = 2 * M_PI_2 / n;
     wkr = 0;
     wki = 0;
-    wdi = cos(ec);
-    wdr = sin(ec);
+    wdi = cosf(ec);
+    wdr = sinf(ec);
     wdi *= wdr;
     wdr *= wdr;
     w1r = 1 - 2 * wdr;
@@ -606,8 +605,8 @@ void rftbsub(int n, double *a)
         if (i0 == 4) {
             break;
         }
-        wkr = 0.5 * sin(ec * i0);
-        wki = 0.5 * cos(ec * i0);
+        wkr = 0.5 * sinf(ec * i0);
+        wki = 0.5 * cosf(ec * i0);
         wdr = 0.5 - (wkr * w1r - wki * w1i);
         wdi = wkr * w1i + wki * w1r;
         wkr = 0.5 - wkr;
@@ -625,252 +624,237 @@ void rftbsub(int n, double *a)
 }
 
 // Average Energy Function
-float Energy(double a[],int BufferSize)
+float Energy(float a[],int BufferSize)
 {
-        float sum=0;
-        for(int i=1; i<BufferSize; ++i)
-        {
-                //sum += (a[i]-129) * (a[i]-129);
-                sum+=fabs(a[i]);
-        }
+    float sum=0;
+    for (int i=1; i<BufferSize; ++i)
+    {
+        //sum += (a[i]-129) * (a[i]-129);
+        sum+=fabsf(a[i]);
+    }
 
-        return sum / (BufferSize/2);
+    return sum / (BufferSize/2);
 }
 
 CPitchTrackerClass::~CPitchTrackerClass()
+{
+}
+
+CPitchTrackerClass::CPitchTrackerClass(int BufferSz,int SampleRate) : coeffs(BufferSz,0), coeffs1(BufferSz/2,0), coeffs2(BufferSz/2,0), coeffs3(BufferSz/2,0), Product(BufferSz/2,0)
+{
+    m_SampleRate=SampleRate;
+    m_BufferSize=BufferSz;
+    CurrentVel=0;
+    CurrentDiff=0;
+    CurrentNote=0;
+    CurrentFreq=0;
+    CurrentMIDIFreq=0;
+    Threshold=0;
+    InTune=440.0;
+    OutTune=440.0;
+}
+
+void CPitchTrackerClass::process()
+{
+    float freq=0;
+    float freq1=0;
+    float freq3=0;
+    CurrentVel=0;
+    CurrentNote=0;
+
+    float Average=Energy(coeffs.data(),coeffs.size());
+    if (Average<Threshold)
     {
-        delete[] coeffs;
-        delete[] coeffs1;
-        delete[] coeffs2;
-        delete[] coeffs3;
-        delete[] Product;
-        //free(coeffs);
-        //free(coeffs1);
-        //free(coeffs2);
-                //free(coeffs3);
-        //free(Product);
+        return;
+    }
+    CurrentVel=Average*127;
+    if (CurrentVel>127)
+    {
+        CurrentVel=127;
     }
 
-        CPitchTrackerClass::CPitchTrackerClass(int BufferSz,int SampleRate)
-        {
-        m_SampleRate=SampleRate;
-        BufferSize=BufferSz;
-        CurrentVel=0;
-        CurrentDiff=0;
-        CurrentNote=0;
-        CurrentFreq=0;
-        CurrentMIDIFreq=0;
-        Threshold=0;
-                InTune=440.0;
-                OutTune=440.0;
-        coeffs=new double[BufferSize];//(double*)calloc(BufferSize,sizeof(double));
-        coeffs1=new double[BufferSize/2];//(double*)calloc(BufferSize/2,sizeof(double));
-        coeffs2=new double[BufferSize/2];//(double*)calloc(BufferSize/2,sizeof(double));
-        coeffs3=new double[BufferSize/2];//(double*)calloc(BufferSize/2,sizeof(double));
-        Product=new double[BufferSize/2];//(double*)calloc(BufferSize/2,sizeof(double));
+    // Calculate FFT
+    rdft(coeffs.size(), 1, coeffs.data());
+    // Get Absolute value of spectrum
+    for (int i=0; i<m_BufferSize/2; i++)
+    {
+        coeffs1[i] = fabsf(coeffs[i]);
     }
 
-    void CPitchTrackerClass::Process()
+    // Downsampling
+    // Set initial array values
+    for (int i=0; i<m_BufferSize/2; i++)
     {
-        float freq=0;
-        float freq1=0;
-        float freq3=0;
-        CurrentVel=0;
-        CurrentNote=0;
+        coeffs2[i] = 1;
+        coeffs3[i] = 1;
+    }
+    for (int i=0; i<m_BufferSize/4; i++)
+    {
+        coeffs2[i] = (coeffs1[2*i]+coeffs1[(2*i)+1])/2;
+        if (i<m_BufferSize/6)
+            coeffs3[i] = (coeffs1[3*i]+coeffs1[(3*i)+1]+coeffs1[(3*i)+2])/3;
+    }
 
-        float Average=Energy(coeffs,BufferSize);
-                if (Average<Threshold)
-        {
-            return;
-                }
-                CurrentVel=Average*127;
-                if (CurrentVel>127)
-                {
-                        CurrentVel=127;
-                }
+    // Calculate Product
+    for (int i=1; i<m_BufferSize/2; i++)
+    {
+        Product[i] = coeffs1[i]*coeffs2[i]*coeffs3[i];
+    }
 
-        // Calculate FFT
-        rdft(BufferSize, 1, coeffs);
-        // Get Absolute value of spectrum
-        for (int i=0; i<BufferSize/2; i++)
+    // Find frequency for 1 Harmonics
+    // Find position of maximum peak
+    float largest1 = 0;
+    int position1 = 0;
+    for(int i=10; i<m_BufferSize/2; ++i) // 20 corresponds to 55Hz. ie. don't search below 55Hz
+    {
+        if (coeffs1[i]>largest1)
         {
-                coeffs1[i] = fabs(coeffs[i]);
+            largest1 = coeffs1[i];
+            position1 = i;
         }
+    }
 
-         // Downsampling
-        // Set initial array values
-        for (int i=0; i<BufferSize/2; i++)
+    // Post processing for octave errors
+    float largest1_lwr = 0;
+    int position1_lwr = 0;
+    for(int i = 10; i < position1*0.8; ++i)
+    {
+        if (coeffs1[i]>largest1_lwr)
         {
-                coeffs2[i] = 1;
-                coeffs3[i] = 1;
+            largest1_lwr = coeffs1[i];
+            position1_lwr = i;
         }
-        for (int i=0; i<BufferSize/4; i++)
+    }
+
+    for(int i = (int)position1*1.2; i < m_BufferSize/2; ++i)
+    {
+        if (coeffs1[i]>largest1_lwr)
         {
-                coeffs2[i] = (coeffs1[2*i]+coeffs1[(2*i)+1])/2;
-                if (i<BufferSize/6)
-                        coeffs3[i] = (coeffs1[3*i]+coeffs1[(3*i)+1]+coeffs1[(3*i)+2])/3;
+            largest1_lwr = coeffs1[i];
+            position1_lwr = i;
         }
+    }
 
-// Calculate Product
-        for (int i=1; i<BufferSize/2; i++)
+    float ratio1 = 0;
+    if (coeffs1[position1]!=0)
+    {
+        ratio1=coeffs1[position1_lwr]/coeffs1[position1];
+    }
+
+    if (position1_lwr > position1 * 0.4 && position1_lwr < position1 * 0.6 && ratio1 > 0.1)
+        position1 = position1_lwr;
+
+    if(m_BufferSize != 0)
+        freq1 = ((float)m_SampleRate/4)*(float)position1/(float)m_BufferSize;
+
+    // Find corresponding note number
+
+    int note_num1  = freq2MIDIkeyf(freq1,InTune);
+
+
+    // Find frequency for 3 Harmonics
+    // Find position of maximum peak
+    float largest3 = 0;
+    int position3 = 0;
+    for(int i=10; i<m_BufferSize/2; ++i) // 20 corresponds to 55Hz. ie. don't search below 55Hz
+    {
+        if (Product[i]>largest3)
         {
-                Product[i] = coeffs1[i]*coeffs2[i]*coeffs3[i];
+            largest3 = Product[i];
+            position3 = i;
         }
+    }
 
-// Find frequency for 1 Harmonics
-        // Find position of maximum peak
-        double largest1 = 0;
-        int position1 = 0;
-        for(int i=10; i<BufferSize/2; ++i) // 20 corresponds to 55Hz. ie. don't search below 55Hz
+    // Post processing for octave errors
+    float largest3_lwr = 0;
+    int position3_lwr = 0;
+    for(int i = 10; i < position3*0.8; ++i)
+    {
+        if (Product[i]>largest3_lwr)
         {
-                if (coeffs1[i]>largest1)
-                {
-                        largest1 = coeffs1[i];
-                        position1 = i;
-                }
+            largest3_lwr = Product[i];
+            position3_lwr = i;
         }
+    }
 
-        // Post processing for octave errors
-        double largest1_lwr = 0;
-        int position1_lwr = 0;
-        for(int i = 10; i < position1*0.8; ++i)
+    for(int i = (int)position3*1.2; i < m_BufferSize/2; ++i)
+    {
+        if (Product[i]>largest3_lwr)
         {
-                if (coeffs1[i]>largest1_lwr)
-                {
-                        largest1_lwr = coeffs1[i];
-                        position1_lwr = i;
-                }
+            largest3_lwr = Product[i];
+            position3_lwr = i;
         }
-
-        for(int i = (int)position1*1.2; i < BufferSize/2; ++i)
-        {
-                if (coeffs1[i]>largest1_lwr)
-                {
-                        largest1_lwr = coeffs1[i];
-                        position1_lwr = i;
-                }
-        }
-
-        float ratio1 = 0;
-        if (coeffs1[position1]!=0)
-        {
-                ratio1=coeffs1[position1_lwr]/coeffs1[position1];
-        }
-
-        if (position1_lwr > position1 * 0.4 && position1_lwr < position1 * 0.6 && ratio1 > 0.1)
-                position1 = position1_lwr;
-
-        if(BufferSize != 0)
-                freq1 = ((float)m_SampleRate/4)*(float)position1/(float)BufferSize;
-
-        // Find corresponding note number
-
-        int note_num1  = FreqtoMIDI(freq1,InTune);
+    }
 
 
-// Find frequency for 3 Harmonics
-        // Find position of maximum peak
-        double largest3 = 0;
-        int position3 = 0;
-        for(int i=10; i<BufferSize/2; ++i) // 20 corresponds to 55Hz. ie. don't search below 55Hz
-        {
-                if (Product[i]>largest3)
-                {
-                        largest3 = Product[i];
-                        position3 = i;
-                }
-        }
+    float ratio3 = 0;
+    if (Product[position3]!=0)
+    {
+        ratio3=Product[position3_lwr]/Product[position3];
+    }
 
-        // Post processing for octave errors
-        double largest3_lwr = 0;
-        int position3_lwr = 0;
-        for(int i = 10; i < position3*0.8; ++i)
-        {
-                if (Product[i]>largest3_lwr)
-                {
-                        largest3_lwr = Product[i];
-                        position3_lwr = i;
-                }
-        }
+    if (position3_lwr > position3 * 0.4 && position3_lwr < position3 * 0.6 && ratio3 > 0.3)
+        position3 = position3_lwr;
 
-        for(int i = (int)position3*1.2; i < BufferSize/2; ++i)
-        {
-                if (Product[i]>largest3_lwr)
-                {
-                        largest3_lwr = Product[i];
-                        position3_lwr = i;
-                }
-        }
+    if(m_BufferSize != 0)
+        freq3 = ((float)m_SampleRate/4)*(float)position3/(float)m_BufferSize;
+
+    note_num3[4] = note_num3[3];
+    note_num3[3] = note_num3[2];
+    note_num3[2] = note_num3[1];
+    note_num3[1] = note_num3[0];
+
+    // Find corresponding note number
+    note_num3[0]  = freq2MIDIkeyf(freq3,InTune);
 
 
-        float ratio3 = 0;
-        if (Product[position3]!=0)
-        {
-                ratio3=Product[position3_lwr]/Product[position3];
-        }
+    // Decide between freq1 and freq3
 
-        if (position3_lwr > position3 * 0.4 && position3_lwr < position3 * 0.6 && ratio3 > 0.3)
-                position3 = position3_lwr;
+    note_num[4] = note_num[3];
+    note_num[3] = note_num[2];
+    note_num[2] = note_num[1];
+    note_num[1] = note_num[0];
 
-        if(BufferSize != 0)
-                freq3 = ((float)m_SampleRate/4)*(float)position3/(float)BufferSize;
-
-        note_num3[4] = note_num3[3];
-        note_num3[3] = note_num3[2];
-        note_num3[2] = note_num3[1];
-        note_num3[1] = note_num3[0];
-
-        // Find corresponding note number
-           note_num3[0]  = FreqtoMIDI(freq3,InTune);
-
-
-// Decide between freq1 and freq3
-
-        note_num[4] = note_num[3];
-        note_num[3] = note_num[2];
-        note_num[2] = note_num[1];
-        note_num[1] = note_num[0];
-
-        // If both estimations agree
-        if (note_num1 == note_num3[0])
-        {
-                note_num[0] = note_num1;
-                freq = freq1;
-        }
-        else
-        {
-/*		if (freq1 > 440 && note_num3[0] != (note_num3[1]+note_num3[2]+note_num3[3]+note_num3[4])/4)
+    // If both estimations agree
+    if (note_num1 == note_num3[0])
+    {
+        note_num[0] = note_num1;
+        freq = freq1;
+    }
+    else
+    {
+        /*		if (freq1 > 440 && note_num3[0] != (note_num3[1]+note_num3[2]+note_num3[3]+note_num3[4])/4)
                         note_num[0] = note_num1;
                 else
                         note_num[0] = note_num3[0];
 */
-                if (ratio1 < ratio3)
-                {
-                        note_num[0] = note_num1;
-                        freq = freq1;
-                }
-                if (ratio1 > ratio3)
-                {
-                        note_num[0] = note_num3[0];
-                        freq = freq3;
-                }
-
+        if (ratio1 < ratio3)
+        {
+            note_num[0] = note_num1;
+            freq = freq1;
         }
-                if (largest1>1)
-                {
-                        float CurrentFrequency=MIDItoFreq(note_num[0],OutTune);
-                        CurrentDiff=((float)(CurrentFrequency-freq)/CurrentFrequency);
+        if (ratio1 > ratio3)
+        {
+            note_num[0] = note_num3[0];
+            freq = freq3;
+        }
+
+    }
+    if (largest1>1)
+    {
+        float CurrentFrequency=MIDIkey2Freqf(note_num[0],OutTune);
+        CurrentDiff=((float)(CurrentFrequency-freq)/CurrentFrequency);
         //int TuneVar=((float)fabs(FreqDiff*10000.0)/10000.0)+0.5;
-//    if (FreqDiff < 0)
-//    {
-//        TuneVar=-TuneVar;
-//    }
+        //    if (FreqDiff < 0)
+        //    {
+        //        TuneVar=-TuneVar;
+        //    }
         //if (TuneVar>0)
         //{
-                //TuneVar=TuneVar*2;
+        //TuneVar=TuneVar*2;
         //}
 
-                        /*
+        /*
                         float Upper=CurrentFrequency*2;
                         float Lower=CurrentFrequency/2;
                         float Diff=(CurrentFrequency-(float)freq);
@@ -884,10 +868,10 @@ CPitchTrackerClass::~CPitchTrackerClass()
                 CurrentDiff=(Diff*100000)/(CurrentFrequency-Lower);
             }
             */
-                        CurrentFreq=freq*FreqResolution;
-            CurrentNote=note_num[0];
-            CurrentMIDIFreq=CurrentFrequency*FreqResolution;
-        }
+        CurrentFreq=freq*FreqResolution;
+        CurrentNote=note_num[0];
+        CurrentMIDIFreq=CurrentFrequency*FreqResolution;
     }
+}
 
 

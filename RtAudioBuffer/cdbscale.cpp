@@ -2,6 +2,7 @@
 #include "ui_cdbscale.h"
 #include "softsynthsdefines.h"
 #include <QPainter>
+#include <array>
 
 CdBScale::CdBScale(QWidget *parent) :
     QCanvas(parent),
@@ -10,7 +11,7 @@ CdBScale::CdBScale(QWidget *parent) :
     ui->setupUi(this);
     m_Margin=Border;
     m_HalfMargin=HalfBorder;
-    //SetSize();
+    m_Max=150;
 }
 
 CdBScale::~CdBScale()
@@ -18,50 +19,44 @@ CdBScale::~CdBScale()
     delete ui;
 }
 
-int CdBScale::val2y(const float val, const float height)
+void CdBScale::updateSize()
 {
-    return height-((val*height*2)/3);
-}
-
-void CdBScale::SetSize()
-{
-    SetPen(QPen(Qt::NoPen));
+    static const int LinVals[8]={-30, -15, -10, -5, 0, 3, 5, 6};
+    setPen(QPen(Qt::NoPen));
     QLinearGradient gradient;
     gradient.setStart(0,0);
     gradient.setFinalStop(0,height());
     gradient.setColorAt(0, QColor(60,60,60));
     gradient.setColorAt(0.8, Qt::black);
-    SetBrush(gradient);
-    Rectangle(rect());
+    setBrush(gradient);
+    drawRectangle(rect());
 
-    SetPenBrush(Qt::gray);
-    SetFont(QFont(QString(),9));
-    int HalfHeight=(height()/2.0)-m_Margin;
-    int Left=Border;
-    int Right=width()-Border;
-    int Width=Right-Left;
+    setPenBrush(Qt::gray);
+    setLayerFontSize(9);
+    const int HalfHeight=(height()/2)-m_Margin;
+    const int Left=Border;
+    const int Right=width()-Border;
+    const int Width=Right-Left;
 
-    static QList<int>LinVals=QList<int>() << -30 << -15 << -10 << -5 << 0 << 3;
-    foreach(int i,LinVals)
+    setPen(QPen(Qt::gray,0));
+    for (const int j : LinVals)//for(uint i=0;i<LinVals.size();i++)
     {
-        float dbVal=db2lin(i);
+        //const int j=v;
+        const float dbVal=dB2linf(j);
+        const QString s=QString::number(j);
         int val=val2y(dbVal,HalfHeight)+m_HalfMargin;
-        if (val<m_HalfMargin) val=m_HalfMargin;
-        SetPen(QPen(Qt::gray,0));
-        Line(Left,val*2,Left+Width,val*2);
-        //Rectangle(Left,val*2,Width,1);
-        QFontMetrics fm(QFont(QString(),9));
-        int L=(width()-fm.width(QString::number(i)))/2;
-        Text(L-1,(val*2)-1,QString::number(i));
+        if (val<m_HalfMargin) break;
+        drawLine(Left,val*2,Left+Width,val*2);
+        QFontMetrics fm(layerFont());
+        const int L=(width()-fm.horizontalAdvance(s))/2;
+        drawText(L-1,(val*2)-1,s);
     }
     for (int i=-5;i<5;i++)
     {
-        float dbVal=db2lin(i);
-        int val=val2y(dbVal,HalfHeight)+m_HalfMargin;
+        const float dbVal=dB2linf(i);
+        const int val=val2y(dbVal,HalfHeight)+m_HalfMargin;
         if (val<m_HalfMargin) break;
-        //Rectangle(Left,val*2,Width,1);
-        SetPen(QPen(Qt::gray,0));
-        Line(Left,val*2,Left+Width,val*2);
+        drawLine(Left,val*2,Left+Width,val*2);
     }
     update();
 }
@@ -69,16 +64,16 @@ void CdBScale::SetSize()
 void CdBScale::resizeEvent(QResizeEvent* event)
 {
     QCanvas::resizeEvent(event);
-    SetSize();
+    updateSize();
 }
 
 void CdBScale::setMargin(int margin)
 {
-    int hm=margin*0.5;
+    const int hm=margin/2;
     if (hm != m_HalfMargin)
     {
         m_HalfMargin=hm;
         m_Margin=hm*2;
-        SetSize();
+        updateSize();
     }
 }

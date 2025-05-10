@@ -19,11 +19,11 @@ static int32_t IMA_STEP_TABLE[89] =
     15289, 16818, 18500, 20350,  22385, 24623, 27086, 29794, 32767
 };
 
-void IWaveFile::DecompressIMAPacket( const uint8_t* pSrc, float* pDst, const int stride )
+void IWaveFile::DecompressIMAPacket( const uint8_t* pSrc, float* pDst, const uint stride ) const
 {
     // Read packet header
-    uint16_t value  = *(uint16_t*)pSrc;
-    uint16_t header = ( value >> 8 ) | ( value << 8 );
+    const uint16_t value  = *reinterpret_cast<const uint16_t*>(pSrc);
+    auto header = uint16_t(( value >> 8 ) | ( value << 8 ));
     int32_t predictor  = header & 0xff80;
     int32_t step_index = header & 0x007f;
     int32_t step, nibble, diff;
@@ -54,9 +54,9 @@ void IWaveFile::DecompressIMAPacket( const uint8_t* pSrc, float* pDst, const int
         if (nibble & 1) diff += (step >> 2);
         if (nibble & 8) predictor -= diff;
         else predictor += diff;
-        if( predictor < -32768 ) predictor = -32768;
-        else if( predictor > 32767 ) predictor = 32767;
-        *pDst = (float)predictor*MAXSHORTMULTIPLY;
+        if( predictor < SHRT_MIN ) predictor = SHRT_MIN;
+        else if( predictor > SHRT_MAX ) predictor = SHRT_MAX;
+        *pDst = predictor*MAXSHORTMULTIPLY_F;
         pDst += stride;
 
         // Process high nibble
@@ -71,35 +71,40 @@ void IWaveFile::DecompressIMAPacket( const uint8_t* pSrc, float* pDst, const int
         if (nibble & 1) diff += (step >> 2);
         if (nibble & 8) predictor -= diff;
         else predictor += diff;
-        if( predictor < -32768 ) predictor = -32768;
-        else if( predictor > 32767 ) predictor = 32767;
-        *pDst = (float)predictor*MAXSHORTMULTIPLY;
+        if( predictor < SHRT_MIN ) predictor = SHRT_MIN;
+        else if( predictor > SHRT_MAX ) predictor = SHRT_MAX;
+        *pDst = predictor*MAXSHORTMULTIPLY_F;
         pDst += stride;
     }
 }
 
-size_t IWaveFile::DecompressIMA(const int channels, const uint8_t* pSrc, float *&pDst, const size_t srcSize)
+void IWaveFile::DecompressIMA(const uint channels, const uint8_t* pSrc, CChannelBuffer& b, const ulong64 srcSize) const
 {
-    int packetCount = ((float)srcSize / 34.0) / (float)channels;
-    unsigned int Length=packetCount*64.0;
-    pDst=new float[Length*channels];
-    for (int pck=0;pck<packetCount;pck++)
+    auto packetCount = ulong64((srcSize / 34.0) / channels);
+    b.init(packetCount*64,channels);
+    for (uint pck=0;pck<packetCount;pck++)
     {
-        for (int c=0;c<channels;c++)
+        const uint channelPacket=pck*channels;
+        for (uint c=0;c<channels;c++)
         {
-            DecompressIMAPacket( pSrc+(((pck*channels)+c)*34), pDst+((int)(64.0*pck*channels))+c, channels );
+            DecompressIMAPacket( pSrc+((channelPacket+c)*34), b.dataPointer(64*channelPacket,c), channels );
         }
     }
-    return Length;
 }
 
 
-IWaveFile::IWaveFile()
+IWaveFile::IWaveFile(QString path)
 {
-    AuEncoding=0;
-    byteOrder=LittleEndian;
-    channels=1;
-    frequency=44100;
+    m_AuEncoding=0;
+    m_ByteOrder=LittleEndian;
+    m_Channels=1;
+    m_Frequency=44100;
+    QFile f(path);
+    if (f.open(QIODevice::ReadOnly))
+    {
+        byteArray = f.readAll();
+        f.close();
+    }
 }
 
 IWaveFile::~IWaveFile()
@@ -107,165 +112,68 @@ IWaveFile::~IWaveFile()
 
 }
 
-int16_t IWaveFile::MuLaw_Decode(int8_t number)
+void IWaveFile::createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplerate)
 {
-   const uint16_t MULAW_BIAS = 33;
-   uint8_t sign = 0, position = 0;
-   int16_t decoded = 0;
-   number = ~number;
-   if (number & 0x80)
-   {
-      number &= ~(1 << 7);
-      sign = -1;
-   }
-   position = ((number & 0xF0) >> 4) + 5;
-   decoded = ((1 << position) | ((number & 0x0F) << (position - 4))
-             | (1 << (position - 5))) - MULAW_BIAS;
-   return (sign == 0) ? (decoded) : (-(decoded));
-}
+    QMutexLocker locker(&mutex);
+    const ldouble PointerInc = (m_SampleBitSize / 8.L) * m_Channels;
+    const ldouble RateFactor = ldouble(m_Frequency) / Samplerate;
+    const auto Length = ulong64((ldouble(m_ChunkSize) / RateFactor) / PointerInc);
+    const auto ByteCount = uint(ceilf(m_SampleBitSize / 8.f));
+    qDebug() << double(PointerInc) << double(RateFactor) << Length << ByteCount;
+    OutBuffer.init(Length,m_Channels);
+    //OutBuffer=new float[Length*m_Channels];
+    //qDebug() << "m_SampleSize" << m_SampleSize << "Bytecount" << ByteCount << "channels" << m_Channels;
+    //qDebug() << "m_Frequency" << m_Frequency << "SampleRate" << Samplerate << "m_ChunkSize" << m_ChunkSize;
+    //qDebug() << "Ratefactor" << RateFactor << "pointerinc" << PointerInc << "Length" << Length;
+    //qDebug() << "m_AuEncoding" << m_AuEncoding << "m_ByteOrder" << m_ByteOrder;
 
-int16_t IWaveFile::ALaw_Decode(int8_t number)
-{
-   uint8_t sign = 0x00;
-   uint8_t position = 0;
-   int16_t decoded = 0;
-   number^=0x55;
-   if(number&0x80)
-   {
-      number&=~(1<<7);
-      sign = -1;
-   }
-   position = ((number & 0xF0) >>4) + 4;
-   if(position!=4)
-   {
-      decoded = ((1<<position)|((number&0x0F)<<(position-4))
-                |(1<<(position-5)));
-   }
-   else
-   {
-      decoded = (number<<1)|1;
-   }
-   return (sign==0)?(decoded):(-decoded);
-}
-
-float IWaveFile::ReadAuMem(const void* pSrc, const bool HalfByte)
-{
-    if (AuEncoding==AUDIO_FILE_ENCODING_DOUBLE) return *((double*)(pSrc));
-    if (AuEncoding==AUDIO_FILE_ENCODING_FLOAT) return *((float*)(pSrc));
-    if (sampleSize==16) return getShort(*(short*)pSrc)*MAXSHORTMULTIPLY;
-    if (sampleSize==32) return getInt(*(int*)pSrc)*MAXINTMULTIPLY;
-    if (sampleSize==8)
+    if (closeEnough(m_SampleBitSize / 8.0, double(ByteCount)))
     {
-        if (AuEncoding==AUDIO_FILE_ENCODING_MULAW_8) return MuLaw_Decode(*(int8_t*)pSrc)*MAXSHORTMULTIPLY;
-        if (AuEncoding==AUDIO_FILE_ENCODING_ALAW_8) return ALaw_Decode(*(int8_t*)pSrc)*MAXSHORTMULTIPLY;
-        return (*(char*)pSrc)*MAXCHARMULTIPLY;
-    }
-    if (sampleSize==4)
-    {
-        if (HalfByte) return (((*(char*)pSrc) & 0xF) << 4)*MAXCHARMULTIPLY;
-        return ((*(char*)pSrc) & 0xF0)*MAXCHARMULTIPLY;
-    }
-    if (sampleSize==12)
-    {
-        if (byteOrder==BigEndian) return qFromBigEndian<qint16>((*(short*)pSrc) & 0xFFF)*MAXSHORTMULTIPLY;
-        else return (((*(short*)pSrc) & 0xFFF) << 4)*MAXSHORTMULTIPLY;
-    }
-    if (sampleSize==24)
-    {
-        if (byteOrder==BigEndian) return qFromBigEndian<qint16>(*(short*)pSrc)*MAXSHORTMULTIPLY;
-        else return (*(short*)pSrc+1)*MAXSHORTMULTIPLY;
-    }
-    return 0;
-}
-
-size_t IWaveFile::CreateFloatBuffer(float *&OutBuffer, const int Samplerate)
-{
-    float PointerInc = ((float)sampleSize / 8.0) * channels;
-    float RateFactor=(float)frequency/(float)Samplerate;
-    size_t Length=(chunkSize/RateFactor)/PointerInc;
-    int ByteCount=ceilf(sampleSize/8.0);
-
-    OutBuffer=new float[Length*channels];
-    qDebug() << "Samplesize" << sampleSize << "Bytecount" << ByteCount << "channels" << channels << "Frequency" << frequency << "SampleRate" << Samplerate << "chunksize" << chunkSize << "Ratefactor" << RateFactor << "pointerinc" << PointerInc << "Length" << Length << "Auencoding" << AuEncoding << "Byteorder" << byteOrder;
-
-    if (ByteCount==(float)sampleSize/8.0)
-    {
-        int UnitSize=ByteCount*channels;
-        if (fmodf(RateFactor,1)==0)
+        const uint UnitSize = ByteCount*m_Channels;
+        if (isZero(double(fmodl(RateFactor,1.L))))
         {
             qDebug() << "No float!";
-            int PtrInc=UnitSize*RateFactor;
-            for (int c=0;c<channels;c++)
+            const auto PtrInc = uint(UnitSize * RateFactor);
+            const byte* waveEnd = m_WaveStart + m_ChunkSize;
+            for (uint c = 0; c < m_Channels; c++)
             {
-                size_t Ptr=0;
-                size_t ChannelStart=Length*c;
-                BYTE* ChannelPtr=WaveStart+(c*ByteCount);
-                for (size_t i=ChannelStart;i<ChannelStart+Length;i++) OutBuffer[i]=ReadAuMem(ChannelPtr+(Ptr+=PtrInc));
+                for (byte* ptr=m_WaveStart + (c * ByteCount); ptr < waveEnd; ptr += PtrInc)
+                {
+                    OutBuffer.set(ReadAuMem(ptr));
+                }
             }
-            return Length;
+            return;
         }
-        qDebug() << "Float RateFactor!";
-        for (int c=0;c<channels;c++)
+        qDebug() << "Float RateFactor!" << double(RateFactor);
+        for (uint c = 0; c < m_Channels; c++)
         {
-            long double Ptr=0;
-            size_t ChannelStart=Length*c;
-            BYTE* ChannelPtr=WaveStart+(c*ByteCount);
-            for (size_t i=ChannelStart;i<ChannelStart+Length;i++) OutBuffer[i]=ReadAuMem(ChannelPtr+((size_t)(Ptr+=RateFactor)*UnitSize));
+            const byte* ChannelPtr = m_WaveStart + (c * ByteCount);
+            for (ulong64 i = 0; i < Length; i++)
+            {
+                OutBuffer.set(ReadAuMem(ChannelPtr + (ulong64(i * RateFactor) * UnitSize)));
+            }
         }
-        return Length;
+        return;
     }
-    float stridef=RateFactor*PointerInc;
-    bool HalfByte=false;
-    qDebug() << "Float all!" << stridef << RateFactor;
-    for (int c = 0; c < channels; c++)
+    const ldouble stridef = RateFactor * PointerInc;
+    bool HalfByte = false;
+    qDebug() << "Float all!" << double(stridef) << double(RateFactor);
+    for (uint c = 0; c < m_Channels; c++)
     {
-        size_t ChannelStart=Length*c;
-        BYTE* ChannelPtr=WaveStart+(c*ByteCount);
-        for (long double i=0;i< Length;i++)
+        const byte* ChannelPtr = m_WaveStart + (c * ByteCount);
+        for (ulong64 i = 0; i < Length; i++)
         {
-            if (sampleSize==4) HalfByte=(fmodf(i*stridef,1)>=0.5);
-            size_t TempPos=(i*stridef);
+            ldouble pos = i * stridef;
+            if (m_SampleBitSize==4) HalfByte = (fmodl(pos,1.L) >= 0.5L);
+            auto TempPos = ulong64(pos);
             if (ByteCount > 1) TempPos = (TempPos / ByteCount) * ByteCount;
-            *(OutBuffer+(size_t)i+ChannelStart)=ReadAuMem(ChannelPtr+TempPos,HalfByte);
+            OutBuffer.set(ReadAuMem(ChannelPtr + TempPos, HalfByte));
         }
     }
-    return Length;
 }
 
-int IWaveFile::Rate() const
-{
-    return frequency;
-}
 
-int IWaveFile::Channels() const
-{
-    return channels;
-}
 
-bool IWaveFile::OpenFile(QFile &f)
-{
-    qDebug() << f.fileName();
-    return Open(f.map(0,f.size()),f.size());
-}
 
-bool IWaveFile::Open(BYTE* /*pSrc*/, size_t /*Size*/)
-{
-    return false;
-}
 
-bool IWaveFile::Save(const QString &/*filename*/, float *&/*data*/, const int /*Channels*/, const size_t /*Length*/, const unsigned int /*SampleRate*/)
-{
-    return false;
-}
 
-bool IWaveFile::findChunk(const char *s, size_t &ptr, BYTE* pSrc, const size_t filesize)
-{
-    chunk* Chnk=(chunk*)(pSrc + ptr);
-    while (!descriptorMatch(Chnk->id, s))
-    {
-        if (ptr > filesize) return false;
-        ptr+=getInt(Chnk->size)+sizeof(chunk);
-        Chnk=(chunk*)(pSrc + ptr);
-    }
-    return true;
-}

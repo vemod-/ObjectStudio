@@ -5,17 +5,20 @@
 #-------------------------------------------------
 
 TARGET = Equalizer
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../RtAudioBuffer/PeakMeter.pri)
-include(../../SynthKnob/QSynthKnob.pri)
-include(../../SynthSlider/QSynthSlider.pri)
 
-LIBS += -L../ -lWaveBank
+LIBS += -lSoftSynthsWidgets
+
+INCLUDEPATH += ../../QCanvas
+INCLUDEPATH += ../RtAudioBuffer
+INCLUDEPATH += ../../SynthKnob
+INCLUDEPATH += ../../SynthSlider
+
+LIBS += -lWaveBank
 INCLUDEPATH += ../wavebank
 
-INCLUDEPATH += ../chorus
+INCLUDEPATH += ../Chorus
 
 SOURCES += cequalizerframe.cpp \
     cequalizerform.cpp \
@@ -23,7 +26,8 @@ SOURCES += cequalizerframe.cpp \
 
 HEADERS += cequalizerframe.h \
     cequalizerform.h \
-    cequalizergraph.h
+    cequalizergraph.h \
+    ../Chorus/biquad.h
 
 DEFINES += EQUALIZER_LIBRARY
 

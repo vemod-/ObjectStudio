@@ -124,25 +124,18 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="CdBScale" name="dBScale">
-       <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Raised</enum>
-       </property>
-      </widget>
+      <widget class="CdBScale" name="dBScale"/>
      </item>
      <item>
       <widget class="QSynthSlider" name="VolSlider">
        <property name="minimum">
-        <number>1</number>
+        <number>0</number>
        </property>
        <property name="maximum">
         <number>150</number>
        </property>
        <property name="value">
-        <number>100</number>
+        <number>99</number>
        </property>
        <property name="orientation">
         <enum>Qt::Vertical</enum>
@@ -150,14 +143,7 @@
       </widget>
      </item>
      <item>
-      <widget class="CPeakControl" name="Peak">
-       <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Raised</enum>
-       </property>
-      </widget>
+      <widget class="CPeakControl" name="Peak"/>
      </item>
     </layout>
    </item>
@@ -180,14 +166,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QSynthSlider</class>
-   <extends>QSlider</extends>
-   <header>qsynthslider.h</header>
-  </customwidget>
-  <customwidget>
    <class>QSynthKnob</class>
    <extends>QDial</extends>
    <header>qsynthknob.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QSynthSlider</class>
+   <extends>QSlider</extends>
+   <header>qsynthslider.h</header>
   </customwidget>
   <customwidget>
    <class>CPeakControl</class>

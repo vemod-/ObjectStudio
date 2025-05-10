@@ -10,7 +10,6 @@ TEMPLATE = lib
 include(../SoftSynthsIncludes.pri)
 
 LIBS += -lWaveGenerator
-
 INCLUDEPATH += ../wavegenerator
 
 DEFINES += AUDACITYPROJECT_LIBRARY

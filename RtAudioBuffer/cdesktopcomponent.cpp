@@ -5,104 +5,50 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QClipboard>
+#include <QCalendarWidget>
+#include "cconnectionhelper.h"
+#include <QHBoxLayout>
+//#include <quazip.h>
+//#include <quazipfile.h>
+#include "cparametersmenu.h"
+#include "../Projectpage/cprojectpage.h"
+#include <QScrollBar>
+#include "caddins.h"
+#include "cresourceinitializer.h"
 
-QList<QGraphicsItem*> CJackContainer::Paint(QGraphicsScene* Scene)
+#define shadowColor QColor(0,0,0,40)
+#define shadowOffset QPoint(5,5)
+#define zeroPoint QPoint(0,0)
+
+QList<QGraphicsItem*> CJackContainer::paint(QGraphicsScene* Scene)
 {
     QList<QGraphicsItem*> items;
-    for (int i=0;i<JackRects.count();i++)
+    for (JackRect& j : jackRects)
     {
-        QPen p(JackRects.at(i).Jack->JackColor());
-        JackRects[i].setSize(QSize(8,8));
-        p.setWidth(2);
-        items.append(Scene->addEllipse(JackRects.at(i).translated(Geometry.topLeft()),p,QBrush(QColor(0,0,0,80))));
+        QPen p(j.jack->JackColor(),2);
+        j.setSize(QSize(8,8));
+        items.append(Scene->addEllipse(j.translated(geometry.topLeft()),p,QBrush(QColor(0,0,0,80))));
     }
     return items;
 }
 
-bool CJackContainer::InsideMe(const QPoint& Pos)
-{
-    return Geometry.contains(Pos);
-}
-
-QPoint CJackContainer::JackPos(const int Index)
-{
-    if (Index>=JackRects.count())
-    {
-        return QPoint();
-    }
-    return JackRects[Index].topLeft()+QPoint(4,4);
-}
-
-int CJackContainer::InsideJack(const QPoint& Pos)
-{
-    for (int i=0;i<JackRects.count();i++)
-    {
-        if (JackRects.at(i).translated(Geometry.topLeft()).contains(Pos)) return i;
-    }
-    return -1;
-}
-
-int CJackContainer::JackCount()
-{
-    return JackRects.count();
-}
-
-IJack* CJackContainer::GetJack(const int Index)
-{
-    return JackRects[Index].Jack;
-}
-
 //---------------------------------------------------------------------------------------
 
-CDeviceComponent::CDeviceComponent()
-{
-    m_Device=NULL;
-    m_Active=false;
-}
-
-void CDeviceComponent::Init(IDevice* Device,const QString& ClassName)
-{
-    m_ClassName=ClassName;
-    m_Device=Device;
-    for (int i=0;i<Device->JackCount();i++)
-    {
-        JackRect JR;
-        JR.Index=i;
-        JR.Jack=Device->GetJack(i);
-        JackRects.append(JR);
-    }
-}
-
-CDeviceComponent::~CDeviceComponent()
-{
-}
-
-IDevice* CDeviceComponent::Device()
-{
-    return m_Device;
-}
-
-QList<QGraphicsItem*> CDeviceComponent::Paint(QGraphicsScene* Scene)
+QList<QGraphicsItem*> CDeviceComponent::paint(QGraphicsScene* Scene)
 {
     QList<QGraphicsItem*> items;
-    int InCount=1;
-    int OutCount=1;
-    int InIndex=0;
-    int OutIndex=0;
-    float InFactor=1;
-    float OutFactor=1;
-    if (m_Device != NULL)
+    if (m_Device != nullptr)
     {
-        if (Geometry.left()<1) Geometry.setLeft(1);
-        if (Geometry.top()<1) Geometry.setTop(1);
-        Geometry.setSize(QSize(120,60));
-        QPainterPath path(QPoint(0,0));
-        path.addRoundedRect(Geometry.translated(5,5),5,5);
-        Scene->addPath(path,Qt::NoPen,QBrush(QColor(0,0,0,40)));
+        if (geometry.left()<1) geometry.setLeft(1);
+        if (geometry.top()<1) geometry.setTop(1);
+        geometry.setSize(QSize(120,60));
+        QPainterPath path(zeroPoint);
+        path.addRoundedRect(geometry,5,5);
+        for (int i = 0; i < 10 ; i++) Scene->addPath(path.translated(i+1,i+1),Qt::NoPen,QColor(0,0,0,10));
 
         QPen p(Qt::NoPen);
         p.setWidth(1);
-        QLinearGradient lg(0,Geometry.top(),0,Geometry.height()+Geometry.top());
+        QLinearGradient lg(0,geometry.top(),0,geometry.height()+geometry.top());
         if (m_Active)
         {
             p=QPen(Qt::black);
@@ -120,133 +66,79 @@ QList<QGraphicsItem*> CDeviceComponent::Paint(QGraphicsScene* Scene)
             lg.setColorAt(1,"#777");
         }
         QBrush b(lg);
-        path=QPainterPath(QPoint(0,0));
-        path.addRoundedRect(Geometry,5,5);
+        //path=QPainterPath(zeroPoint);
+        //path.addRoundedRect(geometry,5,5);
         items.append(Scene->addPath(path,p,b));
-        QString Caption=m_Device->Name() + " " + QString::number(m_Device->Index());
+        if (m_Device->hasUI())
+        {
+            if (m_px)
+            {
+                QGraphicsPixmapItem* pi = Scene->addPixmap(*m_px);
+                const QSize sz = QSizeF((geometry.size() - pi->boundingRect().size()) / 2).toSize();
+                pi->setPos(geometry.topLeft()+QPoint(sz.width(),sz.height()));
+                pi->setZValue(0);
+                items.append(pi);
+            }
+        }
+        QString Caption=m_Device->deviceID();//m_Device->name() + " " + QString::number(m_Device->index());
         QString FileName;
-        if (!m_Device->FileName().isEmpty()) FileName="("+QFileInfo(m_Device->FileName()).fileName()+")";
+        if (!m_Device->filename().isEmpty()) FileName="("+QFileInfo(m_Device->filename()).fileName()+")";
         QFont f;
         QFontMetrics fm(f);
-        if (fm.width(Caption)>Geometry.width()) Caption=Caption.left(7)+"..."+Caption.right(7);
-        QGraphicsSimpleTextItem* item = Scene->addSimpleText(Caption,f);
-        QPoint TextOffset((Geometry.width()-fm.width(Caption))/2,(Geometry.height()-fm.height())/2);
+        if (fm.horizontalAdvance(Caption)>geometry.width()) Caption=Caption.left(7)+QStringLiteral("...")+Caption.right(7);
+
+        QPoint TextOffset((geometry.width()-fm.horizontalAdvance(Caption))/2,(geometry.height()-fm.height())/2);
         if (!FileName.isEmpty()) TextOffset.setY(TextOffset.y()-(fm.height()/2));
-        item->setPos(Geometry.topLeft()+TextOffset);
-        item->setBrush(QBrush("#ddd"));
-        item->setPen(Qt::NoPen);
-        items.append(item);
-        item = Scene->addSimpleText(Caption,f);
-        item->setPos(Geometry.topLeft()+TextOffset+QPoint(-1,-1));
-        item->setBrush(QBrush("#222"));
-        item->setPen(Qt::NoPen);
-        items.append(item);
+        items.append(CConnectionHelper::DrawShadowText(Caption,f,geometry.topLeft()+TextOffset,Scene));
         if (!FileName.isEmpty())
         {
-            if (fm.width(FileName)>Geometry.width()) FileName=FileName.left(7)+"..."+FileName.right(7);
-            item = Scene->addSimpleText(FileName,f);
-            TextOffset.setX((Geometry.width()-fm.width(FileName))/2);
+            if (fm.horizontalAdvance(FileName)>geometry.width()) FileName=FileName.left(7)+QStringLiteral("...")+FileName.right(7);
+            TextOffset.setX((geometry.width()-fm.horizontalAdvance(FileName))/2);
             TextOffset.setY(TextOffset.y()+fm.height());
-            item->setPos(Geometry.topLeft()+TextOffset);
-            item->setBrush(QBrush("#ddd"));
-            item->setPen(Qt::NoPen);
-            items.append(item);
-            item = Scene->addSimpleText(FileName,f);
-            item->setPos(Geometry.topLeft()+TextOffset+QPoint(-1,-1));
-            item->setBrush(QBrush("#222"));
-            item->setPen(Qt::NoPen);
-            items.append(item);
+            items.append(CConnectionHelper::DrawShadowText(FileName,f,geometry.topLeft()+TextOffset,Scene));
         }
-
-        for (int i=0;i<JackRects.count();i++)
+        int InCount=1;
+        int OutCount=1;
+        for (JackRect& j : jackRects)
         {
-            if (JackRects.at(i).Jack->Direction==IJack::In)
-            {
-                InCount++;
-            }
-            else
-            {
-                OutCount++;
-            }
+            (j.jack->isInJack()) ? InCount++ : OutCount++;
         }
-        InFactor=Geometry.width()/InCount;
-        OutFactor=Geometry.width()/OutCount;
+        const float InFactor=geometry.width()/InCount;
+        const float OutFactor=geometry.width()/OutCount;
 
-        for (int i=0;i<JackRects.count();i++)
+        int InIndex=0;
+        int OutIndex=0;
+        for (JackRect& j : jackRects)
         {
-            JackRect* JR=&JackRects[i];
-            if (JR->Jack->Direction==IJack::In)
-            {
-                JR->setTopLeft(QPoint((InIndex*InFactor)+4,1));
-                InIndex++;
-            }
-            else
-            {
-                JR->setTopLeft(QPoint((OutIndex*OutFactor)+4,Geometry.height()-9));
-                OutIndex++;
-            }
+            (j.jack->isInJack()) ? j.setTopLeft(QPoint(int(InIndex++*InFactor)+4,1)) :
+                                   j.setTopLeft(QPoint(int(OutIndex++*OutFactor)+4,geometry.height()-9));
         }
-        items.append(CJackContainer::Paint(Scene));
+        items.append(CJackContainer::paint(Scene));
     }
     return items;
 }
 
-QString CDeviceComponent::ClassName()
-{
-    return m_ClassName;
-}
-
-void CDeviceComponent::Select(const bool Active)
-{
-    m_Active=Active;
-}
-
 //---------------------------------------------------------------------------
 
-CJackBar::CJackBar()
-{
-}
-
-CJackBar::~CJackBar()
-{
-}
-
-IJack* CJackBar::AddJack(IJack* J)
-{
-    JackRect JR;
-    JR.Index=JackRects.count();
-    JR.Jack=J;
-    JackRects.append(JR);
-    return J;
-}
-
-QList<QGraphicsItem*> CJackBar::Paint(QGraphicsScene* Scene)
+QList<QGraphicsItem*> CJackBar::paint(QGraphicsScene* Scene)
 {
     QList<QGraphicsItem*> items;
-    if (Geometry.topLeft()==QPoint(0,0)) Scene->addRect(Geometry.translated(0,5),Qt::NoPen,QColor(0,0,0,40));
-
-    QLinearGradient lg(0,Geometry.top(),0,Geometry.height()+Geometry.top());
+    //if (geometry.topLeft()==zeroPoint) Scene->addRect(geometry.translated(0,shadowOffset.y()),Qt::NoPen,shadowColor);
+    QLinearGradient lg(0,geometry.top(),0,geometry.height()+geometry.top());
     lg.setColorAt(0,"#ddd");
     lg.setColorAt(0.49999,"#bbb");
     lg.setColorAt(0.5,"#9f9f9f");
     lg.setColorAt(1,"#787878");
     QBrush b(lg);
 
-    items.append(Scene->addRect(Geometry,Qt::NoPen,b));
+    items.append(Scene->addRect(geometry,Qt::NoPen,b));
 
-    for (int i=0;i<JackRects.count();i++)
+    for (int i=0;i<jackRects.size();i++)
     {
-        JackRect* JR=&JackRects[i];
-        if (JR->Jack->Direction==IJack::In)
-        {
-            JR->setTopLeft(QPoint((i*20)+12,2));
-        }
-        else
-        {
-            JR->setTopLeft(QPoint((i*20)+12,2));
-        }
+        JackRect* JR=&jackRects[i];
+        JR->setTopLeft(QPoint((i*20)+height,2));
     }
-    items.append(CJackContainer::Paint(Scene));
+    items.append(CJackContainer::paint(Scene));
     return items;
 }
 
@@ -256,8 +148,16 @@ CDesktopComponent::CDesktopComponent(QWidget *parent) :
     QGraphicsView(parent),
     ui(new Ui::CDesktopComponent)
 {
+    CResourceInitializer::initializeResources();
     ui->setupUi(this);
-    setStyleSheet("QGraphicsView{background:qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ddd, stop:1 #999);}");
+    m_MainWindow = parent;
+    setFrameStyle(0);
+    setAcceptDrops(false);
+    zoomer = new QGraphicsViewZoomer(this);
+    connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CDesktopComponent::changeZoom);
+    setBackgroundBrush(QPixmap(":/paper-texture.jpg"));
+    setAlignment(Qt::AlignLeft | Qt::AlignTop);
+
     setDragMode(NoDrag);
     Rubberband=new QiPhotoRubberband(this);
     Rubberband->hide();
@@ -272,77 +172,16 @@ CDesktopComponent::CDesktopComponent(QWidget *parent) :
     Scene.setItemIndexMethod(QGraphicsScene::NoIndex);
     setRenderHint(QPainter::Antialiasing);
     setRenderHint(QPainter::TextAntialiasing);
-    setRenderHint(QPainter::HighQualityAntialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
     setMouseTracking(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    setFrameStyle(0);
-    setLineWidth(0);
 
-    RecentMenu=new QSignalMenu("Recent",this);
-    RecentPopup=new QSignalMenu("Recent",this);
-    connect(RecentMenu,SIGNAL(menuClicked(QString)),this,SLOT(OpenFile(QString)));
-    connect(RecentPopup,SIGNAL(menuClicked(QString)),this,SLOT(OpenFile(QString)));
-    CreateRecentMenu(RecentMenu);
-    CreateRecentMenu(RecentPopup);
-
-    JackPopup=new QSignalMenu(this);
-    connect(JackPopup,SIGNAL(menuClicked(QString)),this,SLOT(ToggleConnection(QString)));
-    PluginsPopup=new QSignalMenu("Add",this);
-    connect(PluginsPopup,SIGNAL(menuClicked(QString)),this,SLOT(PluginMenuClicked(QString)));
-
-    actionPaste=new QAction("Paste",this);
-    connect(actionPaste,SIGNAL(triggered()),this,SLOT(Paste()));
-    actionPaste->setShortcut(QKeySequence::Paste);
-    actionPasteParameters=new QAction("Paste Parameters",this);
-    connect(actionPasteParameters,SIGNAL(triggered()),this,SLOT(PasteParameters()));
-
-    ParameterPresetsMenu=new QSignalMenu("Load",this);
-    connect(ParameterPresetsMenu,SIGNAL(menuClicked(QString)),this,SLOT(OpenPreset(QString)));
-    ParametersMenu=new QMenu("Parameters",this);
-    ParametersMenu->addMenu(ParameterPresetsMenu);
-    ParametersMenu->addAction("Save as Preset",this,SLOT(SavePresetAs()));
-    ParametersMenu->addAction("Copy Parameters",this,SLOT(CopyParameters()));
-    ParametersMenu->addAction(actionPasteParameters);
-    MainWindow=NULL;
-
-    DesktopMenu=new QMenu(this);
-    DesktopMenu->addMenu(PluginsPopup);
-    DesktopMenu->addSeparator();
-    DesktopMenu->addAction("New",this,SLOT(New()),QKeySequence(QKeySequence::New));
-    DesktopMenu->addAction("Open...",this,SLOT(Open()),QKeySequence(QKeySequence::Open));
-    DesktopMenu->addAction("Save",this,SLOT(Save()),QKeySequence(QKeySequence::Save));
-    DesktopMenu->addAction("Save As...",this,SLOT(SaveAs()),QKeySequence(QKeySequence::SaveAs));
-    DesktopMenu->addMenu(RecentPopup);
-    DesktopMenu->addSeparator();
-    DesktopMenu->addAction(actionPaste);
-
-    QAction* aCopy=new QAction("Copy",this);
-    aCopy->setShortcut(QKeySequence::Copy);
-    connect(aCopy,SIGNAL(triggered()),this,SLOT(Copy()));
-    QAction* aCut=new QAction("Cut",this);
-    aCopy->setShortcut(QKeySequence::Cut);
-    connect(aCut,SIGNAL(triggered()),this,SLOT(Cut()));
-    QAction* aDisconnect=new QAction("Disconnect",this);
-    connect(aDisconnect,SIGNAL(triggered()),this,SLOT(RemoveConnections()));
-
-    DeviceMenu=new QMenu(this);
-    DeviceMenu->addAction(aCut);
-    DeviceMenu->addAction(aCopy);
-    DeviceMenu->addSeparator();
-    DeviceMenu->addMenu(ParametersMenu);
-    DeviceMenu->addSeparator();
-    DeviceMenu->addAction(aDisconnect);
-    DeviceMenu->addAction("Show UI",this,SLOT(Execute()));
-
-    MarkMenu=new QMenu(this);
-    MarkMenu->addAction(aCut);
-    MarkMenu->addAction(aCopy);
-    MarkMenu->addAction(actionPasteParameters);
-    MarkMenu->addSeparator();
-    MarkMenu->addAction(aDisconnect);
+    m_ParentWindow=nullptr;
+    DeviceList.setHost(this);
+    MainMenu = new CMainMenu(this,m_MainWindow,CPresets::Organization(),CPresets::AppName(),QString(),_DocumentPath,parent);
+    MainMenu->actionWizard->setEnabled(false);
+    MainMenu->actionWizard->setVisible(false);
 }
 
 CDesktopComponent::~CDesktopComponent()
@@ -350,248 +189,161 @@ CDesktopComponent::~CDesktopComponent()
     delete ui;
 }
 
-void CDesktopComponent::SetFileMenu(QMenu* Menu)
-{
-    Menu->addMenu(RecentMenu);
+void CDesktopComponent::init(QWidget *mainWindow, QWidget *parent) {
+    m_MainWindow = mainWindow;
+    m_ParentWindow = parent;
 }
 
-IJack* CDesktopComponent::CreateInsideJack(int ProcIndex, IJack *ConnectTo, IDeviceBase *DeviceClass)
+IJack* CDesktopComponent::addJack(IJack* Jack, int PolyIndex)
 {
-    if (ConnectTo->Direction==IJack::In) return new COutJack(ConnectTo->Name,"This",ConnectTo->AttachMode,IJack::Out,DeviceClass,ProcIndex);
-    return new CInJack(ConnectTo->Name,"This",ConnectTo->AttachMode,IJack::In,DeviceClass);
-
-}
-
-IJack* CDesktopComponent::AddJack(IJack* Jack, int PolyIndex)
-{
-    if (!PolyIndex)
+    QMutexLocker locker(&mutex);
+    DeviceList.addJack(Jack,PolyIndex);
+    if (PolyIndex==0)
     {
-        DeviceList.AddJack(Jack);
-        if (Jack->Direction==IJack::In)
-        {
-            JackBar2.AddJack(Jack);
-        }
-        else
-        {
-            JackBar1.AddJack(Jack);
-        }
-    }
-    else
-    {
-        PolyDevices[PolyIndex-1].AddJack(Jack);
+        (Jack->isInJack()) ? JackBar2.addJack(Jack) : JackBar1.addJack(Jack);
     }
     return Jack;
 }
 
-void CDesktopComponent::SetPoly(const int Count)
+void CDesktopComponent::parameterChange(IDevice* device, const CParameter* parameter)
 {
-    int Before=PolyDevices.count();
-    if (Count>Before)
+    if (device)
     {
-        for (int i=Before;i<Count;i++)
+        if (parameter)
         {
-            CDeviceList DL;
-            PolyDevices.append(DL);
-        }
-    }
-    else
-    {
-        for (int i=Before;i>Count;i--)
-        {
-            PolyDevices.removeAt(i);
-        }
-    }
-}
-
-void CDesktopComponent::UpdatePoly()
-{
-    Load(Save("Custom"));
-}
-
-void CDesktopComponent::ChangeParameter(IDevice* Device, int ParameterIndex, int Value)
-{
-    int Index=DeviceList.IndexOfDevice(Device);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Device(Index)->SetParameterValue(ParameterIndex,Value);
-    }
-}
-
-void CDesktopComponent::ParameterChange()
-{
-    if ((m_DeviceIndex>-1) & (m_DeviceIndex < Devices.count()))
-    {
-        IDevice* D=Devices[m_DeviceIndex].Device();
-        ShowParameters(D);
-        for (int i=0;i<PolyDevices.count();i++)
-        {
-            for (int p=0;p<D->ParameterCount();p++)
-            {
-                PolyDevices[i].Device(m_DeviceIndex)->SetParameterValue(p,D->GetParameterValue(p));
+            QMutexLocker locker(&mutex);
+            const int d = DeviceList.indexOfDevice(device);
+            if (d > -1) {
+                emit controlChanged(device,parameter);
+                DeviceList.updateParameter(d,parameter);
             }
         }
-        DrawConnections();
+        else {
+            int i = DeviceList.indexOfDevice(device);
+            if (i > -1) {
+                qDebug() << "No parameter";
+                Devices[i]->getPic();
+                //qDebug() << "emit parameterschanged";
+                emit parametersChanged(device);
+                //qDebug() << "drawconnections";
+                DrawConnections();
+                //qDebug() << "after drawconnections";
+            }
+        }
     }
+}
+
+void CDesktopComponent::activate(IDevice *Device)
+{
+    SelectDevice(DeviceList.indexOfDevice(Device));
+}
+
+void CDesktopComponent::takeString(IDevice *Device, const int type, const QString &s)
+{
+    if (Device->deviceID()=="MIDIFilePlayer 1") qDebug() << type << s;
 }
 
 void CDesktopComponent::PluginMenuClicked(QString ClassName)
 {
-    AddDevice(ClassName,this);
-    Devices.last().Geometry.setTopLeft(StartPoint);
-    DrawConnections();
-}
-
-bool CDesktopComponent::AddDevice(const QString &ClassName, void *MainWindow)
-{
-    return AddDevice(ClassName,DeviceList.FindFreeID(ClassName),MainWindow);
-}
-
-bool CDesktopComponent::AddDevice(const QString& ClassName, const int ID, void* MainWindow)
-{
-    int MenuIndex=CAddIns::AddInIndex(ClassName);
-    if (MenuIndex<0) return false;
-    IDevice* D=DeviceList.AddDevice(CAddIns::AddInList[MenuIndex].InstanceFunction,ID,MainWindow);
-    AddDevice(D,ClassName);
-    D->SetHost(this);
-    for (int i=0;i<PolyDevices.count();i++)
+    qDebug() << "plugin menu" << ClassName;
+    MainMenu->UndoMenu->addItem("Add Device");
+    if (CDeviceComponent* D = addDevice(ClassName))
     {
-        PolyDevices[i].AddDevice(CAddIns::AddInList[MenuIndex].InstanceFunction,ID,MainWindow);
+        D->geometry.setTopLeft(StartPoint);
+        DrawConnections();
     }
-    return true;
 }
 
-void CDesktopComponent::AddDevice(IDevice *Device, const QString& ClassName)
+void CDesktopComponent::MacroMenuClicked(QString ProgramName)
 {
-    CDeviceComponent DC;
-    DC.Name=Device->Name() + QString::number(Device->Index());
-    DC.Init(Device,ClassName);
-    DC.Geometry.setTopLeft(QPoint(100,100));
+    const QStringList Names=ProgramName.split("&&&&&&");
+    MainMenu->UndoMenu->addItem("Add Macro Device");
+    if (CDeviceComponent* D = addDevice(Names[0]))
+    {
+        D->geometry.setTopLeft(StartPoint);
+        CParametersMenu::OpenPreset(D->device(),Names[1]);
+        D->getPic();
+        emit parametersChanged(D->device());
+        SelectDevice(Devices.size()-1);
+    }
+}
+
+CDeviceComponent* CDesktopComponent::addDevice(const QString &ClassName)
+{
+    CDeviceComponent* D = addDevice(ClassName,DeviceList.findFreeIndex(ClassName));
+    if (D) emit deviceAdded(D->device());
+    return D;
+}
+
+CDeviceComponent* CDesktopComponent::addDevice(const QString& ClassName, const int ID)
+{
+    QMutexLocker locker(&mutex);
+    const int MenuIndex=CAddIns::indexOf(ClassName);
+    qDebug() << "addDevice" << ClassName << MenuIndex << ID;
+    if (MenuIndex<0) return nullptr;
+    IDevice* D=DeviceList.createDevice(instancefn(MenuIndex),ID,m_MainWindow);
+    qDebug() << D->deviceID() << "added";
+    CDeviceComponent* DC = (D) ? addDeviceComponent(D,ClassName) : nullptr;
+    return DC;
+}
+
+CDeviceComponent* CDesktopComponent::addDeviceComponent(IDevice *Device, const QString& ClassName)
+{
+    auto DC = new CDeviceComponent(Device,ClassName);
     Devices.append(DC);
-    SelectDevice(Devices.count()-1);
+    SelectDevice(Devices.size()-1);
+    return DC;
 }
 
 void CDesktopComponent::RemoveDevice(IDevice* Device)
 {
-    int Index=DeviceList.IndexOfDevice(Device);
-    DeviceList.RemoveDevice(Index);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        IDevice* D1=PolyDevices[i].Device(Index);
-        PolyDevices[i].RemoveDevice(Index);
-        delete D1;
-    }
-    Devices.removeAt(Index);
-    delete Device;
+    const int Index=DeviceList.indexOfDevice(Device);
+    if (Index==m_DeviceIndex) SelectDevice(-1);
+    QMutexLocker locker(&mutex);
+    emit deviceRemoved(Device);
+    DeviceList.deleteDevice(Device);
+    delete Devices.takeAt(Index);
 }
 
-void CDesktopComponent::DisconnectDevice(IDevice* Device)
+void CDesktopComponent::clear()
 {
-    int Index=DeviceList.IndexOfDevice(Device);
-    DeviceList.DisconnectDevice(Index);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].DisconnectDevice(Index);
-    }
-}
-
-void CDesktopComponent::Clear()
-{
-    emit StopPlaying();
-    m_DeviceIndex=-1;
-    ShowParameters(NULL);
+    emit playStopped();
+    SelectDevice(-1);
+    QMutexLocker locker(&mutex);
+    emit devicesCleared();
     DisconnectJackBar(JackBar1);
     DisconnectJackBar(JackBar2);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Clear();
-    }
-    DeviceList.Clear();
+    DeviceList.clear();
+    qDeleteAll(Devices);
     Devices.clear();
 }
 
 void CDesktopComponent::DisconnectJackBar(CJackBar& JackBar)
 {
-    for (int i=0;i<DeviceList.JackCount();i++)
-    {
-        IJack* J=DeviceList.Jacks(i);
-        if (J->Direction==IJack::In)
-        {
-            for (int i1=0;i1<JackBar.JackCount();i1++)
-            {
-                if (JackBar.GetJack(i1)->Direction==IJack::Out)
-                {
-                    if (JackBar.GetJack(i1)->Owner=="This")
-                    {
-                        CInJack* IJ=(CInJack*)J;
-                        IJ->DisconnectFromOut((COutJack*)JackBar.GetJack(i1));
-                    }
-                }
-            }
-        }
-    }
-    for (int i=0;i<JackBar.JackCount();i++)
-    {
-        if (JackBar.GetJack(i)->Direction==IJack::In)
-        {
-            CInJack* IJ=(CInJack*)JackBar.GetJack(i);
-            for (int i1=0;i1<IJ->OutJackCount();i1++)
-            {
-                IJ->DisconnectFromOut(IJ->OutJack(i1));
-            }
-        }
-    }
-
+    QMutexLocker locker(&mutex);
+    for (int i=0;i<JackBar.jackCount();i++) DeviceList.disconnectJack(JackBar.jack(i)->jackID());
 }
 
-Qt::CursorShape CDesktopComponent::CanConnect(IJack* J1,IJack* J2)
+Qt::CursorShape CDesktopComponent::connectCursor(IJack* J1,IJack* J2)
 {
     if (J1 != J2)
     {
-        if ((DeviceList.CanConnect(J1,J2)) && (!DeviceList.IsConnected(J1,J2)))
-        {
-            setToolTip(DeviceList.JackID(J2));
-            return Qt::PointingHandCursor;
-        }
-        setToolTip(DeviceList.JackID(J2));
-        return Qt::ForbiddenCursor;
+        setToolTip(J2->jackID());
+        return  ((J1->canConnectTo(J2)) && (!J1->isConnectedTo(J2))) ? Qt::PointingHandCursor : Qt::ForbiddenCursor;
     }
     setToolTip(QString());
     return Qt::OpenHandCursor;
 }
 
-void CDesktopComponent::Connect(const QString& J1,const QString& J2)
-{
-    if (DeviceList.IsConnected(J1,J2)) return;
-    DeviceList.Connect(J1,J2);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Connect(J1,J2);
-    }
-}
-
-void CDesktopComponent::Disconnect(const QString& J1,const QString& J2)
-{
-    DeviceList.Disconnect(J1,J2);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Disconnect(J1,J2);
-    }
-}
-
-void CDesktopComponent::Connect(IJack* J1,IJack* J2)
-{
-    Connect(DeviceList.JackID(J1),DeviceList.JackID(J2));
-}
-
 void CDesktopComponent::SetConnectCursor(const QPoint& Pos)
 {
-    IJack* HoverJack=MouseOverJack(Pos);
-    if (HoverJack)
+    if (IJack* HoverJack=MouseOverJack(Pos))
     {
-        setCursor(CanConnect(DragJack,HoverJack));
+        QApplication::restoreOverrideCursor();
+        QApplication::setOverrideCursor(connectCursor(DragJack,HoverJack));
         return;
     }
-    setCursor(Qt::OpenHandCursor);
+    QApplication::restoreOverrideCursor();
     setToolTip(QString());
 }
 
@@ -599,403 +351,290 @@ void CDesktopComponent::ConnectDrop(const QPoint& Pos)
 {
     if (Dragging)
     {
+        MainMenu->UndoMenu->addItem("Add Connection");
         setToolTip(QString());
         Dragging=false;
-        setCursor(Qt::ArrowCursor);
+        QApplication::restoreOverrideCursor();
         IJack* HoverJack=MouseOverJack(Pos);
-        if (HoverJack)
-        {
-            if (CanConnect(DragJack,HoverJack)==Qt::PointingHandCursor)
-            {
-                Connect(DragJack,HoverJack);
-            }
-        }
+        if (HoverJack) DeviceList.connect(HoverJack->jackID(),DragJack->jackID());
         DrawConnections();
+        emit connectionsChanged();
     }
 }
 
-void CDesktopComponent::resizeEvent(QResizeEvent* /*event*/)
-{
-    qDebug() << "ResizeEvent 1";
+void CDesktopComponent::hideRubberband() {
+    if (Rubberband->isVisible()) Rubberband->hide();
+    MarkList.clear();
+    MainMenu->EditMenu->setSelectionStatus(canCopy());
     DrawConnections();
-    qDebug() << "ResizeEvent 2";
 }
 
-void CDesktopComponent::moveEvent(QMoveEvent* /*event*/)
+void CDesktopComponent::resizeEvent(QResizeEvent* event)
 {
-    qDebug() << "MoveEvent 1";
-    DrawConnections();
-    qDebug() << "MoveEvent 2";
+    QGraphicsView::resizeEvent(event);
+    hideRubberband();
 }
 
-void CDesktopComponent::showEvent(QShowEvent* /*event*/)
+bool CDesktopComponent::selectedDeviceIsValid() const
 {
-    qDebug() << "ShowEvent 1";
-    DrawConnections();
-    qDebug() << "ShowEvent 2";
+    return ((m_DeviceIndex>-1) && (m_DeviceIndex < Devices.size()));
+}
+
+bool CDesktopComponent::canCopy() const {
+    return selectedDeviceIsValid() || !MarkList.isEmpty();
 }
 
 void CDesktopComponent::scrollContentsBy(int dx, int dy)
 {
-    qDebug() << "ScrollContents 1";
     QGraphicsView::scrollContentsBy(dx,dy);
-    DrawConnections();
-    qDebug() << "ScrollContents 2";
+    hideRubberband();
+}
+
+void CDesktopComponent::changeZoom(const double zoom)
+{
+    hideRubberband();
+    emit zoomChanged(zoom);
+}
+
+void CDesktopComponent::setZoom(double zoom)
+{
+    zoomer->setZoom(zoom);
+    changeZoom(zoom);
+}
+
+bool CDesktopComponent::findSuffix(const QString &path, const QString &filter) {
+    const QStringList l = filter.split(" ");
+    for (const QString& s : l) if (path.endsWith(s,Qt::CaseInsensitive)) return true;
+    return false;
+}
+
+bool CDesktopComponent::initWithFile(const QString &path, QPoint pos) {
+    QString ClassName;
+    if (findSuffix(path,".wav .mp3 .m4a .mp4 .flac .ogg .au .aif .aiff .aifc .aup")) ClassName = "WaveRecorder";
+    if (path.endsWith(".mid",Qt::CaseInsensitive)) ClassName = "MIDIFile2Wave";
+    if (findSuffix(path,".mus .mxl .musicxml")) ClassName = "ObjectComposer";
+    if (!ClassName.isEmpty()) {
+        if (CDeviceComponent* D = addDevice(ClassName))
+        {
+            MainMenu->UndoMenu->addItem("Add " + ClassName);
+            D->geometry.setTopLeft(QGraphicsView::mapToScene(mapFromGlobal(pos)).toPoint());
+            DeviceList.connect(D->device()->deviceID() + " Out","This Out");
+            D->device()->initWithFile(path);
+            D->device()->execute(true);
+            SelectDevice(Devices.size()-1);
+            return true;
+        }
+    }
+    return false;
 }
 
 void CDesktopComponent::DrawConnections()
 {
     Scene.clear();
     QList<QGraphicsItem*> items;
+
     QRect MaxRect;
-    for (int i=0;i<Devices.count();i++) MaxRect=MaxRect.united(Devices[i].Geometry);
-    MaxRect=MaxRect.united(rect());
-    JackBar1.Geometry=QRect(0,0,MaxRect.width(),12);
-    items.append(JackBar1.Paint(&Scene));
-    JackBar2.Geometry=QRect(0,MaxRect.height()-12,MaxRect.width(),12);
-    items.append(JackBar2.Paint(&Scene));
+    for (const CDeviceComponent* d : std::as_const(Devices)) MaxRect=MaxRect.united(d->geometry);
+    MaxRect=MaxRect.united(QRect((QPoint(0,0)),QGraphicsView::mapToScene(rect().bottomRight()).toPoint()));
+    setSceneRect(MaxRect);
+    JackBar1.geometry=QRect(0,0,MaxRect.width(),CJackBar::height);
+    items.append(JackBar1.paint(&Scene));
+    JackBar2.geometry=QRect(0,MaxRect.height()-CJackBar::height,MaxRect.width(),CJackBar::height);
+    items.append(JackBar2.paint(&Scene));
+    //Scene.addRect(0,CJackBar::height+shadowOffset.y(),shadowOffset.x(),MaxRect.height()-(CJackBar::height+shadowOffset.y()),Qt::NoPen,QBrush(shadowColor));
+    int x = 0;
+    for (int i = 100; i > 0; i = i - 10) {
+        Scene.addLine(x,x + CJackBar::height,x,MaxRect.height()-CJackBar::height,QColor(0,0,0,i));
+        Scene.addLine(x,x + CJackBar::height,MaxRect.width(),x + CJackBar::height,QColor(0,0,0,i));
+        x++;
+    }
     QList<CJackContainer*> paintedContainers;
     paintedContainers.append(&JackBar1);
     paintedContainers.append(&JackBar2);
 
-    for (int i=0;i<Devices.count();i++)
-    {
-        if (i!=m_DeviceIndex)
-        {
-            items.append(Devices[i].Paint(&Scene));
+    for (int i = 0; i < Devices.size(); i++) {
+        if (i!=m_DeviceIndex) {
+            items.append(Devices[i]->paint(&Scene));
             items.append(DrawDeviceConnections(Devices[i],paintedContainers));
         }
     }
 
-    if (m_DeviceIndex>-1)
-    {
-        items.append(Devices[m_DeviceIndex].Paint(&Scene));
-        items.append(DrawDeviceConnections(Devices[m_DeviceIndex],paintedContainers));
+    if (selectedDeviceIsValid()) {
+        items.append(currentDeviceComponent()->paint(&Scene));
+        items.append(DrawDeviceConnections(currentDeviceComponent(),paintedContainers));
     }
-    foreach(QGraphicsItem* i,items) i->setZValue(1);
-    setSceneRect(MaxRect);
+    for(QGraphicsItem* i : items) i->setZValue(1);
 }
 
-QList<QGraphicsItem*> CDesktopComponent::DrawDeviceConnections(CDeviceComponent& Device,QList<CJackContainer*>& paintedContainers)
+QList<QGraphicsItem*> CDesktopComponent::DrawDeviceConnections(CDeviceComponent* Device,QList<CJackContainer*>& paintedContainers)
 {
     QList<QGraphicsItem*> items;
-    for (int j=0;j<Device.JackCount();j++)
-    {
-        for (int k=0;k<paintedContainers.count();k++)
-        {
-            for (int l=0;l<paintedContainers[k]->JackCount();l++)
-            {
-                if (DeviceList.IsConnected(Device.GetJack(j),paintedContainers[k]->GetJack(l)))
-                {
-                    QPoint Pos1=paintedContainers[k]->JackPos(l)+paintedContainers[k]->Geometry.topLeft();
-                    QPoint Pos2=Device.JackPos(j)+Device.Geometry.topLeft();
-                    if (!Device.Geometry.contains(Pos1))
-                    {
-                        if (Device.GetJack(j)->Direction==IJack::In)
-                        {
-                            items.append(DrawArrow(Pos1,Pos2,Device.GetJack(j)->JackColor()));
-                            DrawArrow(Pos1+QPoint(5,5),Pos2+QPoint(5,5),QColor(0,0,0,40));
+    for (int j=0;j<Device->jackCount();j++) {
+        for (const CJackContainer* k : paintedContainers) {
+            for (int l=0;l<k->jackCount();l++) {
+                if (Device->jack(j)->isConnectedTo(k->jack(l))) {
+                    const QPoint Pos1=k->jackPos(l);
+                    const QPoint Pos2=Device->jackPos(j);
+                    if (!Device->geometry.contains(Pos1)) {
+                        QColor c(Device->jack(j)->JackColor());
+                        c.setAlphaF(CPresets::presets().ConnectionsOpacity);
+                        if (Device->jack(j)->isInJack()) {
+                            items.append(CConnectionHelper::DrawArrow(Pos1,Pos2,c,&Scene));
+                            CConnectionHelper::DrawArrow(Pos1+shadowOffset,Pos2+shadowOffset,shadowColor,&Scene);
                         }
-                        else
-                        {
-                            items.append(DrawArrow(Pos2,Pos1,Device.GetJack(j)->JackColor()));
-                            DrawArrow(Pos2+QPoint(5,5),Pos1+QPoint(5,5),QColor(0,0,0,40));
+                        else {
+                            items.append(CConnectionHelper::DrawArrow(Pos2,Pos1,c,&Scene));
+                            CConnectionHelper::DrawArrow(Pos2+shadowOffset,Pos1+shadowOffset,shadowColor,&Scene);
                         }
                     }
                 }
             }
         }
     }
-    paintedContainers.append(&Device);
+    paintedContainers.append(Device);
     return items;
 }
 
-QList<QGraphicsItem*> CDesktopComponent::DrawArrow(const QPoint& OutPoint, const QPoint& InPoint, QColor Color)
+void CDesktopComponent::serializeDevice(IDevice* d, const QRect& geometry, QDomLiteElement* xml) const
 {
-    QList<QGraphicsItem*> items;
-    float theta;
-    const float pi = DoublePi;
-    int L = 6;
-    QPointF s(InPoint-OutPoint);
-    QPoint Mid(InPoint -((InPoint-OutPoint)/2));
-    QPoint Mid14(InPoint-((InPoint-OutPoint)/4));
-    QPoint Mid34(InPoint-(((InPoint-OutPoint)*3)/4));
-
-    QPoint Dist(InPoint-OutPoint);
-    float Distance=sqrt((Dist.x()*Dist.x())+(Dist.y()*Dist.y()))/10;
-
-    if ((InPoint.x()<OutPoint.x()) && (InPoint.y()>OutPoint.y())) Distance=-Distance;
-    if ((InPoint.x()<OutPoint.x()) && (InPoint.y()<OutPoint.y())) Distance=-Distance;
-
-    if (s.x() != 0)
-    {
-        theta = atan(s.y() / s.x());
-        if (s.x() < 0) theta = theta + pi;
-    }
-    else
-    {
-        if (s.y() < 0)
-        {
-            theta = 3 * pi / 2;
-        }
-        else
-        {
-            theta = pi / 2;
-        }
-    }
-    //'rotate direction
-    float theta1 = theta - 3 * pi / 4;
-    //'find end of one side of arrow:
-    QPoint p3((L * cos(theta1)) + Mid.x(),(L * sin(theta1)) + Mid.y());
-    //'rotate other way for other arrow line
-    theta1 = theta1 - pi / 2;
-    QPoint p4((L * cos(theta1)) + Mid.x(),(L * sin(theta1)) + Mid.y());
-
-    theta1 = theta - 2 * pi / 4;
-    QPoint p14((Distance * cos(theta1)) + Mid14.x(),(Distance * sin(theta1)) + Mid14.y());
-    theta1 = theta1 - pi;
-    QPoint p34((Distance * cos(theta1)) + Mid34.x(),(Distance * sin(theta1)) + Mid34.y());
-
-    //'draw the lines
-    QPainterPath path(QPoint(0,0));
-    path.moveTo(OutPoint);
-    path.cubicTo(p34,p14,InPoint);
-    items.append(Scene.addPath(path,Color,Qt::NoBrush));
-    path=QPainterPath(QPoint(0,0));
-    path.moveTo(p3);
-    path.lineTo(Mid);
-    path.lineTo(p4);
-    items.append(Scene.addPath(path,Color,Color));
-    return items;
+    QDomLiteElement* Device = xml->appendChild("Device");
+    Device->setAttribute("Index",d->index());
+    Device->setAttribute("Top",geometry.top());
+    Device->setAttribute("Left",geometry.left());
+    Device->setAttribute("Type",d->name());
+    Device->setAttribute("ClassName",QString(d->name()+".dll"));
+    d->serializeDevice(Device);
 }
 
-void CDesktopComponent::ShowParameters(IDevice* Device)
+void CDesktopComponent::serializeConnection(CInJack* jack, QDomLiteElement* xml) const
 {
-    ParameterPresetsMenu->clear();
-    QString Preset;
-    if (Device != NULL)
+    for (int i=0;i<jack->outJackCount();i++)
     {
-        QString fn=QFileInfo(qApp->applicationDirPath()+"/"+Devices[m_DeviceIndex].Device()->Name()+".ssd").absoluteFilePath();
-        if (QFileInfo(fn).exists())
-        {
-            QDomLiteDocument TempDoc(fn);
-            QDomLiteElement xml1("Preset");
-            DeviceList.SaveParameters(&xml1,Devices[m_DeviceIndex].Device());
-            foreach (QDomLiteElement* e,TempDoc.documentElement->elementsByTag("Preset"))
-            {
-                QString s=e->attribute("PresetName");
-                QAction* a=ParameterPresetsMenu->addAction(s,s);
-                a->setCheckable(true);
-                xml1.setAttribute("PresetName",s);
-                if (xml1.compare(e))
-                {
-                    a->setChecked(true);
-                    Preset=s;
-                }
-            }
-        }
+        QDomLiteElement* Connection = xml->appendChild("Connection","InJack",jack->jackID());
+        Connection->setAttribute("OutJack",jack->outJack(i)->jackID());
     }
-    if (ParameterPresetsMenu->isEmpty())
-    {
-        QAction* a=ParameterPresetsMenu->addAction("No Presets");
-        a->setEnabled(false);
-    }
-    QString Title;
-    if (Device != NULL)
-    {
-        Title=DeviceList.DeviceID(Device);
-        if (!Preset.isEmpty()) Title+=+" ("+Preset+")";
-    }
-    emit UpdateParameters(Device,Title);
 }
 
-const QString CDesktopComponent::Save(const QString& Mode)
-{
-    QDomLiteElement xml(Mode);
-    QDomLiteElement* Items=xml.appendChild("Items");
-    for (int i=0;i<Devices.count();i++)
-    {
-        QDomLiteElement* Device = Items->appendChild("Device");
-        Device->setAttribute("Index",Devices[i].Device()->Index());
-        Device->setAttribute("Top",Devices[i].Geometry.top());
-        Device->setAttribute("Left",Devices[i].Geometry.left());
-        Device->setAttribute("Type",Devices[i].ClassName());
-        Device->setAttribute("ClassName",Devices[i].ClassName()+".dll");
-        DeviceList.SaveParameters(Device,Devices[i].Device());
-    }
-    for (int i=0;i<DeviceList.JackCount();i++)
-    {
-        if (DeviceList.Jacks(i)->Direction==IJack::In)
-        {
-            CInJack* IJ=(CInJack*)DeviceList.Jacks(i);
+void CDesktopComponent::undoSerialize(QDomLiteElement* xml) const {
+    serialize(xml);
+}
 
-            for (int i1=0;i1<IJ->OutJackCount();i1++)
-            {
-                COutJack* OJ=IJ->OutJack(i1);
-                QDomLiteElement* Connection = Items->appendChild("Connection");
-                Connection->setAttribute("InJack",DeviceList.JackID((IJack*)IJ));
-                Connection->setAttribute("OutJack",DeviceList.JackID((IJack*)OJ));
-            }
-        }
-    }
-    if (MainWindow != 0)
+void CDesktopComponent::serialize(QDomLiteElement* xml) const
+{
+    QDomLiteElement* Items=xml->appendChild("Items");
+    for (const CDeviceComponent* dc : Devices) serializeDevice(dc->device(), dc->geometry, Items);
+    emit requestSerializeAutomationXML(Items);
+    for (int i=0;i<DeviceList.inJackCount();i++) serializeConnection(DeviceList.inJack(i),Items);
+    if (m_ParentWindow)
     {
         QDomLiteElement* Position = Items->appendChild("Position");
-        Position->setAttribute("Top",MainWindow->pos().y());
-        Position->setAttribute("Left",MainWindow->pos().x());
-        Position->setAttribute("Height",MainWindow->height());
-        Position->setAttribute("Width",MainWindow->width());
-        Position->setAttribute("Visible",MainWindow->isVisible());
+        Position->setAttribute("Top",m_ParentWindow->pos().y());
+        Position->setAttribute("Left",m_ParentWindow->pos().x());
+        Position->setAttribute("Height",m_ParentWindow->height());
+        Position->setAttribute("Width",m_ParentWindow->width());
+        Position->setAttribute("Visible",m_ParentWindow->isVisible());
     }
-    return xml.toString();
 }
 
-void CDesktopComponent::Load(const QString& XML)
+QPair<QString,QString> CDesktopComponent::unserializeDevice(const QDomLiteElement* xml, const QPoint& StartPoint, bool ReIndex)
 {
-    Clear();
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    qDebug() << XML;
-    QDomLiteElement* Items=xml.elementByTag("Items");
-    if (Items)
+    QPair<QString,QString> r;
+    const QString Name=xml->attribute("Type");
+    int Index=xml->attributeValueInt("Index");
+    if (ReIndex)
     {
-        QDomLiteElementList XMLDevices=Items->elementsByTag("Device");
-        foreach (QDomLiteElement* XMLDevice, XMLDevices)
+        r.first=Name + " " + QString::number(Index);
+        Index=DeviceList.findFreeIndex(Name);
+        r.second=Name + " " + QString::number(Index);
+    }
+    qDebug() << CAddIns::addInNames();
+    if (CDeviceComponent* D = addDevice(Name,Index))
+    {
+        IDevice* d = D->device();
+        emit deviceAdded(d);
+        D->geometry.setTopLeft(QPoint(xml->attributeValueInt("Left"),xml->attributeValueInt("Top"))+StartPoint);
+        DeviceList.unserializeDevice(xml,d);
+        D->getPic();
+        emit parametersChanged(d);
+    }
+    return r;
+}
+
+void CDesktopComponent::unserializeConnection(const QDomLiteElement* xml, const QList<QPair<QString,QString>>& ReIndexer)
+{
+    QString InJack=xml->attribute("InJack");
+    QString OutJack=xml->attribute("OutJack");
+    for (const QPair<QString,QString>& i : ReIndexer)//(int i=0; i < ReIndexer.size(); i++)
+    {
+        if (InJack.contains(i.first)) InJack=i.second + InJack.mid(i.first.length());
+        if (OutJack.contains(i.first)) OutJack=i.second + OutJack.mid(i.first.length());
+    }
+    DeviceList.connect(InJack,OutJack);
+}
+
+void CDesktopComponent::undoUnserialize(const QDomLiteElement* xml) {
+    unserialize(xml);
+}
+
+void CDesktopComponent::unserialize(const QDomLiteElement* xml)
+{
+    if (!xml) return;
+    QMutexLocker locker(&mutex);
+    clear();
+    if (const QDomLiteElement* Items=xml->elementByTag("Items"))
+    {
+        for(const QDomLiteElement* XMLDevice : (const QDomLiteElementList)Items->elementsByTag("Device")) unserializeDevice(XMLDevice);
+        emit requestUnserializeAutomationXML(Items);
+        for(const QDomLiteElement* XMLConnection : (const QDomLiteElementList)Items->elementsByTag("Connection")) unserializeConnection(XMLConnection);
+        if (m_ParentWindow)
         {
-            QString ClassName=XMLDevice->attribute("Type");
-            int Index=XMLDevice->attributeValue("Index");
-            if (AddDevice(ClassName,Index,this))
+            if (const QDomLiteElement* XMLPosition=Items->elementByTag("Position"))
             {
-                Devices.last().Geometry.setTopLeft(QPoint(XMLDevice->attributeValue("Left"),XMLDevice->attributeValue("Top")));
-                LoadParameters(XMLDevice,Devices.last().Device());
-                ShowParameters(Devices.last().Device());
-            }
-        }
-        QDomLiteElementList XMLConnections=Items->elementsByTag("Connection");
-        foreach (QDomLiteElement* XMLConnection,XMLConnections)
-        {
-            Connect(XMLConnection->attribute("InJack"),XMLConnection->attribute("OutJack"));
-        }
-        if (MainWindow != NULL)
-        {
-            QDomLiteElement* XMLPosition=Items->elementByTag("Position");
-            if (XMLPosition)
-            {
-                MainWindow->move(QPoint(XMLPosition->attributeValue("Left"),XMLPosition->attributeValue("Top")));
-                MainWindow->resize(QSize(XMLPosition->attributeValue("Width"),XMLPosition->attributeValue("Height")));
-                MainWindow->setVisible((bool)XMLPosition->attributeValue("Visible"));
+                m_ParentWindow->move(QPoint(XMLPosition->attributeValueInt("Left"),XMLPosition->attributeValueInt("Top")));
+                m_ParentWindow->resize(QSize(XMLPosition->attributeValueInt("Width"),XMLPosition->attributeValueInt("Height")));
+                m_ParentWindow->setVisible(XMLPosition->attributeValueBool("Visible"));
             }
         }
     }
     SelectDevice(0);
+    emit connectionsChanged();
 }
 
-void CDesktopComponent::LoadParameters(QDomLiteElement* Device,IDevice* D)
-{
-    int Index=DeviceList.IndexOfDevice(D);
-    DeviceList.LoadParameters(Device,Index,false);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].LoadParameters(Device,Index,true);
-    }
+void CDesktopComponent::CloseDoc() {
+    emit playStopped();
+    clear();
 }
 
-void CDesktopComponent::OpenFile(const QString& Path)
+void CDesktopComponent::OpenDoc(QString path)
 {
-    emit StopPlaying();
-    QDomLiteDocument Doc(Path);
-    Load(Doc.documentElement->toString());
-    FileName=Path;
-    AddRecentFile(Path);
+    unserialize(CProjectPage::openFile(path).documentElement);
+    emit MilliSecondsChanged();
+    SelectDevice(0);
 }
 
-void CDesktopComponent::SaveFile(const QString& Path)
+void CDesktopComponent::SaveDoc(QString path)
 {
-    QString SavePath=Path;
-    if (SavePath.isEmpty()) SavePath=FileName;
-    if (SavePath.isEmpty()) return;
+    QFileInfo f(path);
+    QString p = _DocumentPath + f.baseName() + ".zip";
     QDomLiteDocument Doc("ObjectStudioProject","Custom");
-    Doc.documentElement->fromString(Save("Custom"));
-    Doc.save(Path);
-    FileName=Path;
-    AddRecentFile(Path);
+    serialize(Doc.documentElement);
+    CProjectPage::saveFile(p,&Doc,this->grab());
 }
 
-void CDesktopComponent::AddRecentFile(const QString &Path)
+int CDesktopComponent::DeviceIndex(const QPoint& Pos) const
 {
-    CPresets::RecentFiles.removeOne(Path);
-    CPresets::RecentFiles.prepend(Path);
-    while (CPresets::RecentFiles.count()>20) CPresets::RecentFiles.removeLast();
-    CreateRecentMenu(RecentMenu);
-    CreateRecentMenu(RecentPopup);
-}
-
-void CDesktopComponent::CreateRecentMenu(QSignalMenu* m)
-{
-    m->clear();
-    foreach(QString s,CPresets::RecentFiles)
-    {
-        QString DisplayString=s;
-        if (s.length()>60) DisplayString="..."+s.right(57);
-        m->addAction(DisplayString,s);
+    if (selectedDeviceIsValid()) {
+        if (currentDeviceComponent()->contains(Pos)) return m_DeviceIndex;
     }
-}
-
-void CDesktopComponent::Play(const bool FromStart)
-{
-    DeviceList.Play(FromStart);
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Play(FromStart);
-    }
-}
-
-void CDesktopComponent::Pause()
-{
-    DeviceList.Pause();
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Pause();
-    }
-}
-
-bool CDesktopComponent::DeviceInsideRect(CDeviceComponent& D)
-{
-    return Rubberband->windowGeometry().translated(mapToScene(0,0).toPoint()).contains(D.Geometry);
-}
-
-int CDesktopComponent::DeviceIndex(const QPoint& Pos)
-{
-    if (m_DeviceIndex>-1)
-    {
-        if (Devices[m_DeviceIndex].InsideMe(Pos)) return m_DeviceIndex;
-    }
-    for (int i=Devices.count()-1;i>=0;i--)
-    {
-        if (Devices[i].InsideMe(Pos))
-        {
-            return i;
-        }
+    for (int i = Devices.size()-1; i >= 0; i--) {
+        if (Devices[i]->contains(Pos)) return i;
     }
     return -1;
 }
 
-void CDesktopComponent::Tick()
+void CDesktopComponent::hideForms()
 {
-    DeviceList.Tick();
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].Tick();
-    }
-}
-
-void CDesktopComponent::HideForms()
-{
-    DeviceList.HideForms();
-    for (int i=0;i<PolyDevices.count();i++)
-    {
-        PolyDevices[i].HideForms();
-    }
+    DeviceList.hideForms();
 }
 
 IJack* CDesktopComponent::MouseOverJack(const QPoint &Pos)
@@ -1006,132 +645,92 @@ IJack* CDesktopComponent::MouseOverJack(const QPoint &Pos)
 
 IJack* CDesktopComponent::MouseOverJack(const QPoint& Pos, QPoint& JackPoint)
 {
-    int JackIndex = JackBar1.InsideJack(Pos);
+    int JackIndex = JackBar1.jackIndex(Pos);
     if (JackIndex > -1)
     {
-        JackPoint=JackBar1.JackPos(JackIndex)+JackBar1.Geometry.topLeft();
-        return JackBar1.GetJack(JackIndex);
+        JackPoint=JackBar1.jackPos(JackIndex);
+        return JackBar1.jack(JackIndex);
     }
-    JackIndex = JackBar2.InsideJack(Pos);
+    JackIndex = JackBar2.jackIndex(Pos);
     if (JackIndex > -1)
     {
-        JackPoint=JackBar2.JackPos(JackIndex)+JackBar2.Geometry.topLeft();
-        return JackBar2.GetJack(JackIndex);
+        JackPoint=JackBar2.jackPos(JackIndex);
+        return JackBar2.jack(JackIndex);
     }
-    if (m_DeviceIndex>-1)
+    if (selectedDeviceIsValid())
     {
-        JackIndex = Devices[m_DeviceIndex].InsideJack(Pos);
+        JackIndex = currentDeviceComponent()->jackIndex(Pos);
         if (JackIndex > -1)
         {
-            JackPoint=Devices[m_DeviceIndex].JackPos(JackIndex)+Devices[m_DeviceIndex].Geometry.topLeft();
-            return Devices[m_DeviceIndex].Device()->GetJack(JackIndex);
+            JackPoint=currentDeviceComponent()->jackPos(JackIndex);
+            return currentDevice()->jack(JackIndex);
         }
     }
-    for (int i=0;i<Devices.count();i++)
+    for(CDeviceComponent* dc : std::as_const(Devices))
     {
-        JackIndex = Devices[i].InsideJack(Pos);
+        JackIndex = dc->jackIndex(Pos);
         if (JackIndex > -1)
         {
-            JackPoint=Devices[i].JackPos(JackIndex)+Devices[i].Geometry.topLeft();
-            return Devices[i].Device()->GetJack(JackIndex);
+            JackPoint=dc->jackPos(JackIndex);
+            return dc->device()->jack(JackIndex);
         }
     }
-    return NULL;
+    return nullptr;
 }
 
-void CDesktopComponent::Activate(IDevice *Device)
+void CDesktopComponent::SelectDevice(IDevice* d)
 {
-    int Index=DeviceList.IndexOfDevice(Device);
-    SelectDevice(Index);
+    if (d) SelectDevice(DeviceList.indexOfDevice(d));
 }
 
 void CDesktopComponent::SelectDevice(const int Index)
 {
     m_DeviceIndex=Index;
-    for (int i=0;i<Devices.count();i++) Devices[i].Select(false);
-    if (Index==-1)
+    for (CDeviceComponent* d : std::as_const(Devices)) d->setSelected(false);
+    if (Index > -1)
     {
-        ShowParameters(NULL);
-    }
-    else
-    {
-        if (Devices.isEmpty())
-        {
+        if (Devices.isEmpty()) {
             SelectDevice(-1);
             return;
         }
-        Devices[Index].Select(true);
-        ShowParameters(Devices[Index].Device());
-        Devices[Index].Device()->RaiseForm();
-    }
-    DrawConnections();
-}
-
-void CDesktopComponent::ToggleConnection(QString JackID)
-{
-    if (DeviceList.IsConnected(JackID,MenuJackID))
-    {
-        DeviceList.Disconnect(JackID,MenuJackID);
-        for (int i=0;i<PolyDevices.count();i++)
-        {
-            PolyDevices[i].Disconnect(JackID,MenuJackID);
-        }
-    }
-    else
-    {
-        DeviceList.Connect(JackID,MenuJackID);
-        for (int i=0;i<PolyDevices.count();i++)
-        {
-            PolyDevices[i].Connect(JackID,MenuJackID);
-        }
+        Devices[Index]->setSelected(true);
+        Devices[Index]->getPic();
+        emit parametersChanged(Devices[Index]->device());
+        MainMenu->EditMenu->setSelectionStatus(canCopy());
+        Devices[Index]->device()->raiseForm();
     }
     DrawConnections();
 }
 
 void CDesktopComponent::mousePressEvent(QMouseEvent *event)
 {
+    qDebug() << "mousePress" << event->pos();
     Rubberband->hide();
+    MarkList.clear();
+    MainMenu->EditMenu->setSelectionStatus(canCopy());
     Dragging=false;
-    DragJack=NULL;
+    DragJack=nullptr;
     MouseDown=true;
-    StartPoint=mapToScene(event->pos().x(),event->pos().y()).toPoint();
-    int DI=DeviceIndex(StartPoint);
-    if (DI > -1)
-    {
-        if (m_DeviceIndex!=DI)
-        {
-            SelectDevice(DI);
-        }
-    }
+    StartPoint=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const int DI=DeviceIndex(StartPoint);
+    if (DI > -1) if (m_DeviceIndex != DI) SelectDevice(DI);
     DragJack=MouseOverJack(StartPoint,DragJackPos);
     if (DragJack)
     {
         if (event->button()==Qt::LeftButton)
         {
-            setCursor(Qt::OpenHandCursor);
+            QApplication::restoreOverrideCursor();
+            QApplication::setOverrideCursor(Qt::OpenHandCursor);
             Dragging=true;
             return;
         }
         if (event->button()==Qt::RightButton)
         {
-            MenuJackID=DeviceList.JackID(DragJack);
-            JackPopup->clear();
-            for (int i=0;i<DeviceList.JackCount();i++)
-            {
-                IJack* J=DeviceList.Jacks(i);
-                if (DeviceList.CanConnect(DragJack,J))
-                {
-                    QAction* a=JackPopup->addAction(DeviceList.JackID(J),DeviceList.JackID(J));
-                    a->setCheckable(true);
-                    a->setChecked(DeviceList.IsConnected(DragJack,J));
-                }
-            }
-            if (JackPopup->actions().count()==0)
-            {
-                QAction* a=JackPopup->addAction("(No Available Connections)");
-                a->setEnabled(false);
-            }
-            JackPopup->popup(mapToGlobal(event->pos()));
+            CConnectionsMenu* m = new CConnectionsMenu(DragJack,&DeviceList,this);
+            connect(m,&CConnectionsMenu::aboutToChange,MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
+            connect(m,&CConnectionsMenu::connectionsChanged,this,&CDesktopComponent::connectionsChanged);
+            connect(m,&CConnectionsMenu::connectionsChanged,this,&CDesktopComponent::DrawConnections);
+            m->popup(mapToGlobal(event->pos()));
             MouseDown=false;
             return;
         }
@@ -1141,20 +740,29 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
         if (event->button()==Qt::LeftButton)
         {
             m_MD=true;
-            setCursor(Qt::PointingHandCursor);
+            QApplication::restoreOverrideCursor();
+            QApplication::setOverrideCursor(Qt::PointingHandCursor);
             Start=StartPoint;
-            StartPos=Devices[DI].Geometry.topLeft();
+            StartPos=Devices[DI]->geometry.topLeft();
             MouseDown=false;
+            DragBackup = new QDomLiteElement("UndoItem");
+            serialize(DragBackup);
             return;
         }
         if (event->button()==Qt::RightButton)
         {
-            MarkList.clear();
-            MarkList.append(Devices[DI].Device());
-            actionPasteParameters->setEnabled(QApplication::clipboard()->text().startsWith("<Parameters"));
-            ParametersMenu->setEnabled((Devices[DI].Device()->ParameterCount() > 0) | (Devices[DI].Device()->HasUI()));
+            QMenu* DeviceMenu=new QMenu(this);
+            DeviceMenu->setAttribute(Qt::WA_DeleteOnClose);
+            DeviceMenu->addActions(MainMenu->EditMenu->actions());
+            DeviceMenu->addSeparator();
+            CParametersMenu* pm = new CParametersMenu(Devices[DI]->device(),this);
+            connect(pm,&CParametersMenu::aboutToChange,MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
+            connect(pm,&CParametersMenu::parametersChanged,this,&CDesktopComponent::parametersChanged);
+            DeviceMenu->addMenu(pm);
+            DeviceMenu->addSeparator();
+            DeviceMenu->addAction("Disconnect",this,&CDesktopComponent::RemoveConnections);
+            DeviceMenu->addAction("Show/Hide UI",this,&CDesktopComponent::toggleUI);
             DeviceMenu->popup(mapToGlobal(event->pos()));
-            //emit DevicePopup(mapToGlobal(event->pos()));
             MouseDown=false;
             return;
         }
@@ -1163,14 +771,41 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
     {
         if (event->button()==Qt::RightButton)
         {
-            MarkList.clear();
             MouseDown=false;
-            PluginsPopup->clear();
-            QStringList plugs=CAddIns::AddInNames();
-            for (int i=0;i<plugs.count();i++) PluginsPopup->addAction(plugs[i],plugs[i]);
-            CreateRecentMenu(RecentMenu);
-            CreateRecentMenu(RecentPopup);
-            actionPaste->setEnabled(QApplication::clipboard()->text().startsWith("<Devices>"));
+            QSignalMenu* PluginsPopup=new QSignalMenu("New Device",this);
+            connect(PluginsPopup,qOverload<QString>(&QSignalMenu::menuClicked),this,&CDesktopComponent::PluginMenuClicked);
+            const QStringList plugs=CAddIns::addInNames();
+            for (const QString& p : plugs) PluginsPopup->addAction(p,p);
+            QMenu* MacrosPopup=new QMenu("Saved Device",this);
+            for (const QString& p : plugs)
+            {
+                const QStringList macros = CProgramBank::programNames(p);
+                QSignalMenu* MacroDevicePopup=nullptr;
+                if (!macros.isEmpty())
+                {
+                    if (!MacroDevicePopup)
+                    {
+                        MacroDevicePopup=new QSignalMenu(p,this);
+                        MacrosPopup->addMenu(MacroDevicePopup);
+                        connect(MacroDevicePopup,qOverload<QString>(&QSignalMenu::menuClicked),this,&CDesktopComponent::MacroMenuClicked);
+                    }
+                    for (const QString& s: macros)
+                    {
+                        MacroDevicePopup->addAction(s,p + "&&&&&&" + s);
+                    }
+                }
+            }
+
+            QMenu* DesktopMenu=new QMenu(this);
+            DesktopMenu->setAttribute(Qt::WA_DeleteOnClose);
+            DesktopMenu->addActions(MainMenu->EditMenu->actions());
+            DesktopMenu->addSeparator();
+            DesktopMenu->addMenu(PluginsPopup);
+            DesktopMenu->addMenu(MacrosPopup);
+            DesktopMenu->addSeparator();
+            DesktopMenu->addActions(MainMenu->FileMenu->actions());
+            DesktopMenu->addSeparator();
+            DesktopMenu->addMenu(MainMenu->RecentMenu);
             DesktopMenu->popup(mapToGlobal(event->pos()));
             return;
         }
@@ -1179,81 +814,71 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
 
 void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
 {
-    QPoint Pos=mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const QPoint Pos=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
     if (Pos==MousePos) return;
     MousePos=Pos;
-    if (m_MD)
+    if (m_MD) //drag device
     {
         if (Pos != Start)
         {
-            Devices[m_DeviceIndex].Geometry.setTopLeft(StartPos+(Pos-StartPoint));
+            currentDeviceComponent()->geometry.setTopLeft(StartPos+(Pos-StartPoint));
             Start=Pos;
             DrawConnections();
         }
         return;
     }
-    if (Dragging)
+    if (Dragging) //drag connection
     {
         SetConnectCursor(Pos);
-        /*
-        for (int i=0;i<DragList.count();i++)
-        {
-            if (Scene.items().contains(DragList[i])) Scene.removeItem(DragList[i]);
-        }
-        */
         DragList.clear();
         DrawConnections();
-        if (DragJack->Direction==IJack::Out)
+        QColor c(DragJack->JackColor());
+        c.setAlphaF(CPresets::presets().ConnectionsOpacity);
+        if (DragJack->isOutJack())
         {
-            DragList.append(DrawArrow(DragJackPos,Pos,DragJack->JackColor()));
-            for (int i=0;i<DragList.count();i++) DragList[i]->setZValue(3);
-            DragList.append(DrawArrow(DragJackPos+QPoint(5,5),Pos+QPoint(5,5),QColor(0,0,0,40)));
+            DragList.append(CConnectionHelper::DrawArrow(DragJackPos,Pos,c,&Scene));
+            for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
+            DragList.append(CConnectionHelper::DrawArrow(DragJackPos+shadowOffset,Pos+shadowOffset,shadowColor,&Scene));
         }
         else
         {
-            DragList.append(DrawArrow(Pos,DragJackPos,DragJack->JackColor()));
-            for (int i=0;i<DragList.count();i++) DragList[i]->setZValue(3);
-            DragList.append(DrawArrow(Pos+QPoint(5,5),DragJackPos+QPoint(5,5),QColor(0,0,0,40)));
+            DragList.append(CConnectionHelper::DrawArrow(Pos,DragJackPos,c,&Scene));
+            for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
+            DragList.append(CConnectionHelper::DrawArrow(Pos+shadowOffset,DragJackPos+shadowOffset,shadowColor,&Scene));
         }
-
         return;
     }
-    else
+    const IJack* HoverJack=MouseOverJack(Pos);
+    (HoverJack) ? setToolTip(HoverJack->jackID()) : setToolTip(QString());
+    if (MouseDown) //rubberband
     {
-        IJack* HoverJack=MouseOverJack(Pos);
-        if (HoverJack)
+        if (DeviceIndex(Pos) == -1)
         {
-            setToolTip(DeviceList.JackID(HoverJack));
+            Rubberband->setGeometry(this->rect());
+            Rubberband->setWindowGeometry(mapFromScene(QRect(StartPoint,Pos).normalized()));
+            if (!Rubberband->isVisible()) Rubberband->show();
         }
-        else
-        {
-            setToolTip(QString());
-        }
-        if (MouseDown)
-        {
-            if (DeviceIndex(Pos) == -1)
-            {
-                Rubberband->setGeometry(this->rect());
-                Rubberband->setWindowGeometry(QRect(StartPoint,Pos).normalized().translated(-mapToScene(0,0).toPoint()));
-                if (!Rubberband->isVisible()) Rubberband->show();
-            }
-        }
-
     }
 }
 
 void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
 {
+    qDebug() << "mouseRelease" << event->pos();
     MouseDown=false;
-    QPoint Pos=mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const QPoint Pos=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    if (DragBackup) {
+        if (Pos != StartPos) MainMenu->UndoMenu->addElement(DragBackup,"Drag");
+        delete DragBackup;
+        DragBackup = nullptr;
+    }
     if (event->button()==Qt::LeftButton)
     {
         if (m_MD)
         {
-            setCursor(Qt::ArrowCursor);
+            QApplication::restoreOverrideCursor();
             if (Pos != Start)
             {
-                Devices[m_DeviceIndex].Geometry.setTopLeft(StartPos+(Pos-StartPoint));
+                currentDeviceComponent()->geometry.setTopLeft(StartPos+(Pos-StartPoint));
                 Start=Pos;
                 DrawConnections();
             }
@@ -1264,15 +889,23 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
     if (Rubberband->isVisible())
     {
         MarkList.clear();
-        for (int i=0;i<Devices.count();i++)
+        QRect MarkRect(mapToScene(Rubberband->windowGeometry()));
+        for(CDeviceComponent* d : std::as_const(Devices))
         {
-            if (DeviceInsideRect(Devices[i])) MarkList.append(Devices[i].Device());
+            if (d->inside(MarkRect)) MarkList.append(d->device());
         }
-        if (MarkList.count())
+        MainMenu->EditMenu->setSelectionStatus(canCopy());
+        if (!MarkList.empty())
         {
-            //emit EditPopup(mapToGlobal(event->pos()));
-            qDebug() << QApplication::clipboard()->text();
-            actionPasteParameters->setEnabled(QApplication::clipboard()->text().startsWith("<Parameters"));
+            QMenu* MarkMenu=new QMenu(this);
+            MarkMenu->setAttribute(Qt::WA_DeleteOnClose);
+            MarkMenu->addActions(MainMenu->EditMenu->actions());
+            MarkMenu->addSeparator();
+            CPasteParametersAction* pp = new CPasteParametersAction(MarkList,MarkMenu);
+            connect(pp,&CPasteParametersAction::aboutToChange,MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
+            MarkMenu->addAction(pp);
+            MarkMenu->addSeparator();
+            MarkMenu->addAction("Disconnect",this,&CDesktopComponent::RemoveConnections);
             MarkMenu->popup(mapToGlobal(event->pos()));
         }
     }
@@ -1281,363 +914,87 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
 void CDesktopComponent::mouseDoubleClickEvent(QMouseEvent *event)
 {
     Dragging=false;
-    DragJack=NULL;
+    DragJack=nullptr;
 
-    QPoint Pos=mapToScene(event->pos().x(),event->pos().y()).toPoint();
-    IJack* J=MouseOverJack(Pos);
-    if (J)
+    QMutexLocker locker(&mutex);
+    QApplication::restoreOverrideCursor();
+    const QPoint Pos=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    if (IJack* J=MouseOverJack(Pos))
     {
-        DeviceList.DisconnectJack(J);
-        for (int i=0;i<PolyDevices.count();i++)
-        {
-            PolyDevices[i].DisconnectJack(J);
-        }
-        setToolTip(DeviceList.JackID(J));
-        setCursor(Qt::ArrowCursor);
+        MainMenu->UndoMenu->addItem("Disconnect");
+        DeviceList.disconnectJack(J->jackID());
+        setToolTip(J->jackID());
         DrawConnections();
+        emit connectionsChanged();
         return;
     }
-    int DI=DeviceIndex(Pos);
-    SelectDevice(DI);
-    Execute();
+    SelectDevice(DeviceIndex(Pos));
+    toggleUI();
     m_MD=false;
 }
 
-void CDesktopComponent::New()
+void CDesktopComponent::NewDoc()
 {
-    Clear();
+    clear();
+    emit connectionsChanged();
     SelectDevice(0);
+    emit MilliSecondsChanged();
 }
 
-void CDesktopComponent::Open()
+void CDesktopComponent::DeleteDoc()
 {
-    QFileDialog d(this);
-    d.setFileMode(QFileDialog::ExistingFile);
-    d.setNameFilter("XML files (*.xml)");
-    if (!FileName.isEmpty())
+    MainMenu->UndoMenu->addItem("Delete");
+    QMutexLocker locker(&mutex);
+    if ((MarkList.isEmpty()) && (selectedDeviceIsValid())) MarkList.append(currentDevice());
+    for(IDevice* d : std::as_const(MarkList)) RemoveDevice(d);
+    SelectDevice(Devices.size()-1);
+}
+
+void CDesktopComponent::CopyDoc(QDomLiteElement* xml)
+{
+    if ((MarkList.empty()) && (selectedDeviceIsValid())) MarkList.append(currentDevice());
+    if (!MarkList.empty())
     {
-        d.selectFile(FileName);
-    }
-    if (d.exec()!=QDialog::Accepted) return;
-    QString fn=d.selectedFiles().first();
-    if (!fn.isEmpty())
-    {
-        if (QFileInfo(fn).exists())
+        QDomLiteElement* devices = xml->appendChild("Devices");
+        for (IDevice* d : std::as_const(MarkList))
         {
-            OpenFile(fn);
+            QRect r=Devices[DeviceList.indexOfDevice(d)]->geometry;
+            (MarkList.size()>1) ? r.translate(-QGraphicsView::mapToScene(Rubberband->windowGeometry().topLeft()).toPoint()) : r.setTopLeft(zeroPoint);
+            serializeDevice(d,r,devices);
         }
-    }
-    SelectDevice(0);
-}
-
-void CDesktopComponent::Save()
-{
-    if (FileName.isEmpty())
-    {
-        SaveAs();
-    }
-    else
-    {
-        SaveFile(FileName);
+        for(IDevice* d : std::as_const(MarkList))
+        {
+            for (int i=0;i<d->inJackCount();i++) serializeConnection(d->inJack(i),devices);
+        }
     }
 }
 
-void CDesktopComponent::SaveAs()
+void CDesktopComponent::PasteDoc(const QDomLiteElement* xml)
 {
-    QString FilePath = QFileDialog::getSaveFileName(this,"Save XML file","","XML files (*.xml)");
-    if(FilePath.isEmpty()) return;
-    SaveFile(FilePath);
-}
-
-void CDesktopComponent::Cut()
-{
-    if ((!MarkList.count()) && (m_DeviceIndex>-1)) MarkList.append(DeviceList.Device(m_DeviceIndex));
-    Copy();
-    for (int i=0;i<MarkList.count();i++)
-    {
-        RemoveDevice(MarkList[i]);
-    }
-    SelectDevice(Devices.count()-1);
-}
-
-void CDesktopComponent::SavePresetAs()
-{
-    QString FileName=QFileInfo(qApp->applicationDirPath()+"/"+Devices[m_DeviceIndex].Device()->Name()+".ssd").absoluteFilePath();
-    QDomLiteDocument* TempDoc;
-    if (QFileInfo(FileName).exists())
-    {
-        TempDoc=new QDomLiteDocument(FileName);
-    }
-    else
-    {
-        TempDoc=new QDomLiteDocument("Presets",Devices[m_DeviceIndex].Device()->Name());
-    }
-    QDomLiteElement* Parameters=NULL;
-    forever
-    {
-        QString InputString=QInputDialog::getText(this,"Name","Enter Preset Name",QLineEdit::Normal,"New Preset");
-        foreach (QDomLiteElement* e,TempDoc->documentElement->elementsByTag("Preset"))
-        {
-            if (e->attribute("PresetName")==InputString)
-            {
-                Parameters=e;
-                break;
-            }
-        }
-        if (!Parameters)
-        {
-            Parameters=TempDoc->documentElement->appendChild("Preset");
-            Parameters->setAttribute("PresetName",InputString);
-            break;
-        }
-        if (QMessageBox::question(this,"Replace Preset?","Replace the Preset "+InputString,QMessageBox::No,QMessageBox::Yes)==QMessageBox::Yes)
-        {
-            Parameters=TempDoc->documentElement->replaceChild(Parameters,"Preset");
-            Parameters->setAttribute("PresetName",InputString);
-            break;
-        }
-        else
-        {
-            return;
+    if (QDomLiteElement* devices = xml->elementByTag("Devices")) {
+        if (devices->childCount()) {
+            MainMenu->UndoMenu->addItem("Paste");
+            QList<QPair<QString,QString>> ReIndexer;
+            for(const QDomLiteElement* XMLDevice : (const QDomLiteElementList)devices->elementsByTag("Device")) ReIndexer.append(unserializeDevice(XMLDevice, StartPoint, true));
+            for(const QDomLiteElement* XMLConnection : (const QDomLiteElementList)devices->elementsByTag("Connection")) unserializeConnection(XMLConnection, ReIndexer);
         }
     }
-    DeviceList.SaveParameters(Parameters,Devices[m_DeviceIndex].Device());
-    TempDoc->save(FileName);
-    ShowParameters(Devices[m_DeviceIndex].Device());
-}
-
-void CDesktopComponent::Copy()
-{
-    if ((!MarkList.count()) && (m_DeviceIndex>-1)) MarkList.append(DeviceList.Device(m_DeviceIndex));
-    if (MarkList.count())
-    {
-        QDomLiteElement xml("Devices");
-        for (int i=0;i<MarkList.count();i++)
-        {
-            QDomLiteElement* XMLDevice=xml.appendChild("Device");
-            XMLDevice->setAttribute("Type",MarkList[i]->Name());
-            XMLDevice->setAttribute("ClassName",MarkList[i]->Name()+".dll");
-            QRect r=Devices[DeviceList.IndexOfDevice(MarkList[i])].Geometry;
-            if (MarkList.count()>1)
-            {
-                r.translate(-Rubberband->windowGeometry().topLeft());
-            }
-            else
-            {
-                r.setTopLeft(QPoint(0,0));
-            }
-            XMLDevice->setAttribute("Top",r.top());
-            XMLDevice->setAttribute("Left",r.left());
-            XMLDevice->setAttribute("Index",MarkList[i]->Index());
-            DeviceList.SaveParameters(XMLDevice,MarkList[i]);
-        }
-        for (int i=0;i<MarkList.count();i++)
-        {
-            for (int i1=0;i1<MarkList[i]->JackCount();i1++)
-            {
-                if (MarkList[i]->GetJack(i1)->Direction==IJack::In)
-                {
-                    CInJack* IJ=(CInJack*)MarkList[i]->GetJack(i1);
-                    for (int i2=0;i2<IJ->OutJackCount();i2++)
-                    {
-                        COutJack* OJ=IJ->OutJack(i2);
-                        QDomLiteElement* XMLConnection=xml.appendChild("Connection");
-                        XMLConnection->setAttribute("InJack",DeviceList.JackID((IJack*)IJ));
-                        XMLConnection->setAttribute("OutJack",DeviceList.JackID((IJack*)OJ));
-                    }
-                }
-            }
-        }
-        QApplication::clipboard()->setText(xml.toString());
-    }
-}
-
-void CDesktopComponent::Paste()
-{
-    QString TempClipBoard=QApplication::clipboard()->text();
-    if (!TempClipBoard.isEmpty())
-    {
-        QDomLiteElement xml;
-        xml.fromString(TempClipBoard);
-        if (xml.tag=="Devices")
-        {
-            if (xml.childCount())
-            {
-                //QPoint Pos=QPointF(mapFromGlobal(this->cursor().pos())).toPoint();
-                //qDebug() << cursor().pos() << Pos;
-                QDomLiteElementList XMLDevices=xml.elementsByTag("Device");
-                QStringList Before;
-                QStringList After;
-                foreach(QDomLiteElement* XMLDevice,XMLDevices)
-                {
-                    QString Name=XMLDevice->attribute("Type");
-                    int Index=XMLDevice->attributeValue("Index");
-                    Before.append(Name + " " + QString::number(Index));
-
-                    int FreeIndex=DeviceList.FindFreeID(Name);
-                    After.append(Name + " " + QString::number(FreeIndex));
-                    if (AddDevice(Name,FreeIndex,this))
-                    {
-                        Devices.last().Geometry.setTopLeft(QPoint(XMLDevice->attributeValue("Left"),XMLDevice->attributeValue("Top"))+StartPoint);
-                        LoadParameters(XMLDevice,Devices.last().Device());
-                        ShowParameters(Devices.last().Device());
-                        //D->Visible=true;
-                    }
-                }
-                QDomLiteElementList XMLConnections=xml.elementsByTag("Connection");
-                foreach(QDomLiteElement* XMLConnection,XMLConnections)
-                {
-                    QString InJack=XMLConnection->attribute("InJack");
-                    QString OutJack=XMLConnection->attribute("OutJack");
-                    for (int i=0; i < Before.count(); i++)
-                    {
-                        if (InJack.contains(Before[i]))
-                        {
-                            InJack=After[i] + InJack.mid(Before[i].length());
-                        }
-                        if (OutJack.contains(Before[i]))
-                        {
-                            OutJack=After[i] + OutJack.mid(Before[i].length());
-                        }
-                    }
-                    Connect(InJack,OutJack);
-
-                }
-            }
-        }
-    }
-    if (m_DeviceIndex < 0)
-    {
-        SelectDevice(0);
-    }
-    else
-    {
-        DrawConnections();
-    }
-}
-
-void CDesktopComponent::RemovePreset(QString PresetName)
-{
-    QString FileName=QFileInfo(qApp->applicationDirPath()+"/"+Devices[m_DeviceIndex].Device()->Name()+".ssd").absoluteFilePath();
-    QDomLiteDocument* TempDoc;
-    if (QFileInfo(FileName).exists())
-    {
-        TempDoc=new QDomLiteDocument(FileName);
-    }
-    else
-    {
-        TempDoc=new QDomLiteDocument("Presets",Devices[m_DeviceIndex].Device()->Name());
-    }
-    QDomLiteElement* Parameters=NULL;
-    foreach (QDomLiteElement* e,TempDoc->documentElement->elementsByTag("Preset"))
-    {
-        if (e->attribute("PresetName")==PresetName)
-        {
-            Parameters=e;
-            break;
-        }
-    }
-    if (Parameters)
-    {
-        TempDoc->documentElement->removeChild(Parameters);
-        TempDoc->save(FileName);
-        ShowParameters(Devices[m_DeviceIndex].Device());
-    }
-}
-
-void CDesktopComponent::OpenPreset(QString PresetName)
-{
-    QString FileName=QFileInfo(qApp->applicationDirPath()+"/"+Devices[m_DeviceIndex].Device()->Name()+".ssd").absoluteFilePath();
-    QDomLiteDocument* TempDoc;
-    if (QFileInfo(FileName).exists())
-    {
-        TempDoc=new QDomLiteDocument(FileName);
-    }
-    else
-    {
-        TempDoc=new QDomLiteDocument("Presets",Devices[m_DeviceIndex].Device()->Name());
-    }
-    QDomLiteElement* Parameters=NULL;
-    foreach (QDomLiteElement* e,TempDoc->documentElement->elementsByTag("Preset"))
-    {
-        if (e->attribute("PresetName")==PresetName)
-        {
-            Parameters=e;
-            break;
-        }
-    }
-    if (Parameters)
-    {
-        LoadParameters(Parameters,Devices[m_DeviceIndex].Device());
-        DrawConnections();
-        ShowParameters(Devices[m_DeviceIndex].Device());
-    }
-}
-
-void CDesktopComponent::CopyParameters()
-{
-    QDomLiteElement xml("Parameters");
-    xml.setAttribute("Type",Devices[m_DeviceIndex].Device()->Name());
-    DeviceList.SaveParameters(&xml,Devices[m_DeviceIndex].Device());
-    QApplication::clipboard()->setText(xml.toString());
-}
-
-void CDesktopComponent::PasteParameters()
-{
-    QString TempClipBoard=QApplication::clipboard()->text();
-    if (!TempClipBoard.isEmpty())
-    {
-        QDomLiteElement xml;
-        xml.fromString(TempClipBoard);
-
-        if (xml.childCount())
-        {
-            if (xml.tag=="Parameters")
-            {
-                QString ClassName=xml.attribute("Type");
-                if (!ClassName.isEmpty())
-                {
-                    if (ClassName==Devices[m_DeviceIndex].Device()->Name())
-                    {
-                        LoadParameters(&xml,Devices[m_DeviceIndex].Device());
-                        ShowParameters(Devices[m_DeviceIndex].Device());
-                    }
-                }
-            }
-        }
-    }
-    DrawConnections();
+    (!selectedDeviceIsValid()) ? SelectDevice(0) : DrawConnections();
+    emit connectionsChanged();
 }
 
 void CDesktopComponent::RemoveConnections()
 {
-    DesktopMenu->hide();
-    if ((!MarkList.count()) && (m_DeviceIndex>-1)) MarkList.append(DeviceList.Device(m_DeviceIndex));
-    for (int i=0;i<MarkList.count();i++)
-    {
-        DisconnectDevice(MarkList[i]);
-    }
+    if ((MarkList.isEmpty()) && (selectedDeviceIsValid())) MarkList.append(currentDevice());
+    MainMenu->UndoMenu->addItem("Disconnect Device");
+    for(IDevice* d : std::as_const(MarkList)) DeviceList.disconnectDevice(d);
+    DrawConnections();
+    emit connectionsChanged();
+}
+
+void CDesktopComponent::toggleUI()
+{
+    if (selectedDeviceIsValid()) currentDevice()->toggleUI();
     DrawConnections();
 }
 
-void CDesktopComponent::Execute()
-{
-    if (m_DeviceIndex>-1)
-    {
-        for (int i=0;i<PolyDevices.count();i++)
-        {
-            PolyDevices[i].Device(m_DeviceIndex)->Execute(false);
-        }
-        DeviceList.Device(m_DeviceIndex)->Execute(true);
-    }
-    DrawConnections();
-}
-
-void CDesktopComponent::ParameterPopup(QPoint Pos)
-{
-    if (m_DeviceIndex>-1)
-    {
-        ParametersMenu->setEnabled((DeviceList.Device(m_DeviceIndex)->ParameterCount() > 0) | (DeviceList.Device(m_DeviceIndex)->HasUI()));
-    }
-    ParametersMenu->popup(Pos);
-}

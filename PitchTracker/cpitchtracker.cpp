@@ -1,55 +1,51 @@
 #include "cpitchtracker.h"
 
-
-CPitchTracker::CPitchTracker()
+CPitchTracker::CPitchTracker() : PD(presets.SampleRate)//, m_FFTTracker(presets.SampleRate)
 {
 }
 
-CPitchTracker::~CPitchTracker() {
-    if (m_Initialized)
-    {
-        delete PT;
-    }
-}
-
-void CPitchTracker::Init(const int Index, void *MainWindow) {
+void CPitchTracker::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
-    PT=new CPitchTrackerClass(m_BufferSize*BufferCount,m_Presets.SampleRate);
-    BufferFill=0;
     LastNote=0;
-    BufferDivide=2;
-    NewBufferDivide=2;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveIn();
-    AddJack("Frequency Out",IJack::Frequency,IJack::Out,jnFrequencyOut);
-    AddJack("MIDI Frequency Out",IJack::Frequency,IJack::Out,jnMIDIFreqOut);
-    AddJackMIDIOut(jnMIDIOut);
-    AddJack("Difference Out",IJack::Pitch,IJack::Out,jnDiffOut);
-    AddParameterPercent("Threshold");
-    AddParameterTune();
-    AddParameter(ParameterType::SelectBox,"Range Priority","",0,3,0,"Very High§High§Low§Very Low",1);
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackWaveIn();
+    addJackModulationOut(jnFrequencyOut,"Frequency Out");
+    addJackModulationOut(jnMIDIFreqOut,"MIDI Frequency Out");
+    addJackMIDIOut(jnMIDIOut);
+    addJackModulationOut(jnDiffOut,"Difference Out");
+    addParameterPercent("Threshold");
+    addParameterTune();
+    addParameter(CParameter::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",presets.HalfRate*0.5);
+    addParameter(CParameter::Numeric,"Rate","mSec",10,1000,0,"",10);
+    addParameter(CParameter::Numeric,"Overlap","Samples",0,240,0,"",0);
+    tuneFactor=1;
+    updateDeviceParameter();
 }
 
-float CPitchTracker::GetNext(const int ProcIndex) {
+float CPitchTracker::getNext(const int ProcIndex) {
     float Retval=0;
     if (m_Process)
     {
         m_Process=false;
-        Process();
+        process();
     }
+    CPitchDetect::PitchRecord r=PD.CurrentPitchRecord();
     if (ProcIndex==jnFrequencyOut)
     {
-        Retval=PT->CurrentFreq/BufferDivide;
+        //Retval=PT.CurrentFreq/BufferDivide;
+        Retval=freq2voltagef(r.Pitch);
     }
     if (ProcIndex==jnMIDIFreqOut)
     {
-        Retval=PT->CurrentMIDIFreq/BufferDivide;
+        //Retval=PT.CurrentMIDIFreq/BufferDivide;
+        Retval=MIDIkey2voltagef(r.MidiKey);//freq2voltagef(MIDIkey2Freqf(r.MidiNote));
     }
     if (ProcIndex==jnDiffOut)
     {
-        Retval=PT->CurrentDiff;
+        //Retval=PT.CurrentDiff;
+        Retval=r.MidiCents/1200.f;
     }
+    /*
     if (BufferFill==0)
     {
         if (NewBufferDivide!=BufferDivide)
@@ -57,94 +53,61 @@ float CPitchTracker::GetNext(const int ProcIndex) {
             BufferDivide=NewBufferDivide;
         }
     }
+    */
     return Retval;
 }
 
-void CPitchTracker::Process() {
-    float* Input=FetchA(jnIn);
-    if (!Input)
-    {
-        BufferFill=0;
-        return;
-    }
-    // Get coefficients
-    int BSize=m_BufferSize/BufferDivide;
-    int Offset=BufferFill*BSize;
-    for (int i=0; i<BSize; i++)
-    {
-        *(PT->coeffs+i+Offset) = (double)*(Input+(i*BufferDivide));//*Factor1;
-    }
-    BufferFill++;
-    if (BufferFill<BufferDivide*BufferCount)
-    {
-        return;
-    }
-
-
-    BufferFill=0;
-    PT->Process();
+void CPitchTracker::process() {
+    const CMonoBuffer* Input = FetchAMono(jnIn);
+    if (!Input->isValid()) return;
+    QMutexLocker locker(&mutex);
+    //m_FFTTracker.process(Input->data(),presets.ModulationRate);
+    PD.ProcessBuffer(Input->data(),presets.ModulationRate);
+    //m_BAC.appendBuffer(Input->data(),presets.ModulationRate);
 }
 
-void *CPitchTracker::GetNextP(int) {
+CMIDIBuffer *CPitchTracker::getNextP(int) {
     if (m_Process)
     {
         m_Process=false;
-        Process();
+        process();
     }
-    MIDIBuffer.Reset();
-    if (PT->CurrentVel)
+    MIDIBuffer.clear();
+    CPitchDetect::PitchRecord r=PD.CurrentPitchRecord();
+    if (r.MidiKey)
     {
-        if (PT->CurrentNote != LastNote)
+        if (r.MidiKey != LastNote)
         {
             if (LastNote)
             {
                 //LastNote Off
-                MIDIBuffer.Push(0x80,LastNote-(12*(BufferDivide >>1)),0);
+                MIDIBuffer.append(0x80,LastNote,0);
             }
-            if (PT->CurrentNote)
+            if (r.MidiKey)
             {
-                MIDIBuffer.Push(0x90,PT->CurrentNote-(12*(BufferDivide >>1)),PT->CurrentVel);
+                qDebug() << r.Pitch << r.MidiKey << r.MidiCents << MIDIkey2Freqf(r.MidiKey) << r.MidiCents/1200.f;
+                MIDIBuffer.append(0x90,r.MidiKey,127);
             }
         }
 
-        LastNote=PT->CurrentNote;
+        LastNote=r.MidiKey;
     }
     else
     {
         if (LastNote)
         {
-            MIDIBuffer.Push(0x80,LastNote-(12*(BufferDivide >>1)),0);
+            MIDIBuffer.append(0x80,LastNote,0);
 
             LastNote=0;
         }
     }
-    if (BufferFill==0)
-    {
-        if (NewBufferDivide!=BufferDivide)
-        {
-            BufferDivide=NewBufferDivide;
-        }
-    }
-    return (void*)&MIDIBuffer;
+    return &MIDIBuffer;
 }
 
-void CPitchTracker::CalcParams() {
-    PT->Threshold=m_ParameterValues[pnThreshold]*0.01;
-    PT->InTune=m_ParameterValues[pnTune]*0.01;
-    PT->OutTune=PT->InTune;
-    switch (m_ParameterValues[pnPriority])
-    {
-    case 0:
-        NewBufferDivide=1;
-        break;
-    case 1:
-        NewBufferDivide=2;
-        break;
-    case 2:
-        NewBufferDivide=4;
-        break;
-    case 3:
-        NewBufferDivide=8;
-        break;
-    }
+void CPitchTracker::updateDeviceParameter(const CParameter* /*p*/) {
+    PD.setTune(m_Parameters[pnTune]->PercentValue);
+    PD.setDetectLevelThreshold(m_Parameters[pnThreshold]->PercentValue);
+    PD.setMaxDetectFrequency(m_Parameters[pnMaxFreq]->Value);
+    PD.setPitchRecordsPerSecond(1000/m_Parameters[pnRate]->Value);
+    PD.setOverlap(m_Parameters[pnOverlap]->Value);
 }

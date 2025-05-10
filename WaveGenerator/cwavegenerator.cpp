@@ -3,407 +3,309 @@
 
 CWaveGenerator::CWaveGenerator()
 {
-    WaveFiles=SingleWaveMap::getInstance();
-    Audio=0;
-    WF=0;
+    WF=nullptr;
     Init();
 }
 
 CWaveGenerator::~CWaveGenerator()
 {
-    if (WaveFiles->contains(m_Path.toLower()))
-    {
-        if (--WF->refCount==0)
-        {
-            delete WF;
-            WaveFiles->remove(m_Path.toLower());
-            qDebug() << "Delete Wavefile Ref";
-        }
-    }
-    if (Audio)
-    {
-        delete [] Audio;
-    }
+    Unref();
     qDebug() << "Exit WaveGenerator";
 }
 
-bool CWaveGenerator::open(const QString& path, unsigned int SampleRate, unsigned int BufferSize)
+void CWaveGenerator::Unref()
 {
-    Buffer=0;
-    Length=0;
-    m_Path=QFileInfo(path).absoluteFilePath();
-    m_SampleRate=SampleRate;
-    m_BufferSize=BufferSize;
-    if (WaveFiles->contains(m_Path.toLower()))
+    if (WF!=nullptr)
     {
-        WF=WaveFiles->value(m_Path.toLower());
-        WF->refCount++;
-        qDebug() << "Use Existing Wavefile Ref" << WF->refCount;
+        CSingleMap<QString,CWaveFile>::removeItem(m_Path.toLower());
+        m_Path.clear();
+        WF=nullptr;
     }
-    else
+}
+
+bool CWaveGenerator::load(const QString& path, uint SampleRate, uint BufferSize)
+{
+    QMutexLocker locker(&mutex);
+    m_Size=0;
+    Unref();
+    m_Path=QFileInfo(path).absoluteFilePath();
+    m_BufferSize=BufferSize;
+    if (!QFileInfo::exists(m_Path)) return false;
+    WF=CSingleMap<QString,CWaveFile>::addItem(m_Path.toLower());
+    if (WF->refCount==1)
     {
-        WF=new CWaveFile;
-        if (WF->open(m_Path,SampleRate))
+        if (!WF->load(m_Path,SampleRate))
         {
-            WaveFiles->insert(m_Path.toLower(),WF);
-            WF->refCount++;
-            qDebug() << "New Wavefile Ref" << WF->refCount;
-        }
-        else
-        {
-            m_Path="";
-            delete WF;
+            Unref();
             return false;
         }
     }
     Init();
-    Buffer=WF->data;
-    Channels=WF->channels;
-    Audio=new float[BufferSize*Channels];
-    ZeroMemory(Audio,BufferSize*sizeof(float)*Channels);
-    Length=WF->Length;
-    LP.End=Length;
+    m_Audio.initZero(BufferSize,WF->data.channels());
+    m_Size=WF->data.size();
+    LP.End=m_Size;
     return true;
 }
 
 void inline CWaveGenerator::Init()
 {
-    Pointer=0;
-    Finished=true;
-    Buffer=0;
-    Length=0;
-    LP.Start=0;
-    LP.End=0;
-    LP.LoopStart=0;
-    LP.LoopEnd=0;
-    LP.MIDINote=69;
-    LP.Tune=0;
-    LP.XFade=0;
-    LP.LoopType=ltForward;
-    Position=0;
-    OrigFreq=440;
-    SampleState=ssSilent;
+    m_Pointer=0;
+    m_Finished=true;
+    m_Size=0;
+    LP.reset();
+    m_Position=0;
+    m_OrigFreq=440;
+    m_SampleState=ssSilent;
 }
 
-float* CWaveGenerator::GetNext(void)
+void CWaveGenerator::finishBuffer(const uint fromPtr)
 {
-    if (Finished)
+    m_Finished=true;
+    for (uint c=0; c < m_Audio.channels(); c++)
     {
-        return NULL;
+        zeroMemory(m_Audio.dataPointer(fromPtr,c),m_BufferSize-fromPtr);
     }
-    for (unsigned int i = 0; i < m_BufferSize; i++)
-    {
-        if (Pointer>=Length)
-        {
-            Finished=true;
-            for (int c=0; c < Channels; c++)
-            {
-                Audio[i+(m_BufferSize*c)]=0;
-            }
-        }
-        else
-        {
-            for (int c=0; c < Channels; c++)
-            {
-                Audio[i+(m_BufferSize*c)]=*(Buffer+(size_t)Pointer+(Length*c));
-            }
-            Pointer++;
-        }
-    }
-    return Audio;
 }
 
-float* CWaveGenerator::GetNext(int RateOverride)
+float* CWaveGenerator::getNext()
 {
-    if (Finished)
-    {
-        return NULL;
-    }
-    float OverrideFactor=(float)RateOverride/(float)WF->frequency;
-    if (OverrideFactor==0) OverrideFactor=1;
-    for (unsigned int i = 0; i < m_BufferSize; i++)
-    {
-        if (Pointer>=Length)
-        {
-            Finished=true;
-            for (int c=0; c < Channels; c++)
-            {
-                Audio[i+(m_BufferSize*c)]=0;
-            }
-        }
-        else
-        {
-            for (int c=0; c < Channels; c++)
-            {
-                Audio[i+(m_BufferSize*c)]=*(Buffer+(size_t)Pointer+(Length*c));
-            }
-            Pointer+=OverrideFactor;
-        }
-    }
-    return Audio;
+    if (m_Finished) return nullptr;
+    const uint len=uint(qMin<ldouble>(m_Size-m_Pointer,m_BufferSize));
+    if (len < m_BufferSize) finishBuffer(len);
+    if (len==0) return nullptr;
+    m_Audio.copy(WF->data,ulong64(m_Pointer),len);
+    m_Pointer+=len;
+    return m_Audio.data();
 }
 
-float* CWaveGenerator::GetNext(const float& Frequency)
+float* CWaveGenerator::getNextSpeed(const double Speed)
 {
-    if (SampleState==ssSilent) return NULL;
+    if (m_Finished) return nullptr;
+    if (isOne(Speed) || (isZero(Speed))) return getNext();
+    for (uint i = 0; i < m_BufferSize; i++)
+    {
+        if (m_Pointer >= m_Size)
+        {
+            finishBuffer(i);
+            break;
+        }
+        m_Audio.setX(i,WF->data,ulong64(m_Pointer));
+        m_Pointer+=ldouble(Speed);
+    }
+    return m_Audio.data();
+}
+
+float* CWaveGenerator::getNextRate(const double RateOverride)
+{
+    return (m_Finished) ? nullptr : getNextSpeed(RateOverride/WF->frequency);
+}
+
+float* CWaveGenerator::getNextFreq(const double Frequency)
+{
+    if (m_SampleState==ssSilent) return nullptr;
+    double OverrideFactor=Frequency/m_OrigFreq;
+    if (isZero(OverrideFactor)) OverrideFactor=1;
     float XFadeVol=0;
-    for (unsigned int i = 0; i < m_BufferSize; i++)
+    for (uint i = 0; i < m_BufferSize; i++)
     {
         float Vol=1.0;
         switch (LP.LoopType)
         {
         case ltForward:
-            if (SampleState==ssStarting)
+            if (m_SampleState==ssStarting)
             {
-                Position=LP.Start;
-                if (LP.LoopStart<LP.LoopEnd)
-                {
-                    SampleState=ssLooping;
-                }
-                else
-                {
-                    SampleState=ssEnding;
-                }
+                m_Position=LP.Start;
+                m_SampleState = (LP.LoopStart<LP.LoopEnd) ? ssLooping : ssEnding;
             }
-            else if (SampleState==ssLooping)
+            else if (m_SampleState==ssLooping)
             {
-                while (Position>LP.LoopEnd) Position-=LP.LoopEnd-LP.LoopStart;
+                while (m_Position>LP.LoopEnd) m_Position-=LP.LoopEnd-LP.LoopStart;
             }
             else
             {
-                if ((Position >= LP.End) | (Position >= Length)) SampleState=ssSilent;
+                if ((m_Position >= LP.End) | (m_Position >= m_Size)) m_SampleState=ssSilent;
             }
-            if (Position<0)
+            if (m_Position<0)
             {
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=0;
+                m_Audio.zeroAtX(i);//m_Audio[i+(m_BufferSize*c)]=0;
             }
-            else if ((Position >= LP.End) | (Position >= Length))
+            else if ((m_Position >= LP.End) | (m_Position >= m_Size))
             {
-                SampleState=ssSilent;
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=0;
+                m_SampleState=ssSilent;
+                m_Audio.zeroAtX(i);//m_Audio[i+(m_BufferSize*c)]=0;
             }
             else
             {
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=*(Buffer+(size_t)Position+(Length*c));
+                m_Audio.setX(i,WF->data,ulong64(m_Position));
+                //for (int c=0; c < m_Audio.channels(); c++) m_Audio.set(i,c,WF->data.get(m_Position,c));//m_Audio[i+(m_BufferSize*c)]=*(m_Buffer+(ulong64)m_Position+(m_Size*c));
             }
-            if (Frequency>0)
-            {
-                Position+=Frequency/OrigFreq;
-            }
-            else
-            {
-                Position++;
-            }
+            m_Position+=ldouble(OverrideFactor);
             break;
         case ltAlternate:
-            if (SampleState==ssStarting)
+            if (m_SampleState==ssStarting)
             {
-                Position=LP.Start;
-                if (LP.LoopStart<LP.LoopEnd)
-                {
-                    SampleState=ssLooping;
-                }
-                else
-                {
-                    SampleState=ssEnding;
-                }
+                m_Position=LP.Start;
+                m_SampleState = (LP.LoopStart<LP.LoopEnd) ? ssLooping : ssEnding;
             }
-            else if (SampleState==ssLooping)
+            else if (m_SampleState==ssLooping)
             {
-                if (AlternateDirection==1)
-                {
-                    if (Position>=LP.LoopEnd) AlternateDirection=-1;
+                if (AlternateDirection==1) {
+                    if (m_Position>=LP.LoopEnd) AlternateDirection=-1;
                 }
-                else if (AlternateDirection==-1)
-                {
-                    if (Position<=LP.LoopStart) AlternateDirection=1;
+                else if (AlternateDirection==-1) {
+                    if (m_Position<=LP.LoopStart) AlternateDirection=1;
                 }
             }
             else
             {
                 if (AlternateDirection==-1)
                 {
-                    if (Position<=LP.LoopStart) AlternateDirection=1;
+                    if (m_Position<=LP.LoopStart) AlternateDirection=1;
                 }
-                if ((Position >= LP.End) | (Position >= Length)) SampleState=ssSilent;
+                if ((m_Position >= LP.End) | (m_Position >= m_Size)) m_SampleState=ssSilent;
             }
-            if (Position<0)
+            if (m_Position<0)
             {
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=0;
+                m_Audio.zeroAtX(i);//m_Audio[i+(m_BufferSize*c)]=0;
             }
-            else if ((Position >= LP.End) | (Position >= Length))
+            else if ((m_Position >= LP.End) | (m_Position >= m_Size))
             {
-                SampleState=ssSilent;
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=0;
+                m_SampleState=ssSilent;
+                m_Audio.zeroAtX(i);//m_Audio[i+(m_BufferSize*c)]=0;
             }
             else
             {
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=*(Buffer+(size_t)Position+(Length*c));
+                m_Audio.setX(i,WF->data,ulong64(m_Position));
+                //for (int c=0; c < m_Audio.channels(); c++) m_Audio.set(i,c,WF->data.get(m_Position,c));//m_Audio[i+(m_BufferSize*c)]=*(m_Buffer+(ulong64)m_Position+(m_Size*c));
             }
-            if (Frequency>0)
-            {
-                Position+=(Frequency/OrigFreq)*AlternateDirection;
-            }
-            else
-            {
-                Position+=AlternateDirection;
-            }
+            m_Position+=ldouble(OverrideFactor*AlternateDirection);
             break;
         case ltXFade:
-            if (SampleState==ssStarting)
+            if (m_SampleState==ssStarting)
             {
-                Position=LP.Start;
+                m_Position=LP.Start;
                 XFadePosition=LP.Start;
-                if (LP.LoopStart<LP.LoopEnd)
-                {
-                    SampleState=ssLooping;
-                }
-                else
-                {
-                    SampleState=ssEnding;
-                }
+                m_SampleState = (LP.LoopStart<LP.LoopEnd) ? ssLooping : ssEnding;
             }
-            else if (SampleState==ssLooping)
+            else if (m_SampleState==ssLooping)
             {
-                if (XFadeFactor)
+                if (!isZero(XFadeFactor))
                 {
                     if (!XFadeStarted)
                     {
-                        if (Position>XFadeEnd) XFadeStarted=true;
+                        if (m_Position>XFadeEnd) XFadeStarted=true;
                     }
                     if (XFadeStarted)
                     {
                         XFadeVol=0;
-                        if (Position>XFadeEnd && Position<LP.LoopEnd)
+                        if (m_Position>XFadeEnd && m_Position<LP.LoopEnd)
                         {
-                            float diff=LP.LoopEnd-Position;
-                            XFadeVol=(LP.XFade-diff)*XFadeFactor;
+                            const double diff=double(LP.LoopEnd-m_Position);
+                            XFadeVol=float(LP.XFade-diff)*XFadeFactor;
                             XFadePosition=LP.LoopStart-diff;
                         }
-                        if (Position<XFadeStart && Position>LP.LoopStart)
+                        if (m_Position<XFadeStart && m_Position>LP.LoopStart)
                         {
-                            float diff=Position-LP.LoopStart;
-                            XFadeVol=(LP.XFade-diff)*XFadeFactor;
+                            const double diff=double(m_Position-LP.LoopStart);
+                            XFadeVol=float(LP.XFade-diff)*XFadeFactor;
                             XFadePosition=LP.LoopEnd+diff;
                         }
-                        Vol=1.0-XFadeVol;
+                        Vol=1.f-XFadeVol;
                     }
-                    while (Position>LP.LoopEnd) Position-=LP.LoopEnd-LP.LoopStart;
+                    while (m_Position>LP.LoopEnd) m_Position-=LP.LoopEnd-LP.LoopStart;
                 }
                 else
                 {
-                    while (Position>LP.LoopEnd) Position-=LP.LoopEnd-LP.LoopStart;
+                    while (m_Position>LP.LoopEnd) m_Position-=LP.LoopEnd-LP.LoopStart;
                 }
             }
             else
             {
-                if (XFadeFactor)
+                if (!isZero(XFadeFactor))
                 {
                     if (XFadeStarted)
                     {
                         XFadeVol=0;
-                        if (Position>XFadeEnd && Position<LP.LoopEnd)
+                        if (m_Position>XFadeEnd && m_Position<LP.LoopEnd)
                         {
-                            float diff=LP.LoopEnd-Position;
-                            XFadeVol=(LP.XFade-diff)*XFadeFactor;
+                            const double diff=double(LP.LoopEnd-m_Position);
+                            XFadeVol=float(LP.XFade-diff)*XFadeFactor;
                             XFadePosition=LP.LoopStart-diff;
                         }
-                        if (Position<XFadeStart && Position>LP.LoopStart)
+                        if (m_Position<XFadeStart && m_Position>LP.LoopStart)
                         {
-                            float diff=Position-LP.LoopStart;
-                            XFadeVol=(LP.XFade-diff)*XFadeFactor;
+                            const double diff=double(m_Position-LP.LoopStart);
+                            XFadeVol=float(LP.XFade-diff)*XFadeFactor;
                             XFadePosition=LP.LoopEnd+diff;
                         }
-                        if (Position<(LP.LoopEnd+LP.XFade) && Position>LP.LoopEnd)
+                        if (m_Position<(LP.LoopEnd+ulong64(LP.XFade)) && m_Position>LP.LoopEnd)
                         {
-                            float diff=Position-LP.LoopEnd;
-                            XFadeVol=(LP.XFade-diff)*XFadeFactor;
+                            const double diff=double(m_Position-LP.LoopEnd);
+                            XFadeVol=float(LP.XFade-diff)*XFadeFactor;
                             XFadePosition=LP.LoopStart+diff;
                         }
-                        Vol=1.0-XFadeVol;
+                        Vol=1.f-XFadeVol;
                     }
                 }
-                if ((Position >= LP.End) | (Position >= Length)) SampleState=ssSilent;
+                if ((m_Position >= LP.End) | (m_Position >= m_Size)) m_SampleState=ssSilent;
             }
-            if (Position<0)
+            if (m_Position<0)
             {
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=0;
+                m_Audio.zeroAtX(i);//m_Audio[i+(m_BufferSize*c)]=0;
             }
-            else if ((Position >= LP.End) | (Position >= Length))
+            else if ((m_Position >= LP.End) | (m_Position >= m_Size))
             {
-                SampleState=ssSilent;
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=0;
+                m_SampleState=ssSilent;
+                m_Audio.zeroAtX(i);//m_Audio[i+(m_BufferSize*c)]=0;
             }
             else
             {
-                for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]=*(Buffer+(size_t)Position+(Length*c))*Vol;
+                m_Audio.setX(i,WF->data,ulong64(m_Position),Vol);
+                //for (int c=0; c < m_Audio.channels(); c++) m_Audio.set(i,c,WF->data.get(m_Position,c)*Vol);//m_Audio[i+(m_BufferSize*c)]=*(m_Buffer+(ulong64)m_Position+(m_Size*c))*Vol;
             }
 
-            if (XFadeFactor)
+            if (XFadeFactor > 0)
             {
-                if (XFadeVol)
+                if (XFadeVol > 0)
                 {
-                    if (XFadePosition>=0 && XFadePosition<Length)
+                    if ((XFadePosition >= 0) && (XFadePosition < m_Size))
                     {
-                        for (int c=0; c < Channels; c++) Audio[i+(m_BufferSize*c)]+=*(Buffer+(size_t)XFadePosition+(Length*c))*XFadeVol;
+                        m_Audio.addX(i,WF->data,ulong64(XFadePosition),XFadeVol);
+                        //for (int c=0; c < m_Audio.channels(); c++) m_Audio.set(i,c,WF->data.get(XFadePosition,c)*XFadeVol);//m_Audio[i+(m_BufferSize*c)]+=*(m_Buffer+(ulong64)XFadePosition+(m_Size*c))*XFadeVol;
                     }
                 }
             }
-
-            if (Frequency>0)
-            {
-                Position+=Frequency/OrigFreq;
-            }
-            else
-            {
-                Position++;
-            }
-            break;
-        default:
-            return NULL;
+            m_Position+=ldouble(OverrideFactor);
         }
     }
-    return Audio;
+    return m_Audio.data();
 }
 
-size_t CWaveGenerator::GetLength()
+void CWaveGenerator::reset()
 {
-    return Length;
-}
-
-void CWaveGenerator::Reset()
-{
-    Pointer=0;
-    Finished=false;
-    SampleState=ssStarting;
+    m_Pointer=0;
+    m_Finished=false;
+    m_SampleState=ssStarting;
     AlternateDirection=1;
-    XFadeFactor=0;
-    if (LP.XFade) XFadeFactor=(1.0/LP.XFade)*0.5;
-    XFadeStart=LP.LoopStart+LP.XFade;
-    XFadeEnd=LP.LoopEnd-LP.XFade;
+    XFadeFactor = (LP.XFade) ? XFadeFactor=(1.f/LP.XFade)*0.5f : 0;
+    XFadeStart=LP.LoopStart+ulong64(LP.XFade);
+    XFadeEnd=LP.LoopEnd-ulong64(LP.XFade);
 
-    //float TempTune=(float)(1000-LP.Tune)*0.001;
-    float TempTune=pow(2.0,(float)(LP.Tune)*0.001);
-    //if (TempTune<1) TempTune=((TempTune-1)*0.5)+1;
-    OrigFreq=MIDItoFreq(LP.MIDINote,440.0*TempTune);
+    m_OrigFreq=MIDIkey2Freq(LP.MIDIKey,440.0,LP.MIDICents);
     XFadeStarted=false;
 }
 
-void CWaveGenerator::Release()
+void CWaveGenerator::release()
 {
-    if (SampleState != ssSilent)
+    if (m_SampleState != ssSilent)
     {
-        SampleState=ssEnding;
+        m_SampleState=ssEnding;
     }
 }
 
-float* CWaveGenerator::BufferPointer(const int& Channel)
+void CWaveGenerator::skipTo(const ulong64 Ptr)
 {
-    return Buffer+(Length*Channel);
+    m_Pointer=Ptr;
 }
 
-void CWaveGenerator::SetPointer(const size_t& Ptr)
-{
-    Pointer=Ptr;
-}
 

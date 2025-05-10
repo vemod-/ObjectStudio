@@ -27,8 +27,8 @@ public slots:
 signals:
     void CurrentRangeChanged(CSampleKeyRange::RangeParams RP);
     void RangeIndexChanged(int Index);
-    void LoadWaveFile();
-    void Add(int Upper, int Lower);
+    void WaveFileRequested();
+    void AddRangeRequested(int Upper, int Lower);
 private:
     enum SplitterValues
     {

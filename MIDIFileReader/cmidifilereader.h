@@ -2,55 +2,36 @@
 #define CMIDIFILEREADER_H
 
 #include <QtCore>
+#include "../SoftSynthsClasses/csinglemap.h"
+#include "../SoftSynthsClasses/cmidibuffer.h"
+#include "../SoftSynthsClasses/cpresets.h"
 
-typedef unsigned char BYTE;
-typedef unsigned short* PWORD;
+typedef byte byte;
+typedef ushort* PWORD;
+typedef std::vector<ulong> MIDITimeList;
 
 enum MessageType
 {
-    MFREndOfTrack,MFR3Bytes,MFR2Bytes,MFRBuffer,MFRTempo,MFRTime,MFRKey,MFRSMPTEOffset,MFRUnknown
+    MFREndOfTrack,MFREvent,MFRTempo,MFRTime,MFRKey,MFRSMPTEOffset,MFRMeta,MFRUnknown
 };
 
 #pragma pack(push,1)
 
-typedef QPair<char*,size_t> MIDIMemoryID;
+typedef QPair<char*,ulong64> MIDIMemoryID;
 
-class MIDIFileMemoryData
+class MIDIFileMemoryData : public IRefCounter
 {
 public:
-    MIDIFileMemoryData(const char* Pnt, const size_t Length)
-    {
-        data=new char[Length];
-        memcpy(data,Pnt,Length);
-        refcount=0;
-    }
-    ~MIDIFileMemoryData()
-    {
-        delete [] data;
-    }
-    char* data;
-    int refcount;
-};
-
-class SingleMIDIMap : public QMap<MIDIMemoryID, MIDIFileMemoryData*>
-{
-    public:
-        static SingleMIDIMap* getInstance()
-        {
-            static SingleMIDIMap    instance; // Guaranteed to be destroyed.
-                                  // Instantiated on first use.
-            return &instance;
-        }
-    private:
-        SingleMIDIMap() {}                   // Constructor? (the {} brackets) are needed here.
-        SingleMIDIMap(SingleMIDIMap const&);              // Don't Implement
-        void operator=(SingleMIDIMap const&); // Don't implement
+    MIDIFileMemoryData():IRefCounter() { data=nullptr; }
+    void init(const QByteArray& b) { data=b; }
+    QByteArray data;
+    static MIDIMemoryID makeID(const QByteArray& b) { return qMakePair(const_cast<char*>(b.constData()),b.size()); }
 };
 
 struct chunk
 {
     char        id[4];
-    quint32     size;
+    uint     size;
 };
 
 struct MIDIFileHeader
@@ -69,43 +50,69 @@ struct MIDIFileTrackHeader
 class CMIDIFileTrack
 {
 private:
-    unsigned int m_Length;
-    unsigned long m_Time;
-    short m_Time1;
-    short m_Time2;
-    short m_SharpFlat;
-    short m_Key;
-    BYTE m_Message;
-    unsigned int m_Tempo;
-    MessageType m_MoreMessages;
-    BYTE* NextPointer;
-    BYTE* TimePointer;
-    BYTE* StartPointer;
-    BYTE* DataPointer;
+    uint m_Length;
+    ulong m_Delta;
+    ulong m_Counter;
+    byte* m_MessagePointer;
+    byte* m_CurrentPointer;
+    byte* m_StartPointer;
+    byte* m_DataPointer;
+    int m_DataSize;
+    ulong inline varlen(byte*& ptr) const
+    {
+        ulong value;
+        byte c;
+        if ( (value = *ptr++) & 0x80 )
+        {
+            value &= 0x7F;
+            do
+            {
+                value = (value << 7) + ((c = *ptr++) & 0x7F);
+            } while (c & 0x80);
+        }
+        return value;
+    }
+    ulong inline int24(byte* ptr) const
+    {
+        return qFromBigEndian<int>(*reinterpret_cast<int*>(ptr-1)) & 0xFFFFFF;
+    }
+    void inline setMessage(const ulong s)
+    {
+        m_DataPointer = m_CurrentPointer;
+        m_DataSize = s;
+        m_CurrentPointer += s;
+        m_Delta = varlen(m_CurrentPointer);
+    }
 public:
-    int Index;
-    bool Finished;
-    unsigned long Counter;
-    unsigned long Duration;
-    unsigned long NoteCount;
+    int index;
+    bool finished;
+    ulong ticks;
+    ulong noteCount;
     CMIDIFileTrack();
-    ~CMIDIFileTrack();
-    size_t Fill(const char* Data, const size_t Pointer);
-    unsigned long inline GetTime();
-    MessageType MoreMessages();
-    short GetData();
-    unsigned long Time();
-    BYTE Message();
-    unsigned int Tempo();
-    BYTE Time1();
-    BYTE Time2();
-    BYTE SharpFlat();
-    BYTE Key();
-    BYTE* Data();
-    int DataIndex;
-    int DataSize;
-    void Reset();
-    bool MessageReady();
+    CMIDIFileTrack(byte* &Pointer,const int I);
+    ~CMIDIFileTrack(){}
+    void assign(byte* &Pointer);
+    MessageType messageType();
+    inline bool moreMessages() const { return (m_Delta == 0); }
+    inline ulong remainingTicks() const { return m_Delta - m_Counter; }
+    inline void skipTicks(const ulong ticks) { m_Counter += ticks; }
+    inline uint tempo() const { return int24(m_DataPointer); }
+    inline byte time1() const { return *m_DataPointer; }
+    inline byte time2() const { return *(m_DataPointer + 1); }
+    inline byte sharpFlat() const { return *m_DataPointer; }
+    inline byte key() const { return *(m_DataPointer + 1); }
+    inline byte metaType() const { return *(m_MessagePointer + 1); }
+    inline const QString string() const { return QString::fromLatin1(reinterpret_cast<char*>(m_DataPointer),m_DataSize).trimmed(); }
+    void reset();
+    inline bool containsMessages() {
+        if (m_Delta != m_Counter++) return false;
+        m_Counter -= m_Delta;
+        return true;
+    }
+    const inline CMIDIEvent midiEvent() const
+    {
+        return CMIDIEvent(m_MessagePointer,m_DataPointer,m_DataSize);
+    }
 };
 
 class CMIDIFileReader
@@ -113,25 +120,41 @@ class CMIDIFileReader
 private:
     short m_FileType;
     short m_NumOfTracks;
-    void GetDuration();
-    unsigned long m_MilliSeconds;
-    unsigned long m_Ticks;
-    //char* m_Pnt;
+    short m_TicksPerQuarter;
+    MIDITimeList getTicks(const MIDITimeList& tickList=MIDITimeList());
+    ulong m_MilliSeconds;
+    ulong m_Ticks;
     MIDIMemoryID m_ID;
+    double m_TempoAdjust;
+    short m_ChannelCount;
+    short m_MinChannel;
 public:
     CMIDIFileReader();
     ~CMIDIFileReader();
-    QList<CMIDIFileTrack*> Tracks;
-    short Ticks;
-    bool Open(const QString& Path);
-    bool OpenPtr(const char* Pnt, const size_t Length);
-    short TrackCount();
-    short FileType();
-    unsigned long MilliSeconds();
-    unsigned long Duration(const int Track=-1);
-    unsigned long NoteCount(const int Track);
-    void Reset();
-    SingleMIDIMap* MIDIFiles;
+    QList<CMIDIFileTrack*> tracks;
+    bool load(const QString& Path);
+    bool assign(const QByteArray& b);
+    inline short trackCount() const { return m_NumOfTracks; }
+    inline short channelCount() const { return m_ChannelCount + 1; }
+    inline short minChannel() const { return m_MinChannel; }
+    inline short fileType() const { return m_FileType; }
+    inline short ticksPerQuarter() const { return m_TicksPerQuarter; }
+    inline ulong milliSeconds() const { return m_MilliSeconds; }
+    inline ulong64 samples() const { return CPresets::mSecsToSamples(m_MilliSeconds); }
+    inline ulong ticks(const int Track=-1) const {
+        return (Track==-1) ? m_Ticks : tracks.at(Track)->ticks;
+    }
+    void setTempoAdjust(const double t) {
+        if (closeEnough(t, m_TempoAdjust)) return;
+        m_TempoAdjust = t;
+        getTicks();
+    }
+    inline ulong noteCount(const int Track) const { return tracks.at(Track)->noteCount; }
+    inline void reset() { for (CMIDIFileTrack* t : std::as_const(tracks)) t->reset(); }
+    MIDITimeList mSecList(const MIDITimeList& tickList) { return getTicks(tickList); }
+    ulong64 mSecsToEvent(const CMIDIEvent& event);
+
+
 };
 
 #pragma pack(pop)

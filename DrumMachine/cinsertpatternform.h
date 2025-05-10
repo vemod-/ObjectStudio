@@ -2,7 +2,6 @@
 #define CINSERTPATTERNFORM_H
 
 #include <QDialog>
-#include "softsynthsclasses.h"
 #include "sequenserclasses.h"
 
 namespace Ui {

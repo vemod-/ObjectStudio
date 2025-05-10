@@ -31,12 +31,6 @@
 #ifndef __EMUERRS_H
 #define __EMUERRS_H
 
-/*************
-** Includes
-*************/
-
-#include "datatype.h"
-
 /************
 ** Defines
 ************/
@@ -73,30 +67,7 @@ enum SFERRORTAG
   SF_PRESETNOTFOUND
 };
 
-
-/**************************
-** External Declarations
-***************************/
-
-/*
-Create your own custom error messages to be indexed by the above
-enumeration table.
-
-I.E.
-
- char sfEr1[80];
- strcpy(sfEr1, "This file could not be opened\n");
- emuErrors[RIFF_OPENFILEERROR] = sfEr1;
- ...
- stat = EmuFunction();
- if (stat != sfSUCCESS) {
-   printf("%s\n", emuErrors[stat]);
-   return(-1);
-   }
-
-*/
-
-extern CHAR* emuErrors[];
+extern char* emuErrors[];
 
 #endif /* __EMUERRS_H */
 

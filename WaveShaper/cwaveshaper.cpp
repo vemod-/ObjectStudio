@@ -4,24 +4,24 @@ CWaveShaper::CWaveShaper()
 {
 }
 
-void CWaveShaper::CalcParams() {
-    float Amount=m_ParameterValues[pnAmount]*0.00999999;
+void CWaveShaper::updateDeviceParameter(const CParameter* /*p*/) {
+    float Amount=m_Parameters[pnAmount]->scaleValue(0.00999999f);
     k = 2*Amount/(1-Amount);
     k1=-1+Amount;
-    k2=0.9999+(Amount*100);
-    a=m_ParameterValues[pnAmount];
-    a1=m_ParameterValues[pnAmount]*0.02;
-    m_Gain=m_ParameterValues[pnGain]*0.01;
+    k2=0.9999f+(Amount*100);
+    a=m_Parameters[pnAmount]->Value;
+    a1=m_Parameters[pnAmount]->scaleValue(0.02f);
+    m_Gain=m_Parameters[pnGain]->PercentValue;
 }
 
 int CWaveShaper::sign(float x) {
-    if (x !=0) return x/fabs(x);
+    if (!isZero(x)) return x/fabsf(x);
     return 0;
 }
 
 float CWaveShaper::max(float x, float a) {
     x -= a;
-    x += fabs (x);
+    x += fabsf(x);
     x *= 0.5;
     x += a;
     return (x);
@@ -29,92 +29,92 @@ float CWaveShaper::max(float x, float a) {
 
 float CWaveShaper::min(float x, float b) {
     x = b - x;
-    x += fabs (x);
+    x += fabsf(x);
     x *= 0.5;
     x = b - x;
     return (x);
 }
 
 float CWaveShaper::clip(float x, float a, float b) {
-    float x1 = fabs (x-a);
-    float x2 = fabs (x-b);
+    float x1 = fabsf(x-a);
+    float x2 = fabsf(x-b);
     x = x1 + (a+b);
     x -= x2;
     x *= 0.5;
     return (x);
 }
 
-void CWaveShaper::Init(const int Index, void *MainWindow) {
+void CWaveShaper::init(const int Index, QWidget* MainWindow) {
     m_Name="WaveShaper";
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveIn();
-    AddJackWaveOut(jnOut);
-    AddParameterVolume("Gain");
-    AddParameterPercent("Amount",1);
-    AddParameter(ParameterType::SelectBox,"Type","",0,4,0,"Hard§Softer§Sinus§Gloubi-boulga§Clipping",0);
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackWaveIn();
+    addJackWaveOut(jnOut);
+    addParameterVolume("Gain");
+    addParameterPercent("Amount",1);
+    addParameterSelect("Type","Hard§Softer§Sinus§Gloubi-boulga§Clipping");
+    updateDeviceParameter();
 }
 
-float *CWaveShaper::GetNextA(const int ProcIndex) {
-    float* Signal=FetchA(jnIn);
-    if (!Signal) return NULL;
-    float* Buffer=AudioBuffers[ProcIndex]->Buffer;
-    switch (m_ParameterValues[pnType])
+CAudioBuffer *CWaveShaper::getNextA(const int ProcIndex) {
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    if (!InBuffer->isValid()) return nullptr;
+    CMonoBuffer* OutBuffer=MonoBuffer(ProcIndex);
+    switch (m_Parameters[pnType]->Value)
     {
     case 0:
-        for (int i=0;i<m_BufferSize;i++)
+        for (uint i=0;i<m_BufferSize;i++)
         {
-            float x=Signal[i]*m_Gain;
-            Buffer[i]=((1+k)*x/(1+k*fabs(x)));
+            float x=InBuffer->at(i)*m_Gain;
+            OutBuffer->setAt(i,(1+k)*x/(1+k*fabsf(x)));
         }
         break;
     case 1:
-        for (int i=0;i<m_BufferSize;i++)
+        for (uint i=0;i<m_BufferSize;i++)
         {
-            float x=Signal[i]*m_Gain;
-            Buffer[i]=(x*(fabs(x) + a)/(pow(x,2) + (a-1)*fabs(x) + 1));
+            float x=InBuffer->at(i)*m_Gain;
+            OutBuffer->setAt(i,x*(fabsf(x) + a)/(powf(x,2) + (a-1)*fabsf(x) + 1));
         }
         break;
     case 2:
     {
         float y;
-        float z = DoublePi * a1;
-        float s = 1/sin(z);
+        float z = PI_F * a1;
+        float s = 1/sinf(z);
         float b = 1/a1;
 
-        for (int i=0;i<m_BufferSize;i++)
+        for (uint i=0;i<m_BufferSize;i++)
         {
-            float x=Signal[i]*m_Gain;
+            float x=InBuffer->at(i)*m_Gain;
             if (x > b)
             {
                 y = 1;
             }
             else
             {
-                y = sin(z*x)*s;
+                y = sinf(z*x)*s;
             }
-            Buffer[i]=y;
+            OutBuffer->setAt(i,y);
         }
     }
         break;
     case 3:
-        for (int i=0;i<m_BufferSize;i++)
+        for (uint i=0;i<m_BufferSize;i++)
         {
-            float y=Signal[i]*m_Gain;
+            float y=InBuffer->at(i)*m_Gain;
 
-            double x = y * 0.686306;
-            double z = 1 + exp (sqrt (fabs (x)) * k1);//-0.75);
-            Buffer[i]=((exp (x) - exp (-x * z)) / (exp (x) + exp (-x)));
+            float x = y * 0.686306f;
+            float z = 1 + expf(sqrtf(fabsf(x)) * k1);//-0.75);
+            OutBuffer->setAt(i,(expf(x) - expf(-x * z)) / (expf(x) + expf(-x)));
         }
         break;
     case 4:
-        for (int i=0;i<m_BufferSize;i++)
+        for (uint i=0;i<m_BufferSize;i++)
         {
-            float x=Signal[i]*m_Gain;
+            float x=InBuffer->at(i)*m_Gain;
             //float y=pow(fabs(x), 1 / k2);
-            Buffer[i]=clip(x*k2,1,-1);
+            OutBuffer->setAt(i,clip(x*k2,1,-1));
         }
         break;
     }
-    return Buffer;
+    return OutBuffer;
 }

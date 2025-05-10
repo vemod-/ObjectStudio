@@ -3,7 +3,6 @@
 
 #include <QFrame>
 #include "cstereomixer.h"
-#include <qsynthknob.h>
 
 namespace Ui {
 class CStereoChannelWidget;
@@ -16,27 +15,23 @@ class CStereoChannelWidget : public QFrame
 public:
     explicit CStereoChannelWidget(QWidget *parent = 0);
     ~CStereoChannelWidget();
-    void Init(CStereoMixerChannel* ch, const QString& Name);
+    void init(CStereoMixerChannel* ch, const QString& Name);
     void checkPeak();
     void resetPeak();
     void soloButton(bool pressed);
-    const QString Save();
-    void Load(const QString& XML);
+    void muteButton(bool pressed);
+    void serialize(QDomLiteElement* xml);
+    void unserialize(QDomLiteElement* xml);
+    void setSender(const QString& s);
 private:
     Ui::CStereoChannelWidget *ui;
+    QString m_Name;
+protected:
     CStereoMixerChannel* m_Ch;
-    QList<QSynthKnob*> Effect;
-    QSignalMapper* mapper;
 private slots:
     void setVolume(int Vol);
-    void setPan(int Pan);
-    void setMute(bool Mute);
-    void setBypass(bool Bypass);
-    void setEffect(int effNumber);
 signals:
-    void solo();
-protected:
-    void showEvent(QShowEvent *);
+    void soloTriggered(bool v);
 };
 
 #endif // CSTEREOCHANNELWIDGET_H

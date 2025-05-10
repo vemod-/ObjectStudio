@@ -1,7 +1,8 @@
 #ifndef CLIMITER_H
 #define CLIMITER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
+#include "cringbuffer.h"
 
 class CLimiter : public IDevice
 {
@@ -10,21 +11,18 @@ private:
     {jnOut,jnIn};
     enum ParameterNames
     {pnLimitVol,pnOutVol};
-    float* ringbuffer;
-    unsigned int buflen;
-    unsigned int ready_num;
-    unsigned int pos;
+    uint buflen;
+    uint ready_num;
+    uint pos;
     float out_vol;
     float limit_vol;
-    float read_buffer(float* buffer, unsigned int buflen, unsigned int pos, unsigned int n);
-    void write_buffer(float insample, float* buffer, unsigned int buflen, unsigned int pos, unsigned int n);
-    float inline push_buffer(float insample, float* buffer, unsigned int buflen, unsigned int * pos);
-    void inline CalcParams();
+    CRingBuffer ring;
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 public:
     CLimiter();
-    ~CLimiter();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    ~CLimiter() {}
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
 };
 
 #endif // CLIMITER_H

@@ -1,163 +1,51 @@
 #include "ijack.h"
-#include "cpresets.h"
 
-/*
-int ModulationCounter=0;
+CMonoBuffer CInJack::m_NullBufferMono = CMonoBuffer(nullptr);
+CStereoBuffer CInJack::m_NullBufferStereo = CStereoBuffer(nullptr);
 
-bool ModulationZero()
-{
-    return (ModulationCounter==0);
-}
-*/
-
-IJack::IJack(const QString& sName,const QString& sOwner,AttachModes tAttachMode,Directions tDirection,IDeviceBase* OwnerClass)
-    : IJackBase(tAttachMode,tDirection), m_OwnerClass(OwnerClass), m_BufferSize(CPresets::Presets.BufferSize), Name(sName), Owner(sOwner), AudioBuffer(NULL)
-{
-    qDebug() << "Jack Created " << sOwner << sName;
-    if (AttachMode==Wave)
+IJack::~IJack() {
+    if (attachMode & Audio)
     {
-        AudioBuffer=new CMonoBuffer;
-        qDebug() << "MonoBuffer Created" << sName << sOwner;
+        QMutexLocker locker(&mutex);
+        delete audioBuffer;
+        //qDebug() << "AudioBuffer Deleted" << name << owner;
     }
-    if (AttachMode==Stereo)
-    {
-        AudioBuffer=new CStereoBuffer;
-        qDebug() << "StereoBuffer Created" << sName << sOwner;
-    }
+    m_OwnerDevice=nullptr;
+    //qDebug() << "Jack Deleted " << owner << name;
 }
 
-IJack::~IJack()
+IJack* IJack::createInsideJack(int ProcIndex, IDeviceBase *DeviceClass)
 {
-    if (AttachMode & Audio)
-    {
-        delete AudioBuffer;
-        qDebug() << "AudioBuffer Deleted" << Name << Owner;
-    }
-    m_OwnerClass=NULL;
-    qDebug() << "Jack Deleted " << Owner << Name;
+    QMutexLocker locker(&mutex);
+    return (isInJack()) ? static_cast<IJack*>(new COutJack(name(),"This",attachMode,IJack::Out,DeviceClass,ProcIndex)) :
+                          new CInJack(name(),"This",attachMode,IJack::In,DeviceClass);
 }
 
-CInJack::~CInJack()
+bool COutJack::connectToIn(CInJack *InJack) { return InJack->connectToOut(this); }
+
+bool COutJack::disconnectFromIn(CInJack *InJack) { return InJack->disconnectFromOut(this); }
+
+bool COutJack::isConnectedToIn(const CInJack *InJack) const { return InJack->isConnectedToOut(const_cast<COutJack*>(this)); }
+
+bool COutJack::connectTo(IJack *Jack)
 {
-    if (m_MIDIBuffer != NULL) delete m_MIDIBuffer;
+    QMutexLocker locker(&mutex);
+    return (Jack->isInJack()) ? connectToIn(dynamic_cast<CInJack*>(Jack)) : false;
 }
 
-void* CInJack::GetNextP()
+bool COutJack::disconnectFrom(IJack *Jack)
 {
-    //if (ModulationZero())
-    //{
-        if (m_OutJackCount==1) return FetchP(0,this);
-        else if (m_OutJackCount==0) return NULL;
-        else
-        {
-            QList<CMIDIBuffer*> MIDIBuffers;
-            for (int lTemp=0;lTemp<m_OutJackCount;lTemp++)
-            {
-                CMIDIBuffer* MB=(CMIDIBuffer*)FetchP(lTemp, this);
-                if (MB != NULL)
-                {
-                    if (!MB->IsEmpty()) MIDIBuffers.push_back(MB);
-                }
-            }
-            if (MIDIBuffers.size()==0) return NULL;
-            else if (MIDIBuffers.size()==1) return (void*)MIDIBuffers[0];
-            else
-            {
-                if (m_MIDIBuffer == NULL) m_MIDIBuffer=new CMIDIBuffer;
-                m_MIDIBuffer->Reset();
-                foreach (CMIDIBuffer* MB, MIDIBuffers) m_MIDIBuffer->Append(MB);
-                return (void*)m_MIDIBuffer;
-            }
-        }
-    //}
-    return NULL;
+    QMutexLocker locker(&mutex);
+    return (Jack->isInJack()) ? disconnectFromIn(dynamic_cast<CInJack*>(Jack)) : false;
 }
 
-float CInJack::GetNext()
+bool COutJack::isConnectedTo(const IJack *Jack) const
 {
-    if (m_OutJackCount==0) return 0;
-    if (m_OutJackCount==1)
-    {
-        LastGetNext=Fetch(0, this);
-        return LastGetNext;
-    }
-    float TempPitch=0;
-    int PitchCount=0;
-    float TempAmp=0;
-    int AmpCount=0;
-    float TempFreq=0;
-    int FreqCount=0;
-    float GetAmp;
-    float GetPitch=0;
-    foreach (COutJack* OJ,m_OutJacks)
-    {
-        switch (OJ->AttachMode)
-        {
-        case Amplitude:
-            AmpCount++;
-            TempAmp=TempAmp+OJ->GetNext(this);
-            break;
-        case Pitch:
-            PitchCount++;
-            TempPitch=TempPitch+OJ->GetNext(this);
-            break;
-        case Frequency:
-            FreqCount++;
-            TempFreq=TempFreq+OJ->GetNext(this);
-            break;
-        default:
-            break;
-        }
-    }
-    switch (AttachMode)
-    {
-    case Amplitude:
-        if (AmpCount>0) LastGetNext=TempAmp/AmpCount;
-        break;
-    case Pitch:
-        if (PitchCount>0) LastGetNext=TempPitch/PitchCount;
-        break;
-    case Frequency:
-        if (FreqCount>0) LastGetNext=TempFreq/FreqCount;
-        break;
-    case (Amplitude | Pitch):
-        if (PitchCount>0) GetPitch=-TempPitch/PitchCount;
-        if (AmpCount>0)
-        {
-            GetAmp=TempAmp/AmpCount;
-            if (PitchCount>0) LastGetNext=(GetPitch+GetAmp)*0.5;
-            else LastGetNext=GetAmp;
-        }
-        else if (PitchCount>0) LastGetNext=GetPitch;
-        break;
-    default:
-        break;
-    }
-    return LastGetNext;
+    return (Jack->isInJack()) ? isConnectedToIn(dynamic_cast<const CInJack*>(Jack)) : false;
 }
 
-void CInJack::ConnectToOut(COutJack* OutJack)
-{
-    if (OutJack!=NULL)
-    {
-        if (ConnectionState(OutJack)) return;
-        m_OutJacks.push_back(OutJack);
-        m_OutJackCount++;
-        if (m_OutJackCount > 1) MixFactor=1.0/sqrtf(m_OutJackCount);
-        else MixFactor=1;
-        OutJack->Connect();
-    }
-}
-
-void CInJack::DisconnectFromOut(COutJack* OutJack)
-{
-    int Index=m_OutJacks.indexOf(OutJack);
-    if (Index>-1)
-    {
-        OutJack->Disconnect();
-        m_OutJacks.removeAt(Index);
-        m_OutJackCount--;
-        if (m_OutJackCount > 1) MixFactor=1.0/sqrtf(m_OutJackCount);
-        else MixFactor=1;
-    }
+CInJack::~CInJack() {
+    QMutexLocker locker(&mutex);
+    for (COutJack* j : std::as_const(m_OutJacks)) disconnectFromOut(j);
+    if (m_MIDIBuffer != nullptr) delete m_MIDIBuffer;
 }

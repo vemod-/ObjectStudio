@@ -1,27 +1,29 @@
 #ifndef CSAMPLER_H
 #define CSAMPLER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "csamplerdevice.h"
+#include "cvoltagemodulator.h"
 
 class CSampler : public IDevice
 {
 private:
     enum JackNames
-    {jnMIDIIn,jnModulation,jnOut};
+    {jnOut,jnMIDIIn,jnModulation};
     enum ParameterNames
     {pnMIDIChannel,pnTranspose,pnTune,pnModulation};
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
     CSamplerDevice SamplerDevice;
-    int LastMod;
-    float CurrentMod;
+    //float LastMod;
+    //float CurrentMod;
     float VolumeFactor;
-    void Process();
+    void process();
+    CVoltageModulator Modulator;
 public:
     CSampler();
-    void Play(const bool FromStart);
-    void Pause();
-    void Init(const int Index,void* MainWindow);
+    void play(const bool FromStart);
+    void pause();
+    void init(const int Index, QWidget* MainWindow);
 };
 
 #endif // CSAMPLER_H

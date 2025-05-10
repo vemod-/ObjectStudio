@@ -1,77 +1,84 @@
 #include "csequenser.h"
 #include "csequenserform.h"
 
+#define seqTicksPQ 100
+
 CSequenser::CSequenser()
 {
 }
 
-void CSequenser::Init(const int Index,void* MainWindow)
+void CSequenser::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackMIDIOut(jnMIDIOut);
-    AddParameter(ParameterType::Numeric,"Tempo","BPM",20,300,0,"",100);
-    AddParameter(ParameterType::Numeric,"MIDI Channel","",1,16,0,"",1);
+    IDevice::init(Index,MainWindow);
+    addJackMIDIOut(jnMIDIOut);
+    addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
+    addParameter(CParameter::Numeric,"MIDI Channel","",1,16,0,"",1);
+    addParameterPercent("Humanize");
     MIDIBuffer=new CMIDIBuffer();
-    BeatInterval=0;
     PatternLength=0;
-    SamplesPerTick=0;
-    Playing=false;
+    //Playing=false;
     PatternType* DefaultPattern=new PatternType("Default",16);
     Patterns.append(DefaultPattern);
-    PatternListType* DefaultList=new PatternListType();
-    DefaultList->Pattern=DefaultPattern;
-    DefaultList->Repeats=4;
-    PatternsInList.append(DefaultList);
+    PatternsInList.append(new PatternListType(DefaultPattern));
     Reset();
-    CalcParams();
-    m_Form=new CSequenserForm(this,(QWidget*)MainWindow);
+    CalcDuration();
+    updateDeviceParameter();
+    m_Form=new CSequenserForm(this,MainWindow);
 }
 
-void CSequenser::Tick()
+CSequenser::~CSequenser()
 {
-    if (!Playing)
+    if (m_Initialized)
     {
+        qDeleteAll(PatternsInList);
+        qDeleteAll(Patterns);
+    }
+}
+
+void CSequenser::tick()
+{
+    if (!m_Playing) {
+        IDevice::tick();
         return;
     }
-    MIDIBuffer->Reset();
-    SampleCount=SampleCount+m_BufferSize;
-    while (SampleCount>=m_BufferSize)
+    MIDIBuffer->clear();
+    mSecCount.addBuffer();
+    while (mSecCount.moreTicks())
     {
-        SampleCount=SampleCount-SamplesPerTick;
+        mSecCount.eatTick();
         if (Counter==NextBeat)
         {
-            //Debug("Se " + AnsiString(SampleCount) + " " + AnsiString(SamplesPerTick) + " " + AnsiString(Counter) );
-            if (PatternIndex<PatternsInList.count())
+            if (PatternIndex<PatternsInList.size())
             {
-                PatternListType* PLI=PatternsInList[PatternIndex];
-                PatternType* Pattern=PLI->Pattern;
-                BeatType* Beat=Pattern->Beat(BeatCount);
+                const PatternListType* PLI=PatternsInList[PatternIndex];
+                const PatternType* Pattern=PLI->Pattern;
+                const BeatType* Beat=Pattern->beat(BeatCount);
                 if (Beat->Length[0]>0)
                 {
                     CurrentLength=Beat->Length[0];
                     CurrentPitch=Beat->Pitch[0];
                     if (CurrentPitch>0)
                     {
-                        MIDIBuffer->Push(m_ParameterValues[pnMIDIChannel] + 0x90 - 1,CurrentPitch,Beat->Volume[0] * 127 / 100);
+                        int vol = Beat->Volume[0];
+                        vol = qMin<int>(100, vol * humanizeFactor(m_Parameters[pnHumanize]->Value));
+                        MIDIBuffer->append(m_Parameters[pnMIDIChannel]->Value + 0x90 - 1,CurrentPitch,(byte)(vol * 1.27));
                     }
                 }
                 else
                 {
                     CurrentLength=0;
                 }
-                ((CSequenserForm*)m_Form)->Flash(PatternIndex,BeatCount);
-                BeatCount++;
-                NextBeat=BeatInterval * BeatCount;
-                NextStop=(BeatInterval * (BeatCount - 1)) + CurrentLength;
-                if (BeatCount>=Pattern->NumOfBeats())
+                FORMFUNC(CSequenserForm)->Flash(PatternIndex,BeatCount);
+                NextBeat=seqTicksPQ * (BeatCount+1);
+                NextStop=(seqTicksPQ * BeatCount) + CurrentLength;
+                if (++BeatCount>=Pattern->numOfBeats())
                 {
                     BeatCount=0;
                     NextBeat=0;
                     if (PLI->Repeats>0)
                     {
-                        PatternRepeatCount++;
-                        if (PatternRepeatCount>=PLI->Repeats)
+                        if (++PatternRepeatCount>=PLI->Repeats)
                         {
                             PatternRepeatCount=0;
                             PatternIndex++;
@@ -82,40 +89,50 @@ void CSequenser::Tick()
         }
         if (Counter==NextStop)
         {
-            MIDIBuffer->Push(m_ParameterValues[pnMIDIChannel] + 0x90 - 1,CurrentPitch,0);
+            MIDIBuffer->append(m_Parameters[pnMIDIChannel]->Value + 0x90 - 1,CurrentPitch,0);
         }
-        Counter++;
-        if (Counter>=PatternLength)
+        if (++Counter>=PatternLength)
         {
             Counter=0;
-            CalcParams();
+            updateDeviceParameter();
         }
     }
+    IDevice::tick();
 }
 
-void* CSequenser::GetNextP(int /*ProcIndex*/)
+CMIDIBuffer* CSequenser::getNextP(int /*ProcIndex*/)
 {
-    if (!Playing)
+    if (!m_Playing)
     {
-        return NULL;
+        return nullptr;
     }
-    return (void*)MIDIBuffer;
+    return MIDIBuffer;
 }
 
-void inline CSequenser::CalcParams()
+void inline CSequenser::updateDeviceParameter(const CParameter* /*p*/)
 {
-    int Ticks=100;
     PatternLength=0;
-    if (PatternIndex<PatternsInList.count())
+    if (PatternIndex < PatternsInList.size())
     {
-        PatternListType* PL=PatternsInList[PatternIndex];
-        PatternType* P=PL->Pattern;
-        int uSPQ=(60000000/4) / (m_ParameterValues[pnTempo]*P->Tempo*0.01);
-        float uSperTick=(float)uSPQ / (float)Ticks;
-        SamplesPerTick= uSperTick / m_Presets.uSPerSample;
-        BeatInterval=Ticks;
-        PatternLength=P->NumOfBeats() * BeatInterval;
+        const PatternListType* PL=PatternsInList[PatternIndex];
+        const PatternType* P=PL->Pattern;
+        mSecCount.setTempo((60000000.0/4.0) / (m_Parameters[pnTempo]->PercentValue*P->Tempo),seqTicksPQ);
+        PatternLength=P->numOfBeats() * seqTicksPQ;
     }
+}
+
+void CSequenser::CalcDuration()
+{
+    CTickCounter c;
+    c.reset(seqTicksPQ);
+    for (const PatternListType* pl : std::as_const(PatternsInList))
+    {
+        if (pl->Repeats==0) break;
+        c.setTempo((60000000.0/4.0) / (m_Parameters[pnTempo]->PercentValue*pl->Pattern->Tempo),seqTicksPQ);
+        c.skipTicks(pl->Pattern->numOfBeats() * seqTicksPQ * pl->Repeats);
+    }
+    m_MilliSeconds=c.currentmSec();
+    m_Ticks=c.currentTick();
 }
 
 void CSequenser::Reset()
@@ -128,21 +145,82 @@ void CSequenser::Reset()
     NextBeat = 0;
     NextStop = 0;
     Counter = 0;
-    SampleCount = 0;
-    CalcParams();
-    MIDIBuffer->Reset();
+    //SampleCount = 0;
+    mSecCount.reset(seqTicksPQ);
+    updateDeviceParameter();
+    MIDIBuffer->clear();
 }
 
-void CSequenser::Play(const bool FromStart)
+void CSequenser::play(const bool FromStart)
 {
+    CalcDuration();
     if (FromStart)
     {
         Reset();
     }
-    Playing=true;
+    //Playing=true;
+    IDevice::play(FromStart);
 }
 
-void CSequenser::Pause()
+void CSequenser::pause()
 {
-    Playing=false;
+    CalcDuration();
+    //Playing=false;
+    IDevice::pause();
+}
+
+ulong CSequenser::milliSeconds() const
+{
+    return qMax<ulong>(m_MilliSeconds, IDevice::milliSeconds());
+}
+
+ulong CSequenser::ticks() const
+{
+    return qMax<ulong>(m_Ticks, IDevice::ticks());
+}
+
+ulong64 CSequenser::samples() const
+{
+    return qMax<ulong64>(presets.mSecsToSamples(m_MilliSeconds), IDevice::samples());
+}
+
+void CSequenser::skip(const ulong64 samples)
+{
+    Reset();
+    while (mSecCount.currentSample() < samples)
+    {
+        mSecCount.addBuffer();
+        while (mSecCount.moreTicks())
+        {
+            mSecCount.eatTick();
+            if (Counter==NextBeat)
+            {
+                if (PatternIndex<PatternsInList.size())
+                {
+                    const PatternListType* PLI=PatternsInList[PatternIndex];
+                    const PatternType* Pattern=PLI->Pattern;
+                    NextBeat=seqTicksPQ * (BeatCount+1);
+                    if (++BeatCount>=Pattern->numOfBeats())
+                    {
+                        BeatCount=0;
+                        NextBeat=0;
+                        if (PLI->Repeats>0)
+                        {
+                            if (++PatternRepeatCount>=PLI->Repeats)
+                            {
+                                PatternRepeatCount=0;
+                                PatternIndex++;
+                            }
+                        }
+                    }
+                }
+            }
+            if (++Counter>=PatternLength)
+            {
+                Counter=0;
+                updateDeviceParameter();
+            }
+        }
+    }
+    IDevice::skip(samples);
 }

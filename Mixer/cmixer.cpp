@@ -3,171 +3,100 @@
 
 CMixer::CMixer()
 {
-}
-
-void inline CalcPeak(float Val,float* Peak)
-{
-    if (Val<0)
-    {
-        Val=-Val;
-    }
-    if (Val>*Peak)
-    {
-        *Peak=Val;
-    }
-}
-
-void CMixer::Process()
-{
-    float* Signal[Mixer::mixerchannels];
-    int ActiveBuffers=0;
-    int OrigChannel[Mixer::mixerchannels];
-    CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-    CStereoBuffer* SendBuffer=(CStereoBuffer*)AudioBuffers[jnSend];
-    float* OutL=OutBuffer->Buffer;
-    float* OutR=OutBuffer->BufferR;
-    float* SendL=SendBuffer->Buffer;
-    float* SendR=SendBuffer->BufferR;
-
-    for (int i =0; i < Mixer::mixerchannels; i++)
-    {
-        float* TempBuffer=FetchA(i+jnIn);
-        if (TempBuffer)
-        {
-            if (SoloChannel>-1)
-            {
-                if (SoloChannel==i)
-                {
-                    Signal[ActiveBuffers]=TempBuffer;
-                    OrigChannel[ActiveBuffers]=SoloChannel;
-                    ActiveBuffers++;
-                }
-            }
-            else if (!Mute[i])
-            {
-                Signal[ActiveBuffers]=TempBuffer;
-                OrigChannel[ActiveBuffers]=i;
-                ActiveBuffers++;
-            }
-        }
-    }
-    if (ActiveBuffers==0)
-    {
-        OutBuffer->ZeroBuffer();
-        SendBuffer->ZeroBuffer();
-    }
-    else
-    {
-        int C=OrigChannel[0];
-        if (!EffectMute[C])
-        {
-            for (int i=0; i < m_BufferSize; i++)
-            {
-                float Sig=*(Signal[0]+i)*Level[C];
-                float L=Sig*PanL[C];
-                float R=Sig*PanR[C];
-                OutL[i]=L;
-                OutR[i]=R;
-                SendL[i]=(L*Effect[C]);
-                SendR[i]=(R*Effect[C]);
-                CalcPeak(Sig,&Peak[C]);
-            }
-        }
-        else
-        {
-            SendBuffer->ZeroBuffer();
-            for (int i=0; i < m_BufferSize; i++)
-            {
-                float Sig=*(Signal[0]+i)*Level[C];
-                OutL[i]=Sig*PanL[C];
-                OutR[i]=Sig*PanR[C];
-                CalcPeak(Sig,&Peak[C]);
-            }
-        }
-    }
-    for (int InChannel=1;InChannel<ActiveBuffers;InChannel++)
-    {
-        int C=OrigChannel[InChannel];
-        if (!EffectMute[C])
-        {
-            for (int i=0; i < m_BufferSize; i++)
-            {
-                float Sig=*(Signal[InChannel]+i)*Level[C];
-                float L=Sig*PanL[C];
-                float R=Sig*PanR[C];
-                OutL[i]+=L;
-                OutR[i]+=R;
-                SendL[i]+=(L*Effect[C]);
-                SendR[i]+=(R*Effect[C]);
-                CalcPeak(Sig,&Peak[C]);
-            }
-        }
-        else
-        {
-            for (int i=0; i < m_BufferSize; i++)
-            {
-                float Sig=*(Signal[InChannel]+i)*Level[C];
-                OutL[i]+=Sig*PanL[C];
-                OutR[i]+=Sig*PanR[C];
-                CalcPeak(Sig,&Peak[C]);
-            }
-        }
-    }
-    SendBuffer->Multiply(MixFactor);
-    OutBuffer->AddBuffer(FetchA(jnReturn));
-    OutBuffer->Multiply(MasterLeft*MixFactor,MasterRight*MixFactor);
-    for (int i = 0; i < m_BufferSize; i++)
-    {
-        CalcPeak(OutL[i],&PeakL);
-        CalcPeak(OutR[i],&PeakR);
-    }
-}
-
-void CMixer::Init(const int Index, void* MainWindow)
-{
-    m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-
-    AddJackStereoIn("Return");
-    AddJackStereoOut(jnOut);
-    AddJackStereoOut(jnSend,"Send");
-
-    for (int i=0;i<Mixer::mixerchannels;i++)
-    {
-        AddJackWaveIn("In " + QString::number(i+1));
-        Level[i]=1;
-        Effect[i]=0;
-        PanL[i]=1;
-        PanR[i]=1;
-        Mute[i]=false;
-        EffectMute[i]=false;
-    }
     PeakL=0;
     PeakR=0;
-    ZeroMemory(Peak,Mixer::mixerchannels*sizeof(float));
+    prevChannel=0;
     SoloChannel=-1;
     MasterLeft=1;
     MasterRight=1;
-    MixFactor=1.0/sqrt(Mixer::mixerchannels);
-    CalcParams();
-    m_Form=new CMixerForm(this,(QWidget*)MainWindow);
-
+    MixFactor=mixFactorf(Mixer::mixerchannels);
 }
 
+void CMixer::process()
+{
+    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    CStereoBuffer* SendBuffer=StereoBuffer(jnSend);
+    for (int i =0; i < Mixer::mixerchannels; i++) Signal[i]=FetchAMono(i+jnIn);
+
+    OrigChannel.clear();
+    for (int i =0; i < Mixer::mixerchannels; i++)
+    {
+        if (Signal[i]->isValid())
+        {
+            if (SoloChannel>-1)
+            {
+                if (SoloChannel==i) OrigChannel.push_back(i);
+            }
+            else if (!Channel[i].Mute)
+            {
+                OrigChannel.push_back(i);
+            }
+        }
+    }
+    if (OrigChannel.empty())
+    {
+        OutBuffer->zeroBuffer();
+        SendBuffer->zeroBuffer();
+    }
+    else
+    {
+        for (uint InChannel=0;InChannel<OrigChannel.size();InChannel++)
+        {
+            int ch=OrigChannel[InChannel];
+            Channel[ch].mixChannel(*Signal[ch],OutBuffer,SendBuffer,(InChannel==0));
+        }
+    }
+    *SendBuffer *= MixFactor;
+    OutBuffer->addStereoBuffer(FetchA(jnReturn)->data());
+    OutBuffer->multiplyStereoBuffer(MasterLeft*MixFactor,MasterRight*MixFactor);
+    OutBuffer->peakStereoBuffer(&PeakL,&PeakR);
+}
+
+void CMixer::init(const int Index, QWidget* MainWindow)
+{
+    m_Name=devicename;
+    IDevice::init(Index,MainWindow);
+
+    addJackStereoIn("Return");
+    addJackStereoOut(jnOut);
+    addJackStereoOut(jnSend,"Send");
+
+    for (int i = 0; i < Mixer::mixerchannels; i++)
+    {
+        addJackWaveIn("In " + QString::number(i+1));
+    }
+    for (CMixerChannel& c : Channel) c.Peak=0;
+    m_Form=new CMixerForm(this,MainWindow);
+}
+/*
 void CMixer::GetPeak(float* P,float* L,float* R)
 {
-    CopyMemory(P,Peak,Mixer::mixerchannels*sizeof(float));
+    for (int i=0;i<Mixer::mixerchannels;i++)
+    {
+        P[i]=Channel[i].Peak;
+        Channel[i].Peak=0;
+    }
     *L=PeakL;
     *R=PeakR;
     PeakL=0;
     PeakR=0;
-    ZeroMemory(Peak,Mixer::mixerchannels*sizeof(float));
 }
-
-void CMixer::Play(bool /*FromStart*/)
+*/
+void CMixer::play(bool FromStart)
 {
     PeakL=0;
     PeakR=0;
-    ZeroMemory(Peak,Mixer::mixerchannels*sizeof(float));
-    ((CMixerForm*)m_Form)->Reset();
+    for (CMixerChannel& c : Channel) c.Peak=0;
+    dynamic_cast<CMixerForm*>(m_Form)->Reset();
+    IDevice::play(FromStart);
+}
+
+void CMixer::connectionChanged()
+{
+    auto f = dynamic_cast<CMixerForm*>(m_Form);
+    for (int i =0; i < Mixer::mixerchannels; i++)
+    {
+        auto j = dynamic_cast<CInJack*>(m_Jacks[i+jnIn]);
+        (j->outJackCount()) ? f->setSender(j->outJack(0)->jackID(),i) : f->setSender(QString(),i);
+    }
 }

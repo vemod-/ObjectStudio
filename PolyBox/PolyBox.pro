@@ -5,29 +5,46 @@
 #-------------------------------------------------
 
 TARGET = PolyBox
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
 
+LIBS += -lSoftSynthsWidgets
+
+INCLUDEPATH += $$PWD/../SoftSynthsWidgets
+INCLUDEPATH += ../../SynthKnob
+INCLUDEPATH += ../../QCanvas
 INCLUDEPATH += ../MacroBox
+INCLUDEPATH += ../RtAudioBuffer
+INCLUDEPATH += ../PlugInLoader
+INCLUDEPATH += ../../QiPhotoRubberband
+INCLUDEPATH += ../../QSignalMenu
+INCLUDEPATH += ../../SynthPanel
+
+LIBS+= -lMIDI2CV
 INCLUDEPATH += ../MIDI2CV
 
-include(../RtAudioBuffer/DesktopComponent.pri)
+##include(../RtAudioBuffer/DesktopComponent.pri)
 
-SOURCES += ../MIDI2CV/ccvdevice.cpp
+##SOURCES += ../MIDI2CV/ccvdevice.cpp
 
-HEADERS += ../MIDI2CV/ccvdevice.h
+##HEADERS += ../MIDI2CV/ccvdevice.h
 
 DEFINES += POLYBOX_LIBRARY
 
-SOURCES += cpolybox.cpp \
-    ../MacroBox/cmacroboxform.cpp
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L../ -lPluginLoader
+        LIBS += -lz
+    }
+}
 
-HEADERS += cpolybox.h \
-    ../MacroBox/cmacroboxform.h
+SOURCES += cpolybox.cpp ##\
+    ##../MacroBox/cmacroboxform.cpp
 
-FORMS += ../MacroBox/cmacroboxform.ui
+HEADERS += cpolybox.h ##\
+    ##../MacroBox/cmacroboxform.h
+
+##FORMS += ../MacroBox/cmacroboxform.ui
 
 
 

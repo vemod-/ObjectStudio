@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>CEqualizerForm</class>
- <widget class="QDialog" name="CEqualizerForm">
+ <widget class="QWidget" name="CEqualizerForm">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -42,12 +42,6 @@
        <width>16777215</width>
        <height>100</height>
       </size>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
      </property>
     </widget>
    </item>

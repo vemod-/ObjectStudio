@@ -1,23 +1,28 @@
 #ifndef CWAVEFILE_H
 #define CWAVEFILE_H
 
-#include <QtCore/qendian.h>
-#include <QFile>
-#include <QDebug>
-#include "softsynthsdefines.h"
+//#include <QtCore/qendian.h>
+//#include <QFile>
+//#include "softsynthsdefines.h"
 #include "iwavefile.h"
+#include "csinglemap.h"
 
 namespace WaveFile
 {
-const QString WaveFilter("Sound Files (*.wav;*.au;*.mp3;*.aiff)");
+const QString WaveFilter("Sound Files (*.wav;*.wave;*.au;*.mp3;*.m4a;*.mp4;*.flac;*.ogg;*.aif;*.aiff;*.aifc)");
 }
 
 #pragma pack(push,1)
 class CAiffFile : public IWaveFile
 {
 public:
-    size_t CreateFloatBuffer(float *&OutBuffer, const int Samplerate);
-    bool Open(BYTE* pSrc, const size_t Size);
+    CAiffFile() {}
+    CAiffFile(QString path)
+        : IWaveFile(path) {
+        if (byteArray.size()) assign(byteArray);
+    }
+    void createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplerate);
+    bool assign(const QByteArray& b);
 private:
     struct FormChunk
     {
@@ -27,19 +32,19 @@ private:
     struct CommonChunk
     {
       chunk descriptor;
-      short numChannels; /* # audio channels */
-      unsigned int numSampleFrames; /* # sample frames = samples/channel */
-      short sampleSize; /* # bits/sample */
-      BYTE sampleRate[10]; /* sample_frames/sec */
+      ushort numChannels; /* # audio channels */
+      uint numSampleFrames; /* # sample frames = samples/channel */
+      ushort sampleSize; /* # bits/sample */
+      byte sampleRate[10]; /* sample_frames/sec */
       char compressionType[4]; /* compression type ID code */
       char compressionNameLen; /* human-readable compression type name */
-      char compressionName[];
+      char compressionName[1];
     };
     struct SoundDataChunk
     {
         chunk descriptor;
-        unsigned int       offset;
-        unsigned int       blockSize;
+        uint       offset;
+        uint       blockSize;
     };
     QString AiffEncoding;
 };
@@ -47,24 +52,30 @@ private:
 class CAuFile : public IWaveFile
 {
 public:
-    bool Open(BYTE* pSrc, const size_t Size);
-    bool Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate);
+    CAuFile() {}
+    CAuFile(QString path)
+        : IWaveFile(path) {
+        if (byteArray.size()) assign(byteArray);
+    }
+    bool assign(const QByteArray& b);
+    bool save(const QString &filename, CChannelBuffer& data, const uint SampleRate);
 private:
     struct Audio_filehdr
     {
-        unsigned int	magic;	/* magic number */
-        unsigned int	hdr_size;	/* size of this header */
-        unsigned int 	data_size;	/* length of data (optional) */
-        unsigned int 	encoding;	/* data encoding format */
-        unsigned int 	sample_rate;	/* samples per second */
-        unsigned int 	channels;	/* number of interleaved channels */
+        uint	magic;	/* magic number */
+        uint	hdr_size;	/* size of this header */
+        uint 	data_size;	/* length of data (optional) */
+        uint 	encoding;	/* data encoding format */
+        uint 	sample_rate;	/* samples per second */
+        uint 	channels;	/* number of interleaved channels */
     } ;
-    static const int AUDIO_FILE_MAGIC=(int)0x2e736e64;
+    static const uint AUDIO_FILE_MAGIC=0x2e736e64;
 };
 
 class CWavFile : public IWaveFile
 {
 public:
+    static const short WAVE_FORMAT_PCM=0x0001; /* Microsoft Corporation */
     struct RIFFHeader
     {
         chunk       descriptor;     // "RIFF"
@@ -73,29 +84,29 @@ public:
     struct WAVEHeader
     {
         chunk       descriptor;
-        quint16     audioFormat;
-        quint16     numChannels;
-        quint32     sampleRate;
-        quint32     byteRate;
-        quint16     blockAlign;
-        quint16     bitsPerSample;
+        ushort     audioFormat;
+        ushort     numChannels;
+        uint     sampleRate;
+        uint     byteRate;
+        ushort     blockAlign;
+        ushort     bitsPerSample;
     };
     struct _PPEAK
     {
       float Value;    // peak value
-      quint32 Position;    // sample frame for peak
+      uint Position;    // sample frame for peak
     };
     struct PEAKheader
     {
        chunk descriptor;
-       quint32 Version;    // peak chunk version
-       quint32 timestamp;  // UNIX timestamp of creation
+       uint Version;    // peak chunk version
+       uint timestamp;  // UNIX timestamp of creation
       _PPEAK *peak;    // one for each channel
     };
     struct FACTHeader
     {
         chunk descriptor;
-        qint32 dwSampleLength;
+        int dwSampleLength;
     };
     struct DATAHeader
     {
@@ -106,32 +117,34 @@ public:
         RIFFHeader  riff;
         WAVEHeader  wave;
     };
-    bool Open(BYTE* pSrc, const size_t Size);
-    bool Save(const QString &filename, float *&data, const int Channels, const size_t Length, const unsigned int SampleRate);
+    CWavFile() {}
+    CWavFile(QString path)
+        : IWaveFile(path) {
+        if (byteArray.size()) assign(byteArray);
+    }
+    bool assign(const QByteArray& b);
+    bool save(const QString &filename, CChannelBuffer& data, const uint SampleRate);
 private:
     enum SampleType { Unknown, SignedInt, UnSignedInt, Float };
 };
 
-class CWaveFile
+#pragma pack(pop)
+
+class CWaveFile : public IRefCounter
 {
 public:
     CWaveFile();
     ~CWaveFile();
-    bool open(const QString &fileName, const unsigned int SampleRate);
-    void startRecording(const int Channels, const unsigned int SampleRate);
+    bool load(const QString &fileName, const uint SampleRate);
+    void startRecording(const uint Channels, const uint SampleRate);
     void finishRecording();
-    void pushBuffer(float* &buffer, const size_t Size);
-    int refCount;
-    float* data;
-    size_t Length;
-    int channels;
-    int frequency;
+    inline void pushBuffer(float* buffer, const ulong64 Size) { data.append(buffer,Size,0xFFFFFF); }
+    CChannelBuffer data;
+    uint frequency;
     bool save(const QString &fileName);
 private:
-    unsigned int m_SampleRate;
-    size_t m_PushBufferSize;
+    uint m_SampleRate;
+    QRecursiveMutex mutex;
 };
-
-#pragma pack(pop)
 
 #endif // CWAVEFILE_H

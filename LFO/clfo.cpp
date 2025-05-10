@@ -1,37 +1,51 @@
 #include "clfo.h"
 
 
-CLFO::CLFO():WavePosition (0),FreqValue(0)
+CLFO::CLFO():FreqValue(0)
 {
 
 }
 
-void CLFO::Init(const int Index, void *MainWindow) {
+void CLFO::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJack("Out",IJack::Pitch,IJack::Out,jnOutPitch);
-    AddJack("Out Amplitude",IJack::Amplitude,IJack::Out,jnOutAmplitude);
-    AddParameter(ParameterType::Numeric,"Frequency","Hz",1,10000,100,"",400);
-    AddParameter(ParameterType::SelectBox,"WaveForm","",0,5,0,"Sine§Square§Triangle§Sawtooth§Noise§Sample and Hold",0);
-    AddParameterVolume();
-    CalcParams();
+    IDevice::init(Index,MainWindow);
+    addJackModulationOut(jnOutPitch,"Out");
+    addParameterRate("Frequency",400);
+    addParameterSelect("WaveForm","Sine§Square§Triangle§Sawtooth§Ramp§Noise§S&H Noise");
+    addParameterRectify();
+    addParameterLevel();
+    addParameterBias();
+    updateDeviceParameter();
 }
 
-float CLFO::GetNext(const int ProcIndex) {
-    if (ProcIndex==jnOutPitch) return ReturnValue;
-    return (ReturnValue+1.0)*0.5;
+float CLFO::getNext(const int /*ProcIndex*/) {
+    return Rect(ReturnValue)+Bias;
 }
 
-void CLFO::Tick() {
-    WavePosition=WavePosition+FreqValue;
-    while (WavePosition>=m_Presets.SampleRate)
+float CLFO::Rect(float v)
+{
+    if (Rectify < 0)
     {
-        WavePosition=WavePosition-m_Presets.SampleRate;
+        if (v > 0) return v * RectifyFactor;
     }
-    ReturnValue = WaveBank.GetNext(WavePosition,(CWaveBank::WaveForms)m_ParameterValues[pnWaveForm])*VolumeFactor;
+    else if (Rectify > 0)
+    {
+        if (v < 0) return v * RectifyFactor;
+    }
+    return v;
 }
 
-void CLFO::CalcParams() {
-    VolumeFactor=m_ParameterValues[pnVolume]*0.01;
-    FreqValue=m_ParameterValues[pnFrequency]*m_BufferSize*0.01;
+void CLFO::tick() {
+    ReturnValue = WaveBank.getNextFreq(FreqValue,CWaveBank::WaveForms(m_Parameters[pnWaveForm]->Value))*VolumeFactor;
+    IDevice::tick();
+}
+
+void CLFO::updateDeviceParameter(const CParameter* /*p*/) {
+    Rectify=m_Parameters[pnRectify]->PercentValue;
+    if (Rectify<0) RectifyFactor=(-Rectify-0.5f)*-2;
+    else if (Rectify>0) RectifyFactor=(Rectify-0.5f)*-2;
+    else RectifyFactor=1;
+    VolumeFactor=m_Parameters[pnLevel]->PercentValue;
+    Bias=m_Parameters[pnBias]->PercentValue;
+    FreqValue=m_Parameters[pnFrequency]->PercentValue*m_BufferSize;
 }

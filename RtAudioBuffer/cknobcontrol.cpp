@@ -6,16 +6,28 @@ CKnobControl::CKnobControl(QWidget *parent) :
     ui(new Ui::CKnobControl)
 {
     ui->setupUi(this);
-    popup=new QMenu(this);
+    popup=new QSignalMenu(this);
+    QFont f=popup->font();
+    f.setPointSize(10);
+    popup->setFont(f);
     spinbox=new QDoubleSpinBox(this);
     spinboxAction=new QWidgetAction(this);
     spinboxAction->setDefaultWidget(spinbox);
-    connect(ui->dial,SIGNAL(valueChanged(int)),this,SIGNAL(valueChanged(int)));
+    ui->verticalSlider->setVisible(false);
+    ui->pushButton->setVisible(false);
+    ui->pushButton->setZoom(0.8);
+    m_KnobType = Knob;
+    connect(ui->dial,&QAbstractSlider::valueChanged,this,&CKnobControl::valueChanged);
+    connect(ui->verticalSlider,&QAbstractSlider::valueChanged,this,&CKnobControl::valueChanged);
+    connect(ui->pushButton,&QSynthCheckbox::valueChanged,this,&CKnobControl::valueChanged);
     ui->dial->setNotchStyle(QSynthKnob::LEDNotch);
-    mapper=new QSignalMapper(this);
-    connect(mapper,SIGNAL(mapped(int)),ui->dial,SLOT(setValue(int)));
+    ui->verticalSlider->setLEDTicks(true);
+    connect(popup,qOverload<int>(&QSignalMenu::menuClicked),ui->dial,&QAbstractSlider::setValue);
+    connect(popup,qOverload<int>(&QSignalMenu::menuClicked),ui->verticalSlider,&QSynthSwitch::setValue);
+    connect(popup,qOverload<int>(&QSignalMenu::menuClicked),ui->pushButton,&QSynthCheckbox::setValue);
     ui->label->setEffect(EffectLabel::Raised);
-    ui->label->setShadowColor(Qt::white);
+    ui->label->setShadowColor(QColor(255,255,255,200));
+    ui->label->setTextColor(QColor(0,0,0,200));
 }
 
 CKnobControl::~CKnobControl()
@@ -25,87 +37,126 @@ CKnobControl::~CKnobControl()
 
 int CKnobControl::value()
 {
+    if (m_KnobType==Switch) return  ui->verticalSlider->value();
+    if (m_KnobType==Checkbox) return ui->pushButton->value();
     return ui->dial->value();
 }
 
-void CKnobControl::setValue(int Value, const ParameterType &p)
+void CKnobControl::setValue(CParameter* p)
 {
-    Parameter=p;
-    ui->dial->blockSignals(true);
-    ui->dial->setMinimum(p.Min);
-    ui->dial->setMaximum(p.Max);
-    ui->dial->setValue(Value);
-    ui->dial->blockSignals(false);
-    setLabels(Value,p);
-}
-
-void CKnobControl::setLabels(int Value, const ParameterType &p)
-{
-    ui->label->setText(p.Name);
-    if (p.Type==ParameterType::dB)
+    //QMutexLocker locker(&mutex);
+    m_Parameter=p;
+    KnobType t = Knob;
+    if (p->Type == CParameter::SelectBox)
     {
-        ui->label_2->setText(QString::number(lin2db((float)Value*0.01),'f',2)+" "+p.Unit);
+        if (p->Max < 4) t = Switch;
+        if (p->Max < 2) t = Checkbox;
     }
-    else if (p.Type==ParameterType::SelectBox)
+    if (t != m_KnobType)
     {
-        QStringList l=p.List.split(ParameterList::ParameterListSeparator);
-        ui->label_2->setText(l[Value]);
+        m_KnobType = t;
+        ui->verticalSlider->setVisible(m_KnobType==Switch);
+        ui->dial->setVisible(m_KnobType==Knob);
+        ui->pushButton->setVisible(m_KnobType==Checkbox);
+    }
+    if (m_KnobType==Switch)
+    {
+        ui->verticalSlider->blockSignals(true);
+        ui->verticalSlider->setStringList(p->stringList());
+        ui->verticalSlider->setValue(p->Value);
+        ui->verticalSlider->blockSignals(false);
+    }
+    else if (m_KnobType==Checkbox)
+    {
+        ui->pushButton->blockSignals(true);
+        ui->pushButton->setStateList(p->stringList());
+        ui->pushButton->setValue(p->Value);
+        ui->pushButton->blockSignals(false);
     }
     else
     {
-        float DecFactor=p.DecimalFactor;
-        if (DecFactor==0) DecFactor=1;
-        ui->label_2->setText(QString::number((float)Value/DecFactor,'f',QString::number(DecFactor).length()-1)+" "+p.Unit);
+        ui->dial->blockSignals(true);
+        ui->dial->setMinimum(p->Min);
+        ui->dial->setMaximum(p->Max);
+        ui->dial->setValue(p->Value);
+        ui->dial->blockSignals(false);
     }
+    setLabels(p);
+}
+
+void CKnobControl::setLabels(CParameter* p)
+{
+    //QMutexLocker locker(&mutex);
+    ui->label->blockSignals(true);
+    ui->label_2->blockSignals(true);
+    ui->label->setText(p->Name);
+    ui->label_2->setText(p->valueText());
+    ui->label->blockSignals(false);
+    ui->label_2->blockSignals(false);
+    /*
+    if (p->Type==CParameter::dB)
+    {
+        ui->label_2->setText(QString::number(p->dBValue(),'f',2)+" "+p->Unit);
+    }
+    else if (p->Type==CParameter::SelectBox)
+    {
+        const QStringList l=p->stringList();
+        ui->label_2->setText(l[p->Value]);
+    }
+    else
+    {
+        ui->label_2->setText(QString::number(p->decimalValue(),'f',QString::number(p->DecimalFactor).length()-1)+" "+p->Unit);
+    }
+    */
 }
 
 void CKnobControl::mousePressEvent(QMouseEvent *event)
 {
     if (event->button()==Qt::RightButton)
     {
+        disconnect(spinbox);
+        spinbox->setAttribute(Qt::WA_MacShowFocusRect, false);
+        popup->removeAction(spinboxAction);
         popup->clear();
-        if (Parameter.Type==ParameterType::Numeric)
+        QAction* automationAction = new QAction("Automation");
+        connect(automationAction,&QAction::triggered,this,&CKnobControl::sendAutomationRequest);
+        if (m_Parameter->Type==CParameter::SelectBox)
         {
-            float DecFactor=Parameter.DecimalFactor;
-            if (DecFactor==0) DecFactor=1;
-            disconnect(spinbox);
-            spinbox->setAttribute(Qt::WA_MacShowFocusRect, 0);
-            spinbox->setMinimum(Parameter.Min);
-            spinbox->setMaximum(Parameter.Max);
-            spinbox->setDecimals(QString::number(DecFactor).length()-1);
-            spinbox->setValue((float)ui->dial->value()/DecFactor);
+            QStringList l=m_Parameter->stringList();
+            for (int i=0;i<l.size();i++)
+            {
+                QAction* a=popup->addAction(l[i],i);
+                if (value()==i) popup->setActiveAction(a);
+            }
+            popup->addSeparator();
+            popup->addAction(automationAction);
+            popup->popup(mapToGlobal(event->pos()));
+        }
+        else if (m_Parameter->Type==CParameter::dB)
+        {
+            spinbox->setMinimum(lin2dB(m_Parameter->Min*0.01));
+            spinbox->setMaximum(lin2dB(m_Parameter->Max*0.01));
+            spinbox->setDecimals(2);
+            spinbox->setValue(lin2dB(value()*0.01));
             spinbox->selectAll();
             popup->addAction(spinboxAction);
-            connect(spinbox,SIGNAL(valueChanged(double)),this,SLOT(SetNumericValue(double)));
+            connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetdBValue);
+            popup->addSeparator();
+            popup->addAction(automationAction);
             popup->popup(mapToGlobal(event->pos()));
             spinbox->setFocus();
         }
-        if (Parameter.Type==ParameterType::SelectBox)
+        else
         {
-            QStringList l=Parameter.List.split(ParameterList::ParameterListSeparator);
-            for (int i=0;i<l.count();i++)
-            {
-                QString s=l[i];
-                QAction* a=popup->addAction(s);
-                a->setCheckable(true);
-                a->setChecked(ui->dial->value()==i);
-                if (ui->dial->value()==i) popup->setActiveAction(a);
-                mapper->setMapping(a,i);
-                connect(a,SIGNAL(triggered()),mapper,SLOT(map()));
-            }
-            popup->popup(mapToGlobal(event->pos()));
-        }
-        if (Parameter.Type==ParameterType::dB)
-        {
-            disconnect(spinbox);
-            spinbox->setAttribute(Qt::WA_MacShowFocusRect, 0);
-            spinbox->setMinimum(lin2db((float)Parameter.Min*0.01));
-            spinbox->setMaximum(lin2db((float)Parameter.Max*0.01));
-            spinbox->setDecimals(2);
-            spinbox->setValue(lin2db((float)ui->dial->value()*0.01));
+            spinbox->setMinimum(m_Parameter->Min/double(m_Parameter->DecimalFactor));
+            spinbox->setMaximum(m_Parameter->Max/double(m_Parameter->DecimalFactor));
+            spinbox->setDecimals(QString::number(m_Parameter->DecimalFactor).length()-1);
+            spinbox->setValue(value()/double(m_Parameter->DecimalFactor));
             spinbox->selectAll();
             popup->addAction(spinboxAction);
-            connect(spinbox,SIGNAL(valueChanged(double)),this,SLOT(SetdBValue(double)));
+            connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetNumericValue);
+            popup->addSeparator();
+            popup->addAction(automationAction);
             popup->popup(mapToGlobal(event->pos()));
             spinbox->setFocus();
         }
@@ -114,18 +165,14 @@ void CKnobControl::mousePressEvent(QMouseEvent *event)
 
 void CKnobControl::SetNumericValue(double Value)
 {
-    float DecFactor=Parameter.DecimalFactor;
-    if (DecFactor==0) DecFactor=1;
-    int Val=Value*DecFactor;
-    ui->dial->setValue(Val);
+    ui->dial->setValue(int(Value*m_Parameter->DecimalFactor));
     spinbox->selectAll();
     spinbox->setFocus();
 }
 
 void CKnobControl::SetdBValue(double Value)
 {
-    double Val=db2lin(Value)*100.0;
-    ui->dial->setValue(round(Val));
+    ui->dial->setValue(qRound(dB2lin(Value)*100.0));
     spinbox->selectAll();
     spinbox->setFocus();
 }

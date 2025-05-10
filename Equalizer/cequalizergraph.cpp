@@ -1,13 +1,12 @@
 #include "cequalizergraph.h"
 #include "ui_cequalizergraph.h"
-#include <QPainter>
 
 CEqualizerGraph::CEqualizerGraph(QWidget *parent) :
     QCanvas(parent,1),
     ui(new Ui::CEqualizerGraph)
 {
     ui->setupUi(this);
-    emit RefreshMe();
+    //emit Changed();
 }
 
 CEqualizerGraph::~CEqualizerGraph()
@@ -18,6 +17,10 @@ CEqualizerGraph::~CEqualizerGraph()
 void CEqualizerGraph::resizeEvent(QResizeEvent* e)
 {
     QCanvas::resizeEvent(e);
-    emit RefreshMe();
+    emit Changed();
 }
 
+void CEqualizerGraph::showEvent(QShowEvent* e) {
+    QCanvas::showEvent(e);
+    emit Changed();
+}

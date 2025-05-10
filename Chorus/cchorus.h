@@ -1,8 +1,9 @@
 #ifndef CCHORUS_H
 #define CCHORUS_H
 
-#include "softsynthsclasses.h"
-#include "Biquad.h"
+#include "idevice.h"
+#include "biquad.h"
+#include "cringbuffer.h"
 
 #define DEPTH_BUFLEN 450
 #define DELAY_BUFLEN 19200
@@ -20,17 +21,17 @@ class CChorus : public IDevice
 {
 public:
     CChorus();
-    ~CChorus();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow);
+    void process();
 private:
     enum JackNames
     {jnOut,jnIn};
     enum ParameterNames
-    {pnFrequency,pnPhase,pnDepth,pnDelay,pnContour,pnDryLevel,pnWetLevel};
-    float* ring;
-    unsigned int buflen;
-    unsigned int pos;
+    {pnFrequency,pnPhase,pnDepth,pnDelay,pnContour,pnEffect};
+    CRingBuffer ring_L;
+    CRingBuffer ring_R;
+    uint pos_L;
+    uint pos_R;
     float Frequency;
     int Phase;
     float Depth;
@@ -38,14 +39,12 @@ private:
     int Contour;
     float DryLevel;
     float WetLevel;
+    float d_pos;
     float cm_phase;
-    float dm_phase;
-    biquad highpass;
+    CBiquad highpass_L;
+    CBiquad highpass_R;
     float cos_table[COS_TABLE_SIZE];
-    float inline read_buffer(float* buffer, unsigned int buflen, unsigned int pos, unsigned int n);
-    void inline write_buffer(float insample, float* buffer, unsigned int buflen, unsigned int pos, unsigned int n);
-    float inline push_buffer(float insample, float* buffer, unsigned int buflen, unsigned int * pos);
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 };
 
 #endif // CCHORUS_H

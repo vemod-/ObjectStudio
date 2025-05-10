@@ -1,38 +1,35 @@
 #include "iaudiopluginhost.h"
-#include "QMacFunctions"
-#import <Carbon/Carbon.h>
-#import <Cocoa/Cocoa.h>
 
-IAudioPlugInHost::IAudioPlugInHost(unsigned int sampleRate, unsigned int bufferSize, QWidget *parent):CMacWindow(parent)
+//#ifndef __x86_64
+//#include <Carbon/Carbon.h>
+//#endif
+//#import <Cocoa/Cocoa.h>
+
+IAudioPlugInHost::IAudioPlugInHost(QWidget *parent):CMacWindow(parent),IMIDIParser()
 {
-    m_Samplerate=sampleRate;
-    m_Buffersize=bufferSize;
-    m_MIDIChannel=0;
+    setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Preferred);
+    m_Samplerate=presets.SampleRate;
+    m_Buffersize=presets.ModulationRate;
 }
-QPixmap IAudioPlugInHost::Picture()
+
+const QPixmap* IAudioPlugInHost::picture()
 {
-    QPixmap pixmap(size());
-    QRect r(rect());
-    r.translate(mapToGlobal(QPoint(0,0)));
-    CGRect rect;
-    rect.origin.x=r.left();
-    rect.origin.y=r.top();
-    rect.size.width=r.width();
-    rect.size.height=r.height();
-    CGWindowID wid;
-    if (cocoaWin)
-    {
-        wid = (CGWindowID)([(NSWindow*)cocoaWin windowNumber]);
-    }
-    else
-    {
-        wid = (CGWindowID)([(NSWindow*)([(NSView*)cocoaView() window]) windowNumber]);
-    }
-    CGImageRef windowImage =  CGWindowListCreateImage(rect, kCGWindowListOptionIncludingWindow, wid, kCGWindowImageDefault );
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-    pixmap = QPixmap::fromMacCGImageRef(windowImage);
-#else
-    pixmap = QtMacExtras::fromCGImageRef(windowImage);
-#endif
-    return pixmap;
+    if (!viewId()) return nullptr;
+    if (!isVisible()) return new QPixmap(backPix);
+    backPix = grab();//CMacWindow::Grab();
+    return new QPixmap(backPix);
+}
+
+void IAudioPlugInHost::resizeEvent(QResizeEvent *e)
+{
+    //qDebug() << "IAudioPlugInHost::resizeEvent";
+    CMacWindow::resizeEvent(e);
+    backPix = grab();//CMacWindow::Grab();
+}
+
+void IAudioPlugInHost::showEvent(QShowEvent *e)
+{
+    //qDebug() << "IAudioPlugInHost::showEvent";
+    CMacWindow::showEvent(e);
+    backPix = grab();//CMacWindow::Grab();
 }

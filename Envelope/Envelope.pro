@@ -5,50 +5,32 @@
 #-------------------------------------------------
 
 TARGET = Envelope
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
+
+LIBS += -lSoftSynthsWidgets
+INCLUDEPATH += ../../QCanvas
 
 DEFINES += ENVELOPE_LIBRARY
 
-SOURCES += cadsrwidget.cpp
+SOURCES += cadsrwidget.cpp \
+    cenvelopeform.cpp
 
-HEADERS += cadsrwidget.h
+HEADERS += cadsrwidget.h \
+    cenvelopeform.h
 
 SOURCES += cenvelope.cpp \
     cadsr.cpp \
-    cadsrcontrol.cpp \
-    cenevelopeform.cpp
+    cadsrcontrol.cpp
 
 HEADERS += cenvelope.h \
     cadsr.h \
-    cadsrcontrol.h \
-    cenevelopeform.h
-
-symbian {
-    MMP_RULES += EXPORTUNFROZEN
-    TARGET.UID3 = 0xE9618BEA
-    TARGET.CAPABILITY = 
-    TARGET.EPOCALLOWDLLDATA = 1
-    addFiles.sources = Envelope.dll
-    addFiles.path = !:/sys/bin
-    DEPLOYMENT += addFiles
-}
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
+    cadsrcontrol.h
 
 FORMS += \
     cadsrcontrol.ui \
-    cenevelopeform.ui \
-    cadsrwidget.ui
+    cadsrwidget.ui \
+    cenvelopeform.ui
 
 
 

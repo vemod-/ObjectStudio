@@ -1,7 +1,7 @@
 #ifndef CRINGMODULATOR_H
 #define CRINGMODULATOR_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 
 class CRingModulator : public IDevice
 {
@@ -12,11 +12,11 @@ private:
     {pnModulation};
     float ModulationFactor;
     float CleanFactor;
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 public:
     CRingModulator();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
 };
 
 #endif // CRINGMODULATOR_H

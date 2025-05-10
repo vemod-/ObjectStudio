@@ -1,6 +1,6 @@
 #include "cmixerform.h"
 #include "ui_cmixerform.h"
-#include "softsynthsclasses.h"
+#include "idevice.h"
 
 CMixerForm::CMixerForm(IDevice* Device, QWidget *parent) :
     CSoftSynthsForm(Device,true,parent),
@@ -10,102 +10,98 @@ CMixerForm::CMixerForm(IDevice* Device, QWidget *parent) :
     for (int i=0;i<Mixer::mixerchannels;i++)
     {
         MF=findChildren<CMixerFrame*>();
-        MF[i]->Init((CMixer*)m_Device,i);
-        connect(MF[i],SIGNAL(SoloClicked(bool,int)),this,SLOT(SoloClicked(bool,int)));
+        MF[i]->init(MIXERCLASS,i);
+        connect(MF[i],&CMixerFrame::SoloClicked,this,&CMixerForm::SoloClicked);
     }
-    startTimer(50);
-    connect(ui->LeftSlider,SIGNAL(valueChanged(int)),this,SLOT(LeftChanged(int)));
-    connect(ui->RightSlider,SIGNAL(valueChanged(int)),this,SLOT(RightChanged(int)));
-    ui->LeftSlider->setValue(((CMixer*)m_Device)->MasterLeft*100);
-    ui->RightSlider->setValue(((CMixer*)m_Device)->MasterRight*100);
+    connect(ui->LeftSlider,&QAbstractSlider::valueChanged,this,&CMixerForm::LeftChanged);
+    connect(ui->RightSlider,&QAbstractSlider::valueChanged,this,&CMixerForm::RightChanged);
+    ui->LeftSlider->setValue(MIXERCLASS->MasterLeft*100);
+    ui->RightSlider->setValue(MIXERCLASS->MasterRight*100);
+    m_TimerID=startTimer(50);
 }
 
 CMixerForm::~CMixerForm()
 {
+    killTimer(m_TimerID);
+    m_TimerID=0;
     delete ui;
 }
 
 void CMixerForm::timerEvent(QTimerEvent* /*event*/)
 {
+    if (!m_TimerID) return;
+    //if (!m_Device) return;
     if (isVisible())
     {
-        float P[Mixer::mixerchannels];
-        float L;
-        float R;
-        ((CMixer*)m_Device)->GetPeak(P,&L,&R);
-        ui->StereoPeak->SetValues(L,R);
+        ui->StereoPeak->setValues(MIXERCLASS->PeakL,MIXERCLASS->PeakR);
+        MIXERCLASS->PeakL=0;
+        MIXERCLASS->PeakR=0;
         for (int i=0;i<Mixer::mixerchannels;i++)
         {
-            MF[i]->Peak(P[i]);
+            MF[i]->peak(MIXERCLASS->Channel[i].Peak);
+            MIXERCLASS->Channel[i].Peak=0;
         }
     }
 }
 
 void CMixerForm::Reset()
 {
-    ui->StereoPeak->Reset();
+    ui->StereoPeak->reset();
     for (int i=0;i<Mixer::mixerchannels;i++)
     {
-        MF[i]->Reset();
+        MF[i]->reset();
     }
 }
 
-void CMixerForm::CustomLoad(const QString &XML)
+void CMixerForm::setSender(const QString &s, int Index)
 {
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
+    MF[Index]->setSender(s);
+}
+
+void CMixerForm::unserializeCustom(const QDomLiteElement* xml)
+{
+    if (!xml) return;
+    if (const QDomLiteElement* Master = xml->elementByTag("Master"))
     {
-        QDomLiteElement* Master = xml.elementByTag("Master");
-        if (Master)
-        {
-            ui->RightSlider->setValue(Master->attributeValue("VolumeRight"));
-            ui->LeftSlider->setValue(Master->attributeValue("VolumeLeft"));
-            ((CMixer*)m_Device)->SoloChannel = Master->attributeValue("SoloChannel");
-            ui->LockButton->setChecked(Master->attributeValue("ChannelLock"));
-        }
-        for (int i=0;i<Mixer::mixerchannels;i++)
-        {
-            QDomLiteElement* Channel = xml.elementByTag("Channel" + QString::number(i+1));
-            if (Channel) MF[i]->Load(Channel->firstChild()->toString());
-        }
+        ui->RightSlider->setValue(Master->attributeValueInt("VolumeRight"));
+        ui->LeftSlider->setValue(Master->attributeValueInt("VolumeLeft"));
+        MIXERCLASS->SoloChannel = Master->attributeValueInt("SoloChannel");
+        ui->LockButton->setChecked(Master->attributeValueBool("ChannelLock"));
+    }
+    for (int i=0;i<Mixer::mixerchannels;i++)
+    {
+        if (const QDomLiteElement* Channel = xml->elementByTag("Channel" + QString::number(i+1))) MF[i]->unserialize(Channel->elementByTag("Custom"));
     }
 }
 
-const QString CMixerForm::CustomSave()
+void CMixerForm::serializeCustom(QDomLiteElement* xml) const
 {
-    QDomLiteElement xml("Custom");
-    QDomLiteElement* Master = xml.appendChild("Master");
+    QDomLiteElement* Master = xml->appendChild("Master");
     Master->setAttribute("VolumeRight",ui->RightSlider->value());
     Master->setAttribute("VolumeLeft",ui->LeftSlider->value());
     Master->setAttribute("ChannelLock",ui->LockButton->isChecked());
-    Master->setAttribute("SoloChannel",((CMixer*)m_Device)->SoloChannel);
+    Master->setAttribute("SoloChannel",MIXERCLASS->SoloChannel);
 
     for (int i=0;i<Mixer::mixerchannels;i++)
     {
-        QDomLiteElement* Channel = xml.appendChild("Channel" + QString::number(i+1));
-        Channel->appendChildFromString(MF[i]->Save());
+        MF[i]->serialize(xml->appendChild("Channel" + QString::number(i+1))->appendChild("Custom"));
     }
-    return xml.toString();
 }
 
 void CMixerForm::LeftChanged(int Value)
 {
-    if (!(CMixer*)m_Device)
-    {
-        return;
-    }
-    ((CMixer*)m_Device)->MasterLeft=(float)Value*0.01;
+    //if (!m_Device) return;
+    MIXERCLASS->MasterLeft=Value*0.01f;
 
     if (ui->LockButton->isChecked())
     {
         ui->RightSlider->blockSignals(true);
         ui->RightSlider->setValue(Value);
         ui->RightSlider->blockSignals(false);
-        ((CMixer*)m_Device)->MasterRight=(float)Value*0.01;
+        MIXERCLASS->MasterRight=Value*0.01f;
     }
-    ui->LeftLabel->setText(QString::number(lin2db((float)ui->LeftSlider->value()*0.01),'f',2)+" dB");
-    ui->RightLabel->setText(QString::number(lin2db((float)ui->RightSlider->value()*0.01),'f',2)+" dB");
+    ui->LeftLabel->setText(percent2dBText(ui->LeftSlider->value()));
+    ui->RightLabel->setText(percent2dBText(ui->RightSlider->value()));
 
 }
 
@@ -113,20 +109,17 @@ void CMixerForm::LeftChanged(int Value)
 
 void CMixerForm::RightChanged(int Value)
 {
-    if (!(CMixer*)m_Device)
-    {
-        return;
-    }
-    ((CMixer*)m_Device)->MasterRight=(float)Value*0.01;
+    //if (!m_Device) return;
+    MIXERCLASS->MasterRight=Value*0.01f;
     if (ui->LockButton->isChecked())
     {
         ui->LeftSlider->blockSignals(true);
         ui->LeftSlider->setValue(Value);
         ui->LeftSlider->blockSignals(false);
-        ((CMixer*)m_Device)->MasterLeft=(float)Value*0.01;
+        MIXERCLASS->MasterLeft=Value*0.01f;
     }
-    ui->LeftLabel->setText(QString::number(lin2db((float)ui->LeftSlider->value()*0.01),'f',2)+" dB");
-    ui->RightLabel->setText(QString::number(lin2db((float)ui->RightSlider->value()*0.01),'f',2)+" dB");
+    ui->LeftLabel->setText(percent2dBText(ui->LeftSlider->value()));
+    ui->RightLabel->setText(percent2dBText(ui->RightSlider->value()));
 
 }
 
@@ -136,13 +129,13 @@ void CMixerForm::SoloClicked(bool Pressed, int Index)
     {
         for (int i=0;i<Mixer::mixerchannels;i++)
         {
-            if (i != Index) MF[i]->SetSolo(false);
+            if (i != Index) MF[i]->setSolo(false);
         }
-        ((CMixer*)m_Device)->SoloChannel=Index;
+        MIXERCLASS->SoloChannel=Index;
     }
     else
     {
-        ((CMixer*)m_Device)->SoloChannel=-1;
+        MIXERCLASS->SoloChannel=-1;
     }
 }
 

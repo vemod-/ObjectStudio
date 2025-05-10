@@ -1,28 +1,25 @@
 #ifndef CMOOGVCF_H
 #define CMOOGVCF_H
 
-#include "softsynthsclasses.h"
-#include "cfreqglider.h"
+#include "idevice.h"
+#include "cvoltagemodulator.h"
 
 class  CMoogVCF : public IDevice
 {
 public:
     CMoogVCF();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow) override;
+    CAudioBuffer* getNextA(const int ProcIndex) override;
+    void play(const bool FromStart) override;
 private:
     enum JackNames
     {jnOut,jnIn,jnModulation};
     enum ParameterNames
     {pnInVolume,pnCutOffModulation,pnCutOffFrequency,pnResponse,pnResonance,pnOutVolume};
-    int Maxcutoff;
     int LastResonance;
-    float LastCO;
-    //int TargetFreq;
-    float ModulationFactor;
     float InVolumeFactor;
     float OutVolumeFactor;
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr) override;
     void inline CalcExpResonance(float CutOff,float Resonance);
     //float fc;
     //float res;
@@ -37,7 +34,8 @@ private:
     float Out2;
     float Out3;
     float Out4;
-    CFreqGlider FreqGlider;
+    //CFreqGlider FreqGlider;
+    CVoltageModulator Modulator;
 };
 
 #endif // CMOOGVCF_H

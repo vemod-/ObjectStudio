@@ -1,5 +1,4 @@
 #include "cmixerframe.h"
-#include "softsynthsclasses.h"
 #include "ui_cmixerframe.h"
 
 CMixerFrame::CMixerFrame(QWidget *parent) :
@@ -7,14 +6,15 @@ CMixerFrame::CMixerFrame(QWidget *parent) :
     ui(new Ui::CMixerFrame)
 {
     ui->setupUi(this);
-    Mixer=NULL;
-    connect(ui->VolSlider,SIGNAL(valueChanged(int)),this,SLOT(VolChanged(int)));
-    connect(ui->PanDial,SIGNAL(valueChanged(int)),this,SLOT(PanChanged(int)));
-    connect(ui->EffectDial,SIGNAL(valueChanged(int)),this,SLOT(EffectChanged(int)));
-    connect(ui->BypassButton,SIGNAL(clicked(bool)),this,SLOT(BypassButtonClicked(bool)));
-    connect(ui->SoloButton,SIGNAL(clicked(bool)),this,SLOT(SoloButtonClicked(bool)));
-    connect(ui->MuteButton,SIGNAL(clicked(bool)),this,SLOT(MuteButtonClicked(bool)));
-    ui->VolLabel->setText(QString::number(lin2db((float)ui->VolSlider->value()*0.01),'f',2)+" dB");
+    Mixer=nullptr;
+    Index=0;
+    connect(ui->VolSlider,&QAbstractSlider::valueChanged,this,&CMixerFrame::VolChanged);
+    connect(ui->PanDial,&QAbstractSlider::valueChanged,this,&CMixerFrame::PanChanged);
+    connect(ui->EffectDial,&QAbstractSlider::valueChanged,this,&CMixerFrame::EffectChanged);
+    connect(ui->BypassButton,&QAbstractButton::clicked,this,&CMixerFrame::BypassButtonClicked);
+    connect(ui->SoloButton,&QAbstractButton::clicked,this,&CMixerFrame::SoloButtonClicked);
+    connect(ui->MuteButton,&QAbstractButton::clicked,this,&CMixerFrame::MuteButtonClicked);
+    ui->VolLabel->setText(percent2dBText(ui->VolSlider->value()));
 }
 
 CMixerFrame::~CMixerFrame()
@@ -22,131 +22,118 @@ CMixerFrame::~CMixerFrame()
     delete ui;
 }
 
-void CMixerFrame::Init(CMixer* MixerClass,int ChannelIndex)
+void CMixerFrame::init(CMixer* MixerClass,int ChannelIndex)
 {
     Mixer=MixerClass;
     Index=ChannelIndex;
-    ui->VolSlider->setValue(Mixer->Level[Index]*100);
-
-    //VemodKnob1->Init(Numeric,"Pan","",-100,100,0,"",0);
-    //VemodKnob2->Init(Numeric,"Send","",0,100,0,"",0);
-    ui->IndexLabel->setText(QString::number(Index+1));
+    ui->VolSlider->setValue(Mixer->Channel[Index].Level*100);
+    setSender(QString());
 }
 
-void CMixerFrame::Peak(float Value)
+void CMixerFrame::peak(float Value)
 {
-        ui->Peak->SetValue(Value);
+    ui->Peak->setValue(Value);
 }
 
-void CMixerFrame::Reset()
+void CMixerFrame::reset()
 {
-    ui->Peak->Reset();
+    ui->Peak->reset();
 }
 
-void CMixerFrame::SetSolo(bool Value)
+void CMixerFrame::setSolo(bool Value)
 {
     ui->SoloButton->setChecked(Value);
 }
 
-void CMixerFrame::PanChanged(int Value)
+void CMixerFrame::setSender(const QString& s)
 {
-    if (!Mixer)
+    if (s.isEmpty())
     {
-        return;
-    }
-    float PanValue=(float)Value*0.01;
-    if (PanValue<0)
-    {
-        Mixer->PanL[Index]=1;
-        Mixer->PanR[Index]=1+PanValue;
+        setFontSizeScr(ui->IndexLabel,13);
+        ui->IndexLabel->setText(QString::number(Index+1));
     }
     else
     {
-        Mixer->PanR[Index]=1;
-        Mixer->PanL[Index]=1-PanValue;
+        setFontSizeScr(ui->IndexLabel,9);
+        ui->IndexLabel->setText(s);
+    }
+}
+
+void CMixerFrame::PanChanged(int Value)
+{
+    if (!Mixer) return;
+    float PanValue=Value*0.01f;
+    if (PanValue<0)
+    {
+        Mixer->Channel[Index].PanL=1;
+        Mixer->Channel[Index].PanR=1+PanValue;
+    }
+    else
+    {
+        Mixer->Channel[Index].PanR=1;
+        Mixer->Channel[Index].PanL=1-PanValue;
     }
 }
 //---------------------------------------------------------------------------
 
 void CMixerFrame::EffectChanged(int Value)
 {
-    if (!Mixer)
-    {
-        return;
-    }
-    Mixer->Effect[Index]=(float)Value*0.01;
+    if (!Mixer) return;
+    Mixer->Channel[Index].Effect=Value*0.01f;
 }
 //---------------------------------------------------------------------------
 
-const QString CMixerFrame::Save()
+void CMixerFrame::serialize(QDomLiteElement* xml) const
 {
-    QDomLiteElement xml("Custom");
-                xml.setAttribute("Volume",ui->VolSlider->value());
-                xml.setAttribute("Pan",ui->PanDial->value());
-                xml.setAttribute("Send",ui->EffectDial->value());
-                xml.setAttribute("Mute",(int)Mixer->Mute[Index]);
-                xml.setAttribute("EffectMute",(int)Mixer->EffectMute[Index]);
-        return xml.toString();
+    xml->setAttribute("Volume",ui->VolSlider->value());
+    xml->setAttribute("Pan",ui->PanDial->value());
+    xml->setAttribute("Send",ui->EffectDial->value());
+    xml->setAttribute("Mute",Mixer->Channel[Index].Mute);
+    xml->setAttribute("EffectMute",Mixer->Channel[Index].EffectMute);
 }
 
-void CMixerFrame::Load(const QString& XML)
+void CMixerFrame::unserialize(const QDomLiteElement* xml)
 {
-    QDomLiteElement xml;
-    xml.fromString(XML);
-        if (xml.tag=="Custom")
-        {
-                ui->VolSlider->setValue(xml.attributeValue("Volume"));
-                Mixer->Level[Index]=(float)ui->VolSlider->value()*0.01;
-                ui->PanDial->setValue(xml.attributeValue("Pan"));
-                ui->EffectDial->setValue(xml.attributeValue("Send"));
-                Mixer->Mute[Index]=xml.attributeValue("Mute");
-                Mixer->EffectMute[Index]=xml.attributeValue("EffectMute");
-        }
+    if (!xml) return;
+    ui->VolSlider->setValue(xml->attributeValueInt("Volume"));
+    Mixer->Channel[Index].Level=ui->VolSlider->value()*0.01f;
+    ui->PanDial->setValue(xml->attributeValueInt("Pan"));
+    ui->EffectDial->setValue(xml->attributeValueInt("Send"));
+    Mixer->Channel[Index].Mute=xml->attributeValueBool("Mute");
+    Mixer->Channel[Index].EffectMute=xml->attributeValueBool("EffectMute");
 
     ui->SoloButton->setChecked(Mixer->SoloChannel==Index);
-    ui->MuteButton->setChecked(Mixer->Mute[Index]);
-    ui->BypassButton->setChecked(Mixer->EffectMute[Index]);
+    ui->MuteButton->setChecked(Mixer->Channel[Index].Mute);
+    ui->BypassButton->setChecked(Mixer->Channel[Index].EffectMute);
 }
 
 
 void CMixerFrame::VolChanged(int Value)
 {
-    ui->VolLabel->setText(QString::number(lin2db((float)Value*0.01),'f',2)+" dB");
-    if (!Mixer)
-    {
-        return;
-    }
-    Mixer->Level[Index]=(float)Value*0.01;
+    ui->VolLabel->setText(percent2dBText(Value));
+    if (!Mixer) return;
+    Mixer->Channel[Index].Level=Value*0.01f;
 }
 //---------------------------------------------------------------------------
 
 void CMixerFrame::MuteButtonClicked(bool Value)
 {
-    if (!Mixer)
-    {
-        return;
-    }
-    Mixer->Mute[Index]=Value;
+    if (!Mixer) return;
+    Mixer->Channel[Index].Mute=Value;
 }
 //---------------------------------------------------------------------------
 
 void CMixerFrame::SoloButtonClicked(bool Value)
 {
-    if (!Mixer)
-    {
-        return;
-    }
+    if (!Mixer) return;
     emit SoloClicked(Value,Index);
 }
 //---------------------------------------------------------------------------
 
 void CMixerFrame::BypassButtonClicked(bool Value)
 {
-    if (!Mixer)
-    {
-        return;
-    }
-    Mixer->EffectMute[Index]=Value;
+    if (!Mixer) return;
+    Mixer->Channel[Index].EffectMute=Value;
 }
 
 void CMixerFrame::showEvent(QShowEvent *)

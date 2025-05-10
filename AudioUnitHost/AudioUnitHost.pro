@@ -5,7 +5,6 @@
 #-------------------------------------------------
 
 TARGET = AudioUnitHost
-TEMPLATE = lib
 
 INCLUDEPATH += ../VSTHost
 
@@ -14,9 +13,8 @@ include(../SoftSynthsIncludes.pri)
 DEFINES += AUDIOUNITHOST_LIBRARY
 
 include(AudioUnitHost.pri)
-include($$PWD/../../QSignalMenu/QSignalMenu.pri)
 
-LIBS += -L../ -lPluginLoader
+LIBS += -lPluginLoader
 
 HEADERS += ../VSTHost/cmacwindow.h \
     ../VSTHost/macstrings.h \

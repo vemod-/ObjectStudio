@@ -1,7 +1,5 @@
 #include "caudiounithost.h"
-#include "caudiounitclass.h"
 #include "cvstform.h"
-
 #undef devicename
 #define devicename "AudioUnitHost"
 
@@ -14,57 +12,63 @@ CAudioUnitHost::~CAudioUnitHost()
 
 }
 
-void CAudioUnitHost::Init(const int Index, void *MainWindow)
+void CAudioUnitHost::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackStereoIn();
-    AddJackMIDIIn();
-    AddJackStereoOut(jnOut);
-    AddParameterVolume();
-    AddParameterMIDIChannel();
-    AddParameter(ParameterType::SelectBox,"Patch Change","",0,1,0,"Off§On",0);
-    m_Form=new CVSTForm(new CAudioUnitClass(CPresets::Presets.SampleRate,CPresets::Presets.ModulationRate), this,(QWidget*)MainWindow);
+    IDevice::init(Index,MainWindow);
+    addJackStereoIn();
+    addJackMIDIIn();
+    addJackStereoOut(jnOut);
+    addParameterVolume();
+    startParameterGroup("MIDI", Qt::yellow);
+    addParameterMIDIChannel();
+    addParameterTranspose();
+    addParameterPatchChange();
+    endParameterGroup();
+    m_Form=new CVSTForm(new CAudioUnitClass(), this,MainWindow);
     VolFactor=1.0;
-    CalcParams();
+    updateDeviceParameter();
 }
 
-void inline CAudioUnitHost::CalcParams()
+void inline CAudioUnitHost::updateDeviceParameter(const CParameter* /*p*/)
 {
-    VolFactor=m_ParameterValues[pnVolume]*0.01;
-    IAudioPlugInHost* AU=((CVSTForm*)m_Form)->PlugIn;
-    AU->setMIDIChannel(m_ParameterValues[pnMIDIChannel]);
+    VolFactor=m_Parameters[pnVolume]->PercentValue;
+    AUPLUGINCLASS->setChannelMode(m_Parameters[pnMIDIChannel]->Value);
+    AUPLUGINCLASS->setTranspose(m_Parameters[pnTranspose]->Value);
+    AUPLUGINCLASS->setPatchResponse(m_Parameters[pnPatchChange]->Value);
 }
 
-void CAudioUnitHost::Play(const bool /*fromStart*/)
+void CAudioUnitHost::play(const bool FromStart)
 {
-    CAudioUnitClass* AU=(CAudioUnitClass*)((CVSTForm*)m_Form)->PlugIn;
-    AU->Play();
+    AUPLUGINCLASS->play();
+    IDevice::play(FromStart);
 }
 
-void CAudioUnitHost::Pause()
+void CAudioUnitHost::pause()
 {
-    CAudioUnitClass* AU=(CAudioUnitClass*)((CVSTForm*)m_Form)->PlugIn;
-    AU->AllNotesOff();
-    AU->Stop();
+    AUPLUGINCLASS->allNotesOff();
+    AUPLUGINCLASS->stop();
+    IDevice::pause();
 }
 
-const QString CAudioUnitHost::FileName()
+const QString CAudioUnitHost::filename() const
 {
-    return ((CVSTForm*)m_Form)->PlugIn->Filename();
+    return AUPLUGINCLASS->filename();
 }
 
-void CAudioUnitHost::Execute(const bool Show)
+void CAudioUnitHost::execute(const bool Show)
 {
     if (Show)
     {
-        if (((CVSTForm*)m_Form)->PlugIn->Filename().isEmpty())
+        if (AUPLUGINCLASS->filename().isEmpty())
         {
-            ((CVSTForm*)m_Form)->PlugIn->Popup(QCursor::pos());
+            AUPLUGINCLASS->popup(QCursor::pos());
         }
         else
         {
             m_Form->show();
+            //AUPLUGINCLASS->setFixedSize(AUPLUGINCLASS->UISize());
+            //m_Form->setFixedSize(m_Form->sizeHint());;
         }
     }
     else
@@ -73,103 +77,98 @@ void CAudioUnitHost::Execute(const bool Show)
     }
 }
 
-const QString CAudioUnitHost::Save()
+void CAudioUnitHost::serializeCustom(QDomLiteElement* xml) const
 {
-    CAudioUnitClass* AU=(CAudioUnitClass*)((CVSTForm*)m_Form)->PlugIn;
-    if (AU->Filename().isEmpty()) return QString();
-    QDomLiteElement xml("Custom");
-    xml.setAttribute("Type",QVariant::fromValue(AU->Type()));
-    xml.setAttribute("Subtype",QVariant::fromValue(AU->SubType()));
-    xml.setAttribute("Manufacturer",QVariant::fromValue(AU->Manufacturer()));
-    xml.setAttribute("Program",QVariant::fromValue(AU->CurrentProgram()));
+    if (AUPLUGINCLASS->filename().isEmpty()) return;
+    xml->setAttribute("Type",QVariant::fromValue(AUPLUGINCLASS->type()));
+    xml->setAttribute("Subtype",QVariant::fromValue(AUPLUGINCLASS->subType()));
+    xml->setAttribute("Manufacturer",QVariant::fromValue(AUPLUGINCLASS->manufacturer()));
+    xml->setAttribute("Program",QVariant::fromValue(AUPLUGINCLASS->currentBankPreset()));
     QDomLiteDocument d;
-    d.fromString(AU->SaveXML());
-    xml.appendClone(d.documentElement);
-    xml.appendChildFromString(m_Form->Save());
-    return xml.toString();
+    d.fromString(AUPLUGINCLASS->serializeString());
+    xml->appendClone(d.documentElement);
+    //AUPLUGINCLASS->serialize(xml);
 }
 
-void CAudioUnitHost::Load(const QString& XML)
+void CAudioUnitHost::unserializeCustom(const QDomLiteElement* xml)
 {
-    CAudioUnitClass* AU=(CAudioUnitClass*)((CVSTForm*)m_Form)->PlugIn;
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
+    if (!xml) return;
+    QMutexLocker locker(&mutex);
+    const OSType type=xml->attribute("Type").toUInt();
+    const OSType subtype=xml->attribute("Subtype").toUInt();
+    const OSType manufacturer=xml->attribute("Manufacturer").toUInt();
+    if ((type != AUPLUGINCLASS->type()) || (subtype != AUPLUGINCLASS->subType()) || (manufacturer != AUPLUGINCLASS->manufacturer()))
     {
-        OSType type=xml.attribute("Type").toUInt();
-        OSType subtype=xml.attribute("Subtype").toUInt();
-        OSType manufacturer=xml.attribute("Manufacturer").toUInt();
-        if ((type != AU->Type()) | (subtype != AU->SubType()) | (manufacturer != AU->Manufacturer()))
+        AUPLUGINCLASS->selectAU(type,subtype,manufacturer);
+    }
+    const int p=xml->attributeValueInt("Program");
+    if (p > -1) AUPLUGINCLASS->setBankPreset(p);
+    FORMFUNC(CVSTForm)->fillList(p);
+    if (QDomLiteElement* plist=xml->elementByTag("plist"))
+    {
+        QDomLiteDocument d;
+        d.fromString(AUPLUGINCLASS->serializeString());
+        if (*plist != *d.documentElement)
         {
-            AU->SelectAU(type,subtype,manufacturer);
-        }
-        int p=xml.attributeValue("Program");
-        if (p > -1) AU->SetProgram(p);
-        ((CVSTForm*)m_Form)->FillList(p);
-        QDomLiteElement* plist=xml.elementByTag("plist");
-        if (plist)
-        {
-            QDomLiteDocument d;
-            d.fromString(AU->SaveXML());
-            if (!plist->compare(d.documentElement))
-            {
-                d.documentElement->copy(plist);
-                QString s=d.toString();
-                AU->LoadXML(s.replace("<data/>","<data></data>"));
-            }
-        }
-        QDomLiteElement* Custom=xml.elementByTag("Custom");
-        if (Custom)
-        {
-            m_Form->Load(Custom->toString());
+            *d.documentElement = *plist;
+            QString s=d.toString();
+            AUPLUGINCLASS->unserializeString(s.replace("<data/>","<data></data>"));
         }
     }
 }
 
-void CAudioUnitHost::Process()
+void CAudioUnitHost::process()
 {
-    CAudioUnitClass* AU=(CAudioUnitClass*)((CVSTForm*)m_Form)->PlugIn;
-    AU->DumpMIDI((CMIDIBuffer*)FetchP(jnMIDIIn),m_ParameterValues[pnPatchChange]);
-    float* Buffer=FetchA(jnIn);
-    if (Buffer != NULL)
+    AUPLUGINCLASS->parseMIDI(FetchP(jnMIDIIn));
+    //PLUGINCLASS->inBuffer.writeBuffer(FetchA(jnIn),true);
+    if (AUPLUGINCLASS->isMono()) {
+        AUPLUGINCLASS->InBuffers.fill(m_MonoBuffer.fromStereo(FetchAStereo(jnIn)->data()),m_BufferSize);
+    }
+    else {
+        AUPLUGINCLASS->InBuffers.fill(FetchA(jnIn)->data(),m_BufferSize*2);
+    }
+    if (AUPLUGINCLASS->process())
     {
-        CopyMemory(AU->inBufferL,Buffer,m_BufferSize*sizeof(float)*2);
+        if (AUPLUGINCLASS->isMono()) {
+            m_AudioBuffers[jnOut]->writeBuffer(m_StereoBuffer.fromMono(AUPLUGINCLASS->OutBuffers.data()),float(VolFactor*0.5));
+        }
+        else {
+            m_AudioBuffers[jnOut]->writeBuffer(AUPLUGINCLASS->OutBuffers.data(),VolFactor);
+        }
     }
     else
     {
-        ZeroMemory(AU->inBufferL,m_BufferSize*sizeof(float)*2);
-    }
-    if (AU->Process())
-    {
-        ((CStereoBuffer*)AudioBuffers[jnOut])->WriteBuffer(AU->outBufferL,VolFactor);
-    }
-    else
-    {
-        AudioBuffers[jnOut]->ZeroBuffer();
+        m_AudioBuffers[jnOut]->zeroBuffer();
     }
 }
 
-const QString CAudioUnitHost::PresetName()
+const QString CAudioUnitHost::currentBankPresetName(const short /*channel*/) const
 {
-    IAudioPlugInHost* AU=((CVSTForm*)m_Form)->PlugIn;
-    return AU->ProgramName();
+    return AUPLUGINCLASS->bankPresetName();
 }
 
-const QStringList CAudioUnitHost::PresetNames()
+const QStringList CAudioUnitHost::presetNames(const int /*bank*/) const
 {
-    IAudioPlugInHost* AU=((CVSTForm*)m_Form)->PlugIn;
-    return AU->ProgramNames();
+    return AUPLUGINCLASS->bankPresetNames();
 }
 
-void CAudioUnitHost::SetProgram(const int index)
+void CAudioUnitHost::setCurrentBankPreset(const int index)
 {
-    CVSTForm* f=((CVSTForm*)m_Form);
-    f->SetProgram(index);
+    //if (index != currentBankPreset()) updateHostBankPreset(index);
+    FORMFUNC(CVSTForm)->setBankPreset(index);
 }
 
-const void* CAudioUnitHost::Picture() const
+long CAudioUnitHost::currentBankPreset(const short channel) const
 {
-    IAudioPlugInHost* AU=((CVSTForm*)m_Form)->PlugIn;
-    QPixmap* pm=new QPixmap(AU->Picture());
-    return (void*)pm;
+    return AUPLUGINCLASS->currentBankPreset(channel);
+}
+
+const QPixmap* CAudioUnitHost::picture() const
+{
+    return AUPLUGINCLASS->picture();
+}
+
+void CAudioUnitHost::parseEvent(const CMIDIEvent* Event)
+{
+    AUPLUGINCLASS->parseEvent(Event);
 }

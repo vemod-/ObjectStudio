@@ -13,13 +13,13 @@ class CEqualizerFrame : public QFrame
     Q_OBJECT
 
 public:
-    explicit CEqualizerFrame(QWidget *parent = 0);
+    explicit CEqualizerFrame(QWidget *parent = nullptr);
     ~CEqualizerFrame();
-    void Init(CEqualizer* EQ, int BandIndex, int FqMin, int FqMax, int FqDefault);
-    const QString Save();
-    void Load(const QString& XML);
-    void Reset();
-    void Peak(const float val);
+    void init(CEqualizer* EQ, int BandIndex, int FqMin, int FqMax, int FqDefault);
+    void serialize(QDomLiteElement* xml) const;
+    void unserialize(const QDomLiteElement* xml);
+    void reset();
+    void peak(const float val);
 private:
     Ui::CEqualizerFrame *ui;
     CEqualizer* m_Device;

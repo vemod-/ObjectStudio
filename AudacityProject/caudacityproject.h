@@ -4,61 +4,63 @@
 #include "softsynthsclasses.h"
 #include "cwavegenerator.h"
 
-class AudacityBlock
+class AudacityBlock : protected IPresetRef
 {
 private:
-    int Channel;
-    int Buffersize;
-    unsigned int AliasStart;
+    uint Channel;
+    ulong AliasStart;
     int Rate;
     CWaveGenerator wa;
 public:
-    unsigned int Start;
+    ulong Start;
     AudacityBlock();
     float* GetNext();
     void Reset();
-    bool Init(QString Filename, unsigned int StartPtr, int Channels, unsigned int AliasPointer,int RateOverride);
+    bool Init(const QString& Filename, ulong StartPtr, uint Channels, ulong AliasPointer,int RateOverride);
+    ulong size() { return wa.size(); }
+    inline ulong end() { return size()+Start; }
+    void skip(ulong samples);
+    inline uint channels() { return wa.channels(); }
 };
 
-class AudacityClip
+class AudacityClip : protected IPresetRef
 {
 private:
-    unsigned int Counter;
+    ulong Counter;
     QList<AudacityBlock*> Blocks;
-    float* Buffer;
-    float* auBuffer;
-    int Buffersize;
+    CMonoBuffer Buffer;
     int BlockIndex;
-    int BufferPointer;
+    uint BufferPointer;
+    CMonoBuffer auBuffer;
 public:
     AudacityClip();
     ~AudacityClip();
-    float Offset;
+    ldouble Offset;
     void Reset();
-    void AddBlock(QString Filename,unsigned int Start,int RateOverride);
-    void AddAliasBlock(QString Filename,unsigned int Start,int Channel,unsigned int AliasStart);
-    void LoadClip(const QString& XML,QString ProjectPath,int RateOverride);
-    void LoadSequence(const QString& XML,QString ProjectPath,int RateOverride);
+    void AddBlock(const QString& Filename,ulong Start,int RateOverride);
+    void AddAliasBlock(const QString& Filename,ulong Start,uint Channel,ulong AliasStart);
+    void loadClip(const QDomLiteElement* xml, const QString& ProjectPath,int RateOverride);
+    void loadSequence(const QDomLiteElement* xml, const QString& ProjectPath,int RateOverride);
     float* GetNext();
+    ulong milliSeconds();
+    void skip(const ulong64 samples);
 };
 
-class AudacityTrack
+class AudacityTrack : protected IPresetRef
 {
 private:
-    float Time;
+    ldouble Time;
     QList<AudacityClip*> Clips;
-    int Buffersize;
 public:
     QString Name;
     int Channel;
     bool Linked;
-    float Offset;
+    ldouble Offset;
     bool Mute;
     bool Solo;
-    float Rate;
+    int Rate;
     float Gain;
     float Pan;
-    float TimeAdd;
     int ClipIndex;
     bool Playing;
     float FactorL;
@@ -66,11 +68,13 @@ public:
     AudacityTrack();
     ~AudacityTrack();
     void Reset();
-    void Load(const QString& XML,QString ProjectPath);
+    void loadTrack(const QDomLiteElement* xml, const QString& ProjectPath);
     float* GetNext();
+    ulong milliSeconds();
+    void skip(const ulong64 samples);
 };
 
-class CAudacityProject : public IDevice
+class CAudacityProject : public IDevice, public IFileLoader
 {
 private:
     enum JackNames
@@ -78,24 +82,25 @@ private:
     enum ParameterNames
     {pnVolume};
     float ModFactor;
-    float TimeAdd;
-    float Time;
+    ldouble Time;
+    ulong m_MilliSeconds;
     QList<AudacityTrack*> Tracks;
-    bool Playing;
+    //bool Playing;
     bool Loading;
-    void inline CalcParams();
-    void inline LoadProject(const QString& ProjectFile);
-    void Process();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
+    bool loadFile(const QString& ProjectFile);
+    void process();
 public:
     CAudacityProject();
     ~CAudacityProject();
-    void Execute(const bool Show);
-    const QString Save();
-    void Load(const QString& XML);
-    void Init(const int Index,void* MainWindow);
-    void Play(const bool FromStart);
-    void Pause();
-    float* GetNextA(const int ProcIndex);
+    void execute(const bool Show);
+    void init(const int Index, QWidget* MainWindow);
+    void play(const bool FromStart);
+    //void pause();
+    ulong milliSeconds() const;
+    ulong64 samples() const;
+    void skip(const ulong64 samples);
+    CAudioBuffer* getNextA(const int ProcIndex);
 };
 
 #endif // CAUDACITYPROJECT_H

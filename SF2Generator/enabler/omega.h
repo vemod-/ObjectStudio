@@ -47,17 +47,17 @@ class OmegaClass
 {
   public:
     OmegaClass(ErrVec *EVec); 
-    OmegaClass(void); 
+    OmegaClass();
 
-    ~OmegaClass(void) {}
+    ~OmegaClass() {}
 
     void     SetError(SHORT shError)  { shOmega = shError;            }
-    SHORT    GetError(void) const     { return (shOmega);             }
-    CHAR*   GetErrorStr(void)         { return ErrorArray[shOmega];   } 
-    bool    IsBad(void)               { return (shOmega != SUCCESS);  }
-    bool    IsOK(void)                { return (shOmega == SUCCESS);  }
+    SHORT    GetError() const     { return (shOmega);             }
+    CHAR*   GetErrorStr()         { return ErrorArray[shOmega];   }
+    BOOL    IsBad()               { return (shOmega != SUCCESS);  }
+    BOOL    IsOK()                { return (shOmega == SUCCESS);  }
     void    SetErrors(ErrVec *EVec)   { ErrorArray = EVec;            }
-    void    ReportError(void);
+    void    ReportError();
   private:
 
     SHORT    shOmega;   // this will be updated to a DWORD for v2.0 of omega

@@ -1,8 +1,8 @@
 #ifndef CFILTER_H
 #define CFILTER_H
 
-#include "softsynthsclasses.h"
-#include "cfreqglider.h"
+#include "idevice.h"
+#include "cvoltagemodulator.h"
 
 class CFilter : public IDevice
 {
@@ -11,7 +11,6 @@ private:
     {jnOut,jnIn,jnModulation};
     enum ParameterNames
     {pnInVolume,pnCutOffModulation,pnCutOffFrequency,pnResponse,pnResonance,pnOutVolume};
-    int Maxcutoff;
     float FiltCoefTab0;
     float FiltCoefTab1;
     float FiltCoefTab2;
@@ -23,18 +22,16 @@ private:
     float lx2;
     float m_ExpResonance;
     int LastResonance;
-    float LastCO;
-    //int TargetFreq;
     float MixFactor;
-    float ModulationFactor;
     float InVolumeFactor;
-    CFreqGlider FreqGlider;
-    void inline CalcParams();
+    CVoltageModulator Modulator;
+    void inline updateDeviceParameter(const CParameter* p = nullptr) override;
     void inline CalcExpResonance();
 public:
     CFilter();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow) override;
+    CAudioBuffer* getNextA(const int ProcIndex) override;
+    void play(const bool FromStart) override;
 };
 
 #endif // CFILTER_H

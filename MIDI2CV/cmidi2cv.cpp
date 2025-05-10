@@ -4,59 +4,63 @@ CMIDI2CV::CMIDI2CV()
 {
 }
 
-void CMIDI2CV::CalcParams()
+void CMIDI2CV::updateDeviceParameter(const CParameter* /*p*/)
 {
-    CVDevice.Tune=m_ParameterValues[pnTune]*0.01;
-    CVDevice.setTranspose(m_ParameterValues[pnTranspose]);
-    CVDevice.setChannel(m_ParameterValues[pnMIDIChannel]);
+    CVDevice.Tune=m_Parameters[pnTune]->PercentValue;
+    CVDevice.setTranspose(m_Parameters[pnTranspose]->Value);
+    CVDevice.setChannelMode(m_Parameters[pnMIDIChannel]->Value);
 }
 
-void CMIDI2CV::Init(const int Index,void* MainWindow)
+void CMIDI2CV::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    for (int i=0;i<8;i++)
+    IDevice::init(Index,MainWindow);
+    for (int i=0;i<CVDevice::CVVoices;i++)
     {
-        AddJack("Frequency Out " + QString::number(i+1),IJack::Frequency,IJack::Out,jnFrequency+i);
+        addJackModulationOut(jnFrequency+i,"Frequency Out " + QString::number(i+1));
     }
-    for (int i=0;i<8;i++)
+    for (int i=0;i<CVDevice::CVVoices;i++)
     {
-        AddJack("Velocity Out " + QString::number(i+1),IJack::Amplitude,IJack::Out,jnVelocity+i);
+        addJackModulationOut(jnVelocity+i,"Velocity Out " + QString::number(i+1));
     }
-    AddJackMIDIIn();
-    AddParameterMIDIChannel();
-    AddParameterTranspose();
-    AddParameterTune();
-    CalcParams();
+    addJackMIDIIn();
+    startParameterGroup("MIDI", Qt::yellow);
+    addParameterMIDIChannel();
+    addParameterTranspose();
+    endParameterGroup();
+    addParameterTune();
+    updateDeviceParameter();
 }
 
-float CMIDI2CV::GetNext(const int ProcIndex)
+float CMIDI2CV::getNext(const int ProcIndex)
 {
     if (m_Process)
     {
         m_Process=false;
-        CVDevice.parseMIDI((CMIDIBuffer*)FetchP(jnIn));
+        CVDevice.parseMIDI(FetchP(jnIn));
     }
-    if ((ProcIndex>=jnFrequency) & (ProcIndex<=jnFrequency+7))
+    if ((ProcIndex>=jnFrequency) && (ProcIndex<jnFrequency+CVDevice::CVVoices))
     {
-        return CVDevice.Notes[ProcIndex-jnFrequency].Frequency*CVDevice.getPitchbend(ProcIndex-jnFrequency);
+        return CVDevice.note(ProcIndex-jnFrequency).Voltage + (CVDevice.getPitchbend(ProcIndex-jnFrequency)/1200.0);
     }
-    else if ((ProcIndex>=jnVelocity) & (ProcIndex<=jnVelocity+7))
+    if ((ProcIndex>=jnVelocity) && (ProcIndex<jnVelocity+CVDevice::CVVoices))
     {
-        return (float)CVDevice.Notes[ProcIndex-jnVelocity].Velocity*CVDevice.Vol(ProcIndex-jnVelocity);
+        return float(CVDevice.note(ProcIndex-jnVelocity).Velocity*CVDevice.Vol(ProcIndex-jnVelocity));
     }
     return 0;
 }
-void CMIDI2CV::Play(const bool FromStart)
+void CMIDI2CV::play(const bool FromStart)
 {
     if (FromStart)
     {
         CVDevice.reset();
-        CalcParams();
+        updateDeviceParameter();
     }
+    IDevice::play(FromStart);
 }
-void CMIDI2CV::Pause()
+void CMIDI2CV::pause()
 {
     CVDevice.allNotesOff();
-    CalcParams();
+    updateDeviceParameter();
+    IDevice::pause();
 }

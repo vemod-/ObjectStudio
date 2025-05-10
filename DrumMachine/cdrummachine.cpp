@@ -1,126 +1,133 @@
 #include "cdrummachine.h"
 #include "cdrummachineform.h"
 
-void CDrumMachine::Init(const int Index,void* MainWindow)
+#define dmTicksPQ 100
+
+void CDrumMachine::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveOut(0);
-    AddParameter(ParameterType::Numeric,"Tempo","BPM",20,300,0,"",100);
-    AddParameterVolume();
-    BeatInterval=0;
+    IDevice::init(Index,MainWindow);
+    addJackWaveOut(0);
+    addJackMIDIOut(1);
+    addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
+    addParameterVolume();
+    addParameterPercent("Humanize");
     PatternLength=0;
-    SamplesPerTick=0;
-    Playing=false;
+    //Playing=false;
     PatternType* DefaultPattern=new PatternType("Default",16,DrumMachine::SoundCount,100,0,0);
     Patterns.append(DefaultPattern);
-    PatternListType* DefaultList=new PatternListType();
-    DefaultList->Pattern=DefaultPattern;
-    DefaultList->Repeats=4;
-    PatternsInList.append(DefaultList);
-    AddSound("kick02.wav","Kick",&WG[0],&ST[0]);
-    AddSound("snr01.wav","Snare",&WG[1],&ST[1]);
-    AddSound("hat01.wav","Hi-Hat",&WG[2],&ST[2]);
-    AddSound("hat19.wav","Open Hi-Hat",&WG[3],&ST[3]);
-    AddSound("cym01.wav","Cymbal",&WG[4],&ST[4]);
-    AddSound("tom01.wav","Tom 1",&WG[5],&ST[5]);
-    AddSound("tom02.wav","Tom 2",&WG[6],&ST[6]);
+    PatternsInList.append(new PatternListType(DefaultPattern));
+    AddSound("kick02.wav","Kick",WG[0]);
+    AddSound("snr01.wav","Snare",WG[1]);
+    AddSound("hat01.wav","Hi-Hat",WG[2]);
+    AddSound("hat19.wav","Open Hi-Hat",WG[3]);
+    AddSound("cym01.wav","Cymbal",WG[4]);
+    AddSound("tom01.wav","Tom 1",WG[5]);
+    AddSound("tom02.wav","Tom 2",WG[6]);
     Reset();
-    CalcParams();
-    m_Form=new CDrumMachineForm(this,(QWidget*)MainWindow);
+    updateDeviceParameter();
+    CalcDuration();
+    m_Form=new CDrumMachineForm(this,MainWindow);
 }
 
-void inline CDrumMachine::AddSound(const QString &Path, const QString &Name, CWaveGenerator *WG, SoundType *ST)
+CDrumMachine::~CDrumMachine()
 {
-    if (WG->open(":/sounds/"+Path,m_Presets.SampleRate,m_Presets.ModulationRate))
+    if (m_Initialized)
     {
-        ST->Generator=WG;
-        ST->Name=Name;
-        ST->Volume=0;
+        qDeleteAll(PatternsInList);
+        qDeleteAll(Patterns);
     }
 }
 
-void CDrumMachine::Tick()
+void CDrumMachine::tick()
 {
-    if (Playing)
+    MIDIBuffer.clear();
+    if (m_Playing)
     {
-        SampleCount+=m_BufferSize;
-        while (SampleCount>=m_BufferSize)
+        mSecCount.addBuffer();
+        while (mSecCount.moreTicks())
         {
-            SampleCount=SampleCount - SamplesPerTick;
-            if (Counter==BeatInterval * BeatCount)
+            mSecCount.eatTick();
+            if (Counter==dmTicksPQ * BeatCount)
             {
-                //Debug("Dr " + AnsiString(SampleCount) + " " + AnsiString(SamplesPerTick) + " " + AnsiString(Counter) );
-                if (PatternIndex<PatternsInList.count())
+                if (PatternIndex<PatternsInList.size())
                 {
-                    PatternType* P=PatternsInList[PatternIndex]->Pattern;
-                    BeatType* B=P->Beat(BeatCount);
-                    for (int i = 0;i<P->Polyphony;i++)
+                    for (int i = 0;i<DrumMachine::SoundCount;i++)
                     {
-                        if (B->Volume[i] > 0)
-                        {
-                            ST[i].Generator->Reset();// .Volume(iTemp)
-                            ST[i].Volume=B->Volume[i]*0.01;
+                        int vol = PatternsInList[PatternIndex]->Pattern->beat(BeatCount)->Volume[i];
+                        if (vol) {
+                            vol = qMin<int>(100, vol * humanizeFactor(m_Parameters[pnHumanize]->Value));
+                            WG[i].trigger(vol);
+                            MIDIBuffer.append(0x8A,MIDINumbers[i],0x00);
+                            MIDIBuffer.append(0x9A,MIDINumbers[i],(byte)(vol * 1.27));
                         }
                     }
-                    ((CDrumMachineForm*)m_Form)->Flash(PatternIndex,BeatCount);
-                    BeatCount++;
-                    if (BeatCount>=Patterns[PatternIndex]->NumOfBeats())
+                    DRUMMACHINEFORM->Flash(PatternIndex,BeatCount);
+                    if (++BeatCount >= Patterns[PatternIndex]->numOfBeats())
                     {
                         BeatCount=0;
                         if (PatternsInList[PatternIndex]->Repeats>0)
                         {
-                            PatternRepeatCount++;
-                            if (PatternRepeatCount==PatternsInList[PatternIndex]->Repeats)
+                            if (++PatternRepeatCount == PatternsInList[PatternIndex]->Repeats)
                             {
-                                PatternIndex++;
-                                if (PatternIndex==PatternsInList.count())
-                                {
-                                    PatternLength=0;
-                                }
-                                else
-                                {
-                                    PatternLength=PatternsInList[PatternIndex]->Pattern->NumOfBeats()*BeatInterval;
-                                }
+                                PatternLength = (++PatternIndex == PatternsInList.size()) ?
+                                    0 : PatternLength=PatternsInList[PatternIndex]->Pattern->numOfBeats()*dmTicksPQ;
                             }
                         }
                     }
                 }
             }
-            Counter++;
-            if (Counter>=PatternLength)
+            if (++Counter >= PatternLength)
             {
                 Counter=0;
+                updateDeviceParameter();
             }
         }
     }
+    IDevice::tick();
 }
 
-float* CDrumMachine::GetNextA(const int ProcIndex)
+CAudioBuffer* CDrumMachine::getNextA(const int ProcIndex)
 {
-    if (Playing)
+    if (m_Playing)
     {
-        AudioBuffers[ProcIndex]->ZeroBuffer();
-        for (int i=0;i<DrumMachine::SoundCount;i++)
-        {
-            AudioBuffers[ProcIndex]->AddBuffer(ST[i].Generator->GetNext(), ST[i].Volume*VolumeFactor);
-        }
-        return AudioBuffers[ProcIndex]->Buffer;
+        m_AudioBuffers[ProcIndex]->zeroBuffer();
+        for (CWaveGeneratorX& w : WG)
+            m_AudioBuffers[ProcIndex]->addBuffer(w.getNext(), w.Volume*VolumeFactor);
+        return m_AudioBuffers[ProcIndex];
     }
-    return NULL;
+    return nullptr;//&m_NullBufferMono;
 }
 
-void inline CDrumMachine::CalcParams()
+CMIDIBuffer* CDrumMachine::getNextP(const int /*ProcIndex*/)
 {
-    int Ticks=100;
-    int uSPQ=(60000000/4) / m_ParameterValues[pnTempo];
-    float uSperTick=(float)uSPQ/(float)Ticks;
-    SamplesPerTick = uSperTick / m_Presets.uSPerSample;
-    BeatInterval = Ticks;
-    float MixFactor = sqrtf(DrumMachine::SoundCount);
-    VolumeFactor =  ((float)m_ParameterValues[pnVolume]*0.01)/MixFactor;
-    int temp=PatternsInList[PatternIndex]->Pattern->NumOfBeats();
-    PatternLength = temp * BeatInterval;
+    return &MIDIBuffer;
+}
+
+void inline CDrumMachine::updateDeviceParameter(const CParameter* /*p*/)
+{
+    PatternLength = 0;
+    if (PatternIndex < PatternsInList.size())
+    {
+        const PatternListType* PL=PatternsInList[PatternIndex];
+        mSecCount.setTempo((60000000.0/4.0) / (m_Parameters[pnTempo]->PercentValue*PL->Pattern->Tempo),dmTicksPQ);
+        PatternLength=PL->Pattern->numOfBeats() * dmTicksPQ;
+    }
+    VolumeFactor =  m_Parameters[pnVolume]->PercentValue*mixFactorf(DrumMachine::SoundCount);
+}
+
+void CDrumMachine::CalcDuration()
+{
+    CTickCounter c;
+    c.reset(dmTicksPQ);
+    for (const PatternListType* pl : std::as_const(PatternsInList))
+    {
+        if (pl->Repeats==0) break;
+        c.setTempo((60000000.0/4.0) / (m_Parameters[pnTempo]->PercentValue*pl->Pattern->Tempo),dmTicksPQ);
+        c.skipTicks(pl->Pattern->numOfBeats() * dmTicksPQ * pl->Repeats);
+    }
+    m_MilliSeconds=c.currentmSec();
+    m_Ticks=c.currentTick();
 }
 
 void CDrumMachine::Reset()
@@ -128,20 +135,79 @@ void CDrumMachine::Reset()
     PatternIndex = 0;
     PatternRepeatCount = 0;
     BeatCount = 0;
-    NextBeat = 0;
-    NextStop = 0;
     Counter = 0;
-    SampleCount = 0;//m_Presets.ModulationRate-1;
-    CalcParams();
+    mSecCount.reset(dmTicksPQ);
+    updateDeviceParameter();
 }
 
-void CDrumMachine::Play(const bool FromStart)
+void CDrumMachine::play(const bool FromStart)
 {
+    CalcDuration();
     if (FromStart) Reset();
-    Playing=true;
+    //Playing=true;
+    IDevice::play(FromStart);
 }
 
-void CDrumMachine::Pause()
+void CDrumMachine::pause()
 {
-    Playing=false;
+    CalcDuration();
+    //Playing=false;
+    for (int i=0;i<7;i++) MIDIBuffer.append(0x8A,MIDINumbers[i],0x00);
+    IDevice::pause();
+}
+
+ulong CDrumMachine::milliSeconds() const
+{
+    return qMax<ulong>(m_MilliSeconds, IDevice::milliSeconds());
+}
+
+ulong64 CDrumMachine::samples() const
+{
+    return qMax<ulong64>(presets.mSecsToSamples(m_MilliSeconds), IDevice::samples());
+}
+
+ulong CDrumMachine::ticks() const
+{
+    return qMax<ulong>(m_Ticks, IDevice::ticks());
+}
+
+void CDrumMachine::skip(const ulong64 samples)
+{
+    Reset();
+    while (mSecCount.currentSample() < samples)
+    {
+        mSecCount.addBuffer();
+        while (mSecCount.moreTicks())
+        {
+            mSecCount.eatTick();
+            if (Counter==dmTicksPQ*BeatCount)
+            {
+                //Debug("Se " + AnsiString(SampleCount) + " " + AnsiString(SamplesPerTick) + " " + AnsiString(Counter) );
+                if (PatternIndex<PatternsInList.size())
+                {
+                    const PatternListType* PLI=PatternsInList[PatternIndex];
+                    const PatternType* Pattern=PLI->Pattern;
+                    if (++BeatCount>=Pattern->numOfBeats())
+                    {
+                        BeatCount=0;
+                        if (PLI->Repeats>0)
+                        {
+                            if (++PatternRepeatCount>=PLI->Repeats)
+                            {
+                                PatternRepeatCount=0;
+                                PatternIndex++;
+                            }
+                        }
+                    }
+                }
+            }
+            if (++Counter>=PatternLength)
+            {
+                Counter=0;
+                updateDeviceParameter();
+            }
+        }
+    }
+    //Playing = true;
+    IDevice::skip(samples);
 }

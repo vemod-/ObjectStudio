@@ -1,6 +1,6 @@
 #include "ckeylayoutcontrol.h"
 #include "ui_ckeylayoutcontrol.h"
-#include "cwavefile.h"
+//#include "cwavefile.h"
 #include <QFileDialog>
 
 CKeyLayoutControl::CKeyLayoutControl(QWidget *parent) :
@@ -11,32 +11,32 @@ CKeyLayoutControl::CKeyLayoutControl(QWidget *parent) :
 
     ui->LoopTypeCombo->addItems(QStringList() << "Forward" << "Alternate" << "X-fade");
 
-    connect(ui->VolSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateRangeGraph()));
-    connect(ui->TuneSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateWaveGraph()));
-    connect(ui->XFadeCyclesSpin,SIGNAL(valueChanged(int)),this,SLOT(UpdateWaveGraph()));
-    connect(ui->LoopTypeCombo,SIGNAL(currentIndexChanged(int)),this,SLOT(UpdateWaveGraph()));
+    connect(ui->VolSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CKeyLayoutControl::UpdateRangeGraph);
+    connect(ui->TuneSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CKeyLayoutControl::UpdateWaveGraph);
+    connect(ui->XFadeCyclesSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CKeyLayoutControl::UpdateWaveGraph);
+    connect(ui->LoopTypeCombo,qOverload<int>(&QComboBox::currentIndexChanged),this,&CKeyLayoutControl::UpdateWaveGraph);
 
-    connect(ui->LowKeyFullEdit,SIGNAL(Changed(int)),this,SLOT(UpdateRangeGraph()));
-    connect(ui->HighKeyFullEdit,SIGNAL(Changed(int)),this,SLOT(UpdateRangeGraph()));
-    connect(ui->LowKeyXEdit,SIGNAL(Changed(int)),this,SLOT(UpdateRangeGraph()));
-    connect(ui->HighKeyXEdit,SIGNAL(Changed(int)),this,SLOT(UpdateRangeGraph()));
-    connect(ui->MIDINoteEdit,SIGNAL(Changed(int)),this,SLOT(UpdateWaveGraph()));
+    connect(ui->LowKeyFullEdit,&CMIDINoteEdit::Changed,this,&CKeyLayoutControl::UpdateRangeGraph);
+    connect(ui->HighKeyFullEdit,&CMIDINoteEdit::Changed,this,&CKeyLayoutControl::UpdateRangeGraph);
+    connect(ui->LowKeyXEdit,&CMIDINoteEdit::Changed,this,&CKeyLayoutControl::UpdateRangeGraph);
+    connect(ui->HighKeyXEdit,&CMIDINoteEdit::Changed,this,&CKeyLayoutControl::UpdateRangeGraph);
+    connect(ui->MIDINoteEdit,&CMIDINoteEdit::Changed,this,&CKeyLayoutControl::UpdateWaveGraph);
 
-    connect(ui->WaveEditWidget,SIGNAL(UpdateHost(CWaveGenerator::LoopParameters)),this,SLOT(UpdateWaveControls(CWaveGenerator::LoopParameters)));
-    connect(ui->KeyLayout,SIGNAL(CurrentRangeChanged(CSampleKeyRange::RangeParams)),this,SLOT(UpdateRangeControls(CSampleKeyRange::RangeParams)));
-    connect(ui->KeyLayout,SIGNAL(RangeIndexChanged(int)),this,SLOT(SelectRange(int)));
-    connect(ui->KeyLayout,SIGNAL(LoadWaveFile()),this,SLOT(OpenFile()));
-    connect(ui->KeyLayout,SIGNAL(Add(int,int)),this,SLOT(AddRange(int,int)));
-    connect(ui->OpenButton,SIGNAL(clicked()),this,SLOT(OpenFile()));
-    connect(ui->DeleteButton,SIGNAL(clicked()),this,SLOT(DeleteRange()));
+    connect(ui->WaveEditWidget,&CWaveEditWidget::Changed,this,&CKeyLayoutControl::UpdateWaveControls);
+    connect(ui->KeyLayout,&CKeyRangesControl::CurrentRangeChanged,this,&CKeyLayoutControl::UpdateRangeControls);
+    connect(ui->KeyLayout,&CKeyRangesControl::RangeIndexChanged,this,&CKeyLayoutControl::SelectRange);
+    connect(ui->KeyLayout,&CKeyRangesControl::WaveFileRequested,this,&CKeyLayoutControl::OpenFile);
+    connect(ui->KeyLayout,&CKeyRangesControl::AddRangeRequested,this,&CKeyLayoutControl::AddRange);
+    connect(ui->OpenButton,&QAbstractButton::clicked,this,&CKeyLayoutControl::OpenFile);
+    connect(ui->DeleteButton,&QAbstractButton::clicked,this,&CKeyLayoutControl::DeleteRange);
 
-    connect(ui->LoopTestButton,SIGNAL(toggled(bool)),this,SLOT(ToggleLoopTest(bool)));
-    connect(ui->TuneTestButton,SIGNAL(toggled(bool)),this,SLOT(ToggleTuneTest(bool)));
+    connect(ui->LoopTestButton,&QAbstractButton::toggled,this,&CKeyLayoutControl::ToggleLoopTest);
+    connect(ui->TuneTestButton,&QAbstractButton::toggled,this,&CKeyLayoutControl::ToggleTuneTest);
 
-    connect(ui->AutoLoopButton,SIGNAL(clicked()),this,SLOT(Autoloop()));
-    connect(ui->TuneLoopButton,SIGNAL(clicked()),this,SLOT(Autotune()));
-    connect(ui->PitchDetectButton,SIGNAL(clicked()),this,SLOT(Pitchdetect()));
-    connect(ui->FixRangeButton,SIGNAL(clicked()),this,SLOT(FixRange()));
+    connect(ui->AutoLoopButton,&QAbstractButton::clicked,this,&CKeyLayoutControl::Autoloop);
+    connect(ui->TuneLoopButton,&QAbstractButton::clicked,this,&CKeyLayoutControl::Autotune);
+    connect(ui->PitchDetectButton,&QAbstractButton::clicked,this,&CKeyLayoutControl::Pitchdetect);
+    connect(ui->FixRangeButton,&QAbstractButton::clicked,this,&CKeyLayoutControl::FixRange);
 
 
 }
@@ -45,7 +45,7 @@ void CKeyLayoutControl::Init(CSamplerDevice* D)
 {
     m_Sampler=D;
     ui->KeyLayout->Init(D);
-    SelectRange(m_Sampler->CurrentRangeIndex);
+    SelectRange(m_Sampler->currentRangeIndex);
 }
 
 CKeyLayoutControl::~CKeyLayoutControl()
@@ -55,14 +55,14 @@ CKeyLayoutControl::~CKeyLayoutControl()
 
 void CKeyLayoutControl::AddRange(int Upper, int Lower)
 {
-    m_Sampler->AddRange(QString(),Upper,Lower);
-    SelectRange(m_Sampler->RangeCount()-1);
+    m_Sampler->addRange(QString(),Upper,Lower);
+    SelectRange(m_Sampler->rangeCount()-1);
     Update();
 }
 
 void CKeyLayoutControl::DoUpdateHost()
 {
-    emit UpdateHost(false);
+    emit Changed(false);
 }
 
 void CKeyLayoutControl::UpdateRangeGraph()
@@ -77,33 +77,36 @@ void CKeyLayoutControl::UpdateRangeGraph()
     RP.UpperZero=ui->HighKeyXEdit->value();
 
     m_Sampler->setRangeParams(RP);
+
+    UpdateRangeControls(RP);
+
     ui->KeyLayout->Draw();
 }
 
 void CKeyLayoutControl::UpdateWaveGraph()
 {
     CWaveGenerator::LoopParameters LP=m_Sampler->LoopParams();
-    LP.Tune=ui->TuneSpin->value();
+    LP.MIDICents=ui->TuneSpin->value();
     LP.LoopType=(CWaveGenerator::LoopTypeEnum)ui->LoopTypeCombo->currentIndex();
     LP.XFade=ui->XFadeCyclesSpin->value();
-    LP.MIDINote=ui->MIDINoteEdit->value();
+    LP.MIDIKey=ui->MIDINoteEdit->value();
     m_Sampler->setLoopParams(LP);
 }
 
 void CKeyLayoutControl::UpdateWaveControls(CWaveGenerator::LoopParameters LP)
 {
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(true);
-    ui->MIDINoteEdit->setValue(LP.MIDINote);
-    ui->TuneSpin->setValue(LP.Tune);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(true);
+    ui->MIDINoteEdit->setValue(LP.MIDIKey);
+    ui->TuneSpin->setValue(LP.MIDICents);
     ui->LoopTypeCombo->setCurrentIndex((int)LP.LoopType);
     ui->XFadeCyclesSpin->setValue(LP.XFade);
     m_Sampler->setLoopParams(LP);
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(false);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(false);
 }
 
 void CKeyLayoutControl::UpdateRangeControls(CSampleKeyRange::RangeParams RP)
 {
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(true);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(true);
     ui->VolSpin->setValue(RP.Volume);
 
     //LowerTop
@@ -113,14 +116,14 @@ void CKeyLayoutControl::UpdateRangeControls(CSampleKeyRange::RangeParams RP)
     ui->HighKeyFullEdit->setMinimum(RP.LowerTop+1);
     ui->HighKeyFullEdit->setValue(RP.UpperTop);
     //LowerZero
-    ui->LowKeyXEdit->setMaximum(RP.UpperTop);
+    ui->LowKeyXEdit->setMaximum(RP.LowerTop+1);
     ui->LowKeyXEdit->setValue(RP.LowerZero+1);
     //UpperZero
-    ui->HighKeyXEdit->setMinimum(RP.LowerTop+1);
+    ui->HighKeyXEdit->setMinimum(RP.UpperTop);
     ui->HighKeyXEdit->setValue(RP.UpperZero);
 
     m_Sampler->setRangeParams(RP);
-    foreach(QWidget* w,findChildren<QWidget*>()) w->blockSignals(false);
+    for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(false);
 }
 
 void CKeyLayoutControl::Update()
@@ -134,27 +137,27 @@ void CKeyLayoutControl::Update()
     {
         ui->groupBox->setTitle("No Range");
         EnableEdit(false);
-        WEInit(NULL);
+        WEInit(nullptr);
         return;
     }
     EnableEdit(true);
     */
-    if (m_Sampler->RangeCount())
+    if (m_Sampler->rangeCount())
     {
         UpdateWaveControls(m_Sampler->LoopParams());
         UpdateRangeControls(m_Sampler->RangeParams());
         WEInit();
         UpdateRangeGraph();
     }
-    ui->DeleteButton->setEnabled(m_Sampler->RangeCount() > 1);
+    ui->DeleteButton->setEnabled(m_Sampler->rangeCount() > 1);
 }
 
 void inline CKeyLayoutControl::WEInit()
 {
-    CSampleKeyRange* KR=m_Sampler->CurrentRange();
-    ui->WaveEditWidget->Init(&KR->WG,KR->WG.LP,true);
+    CSampleKeyRange* KR=m_Sampler->currentRange();
+    ui->WaveEditWidget->Init(&KR->generator,KR->generator.LP,true);
     ui->FilenameEdit->blockSignals(true);
-    ui->FilenameEdit->setText(KR->FileName);
+    ui->FilenameEdit->setText(KR->fileName);
     ui->FilenameEdit->blockSignals(false);
 }
 
@@ -162,34 +165,34 @@ void CKeyLayoutControl::OpenFile()
 {
     QString FN=QFileDialog::getOpenFileName(this,"Open",QStandardPaths::writableLocation(QStandardPaths::MusicLocation),WaveFile::WaveFilter);
     if (FN.isEmpty()) return;
-    emit ReleaseLoop();
-    if (!m_Sampler->RangeCount())
+    ReleaseLoop();
+    if (!m_Sampler->rangeCount())
     {
-        m_Sampler->AddRange(FN,127,1);
-        SelectRange(m_Sampler->RangeCount()-1);
+        m_Sampler->addRange(FN,127,1);
+        SelectRange(m_Sampler->rangeCount()-1);
         return;
     }
-    m_Sampler->ChangePath(FN);
+    m_Sampler->changePath(FN);
     Update();
 }
 
 void CKeyLayoutControl::SelectRange(int RangeIndex)
 {
-    emit ReleaseLoop();
-    if (m_Sampler->RangeCount())
+    ReleaseLoop();
+    if (m_Sampler->rangeCount())
     {
-        m_Sampler->CurrentRangeIndex=RangeIndex;
+        m_Sampler->currentRangeIndex=RangeIndex;
     }
     Update();
 }
 
 void CKeyLayoutControl::DeleteRange()
 {
-    emit ReleaseLoop();
-    if (m_Sampler->RangeCount() > 1)
+    ReleaseLoop();
+    if (m_Sampler->rangeCount() > 1)
     {
-        m_Sampler->RemoveRange();
-        int R=m_Sampler->CurrentRangeIndex-1;
+        m_Sampler->removeRange();
+        int R=m_Sampler->currentRangeIndex-1;
         if (R < 0) R=0;
         SelectRange(R);
     }
@@ -205,14 +208,14 @@ void CKeyLayoutControl::ToggleTuneTest(bool ButtonDown)
 {
     if (ButtonDown)
     {
-        m_Sampler->TestMode=CSamplerDevice::st_TuneTest;
-        m_Sampler->Looping=false;
+        m_Sampler->testMode=CSamplerDevice::st_TuneTest;
+        m_Sampler->looping=false;
         ui->LoopTestButton->setEnabled(false);
     }
     else
     {
-        m_Sampler->TestMode=CSamplerDevice::st_NoTest;
-        m_Sampler->Looping=false;
+        m_Sampler->testMode=CSamplerDevice::st_NoTest;
+        m_Sampler->looping=false;
         ui->LoopTestButton->setEnabled(true);
     }
 }
@@ -221,47 +224,47 @@ void CKeyLayoutControl::ToggleLoopTest(bool ButtonDown)
 {
     if (ButtonDown)
     {
-        m_Sampler->TestMode=CSamplerDevice::st_LoopTest;
-        m_Sampler->Looping=false;
+        m_Sampler->testMode=CSamplerDevice::st_LoopTest;
+        m_Sampler->looping=false;
         ui->TuneTestButton->setEnabled(false);
     }
     else
     {
-        m_Sampler->TestMode=CSamplerDevice::st_NoTest;
-        m_Sampler->Looping=false;
+        m_Sampler->testMode=CSamplerDevice::st_NoTest;
+        m_Sampler->looping=false;
         ui->TuneTestButton->setEnabled(true);
     }
 }
 
 void CKeyLayoutControl::Autoloop()
 {
-    CSampleKeyRange* KR=m_Sampler->CurrentRange();
-    KR->AutoLoop(ui->LoopCyclesSpin->value());
-    m_Sampler->setLoopParams(KR->WG.LP);
+    CSampleKeyRange* KR=m_Sampler->currentRange();
+    KR->autoLoop(ui->LoopCyclesSpin->value());
+    m_Sampler->setLoopParams(KR->generator.LP);
     Update();
 }
 
 void CKeyLayoutControl::Autotune()
 {
-    CSampleKeyRange* KR=m_Sampler->CurrentRange();
-    KR->AutoTune();
-    m_Sampler->setLoopParams(KR->WG.LP);
+    CSampleKeyRange* KR=m_Sampler->currentRange();
+    KR->autoTune();
+    m_Sampler->setLoopParams(KR->generator.LP);
     Update();
 }
 
 void CKeyLayoutControl::Pitchdetect()
 {
-    CSampleKeyRange* KR=m_Sampler->CurrentRange();
-    KR->PitchDetect(ui->PitchDetectSpin->value());
-    m_Sampler->setLoopParams(KR->WG.LP);
+    CSampleKeyRange* KR=m_Sampler->currentRange();
+    KR->pitchDetect(ui->PitchDetectSpin->value());
+    m_Sampler->setLoopParams(KR->generator.LP);
     Update();
 }
 
 void CKeyLayoutControl::FixRange()
 {
-    CSampleKeyRange* KR=m_Sampler->CurrentRange();
-    KR->AutoFix(ui->LoopCyclesSpin->value(),ui->PitchDetectSpin->value());
-    m_Sampler->setLoopParams(KR->WG.LP);
+    CSampleKeyRange* KR=m_Sampler->currentRange();
+    KR->autoFix(ui->LoopCyclesSpin->value(),ui->PitchDetectSpin->value());
+    m_Sampler->setLoopParams(KR->generator.LP);
     Update();
 }
 

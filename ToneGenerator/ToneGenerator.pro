@@ -5,11 +5,11 @@
 #-------------------------------------------------
 
 TARGET = ToneGenerator
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
 
-LIBS += -L../ -lWaveBank
+LIBS += -lWaveBank
+
 INCLUDEPATH += ../wavebank
 
 DEFINES += TONEGENERATOR_LIBRARY

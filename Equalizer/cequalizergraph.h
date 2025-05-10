@@ -16,8 +16,9 @@ public:
     ~CEqualizerGraph();
 protected:
     void resizeEvent(QResizeEvent *e);
+    void showEvent(QShowEvent* e);
 signals:
-    void RefreshMe();
+    void Changed();
 private:
     Ui::CEqualizerGraph *ui;
 };

@@ -5,7 +5,6 @@
 #-------------------------------------------------
 
 TARGET = VSTHost
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
 
@@ -13,7 +12,7 @@ DEFINES += VSTHOST_LIBRARY
 
 include(VSTHost.pri)
 
-LIBS += -L../ -lPluginLoader
+LIBS += -lPluginLoader
 
 
 

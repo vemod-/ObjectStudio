@@ -3,8 +3,10 @@
 
 #include <QDialog>
 #include <QMenu>
-#include "softsynthsclasses.h"
 #include "cbeatframe.h"
+#include "csoftsynthsform.h"
+
+#define SEQUENSERCLASS DEVICEFUNC(CSequenser)
 
 namespace Ui {
     class CSequenserForm;
@@ -17,8 +19,8 @@ class CSequenserForm : public CSoftSynthsForm
 public:
     explicit CSequenserForm(IDevice* Device, QWidget *parent = 0);
     ~CSequenserForm();
-    void CustomLoad(const QString &XML);
-    const QString CustomSave();
+    void unserializeCustom(const QDomLiteElement* xml);
+    void serializeCustom(QDomLiteElement* xml) const;
     void Flash(int Pattern, int Beat);
 private:
     Ui::CSequenserForm *ui;

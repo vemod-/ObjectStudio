@@ -4,25 +4,50 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
-QT       -= network opengl sql svg xml xmlpatterns qt3support
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-CONFIG += qt x86
-CONFIG -= x86_64 ppc64 ppc
-
 TARGET = SoftSynthsClasses
-TEMPLATE = lib
-
 DESTDIR = ../
+
+include(../SoftSynthsFrameworks.pri)
 
 include(../../QDomLite/QDomLite.pri)
 
-SOURCES += \
-    cmidibuffer.cpp \
-    ijack.cpp
+macx {
+    LIBS += -L ../ -lPlugInLoader
+    contains(DEFINES,BUILD_WITH_FRAMEWORKS) {
+        LIBS += -F$$PWD/../PluginLoader.framework
+    } else {
+        LIBS += -L ../ -lPlugInLoader
+    }
+}
+ios {
+    contains(DEFINES,BUILD_WITH_FRAMEWORKS) {
+        LIBS += -framework PluginLoader
+    }
+    contains(DEFINES,BUILD_WITH_STATIC) {
+        LIBS += $$PWD/../ -lPluginLoader
+    }
+}
 
-HEADERS += softsynthsclasses.h \
+INCLUDEPATH += ../PluginLoader
+
+SOURCES += \
+    ijack.cpp \
+    cpitchtextconvert.cpp \
+    cpresets.cpp \
+    csoftsynthsform.cpp \
+    caudiobuffer.cpp \
+    csounddevice.cpp \
+    idevicebase.cpp \
+    ihost.cpp \
+    imidiparser.cpp \
+    isoundgenerator.cpp \
+    cdevicelist.cpp \
+    cprogrambank.cpp \
+    cfileparameter.cpp \
+    cdevicecontainer.cpp
+
+HEADERS += \##softsynthsclasses.h \
+    cautomationplayer.h \
     cmidibuffer.h \
     idevicebase.h \
     ijackbase.h \
@@ -30,33 +55,34 @@ HEADERS += softsynthsclasses.h \
     ijack.h \
     ihost.h \
     idevice.h \
-    softsynthsdefines.h
+    softsynthsdefines.h \
+    isoundgenerator.h \
+    csinglemap.h \
+    cringbuffer.h \
+    cpitchtextconvert.h \
+    csimplebuffer.h \
+    cfloatbuffer.h \
+    cmseccounter.h \
+    imidiparser.h \
+    cdevicelist.h \
+    cjackcollection.h \
+    csounddevice.h \
+    cfreqglider.h \
+    cpresets.h \
+    csoftsynthsform.h \
+    cparameter.h \
+    cprogrambank.h \
+    cfileidentifier.h \
+    cfileparameter.h \
+    cdevicecontainer.h \
+    csyncbuffer.h \
+    cfastcircularbuffer.h \
+    cspectralwindow.h \
+    cfft.h \
+    cvoltagemodulator.h
 
-HEADERS += \
-    csounddevice.h
-
-SOURCES += \
-    csounddevice.cpp
-
-HEADERS += \
-    cfreqglider.h
-
-SOURCES += \
-    cfreqglider.cpp
-
-HEADERS += \
-    cpresets.h
-
-SOURCES += \
-    cpresets.cpp
-
-HEADERS += \
-    csoftsynthsform.h
-
-SOURCES += \
-    csoftsynthsform.cpp
-
-
+OBJECTIVE_SOURCES += \
+    idevice.mm
 
 
 

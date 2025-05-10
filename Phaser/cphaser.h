@@ -1,9 +1,10 @@
 #ifndef CPHASER_H
 #define CPHASER_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 
-class Phaser{
+class Phaser : protected IPresetRef
+{
 public:
     Phaser();
     void Range( float fMin, float fMax );
@@ -27,7 +28,6 @@ private:
     float _lfoInc;
     float _depth;
     float _zm1;
-    int _SampleRate;
     float _pi;
 };
 
@@ -35,15 +35,15 @@ class CPhaser : public IDevice
 {
 public:
     CPhaser();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
     {jnOut,jnIn};
     enum ParameterNames
     {pnRangeMin,pnRangeMax,pnRate,pnFeedback,pnDepth};
     Phaser P;
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 };
 
 #endif // CPHASER_H

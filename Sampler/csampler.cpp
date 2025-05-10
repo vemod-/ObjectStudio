@@ -5,95 +5,94 @@ CSampler::CSampler()
 {
 }
 
-void CSampler::Init(const int Index,void* MainWindow)
+void CSampler::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackMIDIIn();
-    AddJack("Modulation",IJack::Pitch,IJack::In,jnModulation);
-    AddJackStereoOut(jnOut);
-
-    AddParameterMIDIChannel();
-    AddParameterTranspose();
-    AddParameterTune();
-    AddParameterPercent();
-    VolumeFactor=1.0*(1.0/sqrtf(Sampler::samplervoices));
-    LastMod=0;
-    CurrentMod=1;
-    SamplerDevice.ChangePath(0,0,":/test.wav");
+    IDevice::init(Index,MainWindow);
+    addJackStereoOut(jnOut);
+    addJackMIDIIn();
+    addJackModulationIn();
+    startParameterGroup("MIDI", Qt::yellow);
+    addParameterMIDIChannel();
+    addParameterTranspose();
+    endParameterGroup();
+    makeParameterGroup(2,"Tune",Qt::green);
+    addParameterTune();
+    addParameterPercent();
+    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnModulation]);
+    VolumeFactor=mixFactorf(Sampler::samplervoices);
+    //LastMod=0;
+    //CurrentMod=1;
+    SamplerDevice.changePath(0,0,":/test.wav");
     SamplerDevice.reset();
-    m_Form=new CSamplerForm(this,(QWidget*)MainWindow);
-    ((CSamplerForm*)m_Form)->Init(&SamplerDevice);
-    CalcParams();
+    m_Form=new CSamplerForm(this,MainWindow);
+    FORMFUNC(CSamplerForm)->Init(&SamplerDevice);
+    updateDeviceParameter();
 }
 
-void CSampler::Process()
+void CSampler::process()
 {
-    CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-    if (SamplerDevice.TestMode==CSamplerDevice::st_NoTest)
+    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    if (SamplerDevice.testMode==CSamplerDevice::st_NoTest)
     {
-        float ModIn=0;
-        if (m_ParameterValues[pnModulation]) ModIn=Fetch(jnModulation);
-        if (ModIn != LastMod)
-        {
-            LastMod=ModIn;
-            CurrentMod=pow(2.0,(float)ModIn * (float)m_ParameterValues[pnModulation] * 0.01);
-        }
-        SamplerDevice.parseMIDI((CMIDIBuffer*)FetchP(jnMIDIIn));
+        const long ModCent = Modulator.execCent();
+        SamplerDevice.parseMIDI(FetchP(jnMIDIIn));
         bool First=true;
-        SamplerDevice.setModulation(CurrentMod);
+        SamplerDevice.setModulation(cent2Factorf(ModCent));
         for (int i1=0;i1<SamplerDevice.voiceCount();i1++)
         {
-            float* BufferL=SamplerDevice.getNext(i1);
-            if (BufferL)
+            const CStereoBuffer DeviceBuffer(SamplerDevice.getNext(i1));
+            if (DeviceBuffer.isValid())
             {
                 float volL=VolumeFactor*SamplerDevice.volL(SamplerDevice.voiceChannel(i1));
                 float volR=VolumeFactor*SamplerDevice.volR(SamplerDevice.voiceChannel(i1));
                 if (First)
                 {
                     First=false;
-                    OutBuffer->WriteBuffer(BufferL,volL,volR);
+                    OutBuffer->writeStereoBuffer(&DeviceBuffer,volL,volR);
                 }
                 else
                 {
-                    OutBuffer->AddBuffer(BufferL,volL,volR);
+                    OutBuffer->addStereoBuffer(&DeviceBuffer,volL,volR);
                 }
             }
         }
-        if (First) OutBuffer->ZeroBuffer();
+        if (First) OutBuffer->zeroBuffer();
     }
-    else if (SamplerDevice.TestMode==CSamplerDevice::st_LoopTest)
+    else if (SamplerDevice.testMode==CSamplerDevice::st_LoopTest)
     {
-        AudioBuffers[jnOut]->ZeroBuffer();
-        SamplerDevice.LoopTest(OutBuffer->Buffer,OutBuffer->BufferR,m_BufferSize);
+        m_AudioBuffers[jnOut]->zeroBuffer();
+        SamplerDevice.loopTest(OutBuffer);
     }
-    else if (SamplerDevice.TestMode==CSamplerDevice::st_TuneTest)
+    else if (SamplerDevice.testMode==CSamplerDevice::st_TuneTest)
     {
-        AudioBuffers[jnOut]->ZeroBuffer();
-        SamplerDevice.TuneTest(OutBuffer->Buffer,OutBuffer->BufferR,m_BufferSize);
+        m_AudioBuffers[jnOut]->zeroBuffer();
+        SamplerDevice.tuneTest(OutBuffer);
     }
 }
 
-void inline CSampler::CalcParams()
+void inline CSampler::updateDeviceParameter(const CParameter* /*p*/)
 {
-    VolumeFactor=1.0*(1.0/sqrtf(Sampler::samplervoices));
-    SamplerDevice.setTune(m_ParameterValues[pnTune]*0.01);
-    SamplerDevice.setTranspose(m_ParameterValues[pnTranspose]);
-    SamplerDevice.setChannel(m_ParameterValues[pnMIDIChannel]);
+    VolumeFactor=mixFactorf(Sampler::samplervoices);
+    SamplerDevice.setTune(m_Parameters[pnTune]->PercentValue);
+    SamplerDevice.setTranspose(m_Parameters[pnTranspose]->Value);
+    SamplerDevice.setChannelMode(m_Parameters[pnMIDIChannel]->Value);
 }
 
-void CSampler::Play(const bool FromStart)
+void CSampler::play(const bool FromStart)
 {
     if (FromStart)
     {
         SamplerDevice.reset();
-        ((CSamplerForm*)m_Form)->ReleaseLoop();
-        CalcParams();
+        FORMFUNC(CSamplerForm)->ReleaseLoop();
+        updateDeviceParameter();
     }
+    IDevice::play(FromStart);
 }
 
-void CSampler::Pause()
+void CSampler::pause()
 {
     SamplerDevice.allNotesOff();
-    CalcParams();
+    updateDeviceParameter();
+    IDevice::pause();
 }

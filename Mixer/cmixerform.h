@@ -1,8 +1,10 @@
 #ifndef CMIXERFORM_H
 #define CMIXERFORM_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "cmixerframe.h"
+
+#define MIXERCLASS DEVICEFUNC(CMixer)
 
 namespace Ui {
     class CMixerForm;
@@ -15,9 +17,10 @@ class CMixerForm : public CSoftSynthsForm
 public:
     explicit CMixerForm(IDevice* Device, QWidget *parent = 0);
     ~CMixerForm();
-    void CustomLoad(const QString &XML);
-    const QString CustomSave();
+    void unserializeCustom(const QDomLiteElement* xml);
+    void serializeCustom(QDomLiteElement* xml) const;
     void Reset();
+    void setSender(const QString& s, int Index);
 private:
     Ui::CMixerForm *ui;
     QList<CMixerFrame*> MF;

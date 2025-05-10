@@ -5,12 +5,31 @@
 #-------------------------------------------------
 
 TARGET = DrumMachine
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
 
 LIBS += -lWaveGenerator
 INCLUDEPATH += ../wavegenerator
+
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L/usr/local/Cellar/ffmpeg/6.0/lib
+        LIBS += -lavformat
+        LIBS += -lavcodec
+        LIBS += -lswresample
+        LIBS += -lavutil
+    }
+}
+
+ios {
+    contains(DEFINES,FFMPEGLIB) {
+        QMAKE_FRAMEWORKPATH += $$QT_INSTALL_LIBS/ffmpeg
+        LIBS += -framework libavformat
+        LIBS += -framework libavcodec
+        LIBS += -framework libswresample
+        LIBS += -framework libavutil
+    }
+}
 
 SOURCES += cdrummachine.cpp
 HEADERS += cdrummachine.h
@@ -18,7 +37,6 @@ HEADERS += cdrummachine.h
 DEFINES += DRUMMACHINE_LIBRARY
 
 SOURCES += \
-    sequenserclasses.cpp \
     cdrummachineform.cpp \
     cbeatframe.cpp \
     crepeatform.cpp \
@@ -30,25 +48,6 @@ HEADERS += \
     cbeatframe.h \
     crepeatform.h \
     cinsertpatternform.h
-
-symbian {
-    MMP_RULES += EXPORTUNFROZEN
-    TARGET.UID3 = 0xE59D262B
-    TARGET.CAPABILITY = 
-    TARGET.EPOCALLOWDLLDATA = 1
-    addFiles.sources = DrumMachine.dll
-    addFiles.path = !:/sys/bin
-    DEPLOYMENT += addFiles
-}
-
-unix:!symbian {
-    maemo5 {
-        target.path = /opt/usr/lib
-    } else {
-        target.path = /usr/lib
-    }
-    INSTALLS += target
-}
 
 RESOURCES += \
     Sounds.qrc

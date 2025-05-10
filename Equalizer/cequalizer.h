@@ -1,12 +1,12 @@
 #ifndef CEQUALIZER_H
 #define CEQUALIZER_H
 
-#include "softsynthsclasses.h"
-
+#include "idevice.h"
 #include "biquad.h"
 
 /* Bandwidth of EQ filters in octaves */
 #define BWIDTH        1.0f
+#define EQUALIZERFORM FORMFUNC(CEqualizerForm)
 
 class CEqualizer : public IDevice
 {
@@ -15,17 +15,17 @@ private:
     {jnOut,jnIn};
     enum ParameterNames
     {};
-    biquad filters[8];
-    void inline CalcParams();
+    CBiquad filters[8];
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
 public:
     CEqualizer();
-    void Init(const int Index,void* MainWindow);
-    float* GetNextA(const int ProcIndex);
-    float Level[8];
-    int Freq[8];
-    void SetLevel(int Index, int Level);
-    void SetFreq(int Index, int Freq);
-    void Play(const bool FromStart);
+    void init(const int Index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
+    float Level[8]={0};
+    int Freq[8]={0};
+    void SetLevel(const int index, const float Level);
+    void SetFreq(const int index, const int Freq);
+    void play(const bool FromStart);
 };
 
 

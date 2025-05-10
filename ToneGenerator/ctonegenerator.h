@@ -1,9 +1,9 @@
 #ifndef CTONEGENERATOR_H
 #define CTONEGENERATOR_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "cwavebank.h"
-#include "cfreqglider.h"
+#include "cvoltagemodulator.h"
 
 class CToneGenerator : public IDevice
 {
@@ -11,26 +11,26 @@ private:
     enum JackNames
     {jnOut,jnFrequency,jnModulation,jnPulseModulation};
     enum ParameterNames
-    {pnFrequency,pnGlide,pnModulation,pnTuning,pnDetune,pnWaveForm,pnPulse,pnPulseModulation,pnVolume};
-    float FreqValue;
-    float WavePosition;
-    float DetunePosition;
-    float CurrentTune;
-    float CurrentDetune;
-    float CurrentMod;
-    float CurrentFreq;
-    float LastMod;
-    float LastFreqValue;
+    {pnFrequency,pnGlide,pnModulation,pnTuning,pnDetune,pnWaveForm,pnPulse,pnPulseModulation,pnRectify,pnVolume};
+    //float voltageValue;
+    double WavePosition;
+    double DetunePosition;
+    //float lastVoltageIn;
     float VolumeFactor;
     float PulseFactor;
+    float Rectify;
+    float RectifyFactor;
     CWaveBank WaveBank;
-    CFreqGlider FreqGlider;
-    int inline PulseCalc(int Pos,float Modulation);
-    void inline CalcParams(void);
+    CVoltageModulator Modulator;
+    //CFreqGlider FreqGlider;
+    double inline PulseCalc(double Pos,float Modulation);
+    float inline Rect(float v);
+    void inline updateDeviceParameter(const CParameter* p = nullptr) override;
 public:
     CToneGenerator();
-    void Init(const int Index,void * MainWindow);
-    float* GetNextA(const int ProcIndex);
+    void init(const int index, QWidget* MainWindow) override;
+    CAudioBuffer* getNextA(const int ProcIndex) override;
+    void play(const bool FromStart) override;
 };
 
 #endif // CTONEGENERATOR_H

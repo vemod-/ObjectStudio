@@ -1,88 +1,81 @@
 #include "ckarlsenfilter.h"
 
-
 CKarlsenFilter::CKarlsenFilter()
 {
-}
-
-void CKarlsenFilter::Init(const int Index, void *MainWindow) {
-    m_Name=devicename;
-    Maxcutoff=m_Presets.SampleRate * 0.425;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveOut(jnOut);
-    AddJackWaveIn();
-    AddJack("Modulation",(IJack::AttachModes)(IJack::Amplitude | IJack::Pitch),IJack::In);
-    AddParameterVolume("Gain");
-    AddParameterPercent("Cutoff Modulation");
-    AddParameter(ParameterType::Numeric,"Cutoff Frequency","Hz",20,Maxcutoff,0,"",Maxcutoff);
-    AddParameterPercent("Response Time",50);
-    AddParameterPercent("Resonance");
-    AddParameterVolume();
-    FreqGlider.SetSpeed(5);
     pole1=0;
     pole2=0;
     pole3=0;
     pole4=0;
-    ModulationFactor=0;
     InVolumeFactor=0;
     OutVolumeFactor=0;
     LastResonance=0;
-    LastCO=0;
-    CalcExpResonance(0);
-    CalcParams();
+    rezamount=0;
+    cutoffreq=0;
+    MixFactor=0;
 }
 
-float *CKarlsenFilter::GetNextA(const int ProcIndex) {
-    float* InSignal=FetchA(jnIn);
-    if (!InSignal) return NULL;
-    bool Recalc=false;
-    float CutOff=m_ParameterValues[pnCutOffFrequency];
-    if (ModulationFactor) CutOff*= pow(2,Fetch(jnModulation)*ModulationFactor);
-    if (m_ParameterValues[pnResonance] != LastResonance)
+void CKarlsenFilter::init(const int Index, QWidget* MainWindow) {
+    m_Name=devicename;
+    IDevice::init(Index,MainWindow);
+    addJackWaveOut(jnOut);
+    addJackWaveIn();
+    addJackModulationIn();
+    addParameterVolume("Gain");
+    makeParameterGroup(2,"Cutoff",Qt::green);
+    addParameter(CParameter::Percent,"Cutoff Modulation","%",0,200,0,"",0);
+    addParameterCutOff();
+    addParameterPercent("Response Time",50);
+    addParameterPercent("Resonance");
+    addParameterVolume();
+    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnCutOffModulation]);
+    CalcExpResonance(0);
+    updateDeviceParameter();
+}
+
+CAudioBuffer *CKarlsenFilter::getNextA(const int ProcIndex) {
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    if (!InBuffer->isValid()) return nullptr;
+    const float CurrentFreq = qBound<float>(20,Modulator.execFreq(m_Parameters[pnCutOffFrequency]->Value),presets.MaxCutoff);
+    bool Recalc=Modulator.changed();
+    if (m_Parameters[pnResonance]->Value != LastResonance)
     {
-        LastResonance=m_ParameterValues[pnResonance];
+        LastResonance=m_Parameters[pnResonance]->Value;
         Recalc=true;
     }
-    if (CutOff>Maxcutoff) CutOff=Maxcutoff;
-    if (CutOff<20) CutOff=20;
-    if (LastCO!=CutOff)
-    {
-        FreqGlider.SetTargetFreq(CutOff);
-        LastCO=CutOff;
-        Recalc=true;
-    }
-    float CurrentFreq=FreqGlider.GetCurrentFreq();
-    if (LastCO != CurrentFreq) Recalc=true;
     if (Recalc)
     {
         CalcExpResonance(CurrentFreq);
-        MixFactor=1.0-(((float)m_ParameterValues[pnResonance]*0.01)*0.6);
+        MixFactor=1.f-(m_Parameters[pnResonance]->PercentValue*0.6f);
     }
-    float volIn=InVolumeFactor*MixFactor;
-    float volOut=OutVolumeFactor*MixFactor;
-    float* Buffer=AudioBuffers[ProcIndex]->Buffer;
-    for (int i=0;i<m_BufferSize;i++)
+    const float volIn=InVolumeFactor*MixFactor;
+    const float volOut=OutVolumeFactor*MixFactor;
+    CAudioBuffer* Buffer=m_AudioBuffers[ProcIndex];
+    for (uint i=0;i<m_BufferSize;i++)
     {
-        float input=*(InSignal+i) * volIn;
-        float rez = pole4 * rezamount; if (rez > 1) {rez = 1;}
-        input = input - rez;
+        const float input = (InBuffer->at(i) * volIn) - qMin<float>(pole4 * rezamount,1);
         pole1 = pole1 + ((-pole1 + input) * cutoffreq);
         pole2 = pole2 + ((-pole2 + pole1) * cutoffreq);
         pole3 = pole3 + ((-pole3 + pole2) * cutoffreq);
         pole4 = pole4 + ((-pole4 + pole3) * cutoffreq);
-        Buffer[i]=pole4 * volOut;
+        Buffer->setAt(i,pole4 * volOut);
     }
     return Buffer;
 }
 
-void CKarlsenFilter::CalcParams() {
-    ModulationFactor=(float)m_ParameterValues[pnCutOffModulation]* 0.01;
-    InVolumeFactor=(float)m_ParameterValues[pnInVolume]*0.01;
-    OutVolumeFactor=(float)m_ParameterValues[pnOutVolume]*0.01;
-    FreqGlider.SetGlide(m_ParameterValues[pnResponse]);
+void CKarlsenFilter::updateDeviceParameter(const CParameter* /*p*/) {
+    InVolumeFactor=m_Parameters[pnInVolume]->PercentValue;
+    OutVolumeFactor=m_Parameters[pnOutVolume]->PercentValue;
+    Modulator.setGlide(m_Parameters[pnResponse]->Value);
+    Modulator.setDefaultFreq(m_Parameters[pnCutOffFrequency]->Value);
 }
 
 void CKarlsenFilter::CalcExpResonance(float CutOff) {
-    rezamount=(float)m_ParameterValues[pnResonance]/5;
-    cutoffreq=CutOff/Maxcutoff;
+    rezamount=m_Parameters[pnResonance]->scaleValue(0.2f);
+    cutoffreq=CutOff/presets.MaxCutoff;
+}
+
+void CKarlsenFilter::play(const bool FromStart)
+{
+    Modulator.setDefaultFreq(m_Parameters[pnCutOffFrequency]->Value);
+    IDevice::play(FromStart);
 }

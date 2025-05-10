@@ -3,57 +3,50 @@
 
 #include "csf2generator.h"
 #include "csounddevice.h"
+#include "cfileparameter.h"
 
 namespace SF2Device
 {
-const int sf2voices=16;
+const int sf2voices=64;
 }
 
-class CSF2Device : public ISoundDevice
+class CSF2Device : public ISoundDevice, public IFileLoader
 {
 public:
-    class SF2Preset
-    {
-    public:
-        SF2Preset(){}
-        int number;
-        QString name;
-    };
-    class SF2Bank
-    {
-    public:
-        SF2Bank(){}
-        QHash<int,SF2Preset> presets;
-    };
     CSF2Device();
     ~CSF2Device();
-    void NoteOn(const short channel, const short pitch, const short velocity);
-    void NoteOff(const short channel, const short pitch);
-    void Aftertouch(const short channel, const short pitch, const short value);
-    void Patch(const short channel, const short value);
-    void Controller(const short channel, const short controller, const short value);
+    void noteOn(const short channelMode, const short pitch, const short velocity);
+    void noteOff(const short channelMode, const short pitch);
+    void aftertouch(const short channelMode, const short pitch, const short value);
+    void patch(const short channelMode, const short value);
+    void controller(const short channelMode, const short controller, const short value);
     float* getNext(const int voice);
-    short voiceChannel(const int voice);
-    int voiceCount();
+    short voiceChannel(const int voice) const;
+    int voiceCount() const;
     void reset();
-    int presetcount();
-    const QString presetname(const int preset);
-    int banknumber(const int preset);
-    int presetnumber(const int preset);
-    int currentPreset(const short channel);
-    int currentBank(const short channel);
-    void setBank(const int bank);
-    void setPreset(const int preset);
+    const QString bankPresetName(const int program) const;
+    int bankPresetNumber(const int bank, const int preset) const;
+    int banknumber(const int program) const;
+    int presetnumber(const int program) const;
+    int currentPreset(const short channelMode) const;
+    int currentBank(const short channelMode) const;
+    int currentBankPreset(const short channelMode) const;
+    void setBankPreset(const int program);
+    void setBankPreset(const int bank, const int preset);
     bool loadFile(const QString& filename);
-    bool patchResponse;
     void allNotesOff();
-    QHash<int,SF2Bank> banks;
+    const QString bankCaption(const int bank) const;
+    const QString presetCaption(const int bank, const int preset) const;
+    const QStringList bankCaptions() const;
+    const QStringList presetCaptions(const int bank) const;
+    void setTune(const float tune=440);
 private:
     short lastChannel;
-    bool isGM;
     int drumBank;
     CSF2Generator SF2Generator[SF2Device::sf2voices];
+    void findDrumBank();
     bool loaded;
+    QRecursiveMutex mutex;
 };
 
 

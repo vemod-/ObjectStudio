@@ -27,69 +27,45 @@
 *******************************************************************************
 */
 
-#ifndef __SFNAV_H
-#define __SFNAV_H
+#ifndef SFNAV_H
+#define SFNAV_H
 
-
-/////////////////////////////
-//        Includes         //
-/////////////////////////////
-
-#include "datatype.h"
 #include "sfdata.h"
 #include "hydra.h"
-
-/////////////////////////////
-//         Defines         //
-/////////////////////////////
-
-#define MAX_SAMPLES             4   // The max number of layers for a preset
-#define SF_N_MEMBERS           58  // The number of SoundFont data items
-#define MAX_SOUND_FONTS        10  // The max number of simultaneous SFB's
-
-/////////////////////////////
-//      Constants          //
-/////////////////////////////
-
-/////////////////////////////
-//        Typedefs         //
-/////////////////////////////
-
-/////////////////////////////
-//        Classes          //
-/////////////////////////////
+#include "sflookup.h"
 
 class SoundFontNavigator 
 {
   public:
-    SoundFontNavigator(void);
-    ~SoundFontNavigator(void);
-
-    void        Reset(void);
-    void        Navigate(WORD wSFID, WORD wKey, WORD wVel);
-    WORD        GetNOsc(void)  { return (wOsc);          }
-    sfData*     GetSFPtr(void) { return (&(sfVector[0])); }
-    void        GetHydraFont(HydraClass* pHydra);
-    HydraClass* SetHydraFont(HydraClass* pHydra);
-    WORD        GetSFNum(WORD wBank, BYTE byPatch, WORD* pwSFID);
-
+    SoundFontNavigator() : phfNav(nullptr) {}
+    ~SoundFontNavigator() {}
+    const std::vector<sfData> Navigate(ushort wSFID, ushort wKey, ushort wVel);
+    /*
+    void GetHydraFont(HydraClass* pHydra)
+    {
+        pHydra = phfNav;
+        return;
+    }
+    */
+    HydraClass* SetHydraFont(HydraClass* pHydra)
+    {
+        HydraClass * pOldHydra = phfNav;
+        phfNav = pHydra;
+        return pOldHydra;
+    }
   private:
-
-    void        ProcessSampleLinks(void);
-    void        AddSoundFonts(sfData *, sfData *);
-    HydraClass    *phfNav;
-    WORD          wOsc;                 // # of Osc's used for Preset
-    sfData        sfPresetData;          // The preset global layer data
-    sfData        sfInstData;            // The instrument global data
-    sfData        sfCurrPreset;          // The current preset layer data
-    sfData        sfVector[MAX_SAMPLES];  // Specific data for an oscillator
-    WORD          shdrIndexLinks[MAX_SAMPLES];
-    WORD          nextOscLinkCheck;
-    BYTE          linkFound[MAX_SAMPLES];
+    void ProcessSampleLinks();
+    void AddSoundFonts(sfData*, sfData*);
+    HydraClass *phfNav;
+    std::vector<sfData> sfVector;  // Specific data for an oscillator
+    std::vector<ushort> shdrIndexLinks;
+    ushort nextOscLinkCheck;
+    std::vector<byte> linkFound;
+    CSF2Lookup sfLookup;
 
 };
 
 
 
-#endif //  __SFNAV_H
+#endif //  SFNAV_H
 

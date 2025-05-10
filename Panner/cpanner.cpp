@@ -4,83 +4,59 @@ CPanner::CPanner()
 {
 }
 
-void CPanner::Init(const int Index, void *MainWindow)
+void CPanner::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveIn();
-    AddJackStereoOut(jnOut);
-    AddJackDualMonoOut(jnOutLeft);
-    AddJack("Modulation In",(IJack::AttachModes)(IJack::Pitch | IJack::Amplitude),IJack::In);
-    AddParameter(ParameterType::Numeric,"Pan","%",-100,100,0,"",0);
-    AddParameterPercent();
-    LastMod=0;
-    CurrentMod=0;
+    IDevice::init(Index,MainWindow);
+    addJackWaveIn();
+    addJackStereoOut(jnOut);
+    addJackDualMonoOut(jnOutLeft);
+    addJackModulationIn("Modulation In");
+    addParameterPan();
+    addParameterPercent();
+    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnModulation]);
     LeftModFactor=1;
     RightModFactor=1;
-    InSignal=NULL;
-    CalcParams();
+    updateDeviceParameter();
 }
 
-void CPanner::Process()
+void CPanner::process()
 {
-    InSignal=FetchA(jnIn);
-    if (!InSignal) return;
-    float lTemp= Fetch(jnModulation);
-    if (lTemp != LastMod)
+    InSignal=FetchAMono(jnIn);
+    if (!InSignal->isValid()) return;
+    const float CurrentMod = Modulator.exec();
+    if (Modulator.changed())
     {
-        LastMod = lTemp;
-        CurrentMod = lTemp* ModFactor;
-        if (CurrentMod==0)
-        {
-            LeftModFactor=1;
-            RightModFactor=1;
-        }
-        else if (CurrentMod>0)
-        {
-            LeftModFactor=1-CurrentMod;
-            RightModFactor=1;
-        }
-        else
-        {
-            RightModFactor=1+CurrentMod;
-            LeftModFactor=1;
-        }
+        LeftModFactor=1;
+        RightModFactor=1;
+        if (CurrentMod > 0) LeftModFactor -= CurrentMod;
+        else if (CurrentMod < 0) RightModFactor += CurrentMod;
     }
-    CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-    OutBuffer->FromMono(InSignal);
-    OutBuffer->Multiply(LeftFactor*LeftModFactor,RightFactor*RightModFactor);
+    StereoBuffer(jnOut)->fromMono(InSignal->data(),LeftFactor*LeftModFactor,RightFactor*RightModFactor);
 }
 
-float *CPanner::GetNextA(const int ProcIndex)
+CAudioBuffer *CPanner::getNextA(const int ProcIndex)
 {
     if (m_Process)
     {
         m_Process=false;
-        Process();
+        process();
     }
-    if (!InSignal) return NULL;
-    CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-    if (ProcIndex==jnOutRight) return OutBuffer->BufferR;
-    return OutBuffer->Buffer;
+    if (!InSignal->isValid())
+    {
+        if (ProcIndex == jnOut) return nullptr;//&m_NullBufferStereo;
+        return nullptr;//&m_NullBufferMono;
+    }
+    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    if (ProcIndex==jnOutRight) return OutBuffer->rightBuffer;
+    if (ProcIndex==jnOutRight) return OutBuffer->leftBuffer;
+    return OutBuffer;
 }
 
-void CPanner::CalcParams()
+void CPanner::updateDeviceParameter(const CParameter* /*p*/)
 {
-    if (m_ParameterValues[pnPan]==0)
-    {
-        LeftFactor=1;
-        RightFactor=1;
-    }
-    else if (m_ParameterValues[pnPan]>0)
-    {
-        LeftFactor=(100-m_ParameterValues[pnPan])*0.01;
-        RightFactor=1;
-    }
-    else
-    {
-        RightFactor=(100+m_ParameterValues[pnPan])*0.01;
-        LeftFactor=1;
-    }
-    ModFactor = m_ParameterValues[pnModulation] * 0.01;
+    LeftFactor=1;
+    RightFactor=1;
+    if (m_Parameters[pnPan]->Value > 0) LeftFactor -= m_Parameters[pnPan]->PercentValue;
+    else if (m_Parameters[pnPan]->Value < 0) RightFactor += m_Parameters[pnPan]->PercentValue;
 }

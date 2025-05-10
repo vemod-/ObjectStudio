@@ -13,16 +13,16 @@ CStereoPeak::~CStereoPeak()
     delete ui;
 }
 
-void CStereoPeak::SetValues(const float L, const float R)
+void CStereoPeak::setValues(const float L, const float R)
 {
-    ui->PeakL->SetValue(L);
-    ui->PeakR->SetValue(R);
+    ui->PeakL->setValue(L);
+    ui->PeakR->setValue(R);
 }
 
-void CStereoPeak::Reset()
+void CStereoPeak::reset()
 {
-    ui->PeakL->Reset();
-    ui->PeakR->Reset();
+    ui->PeakL->reset();
+    ui->PeakR->reset();
 }
 
 void CStereoPeak::setMargin(int margin)
@@ -30,4 +30,11 @@ void CStereoPeak::setMargin(int margin)
     ui->PeakL->setMargin(margin);
     ui->PeakR->setMargin(margin);
     ui->Scale->setMargin(margin);
+}
+
+void CStereoPeak::setMax(int max)
+{
+    ui->PeakL->setMax(max);
+    ui->PeakR->setMax(max);
+    ui->Scale->setMax(max);
 }

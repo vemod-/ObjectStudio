@@ -7,91 +7,75 @@ CStereoBox::CStereoBox()
 
 CStereoBox::~CStereoBox()
 {
+    qDebug() << "~CStereoBox";
     if (m_Initialized)
     {
-        ((CMacroBoxForm*)m_Form)->DesktopComponent->Clear();
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clear();
         qDeleteAll(JacksCreated);
     }
 }
 
-void CStereoBox::Init(const int Index, void *MainWindow)
+void CStereoBox::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
-    CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJackStereoOut(jnOut);
-    AddJackDualMonoOut(jnOutLeft);
-    AddJackStereoIn();
-    AddJackDualMonoIn();
-    d->SetPoly(1);
+    IDevice::init(Index,MainWindow);
+    addJackStereoOut(jnOut);
+    addJackDualMonoOut(jnOutLeft);
+    addJackStereoIn();
+    addJackDualMonoIn();
+
+    m_Form=new CMacroBoxForm(this,MainWindow);
+    CDesktopComponent* d=FORMFUNC(CMacroBoxForm)->DesktopComponent;
+    addTickerDevice(d->deviceList());
+    setDeviceParent(d->deviceList());
+    d->deviceList()->setPolyphony(2);
 
     WaveOutL=new CInJack("Out","This",IJack::Wave,IJack::In,this);
-    JacksCreated.push_back(d->AddJack(WaveOutL,0));
+    JacksCreated.append(d->addJack(WaveOutL,0));
     WaveOutR=new CInJack("Out","This",IJack::Wave,IJack::In,this);
-    JacksCreated.push_back(d->AddJack(WaveOutR,1));
-    JacksCreated.push_back(d->AddJack(new COutJack("In","This",IJack::Wave,IJack::Out,this,jnInsideInLeft),0));
-    JacksCreated.push_back(d->AddJack(new COutJack("In","This",IJack::Wave,IJack::Out,this,jnInsideInRight),1));
+    JacksCreated.append(d->addJack(WaveOutR,1));
+    JacksCreated.append(d->addJack(new COutJack("In","This",IJack::Wave,IJack::Out,this,jnInsideInLeft),0));
+    JacksCreated.append(d->addJack(new COutJack("In","This",IJack::Wave,IJack::Out,this,jnInsideInRight),1));
 }
 
-void CStereoBox::Tick()
+void CStereoBox::process()
 {
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Tick();
-    m_Process=true;
-}
-
-void CStereoBox::HideForm()
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->HideForms();
-    m_Form->setVisible(false);
-}
-
-void CStereoBox::Process()
-{
-    float* B=FetchA(jnIn);
-    float* BL=FetchA(jnInLeft);
-    float* BR=FetchA(jnInRight);
-    if (B == NULL)
+    const CStereoBuffer* B = FetchAStereo(jnIn);
+    CMonoBuffer* BL = FetchAMono(jnInLeft);
+    CMonoBuffer* BR = FetchAMono(jnInRight);
+    if (!B->isValid())
     {
         InL=BL;
         InR=BR;
     }
-    else if ((BL == NULL) & (BR == NULL))
+    else if ((!BL->isValid()) && (!BR->isValid()))
     {
-        InL=B;
-        InR=B+m_BufferSize;
+        InL=B->leftBuffer;
+        InR=B->rightBuffer;
     }
     else
     {
-        InBuffer.WriteBuffer(B);
-        InBuffer.AddMono(BL,BR);
-        InBuffer.Multiply(SQRT2MULTIPLY);
-        InL=InBuffer.Buffer;
-        InR=InBuffer.BufferR;
+        InBuffer.writeBuffer(B);
+        InBuffer.addDualMono(BL,BR);
+        InBuffer *= M_SQRT1_2_F;
+        InL=InBuffer.leftBuffer;
+        InR=InBuffer.rightBuffer;
     }
-    ((CStereoBuffer*)AudioBuffers[jnOut])->FromMono(WaveOutL->GetNextA(),WaveOutR->GetNextA());
+    StereoBuffer(jnOut)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
 }
 
-float* CStereoBox::GetNextA(const int ProcIndex)
+CAudioBuffer* CStereoBox::getNextA(const int ProcIndex)
 {
     if (m_Process)
     {
         m_Process=false;
-        Process();
+        process();
     }
     if (ProcIndex==jnInsideInLeft) return InL;
     if (ProcIndex==jnInsideInRight) return InR;
-    CStereoBuffer* OutBuffer=(CStereoBuffer*)AudioBuffers[jnOut];
-    if (ProcIndex==jnOutRight) return OutBuffer->BufferR;
-    return OutBuffer->Buffer;
+    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    if (ProcIndex==jnOutRight) return OutBuffer->rightBuffer;
+    if (ProcIndex==jnOutLeft) return OutBuffer->leftBuffer;
+    return OutBuffer;
 }
 
-void CStereoBox::Play(const bool FromStart)
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Play(FromStart);
-}
-
-void CStereoBox::Pause()
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Pause();
-}

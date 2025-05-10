@@ -6,9 +6,10 @@ CEqualizerFrame::CEqualizerFrame(QWidget *parent) :
     ui(new Ui::CEqualizerFrame)
 {
     ui->setupUi(this);
-    connect(ui->VolSlider,SIGNAL(valueChanged(int)),this,SLOT(VolChanged(int)));
-    connect(ui->dial,SIGNAL(valueChanged(int)),this,SLOT(FreqChanged(int)));
-    m_Device=NULL;
+    connect(ui->VolSlider,&QAbstractSlider::valueChanged,this,&CEqualizerFrame::VolChanged);
+    connect(ui->dial,&QAbstractSlider::valueChanged,this,&CEqualizerFrame::FreqChanged);
+    m_Device=nullptr;
+    Index=0;
 }
 
 CEqualizerFrame::~CEqualizerFrame()
@@ -16,14 +17,19 @@ CEqualizerFrame::~CEqualizerFrame()
     delete ui;
 }
 
-void CEqualizerFrame::Init(CEqualizer *EQ, int BandIndex, int FqMin, int FqMax, int FqDefault)
+void CEqualizerFrame::init(CEqualizer *EQ, int BandIndex, int FqMin, int FqMax, int FqDefault)
 {
     m_Device=EQ;
     Index=BandIndex;
+    m_Device->Freq[Index]=FqDefault;
+    m_Device->Level[Index]=0;
     ui->FreqLabel->setText("Freq.");
     ui->dial->setMinimum(FqMin);
     ui->dial->setMaximum(FqMax);
     ui->dial->setValue(FqDefault);
+    ui->VolSlider->setMaximum(200);
+    ui->Peak->setMax(200);
+    ui->dBScale->setMax(200);
     ui->VolSlider->setValue(100);
     VolChanged(100);
     ui->IndexLabel->setText("Band " + QString::number(Index+1));
@@ -31,44 +37,32 @@ void CEqualizerFrame::Init(CEqualizer *EQ, int BandIndex, int FqMin, int FqMax, 
 
 void CEqualizerFrame::VolChanged(int Value)
 {
-    if (!m_Device)
-    {
-        return;
-    }
-    float dB=lin2db((float)Value*0.01);
+    if (!m_Device) return;
+    const float dB=lin2dBf(Value*0.01f);
     m_Device->SetLevel(Index,dB);
     ui->VolLabel->setText(QString::number(dB,'f',2)+"dB");
 }
 
 void CEqualizerFrame::FreqChanged(int Freq)
 {
-    if (!m_Device)
-    {
-        return;
-    }
+    if (!m_Device) return;
     m_Device->SetFreq(Index,Freq);
     ui->ValueLabel->setText(QString::number(Freq)+"Hz");
 }
 
-const QString CEqualizerFrame::Save()
+void CEqualizerFrame::serialize(QDomLiteElement* xml) const
 {
-    QDomLiteElement xml("Custom");
-    xml.setAttribute("Volume",ui->VolSlider->value());
-    xml.setAttribute("Frequency",ui->dial->value());
-    return xml.toString();
+    xml->setAttribute("Volume",ui->VolSlider->value());
+    xml->setAttribute("Frequency",ui->dial->value());
 }
 
-void CEqualizerFrame::Load(const QString& XML)
+void CEqualizerFrame::unserialize(const QDomLiteElement* xml)
 {
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
-    {
-        ui->VolSlider->setValue(xml.attributeValue("Volume"));
-        ui->dial->setValue(xml.attributeValue("Frequency"));
-        m_Device->SetLevel(Index,lin2db((float)(ui->VolSlider->value())*0.01));
-        m_Device->SetFreq(Index,ui->dial->value());
-    }
+    if (!xml) return;
+    ui->VolSlider->setValue(xml->attributeValueInt("Volume"));
+    ui->dial->setValue(xml->attributeValueInt("Frequency"));
+    m_Device->SetLevel(Index,lin2db(ui->VolSlider->value()*0.01));
+    m_Device->SetFreq(Index,ui->dial->value());
 }
 
 void CEqualizerFrame::showEvent(QShowEvent *)
@@ -77,12 +71,12 @@ void CEqualizerFrame::showEvent(QShowEvent *)
     ui->Peak->setMargin(ui->VolSlider->grooveMargin());
 }
 
-void CEqualizerFrame::Reset()
+void CEqualizerFrame::reset()
 {
-    ui->Peak->Reset();
+    ui->Peak->reset();
 }
 
-void CEqualizerFrame::Peak(const float val)
+void CEqualizerFrame::peak(const float val)
 {
-    ui->Peak->SetValue(val);
+    ui->Peak->setValue(val);
 }

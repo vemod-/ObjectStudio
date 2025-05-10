@@ -1,54 +1,79 @@
 #ifndef CDRUMMACHINE_H
 #define CDRUMMACHINE_H
 
-#include "softsynthsclasses.h"
+#include "idevice.h"
 #include "cwavegenerator.h"
-#include "sequenserclasses.h"
+#include "cmseccounter.h"
+
+#define DRUMMACHINEFORM FORMFUNC(CDrumMachineForm)
 
 namespace DrumMachine
 {
 const int SoundCount=7;
 }
 
+#include "sequenserclasses.h"
+
+class CWaveGeneratorX : public CWaveGenerator
+{
+public:
+    QString Name;
+    float Volume;
+    void trigger(const int vol)
+    {
+        if (vol>0)
+        {
+            reset();
+            Volume=vol*0.01f;
+        }
+    }
+};
+
 class CDrumMachine : public IDevice
 {
 private:
     enum JackNames
-    {jnOut};
+    {jnOut,jnMIDIOut};
     enum ParameterNames
-    {pnTempo,pnVolume};
-    struct SoundType
-    {
-        CWaveGenerator* Generator;
-        QString Name;
-        float Volume;
-    };
+    {pnTempo,pnVolume,pnHumanize};
     float VolumeFactor;
-    void inline CalcParams();
+    void inline updateDeviceParameter(const CParameter* p = nullptr);
     int Counter;
-    int BeatInterval;
     int BeatCount;
     int PatternIndex;
     int PatternRepeatCount;
     int PatternLength;
-    int NextBeat;
-    int NextStop;
-    float SamplesPerTick;
-    float SampleCount;
-    bool Playing;
+    ulong m_MilliSeconds;
+    ulong m_Ticks;
+    CTickCounter mSecCount;
+    //bool Playing;
+    void CalcDuration();
     void Reset();
-    void inline AddSound(const QString& Path,const QString& Name,CWaveGenerator* WG, SoundType* ST);
-    CWaveGenerator WG[DrumMachine::SoundCount];
+    void inline AddSound(const QString& Path,const QString& Name,CWaveGeneratorX& WG)
+    {
+        if (WG.load(":/sounds/"+Path))
+        {
+            WG.Name=Name;
+            WG.Volume=0;
+        }
+    }
+    byte MIDINumbers[7] = {36,38,42,46,49,50,48};
+    CMIDIBuffer MIDIBuffer;
 public:
-    void Init(const int Index,void* MaionWindow);
-    float* GetNextA(const int ProcIndex);
-    void Tick();
-    SoundType ST[DrumMachine::SoundCount];
+    ~CDrumMachine();
+    void init(const int index, QWidget* MainWindow);
+    CAudioBuffer* getNextA(const int ProcIndex);
+    CMIDIBuffer* getNextP(const int ProcIndex);
+    void tick();
+    CWaveGeneratorX WG[DrumMachine::SoundCount];
     QList<PatternType*> Patterns;
     QList<PatternListType*> PatternsInList;
-    //TList* Sounds;
-    void Play(const bool FromStart);
-    void Pause();
+    void play(const bool FromStart);
+    void pause();
+    ulong milliSeconds() const;
+    ulong64 samples() const;
+    ulong ticks() const;
+    void skip(const ulong64 samples);
 };
 
 #endif // CDRUMMACHINE_H

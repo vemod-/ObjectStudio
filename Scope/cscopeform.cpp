@@ -2,51 +2,25 @@
 #include "ui_cscopeform.h"
 
 CScopeForm::CScopeForm(IDevice* Device, QWidget *parent) :
-    CSoftSynthsForm(Device,true,parent),
+    CSoftSynthsForm(Device,false,parent),
     ui(new Ui::CScopeForm)
 {
     ui->setupUi(this);
     Scope=ui->ScopeControl;
-    Spectrum=ui->SpectrumControl;
-    Tab=ui->tabWidget;
-    startTimer(50);
+    m_TimerID=startTimer(50);
 }
 
 CScopeForm::~CScopeForm()
 {
+    killTimer(m_TimerID);
+    m_TimerID=0;
     delete ui;
 }
 
 void CScopeForm::timerEvent(QTimerEvent* /*event*/)
 {
-    if (isVisible())
-    {
-        if (ui->tabWidget->currentIndex()==0)
-        {
-            Scope->repaint();
-        }
-        else
-        {
-            Spectrum->repaint();
-        }
-    }
+    if (!m_TimerID) return;
+    QMutexLocker locker(&mutex);
+    if (isVisible()) Scope->update();
 }
 
-void CScopeForm::CustomLoad(const QString &XML)
-{
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    if (xml.tag=="Custom")
-    {
-        QDomLiteElement* Tabs=xml.elementByTag("Tabs");
-        if (Tabs) ui->tabWidget->setCurrentIndex(Tabs->attributeValue("TabIndex"));
-    }
-}
-
-const QString CScopeForm::CustomSave()
-{
-    QDomLiteElement xml("Custom");
-    QDomLiteElement* Tabs=xml.appendChild("Tabs");
-    Tabs->setAttribute("TabIndex",ui->tabWidget->currentIndex());
-    return xml.toString();
-}

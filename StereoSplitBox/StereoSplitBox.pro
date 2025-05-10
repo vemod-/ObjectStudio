@@ -5,22 +5,32 @@
 #-------------------------------------------------
 
 TARGET = StereoSplitBox
-TEMPLATE = lib
 
 include(../SoftSynthsIncludes.pri)
-include(../../QCanvas/QCanvas.pri)
 
 DEFINES += STEREOSPLITBOX_LIBRARY
 
-include(../RtAudioBuffer/DesktopComponent.pri)
+LIBS += -lSoftSynthsWidgets
 
+INCLUDEPATH += $$PWD/../SoftSynthsWidgets
+INCLUDEPATH += ../../SynthKnob
+INCLUDEPATH += ../../QCanvas
 INCLUDEPATH += ../MacroBox
 
-SOURCES += cstereosplitbox.cpp \
-    ../MacroBox/cmacroboxform.cpp
+INCLUDEPATH += ../RtAudioBuffer
+INCLUDEPATH += ../PlugInLoader
+INCLUDEPATH += ../../QiPhotoRubberband
+INCLUDEPATH += ../../QSignalMenu
+INCLUDEPATH += ../../SynthPanel
 
-HEADERS += cstereosplitbox.h \
-    ../MacroBox/cmacroboxform.h
+macx {
+    contains(DEFINES,MACXSTATICLIBS) {
+        LIBS += -L../ -lPluginLoader
+        LIBS += -lz
+    }
+}
 
-FORMS += \
-    ../MacroBox/cmacroboxform.ui
+SOURCES += cstereosplitbox.cpp
+
+HEADERS += cstereosplitbox.h
+

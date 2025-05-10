@@ -1,465 +1,312 @@
 #include "cmidifilereader.h"
 #include "../SoftSynthsClasses/softsynthsdefines.h"
-/*
-const unsigned int inline ReadData(const size_t Size, const void* Pos)
-{
-    BYTE* TempChar=(BYTE*)Pos;
-    switch (Size)
-    {
-    case 1:
-        return TempChar[0];
-    case 2:
-        return (TempChar[0]<<8) | TempChar[1];
-    case 3:
-        return (TempChar[0]<<16) | (TempChar[1]<<8) | TempChar[2];
-    case 4:
-        return (TempChar[0]<<24) | (TempChar[1]<<16) | (TempChar[2]<<8) | TempChar[3];
-    }
-    return 0;
-}
-*/
+#include "../SoftSynthsClasses/cpresets.h"
+#include "../SoftSynthsClasses/cmseccounter.h"
+
 CMIDIFileTrack::CMIDIFileTrack()
 {
     m_Length=0;
-    m_Time=0;
-    m_Time1=0;
-    m_Time2=0;
-    m_SharpFlat=0;
-    m_Key=0;
-    m_Message=0;
-    m_Tempo=0;
-    Counter=0;
-    m_MoreMessages=MFRUnknown;
-    DataPointer=0;
-    TimePointer=0;
-    NextPointer=0;
-    StartPointer=0;
-    NoteCount=0;
+    m_Delta=0;
+    m_MessagePointer=nullptr;
+    m_Counter=0;
+    m_DataPointer=nullptr;
+    m_CurrentPointer=nullptr;
+    m_StartPointer=nullptr;
+    noteCount=0;
+    ticks=0;
 }
 
-CMIDIFileTrack::~CMIDIFileTrack()
+CMIDIFileTrack::CMIDIFileTrack(byte* &Pointer,const int I) : CMIDIFileTrack()
 {
+    assign(Pointer);
+    index=I;
 }
 
-size_t CMIDIFileTrack::Fill(const char *Data, const size_t Pointer)
+void CMIDIFileTrack::assign(byte* &Pointer)
 {
-    MIDIFileTrackHeader* header=(MIDIFileTrackHeader*)(Data+Pointer);
-    m_Length=qFromBigEndian<qint32>(header->descriptor.size);
-    StartPointer=((BYTE*)Data)+Pointer+sizeof(MIDIFileTrackHeader);
-    Reset();
-    return Pointer+m_Length+sizeof(MIDIFileTrackHeader);
+    const auto header=reinterpret_cast<MIDIFileTrackHeader*>(Pointer);
+    m_Length=qFromBigEndian<uint>(header->descriptor.size);
+    m_StartPointer=Pointer+sizeof(MIDIFileTrackHeader);
+    reset();
+    Pointer+=m_Length+sizeof(MIDIFileTrackHeader);
 }
 
-unsigned long CMIDIFileTrack::GetTime()
+MessageType CMIDIFileTrack::messageType()
 {
-    unsigned long value;
-    BYTE c;
-    NextPointer=TimePointer;
-    if ( (value = *NextPointer++) & 0x80 )
+    if (*m_CurrentPointer < 0x80) // running status
     {
-        value &= 0x7F;
-        do
+        setMessage(m_DataSize);
+        return MFREvent;
+    }
+    m_MessagePointer = m_CurrentPointer++;
+    if ((*m_MessagePointer >= 0xC0) && (*m_MessagePointer <= 0xDF)) // 2 byte event
+    {
+        setMessage(1);
+        return MFREvent;
+    }
+    if ((*m_MessagePointer >= 0x80) && (*m_MessagePointer <= 0xEF)) // 3byte event
+    {
+        setMessage(2);
+        return MFREvent;
+    }
+    if ((*m_MessagePointer == 0xF0) | (*m_MessagePointer == 0xF7)) // sysex event
+    {
+        setMessage(varlen(m_CurrentPointer)); //length of buffer
+        //qDebug() << "Sysex" << *m_MessagePointer << *m_DataPointer << m_DataSize << m_CurrentPointer-m_MessagePointer << *(m_CurrentPointer-3) << *(m_CurrentPointer-2) << *(m_CurrentPointer-1) << *m_CurrentPointer;
+        return MFREvent;
+    }
+    if (*m_MessagePointer==0xFF)
+    {
+        byte metaType=*m_CurrentPointer++; //Meta type;
+        setMessage(varlen(m_CurrentPointer)); //length of buffer
+        if (metaType==0x2F) //End of track
         {
-            value = (value << 7) + ((c = *NextPointer++) & 0x7F);
-        } while (c & 0x80);
-    }
-    return value;
-}
-
-MessageType CMIDIFileTrack::MoreMessages()
-{
-    TimePointer=NextPointer;
-    BYTE Message=*NextPointer;
-    TimePointer++;
-    if (Message < 0x80)
-    {
-        //This i running status
-        DataPointer=TimePointer-1;
-        if (m_MoreMessages==MFR3Bytes)
-        {
-            DataSize=2;
-            TimePointer++;
-        }
-        else
-        {
-            DataSize=1;
-        }
-        m_Time=GetTime();
-        return m_MoreMessages;
-    }
-    else if ((Message >= 0xC0) & (Message <= 0xDF))
-    {
-        //2 byte chunk
-        DataPointer=TimePointer;
-        m_Message=Message;
-        DataSize=1;
-        TimePointer++;
-        m_MoreMessages=MFR2Bytes;
-        m_Time=GetTime();
-        return MFR2Bytes;
-    }
-    else if ((Message >= 0x80) & (Message <= 0xEF))
-    {
-        //3 byte chunk
-        DataPointer=TimePointer;
-        m_Message=Message;
-        DataSize=2;
-        TimePointer+=2;
-        m_MoreMessages=MFR3Bytes;
-        m_Time=GetTime();
-        return MFR3Bytes;
-    }
-    else if ((Message == 0xF0) | (Message == 0xF7))
-    {
-        //Buffer chunk
-        m_Message=Message;
-        int i=GetTime();     //length of buffer
-        TimePointer=NextPointer;
-        DataPointer=TimePointer;
-        DataSize=i;
-        TimePointer+=i;
-        m_MoreMessages=MFRBuffer;
-        m_Time=GetTime();
-        return MFRBuffer;
-    }
-    else if (Message==0xFF)
-    {
-        m_Message=Message;
-        DataPointer=TimePointer;
-        BYTE m_Data1=DataPointer[0];//ReadByte(TrackData);
-        DataSize=DataPointer[1]; //ReadByte(TrackData);//length of message
-        DataPointer+=2;
-        TimePointer+=2+DataSize;
-        if (m_Data1==0x2F)
-        {
-            m_MoreMessages=MFREndOfTrack;
-            m_Time=0;
-            NextPointer=TimePointer;
-            Finished=true;
+            m_Delta=0;
+            finished=true;
             return MFREndOfTrack;
         }
-        else if ((m_Data1 <= 7) | (m_Data1==0x7F))
+        if ((metaType <= 7) | (metaType==0x7F)) //Seq specific
         {
-            m_Time=GetTime();
-            m_MoreMessages=MFRBuffer;
-            return MFRBuffer;
+            return MFRMeta;
         }
-        else
+        switch (metaType)
         {
-            switch (m_Data1)
-            {
-            case 0x51:
-                //m_Tempo = ReadData(DataSize,DataPointer);
-                m_Tempo=qFromBigEndian<qint32>(*(int*)(DataPointer-1)) & 0xFFFFFF;
-                m_Time=GetTime();
-                m_MoreMessages=MFRTempo;
-                return MFRTempo;
-            case 0x54:
-                m_Time=GetTime();
-                m_MoreMessages=MFRSMPTEOffset;
-                return MFRSMPTEOffset;
-            case 0x58:
-                m_Time1=DataPointer[0];//ReadByte(TrackData);
-                m_Time2=DataPointer[1];//ReadByte(TrackData);
-                m_Time=GetTime();
-                m_MoreMessages=MFRTime;
-                return MFRTime;
-            case 0x59:
-                m_SharpFlat=DataPointer[0];//ReadByte(TrackData);
-                m_Key=DataPointer[1];//ReadByte(TrackData);
-                m_Time=GetTime();
-                m_MoreMessages=MFRKey;
-                return MFRKey;
-            default:
-                m_Time=GetTime();
-                m_MoreMessages=MFRUnknown;
-                return MFRUnknown;
-            }
+        case 0x51: //Tempo
+            return MFRTempo;
+        case 0x54: //SMPTE
+            return MFRSMPTEOffset;
+        case 0x58: //Time
+            return MFRTime;
+        case 0x59: //Key
+            return MFRKey;
+        default: //Anything
+            return MFRUnknown;
         }
     }
-    DataPointer=TimePointer;
-    DataSize=0;
-    m_MoreMessages=MFRUnknown;
-    m_Time=GetTime();
+    setMessage(0);
     return MFRUnknown;
 }
 
-BYTE* CMIDIFileTrack::Data()
+void CMIDIFileTrack::reset()
 {
-    return DataPointer;
-}
-
-short CMIDIFileTrack::GetData()
-{
-    if (DataIndex<DataSize)
-    {
-        return DataPointer[DataIndex++];
-    }
-    else
-    {
-        return -1;
-    }
-}
-
-bool CMIDIFileTrack::MessageReady()
-{
-    if (m_Time != Counter)
-    {
-        Counter++;
-        return false;
-    }
-    Counter=1;
-    return true;
-}
-
-unsigned long CMIDIFileTrack::Time()
-{
-    return m_Time;
-}
-
-BYTE CMIDIFileTrack::Message()
-{
-    DataIndex=0;
-    return m_Message;
-}
-
-unsigned int CMIDIFileTrack::Tempo()
-{
-    return m_Tempo;
-}
-
-BYTE CMIDIFileTrack::Time1()
-{
-    return m_Time1;
-}
-
-BYTE CMIDIFileTrack::Time2()
-{
-    return m_Time2;
-}
-
-BYTE CMIDIFileTrack::SharpFlat()
-{
-    return m_SharpFlat;
-}
-
-BYTE CMIDIFileTrack::Key()
-{
-    return m_Key;
-}
-
-void CMIDIFileTrack::Reset()
-{
-    DataSize=0;
-    TimePointer=StartPointer;
-    m_Time=GetTime();
-    Counter=0;
-    Finished=false;
+    m_CurrentPointer=m_StartPointer;
+    m_MessagePointer=m_StartPointer;
+    setMessage(0);
+    m_Counter=0;
+    finished=false;
 }
 
 CMIDIFileReader::CMIDIFileReader()
 {
-    MIDIFiles=SingleMIDIMap::getInstance();
-    //m_Pnt=NULL;
-    m_ID.first=NULL;
+    m_ID.first=nullptr;
     m_ID.second=0;
     m_FileType=0;
     m_NumOfTracks=0;
-    Ticks=240;
+    m_TicksPerQuarter=240;
+    m_TempoAdjust=1;
+    m_ChannelCount=0;
+    m_MinChannel=15;
+    m_MilliSeconds=0;
+    m_Ticks=0;
 }
 
 CMIDIFileReader::~CMIDIFileReader()
 {
-    qDeleteAll(Tracks);
-    MIDIFileMemoryData* Data;
-    if (MIDIFiles->contains(m_ID))
-    {
-        Data=MIDIFiles->value(m_ID);
-        if (--Data->refcount==0)
-        {
-            qDebug() << "Delete MIDIFileRef";
-            MIDIFiles->remove(m_ID);
-            delete Data;
-        }
-    }
+    qDeleteAll(tracks);
+    if (m_ID.first != nullptr) CSingleMap<MIDIMemoryID,MIDIFileMemoryData>::removeItem(m_ID);
 }
 
-bool CMIDIFileReader::Open(const QString& Path)
+bool CMIDIFileReader::load(const QString& Path)
 {
     try
     {
         QFile f(Path);
         if (f.open(QIODevice::ReadOnly))
         {
-            bool retVal=OpenPtr((char*)f.map(0,f.size()),f.size());
+            bool retVal=assign(f.readAll());
             f.close();
             return retVal;
         }
-        else
-        {
-            return false;
-        }
     }
-    catch (...)
-    {
-        return false;
-    }
+    catch (...) {}
+    return false;
 }
 
-bool CMIDIFileReader::OpenPtr(const char *Pnt, const size_t Length)
+bool CMIDIFileReader::assign(const QByteArray& b)
 {
-    MIDIMemoryID ID=qMakePair((char*)Pnt,Length);
-    MIDIFileHeader* header=(MIDIFileHeader*)Pnt;
+    auto header=reinterpret_cast<const MIDIFileHeader*>(b.constData());
     if (!descriptorMatch(header->descriptor.id,"MThd")) return false;
-    MIDIFileMemoryData* Data;
-    if (m_ID.first != NULL)
-    {
-        if (MIDIFiles->contains(m_ID))
-        {
-            Data=MIDIFiles->value(m_ID);
-            if (--Data->refcount==0)
-            {
-                qDebug() << "Delete MIDIFileRef";
-                MIDIFiles->remove(m_ID);
-                delete Data;
-            }
-        }
-    }
-    if (!MIDIFiles->contains(ID))
-    {
-        Data=new MIDIFileMemoryData(Pnt,Length);
-        MIDIFiles->insert(ID,Data);
-        qDebug() << "New MIDIFileRef";
-    }
-    else
-    {
-        Data=MIDIFiles->value(ID);
-    }
-    Data->refcount++;
-    //m_Pnt=(char*)Pnt;
+    if (m_ID.first) CSingleMap<MIDIMemoryID,MIDIFileMemoryData>::removeItem(m_ID);
+    MIDIMemoryID ID=MIDIFileMemoryData::makeID(b);
+    MIDIFileMemoryData* Data = CSingleMap<MIDIMemoryID,MIDIFileMemoryData>::addItem(ID);
+    if (Data->refCount==1) Data->init(b);
     m_ID=ID;
-    qDeleteAll(Tracks);
-    Tracks.clear();
-    size_t len=qFromBigEndian<qint32>(header->descriptor.size);
-    m_FileType=qFromBigEndian<qint16>(header->fileType);
-    m_NumOfTracks=qFromBigEndian<qint16>(header->numTracks);
-    Ticks=qFromBigEndian<qint16>(header->ticks);
-    size_t Pointer=(sizeof(chunk) + len);
-    for (int i=0;i<m_NumOfTracks;i++)
-    {
-        CMIDIFileTrack* T=new CMIDIFileTrack();
-        Tracks.append(T);
-        Pointer=T->Fill(Data->data,Pointer);
-        T->Index=i;
-    }
-    GetDuration();
+    qDeleteAll(tracks);
+    tracks.clear();
+    const ulong64 len=qFromBigEndian<uint>(header->descriptor.size);
+    m_FileType=qFromBigEndian<short>(header->fileType);
+    m_NumOfTracks=qFromBigEndian<short>(header->numTracks);
+    m_TicksPerQuarter=qFromBigEndian<short>(header->ticks);
+    auto Pointer=reinterpret_cast<byte*>(Data->data.data()) + sizeof(chunk) + len;
+    for (int i=0;i<m_NumOfTracks;i++) tracks.append(new CMIDIFileTrack(Pointer,i));
+    getTicks();
     return true;
 }
 
-short CMIDIFileReader::TrackCount()
+MIDITimeList CMIDIFileReader::getTicks(const MIDITimeList& tickList)
 {
-    return m_NumOfTracks;
-}
-
-short CMIDIFileReader::FileType()
-{
-    return m_FileType;
-}
-
-void CMIDIFileReader::Reset()
-{
-    foreach (CMIDIFileTrack* T,Tracks) T->Reset();
-}
-
-void CMIDIFileReader::GetDuration()
-{
+    MIDITimeList retval;
+    m_ChannelCount=0;
+    m_MinChannel=15;
     m_MilliSeconds=0;
     m_Ticks=0;
-    if (m_NumOfTracks==0) return;
-    double uSCount=0;
-    Reset();
-    float uSPQ=500000;
-    float uSPerTick=uSPQ/(float)Ticks;
+    if (m_NumOfTracks==0) return retval;
+    reset();
     bool TickPlay=true;
-    unsigned long SkipTicks=0;
-    QList<CMIDIFileTrack*> PlayingTracks(Tracks);
+    ulong SkipTicks=0;
+    uint barCount=0;
+    CTickCounter mSecCount;
+    mSecCount.setTempoAdjust(m_TempoAdjust);
+    QList<CMIDIFileTrack*> PlayingTracks(tracks);
     while (TickPlay)
     {
-        uSCount+=1000;
-        while (uSCount>=uSPerTick)
+        mSecCount.addMilliSecond();
+        while (mSecCount.moreTicks())
         {
             if (SkipTicks==0)
             {
                 SkipTicks=1000000000;
-                m_Ticks++;
-                uSCount-=uSPerTick;
-                foreach (CMIDIFileTrack* T, PlayingTracks)
+                mSecCount.eatTick();
+                for (CMIDIFileTrack* T : PlayingTracks)
                 {
-                    if (T->MessageReady())
+                    if (T->containsMessages())
                     {
                         do
                         {
-                            MessageType mt=T->MoreMessages();
-                            if (mt==MFRTempo)
+                            MessageType mt=T->messageType();
+                            if (mt==MFREvent)
                             {
-                                uSPQ=T->Tempo();
-                                uSPerTick=uSPQ/(float)Ticks;
+                                CMIDIEvent e=T->midiEvent();
+                                if (e.isNoteOn())
+                                {
+                                    if (e.data(1) != 0)
+                                    {
+                                        T->noteCount++;
+                                        if (e.channel() > m_ChannelCount) m_ChannelCount=e.channel();
+                                        if (e.channel() < m_MinChannel) m_MinChannel=e.channel();
+                                    }
+                                }
+                            }
+                            else if (mt==MFRTempo)
+                            {
+                                mSecCount.setTempo(T->tempo(),m_TicksPerQuarter);
                             }
                             else if (mt==MFREndOfTrack)
                             {
-                                T->Duration=m_Ticks-1;
+                                T->ticks=mSecCount.currentTick() - 1;
                                 PlayingTracks.removeOne(T);
-                                if (PlayingTracks.isEmpty()) TickPlay=false;
+                                if (PlayingTracks.isEmpty()) TickPlay = false;
                                 break;
                             }
-                            else if (mt==MFR3Bytes)
-                            {
-                                if (T->Message() & 0x90)
-                                {
-                                    if (T->Data()[1] != 0) T->NoteCount++;
-                                }
-                            }
                         }
-                        while (T->Time()==0);
+                        while (T->moreMessages());
                     }
-                    unsigned long TickDiff=T->Time()-T->Counter;
-                    if (TickDiff < SkipTicks) SkipTicks=TickDiff;
+                    SkipTicks=qMin<ulong>(T->remainingTicks(),SkipTicks);
                 }
             }
             else if (SkipTicks != 1000000000)
             {
-                foreach (CMIDIFileTrack* T, PlayingTracks) T->Counter+=SkipTicks;
-                m_Ticks+=SkipTicks;
-                uSCount-=(float)SkipTicks*uSPerTick;
-                unsigned long elapsedmSec=qMax(ceil((-uSCount+uSPerTick)*0.001),0.0);
-                uSCount+=(1000*elapsedmSec);
-                m_MilliSeconds+=elapsedmSec;
+                for(CMIDIFileTrack* T : PlayingTracks) T->skipTicks(SkipTicks);
+                while ((barCount < tickList.size()) && (mSecCount.currentTick() + SkipTicks > tickList[barCount]))
+                {
+                    const ulong thisTick = tickList[barCount]-(mSecCount.currentTick() - 1);
+                    retval.push_back(mSecCount.remainingmSecs(thisTick - 1));
+                    barCount++;
+                }
+                mSecCount.skipTicks(SkipTicks);
+                SkipTicks = 0;
+            }
+            else
+            {
+                TickPlay = false;
+                break;
+            }
+        }
+    }
+    m_MilliSeconds = mSecCount.currentmSec();
+    m_Ticks = mSecCount.currentTick();
+    reset();
+    return retval;
+    //qDebug() << m_MilliSeconds << m_Ticks;
+}
+
+ulong64 CMIDIFileReader::mSecsToEvent(const CMIDIEvent& event)
+{
+    ulong SkipTicks=0;
+    reset();
+    if (m_NumOfTracks==0) return 0;
+    CTickCounter mSecCount;
+    mSecCount.setTempoAdjust(m_TempoAdjust);
+    QList<CMIDIFileTrack*> PlayingTracks(tracks);
+    //qDebug() << "MIDI File Skip" << mSec;
+    while (true)
+    {
+        ulong currentmSec = mSecCount.currentmSec();
+        mSecCount.addMilliSecond();
+        while (mSecCount.moreTicks())
+        {
+            if (SkipTicks==0)
+            {
+                SkipTicks=10000000;
+                mSecCount.eatTick();
+                for (CMIDIFileTrack* T : PlayingTracks)
+                {
+                    if (T->containsMessages())
+                    {
+                        do
+                        {
+                            MessageType mt=T->messageType();
+                            if (event.matches(T->midiEvent())) return currentmSec;
+                            if (mt==MFREvent)
+                            {
+                                /*
+                                if ((m_Parameters[pnTrack]->Value==0) | (T->index==m_Parameters[pnTrack]->Value-1))
+                                {
+                                    CMIDIEvent e=T->midiEvent();
+                                    if (((e.command() >= 0xB0) && (e.command() <= 0xD0)) | (e.isSysEx()))
+                                    {
+                                        SkipBuffer=true;
+                                        MIDIBuffer.append(e);
+                                    }
+                                }
+                                */
+                            }
+                            else if (mt==MFRTempo)
+                            {
+                                mSecCount.setTempo(T->tempo(),m_TicksPerQuarter);
+                            }
+                            else if (mt==MFREndOfTrack)
+                            {
+                                PlayingTracks.removeOne(T);
+                                if (PlayingTracks.isEmpty()) return 0;
+                                break;
+                            }
+                        }
+                        while (T->moreMessages());
+                    }
+                    SkipTicks=qMin<ulong>(T->remainingTicks(),SkipTicks);
+                }
+            }
+            else if (SkipTicks != 10000000)
+            {
+                for (CMIDIFileTrack* t : PlayingTracks) t->skipTicks(SkipTicks);
+                mSecCount.skipTicks(SkipTicks);
                 SkipTicks=0;
             }
             else
             {
-                TickPlay=false;
-                break;
+                return 0;
             }
         }
-        m_MilliSeconds++;
     }
-    Reset();
-    qDebug() << m_MilliSeconds << m_Ticks;
-}
-
-unsigned long CMIDIFileReader::MilliSeconds()
-{
-    return m_MilliSeconds;
-}
-
-unsigned long CMIDIFileReader::Duration(const int Track)
-{
-    if (Track==-1) return m_Ticks;
-    return Tracks[Track]->Duration;
-}
-
-unsigned long CMIDIFileReader::NoteCount(const int Track)
-{
-    return Tracks[Track]->NoteCount;
 }

@@ -1,10 +1,7 @@
-<?xml version='1.0'?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>CPeakControl</class>
- <widget class="QFrame" name="CPeakControl">
-  <property name="frameShadow">
-   <enum>QFrame::Raised</enum>
-  </property>
+ <widget class="QWidget" name="CPeakControl">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -13,11 +10,10 @@
     <height>300</height>
    </rect>
   </property>
-  <property name="frameShape">
-   <enum>QFrame::StyledPanel</enum>
-  </property>
   <property name="windowTitle">
    <string>Frame</string>
   </property>
  </widget>
+ <resources/>
+ <connections/>
 </ui>

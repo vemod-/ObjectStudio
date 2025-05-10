@@ -1,90 +1,59 @@
 #include "cnoisegate.h"
 
-
 CNoiseGate::CNoiseGate()
 {
 }
 
-void CNoiseGate::Init(const int Index, void *MainWindow) {
+void CNoiseGate::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackWaveIn();
-    AddJackWaveOut(jnOut);
-    AddJack("Envelope Out",IJack::Amplitude,IJack::Out,jnEnvOut);
-    AddParameterPercent("Threshold");
-    AddParameterPercent("Response Time");
-    AddParameterPercent("Decay Time");
+    IDevice::init(Index,MainWindow);
+    addJackWaveIn();
+    addJackWaveOut(jnOut);
+    addJackModulationOut(jnEnvOut,"Envelope Out");
+    addParameterPercent("Threshold");
+    startParameterGroup();
+    addParameterPercent("Response Time");
+    addParameterPercent("Decay Time");
+    endParameterGroup();
     CurrentVol=0;
-    TargetVol=0;
-    LastGlideVol=0;
-    CalcParams();
+    updateDeviceParameter();
 }
 
-float *CNoiseGate::GetNextA(const int ProcIndex) {
+CAudioBuffer *CNoiseGate::getNextA(const int ProcIndex) {
     if (m_Process)
     {
         m_Process=false;
-        Process();
+        process();
     }
-    if (CurrentVol==0) return NULL;
-    return AudioBuffers[ProcIndex]->Buffer;
+    if (isZero(CurrentVol)) return nullptr;//&m_NullBufferMono;
+    return m_AudioBuffers[ProcIndex];
 }
 
-float CNoiseGate::GetNext(int) {
+float CNoiseGate::getNext(int) {
     if (m_Process)
     {
         m_Process=false;
-        Process();
+        process();
     }
-    return CurrentVol*0.01;
+    return CurrentVol;
 }
 
-void CNoiseGate::Process() {
-    float GFactor;
-    float* InSignal=FetchA(jnIn);
-    if (!InSignal)
+void CNoiseGate::process() {
+    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    if (!InBuffer->isValid())
     {
         CurrentVol=0;
         return;
     }
-    float* Buffer=AudioBuffers[jnOut]->Buffer;
-    for (int i=0;i<m_BufferSize;i++)
-    {
-        int Signal=*(InSignal+i);
-        if (fabs(Signal)>Threshold)
-        {
-            TargetVol=100;
-        }
-        else
-        {
-            TargetVol=0;
-        }
-
-        if (LastGlideVol>TargetVol)
-        {
-            GFactor=DecayFactor;
-        }
-        else
-        {
-            GFactor=-GlideFactor;
-        }
-        if (abs(LastGlideVol - TargetVol)>abs(GFactor))
-        {
-            CurrentVol=LastGlideVol-GFactor;
-        }
-        else
-        {
-            CurrentVol=TargetVol;
-        }
-        LastGlideVol=CurrentVol;
-
-        Buffer[i]=Signal;
-    }
-    AudioBuffers[jnOut]->Multiply(CurrentVol*0.01);
+    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
+    OutBuffer->writeBuffer(InBuffer);
+    float Signal=0;
+    OutBuffer->peakBuffer(&Signal);
+    CurrentVol = glider.runVoltage(int(Signal > Threshold));
+    *OutBuffer *= CurrentVol;
 }
 
-void CNoiseGate::CalcParams() {
-    Threshold=m_ParameterValues[pnThreshold]*0.01;
-    GlideFactor=((101-m_ParameterValues[pnResponse])*m_Presets.ResponseFactor)/(m_BufferSize/10.0);
-    DecayFactor=((101-m_ParameterValues[pnDecay])*m_Presets.ResponseFactor)/(m_BufferSize*80.0);
+void CNoiseGate::updateDeviceParameter(const CParameter* /*p*/) {
+    Threshold=m_Parameters[pnThreshold]->scaleValue(0.005f);
+    glider.setGlide(m_Parameters[pnResponse]->Value,m_Parameters[pnDecay]->Value);
 }

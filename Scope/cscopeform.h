@@ -1,11 +1,10 @@
 #ifndef CSCOPEFORM_H
 #define CSCOPEFORM_H
 
-#include "softsynthsclasses.h"
 #include "cscopecontrol.h"
-#include "cspectrumcontrol.h"
 #include <QDialog>
 #include <QTabWidget>
+#include "csoftsynthsform.h"
 
 namespace Ui {
     class CScopeForm;
@@ -19,10 +18,6 @@ public:
     explicit CScopeForm(IDevice* Device, QWidget *parent = 0);
     ~CScopeForm();
     CScopeControl* Scope;
-    CSpectrumControl* Spectrum;
-    QTabWidget* Tab;
-    void CustomLoad(const QString &XML);
-    const QString CustomSave();
 protected:
     void timerEvent(QTimerEvent *event);
 private:

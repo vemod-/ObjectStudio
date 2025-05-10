@@ -2,7 +2,6 @@
 #define CWAVELAYERS_H
 
 #include <QFrame>
-#include "ckeylayoutcontrol.h"
 #include "csamplerdevice.h"
 
 namespace Ui {
@@ -34,19 +33,19 @@ private slots:
 private:
     Ui::CWaveLayers *ui;
     void setControlBounds(CLayer::LayerParams LP);
-    void Add(int Upper,int Lower);
-    int inline Vol2Graph(int Vol);
-    int inline Graph2Vol(int X);
-    int inline Y2Graph(int Y);
-    int inline Graph2Y(int Y);
-    int StartMark;
-    bool MD;
-    bool Working;
-    SplitterValues SplitValue;
-    void inline MoveLines(QPoint P);
-    void inline PutPoint(CLayer* Range,QPoint P,SplitterValues SV);
-    float MixFactor;
-    QPoint OldPoint;
+    //void Add(int Upper,int Lower);
+    //int inline Vol2Graph(int Vol);
+    //int inline Graph2Vol(int X);
+    //int inline Y2Graph(int Y);
+    //int inline Graph2Y(int Y);
+    //int StartMark;
+    //bool MD;
+    //bool Working;
+    //SplitterValues SplitValue;
+    //void inline MoveLines(QPoint P);
+    //void inline PutPoint(CLayer* Range,QPoint P,SplitterValues SV);
+    //float MixFactor;
+    //QPoint OldPoint;
     CSamplerDevice* m_Sampler;
 };
 

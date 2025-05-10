@@ -45,9 +45,9 @@ class sfDetectErrors
     sfDetectErrors() {;}
     ~sfDetectErrors() {;}
 
-    bool VerifySFBData(HydraClass *pHF, DWORD sampleRAMSizeInBytes);
-    bool VerifyPDTAIndices(HydraClass *pHF);
-    bool VerifySamplePoints(HydraClass *pHF, DWORD sampleRAMSizeInBytes);
+    BOOL VerifySFBData(HydraClass *pHF, DWORD sampleRAMSizeInBytes);
+    BOOL VerifyPDTAIndices(HydraClass *pHF);
+    BOOL VerifySamplePoints(HydraClass *pHF, DWORD sampleRAMSizeInBytes);
 };
 
 #endif

@@ -7,87 +7,68 @@ CStereoSplitBox::CStereoSplitBox()
 
 CStereoSplitBox::~CStereoSplitBox()
 {
+    qDebug() << "~CStereoSplitBox";
     if (m_Initialized)
     {
-        ((CMacroBoxForm*)m_Form)->DesktopComponent->Clear();
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clear();
         qDeleteAll(JacksCreated);
     }
 }
 
-void CStereoSplitBox::Init(const int Index, void *MainWindow)
+void CStereoSplitBox::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    m_Form=new CMacroBoxForm(this,(QWidget*)MainWindow);
-    CDesktopComponent* d=((CMacroBoxForm*)m_Form)->DesktopComponent;
-    AddJackStereoOut(jnOut);
-    AddJackStereoIn();
+    IDevice::init(Index,MainWindow);
+    addJackStereoOut(jnOut);
+    addJackStereoIn();
+
+    m_Form=new CMacroBoxForm(this,MainWindow);
+    CDesktopComponent* d=FORMFUNC(CMacroBoxForm)->DesktopComponent;
+    addTickerDevice(d->deviceList());
+    setDeviceParent(d->deviceList());
 
     WaveOutL=new CInJack("Out Left","This",IJack::Wave,IJack::In,this);
-    JacksCreated.push_back(d->AddJack(WaveOutL,0));
+    JacksCreated.append(d->addJack(WaveOutL,0));
     WaveOutR=new CInJack("Out Right","This",IJack::Wave,IJack::In,this);
-    JacksCreated.push_back(d->AddJack(WaveOutR,0));
-    JacksCreated.push_back(d->AddJack(new COutJack("In Left","This",IJack::Wave,IJack::Out,this,jnInLeft),0));
-    JacksCreated.push_back(d->AddJack(new COutJack("In Right","This",IJack::Wave,IJack::Out,this,jnInRight),0));
+    JacksCreated.append(d->addJack(WaveOutR,0));
+    JacksCreated.append(d->addJack(new COutJack("In Left","This",IJack::Wave,IJack::Out,this,jnInLeft),0));
+    JacksCreated.append(d->addJack(new COutJack("In Right","This",IJack::Wave,IJack::Out,this,jnInRight),0));
 }
-
-void CStereoSplitBox::Tick()
+/*
+void CStereoSplitBox::hideForm()
 {
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Tick();
-    m_Process=true;
-}
-
-void CStereoSplitBox::HideForm()
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->HideForms();
+    FORMFUNC(CMacroBoxForm)->DesktopComponent->hideForms();
     m_Form->setVisible(false);
 }
-
-void CStereoSplitBox::Process()
+*/
+void CStereoSplitBox::process()
 {
-    float* B=FetchA(jnIn);
-    if (B != NULL)
-    {
-        InL=B;
-        InR=B+m_BufferSize;
-    }
-    else
-    {
-        InL=NULL;
-        InR=NULL;
-    }
+    InBuffer = FetchAStereo(jnIn);
 }
 
-float* CStereoSplitBox::GetNextA(const int ProcIndex)
+CAudioBuffer* CStereoSplitBox::getNextA(const int ProcIndex)
 {
-    if (ProcIndex==jnOut) ((CStereoBuffer*)AudioBuffers[jnOut])->FromMono(WaveOutL->GetNextA(),WaveOutR->GetNextA());
+    if (ProcIndex==jnOut) StereoBuffer(jnOut)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
     if (ProcIndex==jnInLeft)
     {
         if (m_Process)
         {
             m_Process=false;
-            Process();
+            process();
         }
-        return InL;
+        if (InBuffer->leftBuffer->isValid()) return InBuffer->leftBuffer;
+        return nullptr;
     }
     if (ProcIndex==jnInRight)
     {
         if (m_Process)
         {
             m_Process=false;
-            Process();
+            process();
         }
-        return InR;
+        if (InBuffer->rightBuffer->isValid()) return InBuffer->rightBuffer;
+        return nullptr;
     }
-    return AudioBuffers[ProcIndex]->Buffer;
+    return m_AudioBuffers[ProcIndex];
 }
 
-void CStereoSplitBox::Play(const bool FromStart)
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Play(FromStart);
-}
-
-void CStereoSplitBox::Pause()
-{
-    ((CMacroBoxForm*)m_Form)->DesktopComponent->Pause();
-}

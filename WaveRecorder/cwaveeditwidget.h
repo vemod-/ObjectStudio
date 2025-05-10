@@ -19,14 +19,10 @@ public:
 private slots:
     void UpdateGraph();
     void UpdateControls(CWaveGenerator::LoopParameters LP);
-    void SetStart();
-    void ZoomIn();
-    void ZoomOut();
-    void ZoomMax();
-    void ZoomMin();
-    void SetScrollMax();
+    //void SetScrollMax();
+    void UpdateStretch(bool v);
 signals:
-    void UpdateHost(CWaveGenerator::LoopParameters LP);
+    void Changed(CWaveGenerator::LoopParameters LP);
 private:
     Ui::CWaveEditWidget *ui;
     CWaveGenerator* m_WG;

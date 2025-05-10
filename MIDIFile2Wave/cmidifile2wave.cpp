@@ -1,112 +1,8 @@
 #include "cmidifile2wave.h"
-#include <QDesktopWidget>
-
-CDeviceListLite::CDeviceListLite()
-{
-}
-
-void CDeviceListLite::Play(const bool FromStart)
-{
-    foreach (IDevice* d, Devices) d->Play(FromStart);
-}
-
-void CDeviceListLite::Pause()
-{
-    foreach (IDevice* d, Devices) d->Pause();
-}
-
-void CDeviceListLite::Tick()
-{
-    foreach (IDevice* d, Devices) d->Tick();
-}
-
-void CDeviceListLite::DisconnectAll()
-{
-    foreach (IJack* j, Jacks)
-    {
-        if (j != 0)
-        {
-            if (j->Direction==IJack::In)
-            {
-                CInJack* j1=(CInJack*)j;
-                for (int i=j1->OutJackCount()-1;i>=0;i--)
-                {
-                    qDebug() << "Disconnect" << j1->Owner << j1->Name << j1->OutJack(i)->Name;
-                    j1->DisconnectFromOut(j1->OutJack(i));
-                }
-            }
-        }
-    }
-}
-
-void CDeviceListLite::DisconnectDevice(IDevice *device)
-{
-    foreach (IJack* j, Jacks)
-    {
-        if (j != 0)
-        {
-            if (j->Direction==IJack::In)
-            {
-                CInJack* j1=(CInJack*)j;
-                for (int i=j1->OutJackCount()-1;i>=0;i--)
-                {
-                    COutJack* j2=j1->OutJack(i);
-                    if ((j1->Owner==device->DeviceID()) || (j2->Owner==device->DeviceID()))
-                    {
-                        qDebug() << "Disconnect" << j1->Owner << j1->Name << j1->OutJack(i)->Name;
-                        j1->DisconnectFromOut(j2);
-                    }
-                }
-            }
-        }
-    }
-}
-
-void CDeviceListLite::AddDevice(IDevice *device, int index, void* MainWindow)
-{
-    device->Init(index,MainWindow);
-    device->SetHost((IHost*)MainWindow);
-    Devices.append(device);
-    AddJacks(device);
-}
-
-void CDeviceListLite::RemoveDevice(IDevice *device)
-{
-    for (int i=0;i<device->JackCount();i++)
-    {
-        Jacks.remove(device->DeviceID()+" "+device->GetJack(i)->Name);
-    }
-    Devices.removeOne(device);
-    delete device;
-}
-
-void CDeviceListLite::Clear()
-{
-    Jacks.clear();
-    foreach(IDevice* d,Devices)
-    {
-        Devices.removeOne(d);
-        delete d;
-    }
-    //qDeleteAll(Devices);
-    //Devices.clear();
-}
-
-void CDeviceListLite::AddJacks(IDevice *device)
-{
-    for (int i=0;i<device->JackCount();i++)
-    {
-        IJack* j=device->GetJack(i);
-        Jacks.insert(device->DeviceID() +" "+j->Name,j);
-    }
-}
-
-void CDeviceListLite::ConnectJacks(QString InJack, QString OutJack)
-{
-    CInJack* J1=(CInJack*)Jacks[InJack];
-    COutJack* J2=(COutJack*)Jacks[OutJack];
-    (J1)->ConnectToOut(J2);
-}
+//#include <QDesktopWidget>
+//#include <QFileInfo>
+#include <QApplication>
+#include <QScreen>
 
 #define devicename "MIDIFile2Wave"
 
@@ -114,330 +10,434 @@ CMIDI2WavForm::CMIDI2WavForm(IDevice* Device,QWidget* Parent) :
     CSoftSynthsForm(Device,true,Parent)
 {
     MW=new CMixerWidget(this);
-    QHBoxLayout* ly=new QHBoxLayout(this);
-    ly->setMargin(0);
+    Map=new CUIMap(this);
+    Map->setVisible(false);
+    auto ly=new QHBoxLayout(this);
+    ly->setContentsMargins(0,0,0,0);
     ly->setSpacing(0);
     ly->addWidget(MW);
+    ly->addWidget(Map);
+
+    UIMenu=new QMenu("Parameters",this);
+    UIMenu->addAction("UI map",this,SLOT(showMap()));
+    UIMenu->addAction("Hide UIs",this,SLOT(hideUIs()));
+    UIMenu->addAction("Cascade UIs",this,SLOT(cascadeUIs()));
+
+    connect(Map,&CUIMap::deviceSelected,this,&CMIDI2WavForm::hideMap);
 }
 
-CMIDI2WavForm::~CMIDI2WavForm()
+
+
+void CMIDI2WavForm::showMap()
 {
-    qDebug() << "Exit CMIDI2WavForm";
+    Map->showMap(MIDIFILE2WAVECLASS->deviceList(),this,MW);
+}
+
+void CMIDI2WavForm::hideUIs()
+{
+    MIDIFILE2WAVECLASS->deviceList()->hideForms();
+}
+
+void CMIDI2WavForm::cascadeUIs()
+{
+    QPoint p(24,24);
+    MIDIFILE2WAVECLASS->deviceList()->cascadeForms(p);
+}
+
+bool CMIDI2WavForm::event(QEvent *event)
+{
+    if (event->type()==QEvent::NonClientAreaMouseButtonPress)
+    {
+        if (dynamic_cast<QMouseEvent*>(event)->button()==Qt::RightButton)
+        {
+            UIMenu->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(event)->pos()));
+        }
+    }
+    return CSoftSynthsForm::event(event);
+}
+
+void CMIDI2WavForm::hideMap()
+{
+    Map->setVisible(false);
+    MW->setVisible(true);
 }
 
 CMIDIFile2Wave::CMIDIFile2Wave()
 {
-    Mx=NULL;
+    Mx=nullptr;
+    HideEmptyChannels=true;
+    mixerWidget=nullptr;
 }
 
-void CMIDIFile2Wave::Play(const bool FromStart)
+void CMIDIFile2Wave::updateDeviceParameter(const CParameter* /*p*/)
 {
-    if (FromStart) MW->resetPeak();
-    DeviceList.Play(FromStart);
+    MFR.setTempoAdjust(m_Parameters[pnTempoAdjust]->PercentValue);
+    for (CMIDIFilePlayer* p: std::as_const(MIDIFilePlayers)) {
+        p->parameter(CMIDIFilePlayer::pnTempoAdjust)->setValue(m_Parameters[pnTempoAdjust]->Value);
+        p->parameter(CMIDIFilePlayer::pnHumanize)->setValue(m_Parameters[pnHumanize]->Value);
+    }
+    for (CDeviceContainer* d: std::as_const(Instruments)) d->setParameterValue(m_Parameters[pnTune]->Name,m_Parameters[pnTune]->Value);
 }
 
-void CMIDIFile2Wave::Pause()
+void CMIDIFile2Wave::play(const bool FromStart)
 {
-    DeviceList.Pause();
+    if (FromStart) mixerWidget->resetPeak();
+    //DeviceList.play(FromStart);
+    if (FromStart) updateDeviceParameter();
+    IDevice::play(FromStart);
 }
-
-void CMIDIFile2Wave::Tick()
+/*
+void CMIDIFile2Wave::pause()
 {
-    DeviceList.Tick();
+    //DeviceList.pause();
+    IDevice::pause();
 }
-
-float* CMIDIFile2Wave::GetNextA(const int ProcIndex)
+*/
+/*
+void CMIDIFile2Wave::tick()
 {
-    if (Mx != NULL) return Mx->GetNextA(ProcIndex+CStereoMixer::jnOut);
-    return NULL;
+    DeviceList.tick();
+}
+*/
+CAudioBuffer* CMIDIFile2Wave::getNextA(const int ProcIndex)
+{
+    return (Mx) ? Mx->getNextA(ProcIndex+CStereoMixer::jnOut) : nullptr;//&m_NullBufferStereo;
 }
 
-void CMIDIFile2Wave::LoadFile(QString filename)
+bool CMIDIFile2Wave::loadFile(const QString& filename)
 {
     try
     {
         QFile f(filename);
         if (f.open(QIODevice::ReadOnly))
         {
-            OpenPtr((char*)f.map(0,f.size()),f.size());
+            assign(f.readAll());
             f.close();
-            m_FileName=filename;
+            return true;
         }
     }
     catch (...)
     {
     }
+    return false;
 }
 
-void CMIDIFile2Wave::OpenPtr(const char* Pnt, int Length)
-{
-    if (Mx != NULL) Mx->Disabled=true;
-    MW->stop();
-    DeviceList.DisconnectAll();
+void CMIDIFile2Wave::initWithFile(const QString& path) {
+    openFile(path);
+}
 
-    for (int i=Effects.count();i<MIDIFile2Wave::effectCount;i++)
+bool CMIDIFile2Wave::refreshMIDIFile(const QString& filename) {
+    const int c = MFR.channelCount();
+    const int t = MFR.trackCount();
+    const int ft = MFR.fileType();
+    QFile f(filename);
+    if (f.open(QIODevice::ReadOnly))
     {
-        CDeviceContainer* VSTH=new CDeviceContainer("Effect");
-        DeviceList.AddDevice(VSTH,i+1,m_MainWindow);
-        Effects.append(VSTH);
+        QByteArray b = f.readAll();
+
+        if (MFR.assign(b)) {
+            if (MFR.channelCount() == c) {
+                if (MFR.trackCount() == t) {
+                    if (MFR.fileType() == ft) {
+                        for (int i=0;i<MIDIFilePlayers.size();i++)
+                        {
+                            CMIDIFilePlayer* MFP=MIDIFilePlayers[i];
+                            MFP->assign(b,filename);
+                            MFP->parameter(CMIDIFilePlayer::pnTrack)->setValue(0);
+                            if (MFR.fileType() != 0) MFP->parameter(CMIDIFilePlayer::pnTrack)->setValue(i+1);
+                        }
+                        f.close();
+                        return true;
+                    }
+                }
+            }
+        }
+        f.close();
     }
-    MFR.OpenPtr(Pnt,Length);
+    return false;
+}
+
+void CMIDIFile2Wave::assign(const QByteArray& b)
+{
+    DeviceList.setHost(m_Host);
+    if (Mx) Mx->setDisabled(true);
+    mixerWidget->stop();
+    mutex.lock();
+    DeviceList.disconnectAll();
+
+    MFR.assign(b);
     int MFPCount=1;
     int channelcount=16;
-    if (MFR.FileType() != 0)
+    if (MFR.fileType() == 0)
+    {
+        //channelcount=MFR.channelCount();
+        MFPCount=channelcount;
+    }
+    else
     {
         int count=0;
-        for (int i=MFR.TrackCount()-1;i>=0;i--)
+        if (HideEmptyChannels)
         {
-            count=i+1;
-            qDebug() << MFR.NoteCount(i);
-            if (MFR.NoteCount(i) != 0) break;
+            for (int i = MFR.trackCount()-1; i >= 0; i--)
+            {
+                count=i+1;
+                if (MFR.noteCount(i) != 0) break;
+            }
+        }
+        else
+        {
+            count = MFR.trackCount();
         }
         MFPCount=count;
         channelcount=count;
     }
+    //qDebug() << "MIDIFile2Wave load" << channelcount << MFR.trackCount() << MFR.fileType() << Mx;
+    if (Mx) qDebug () << Mx->channelCount();
+    while (MIDIFilePlayers.size() > MFPCount) DeviceList.deleteDevice(MIDIFilePlayers.takeLast());    
+    while (MIDIFilePlayers.size() < MFPCount) MIDIFilePlayers.append(dynamic_cast<CMIDIFilePlayer*>(DeviceList.addDevice(new CMIDIFilePlayer,MIDIFilePlayers.size()+1,m_MainWindow)));
     for (int i=0;i<MFPCount;i++)
     {
-        CMIDIFilePlayer* MFP;
-        if (i>=MIDIFilePlayers.count())
-        {
-            MFP=new CMIDIFilePlayer;
-            DeviceList.AddDevice(MFP,i+1,m_MainWindow);
-            MIDIFilePlayers.append(MFP);
-        }
-        else
-        {
-            MFP=(CMIDIFilePlayer*)MIDIFilePlayers[i];
-        }
-        MFP->OpenPtr(Pnt,Length);
-        MFP->SetParameterValue("Track",0);
-        if (MFR.FileType() != 0) MFP->SetParameterValue("Track",i+1);
+        CMIDIFilePlayer* MFP=MIDIFilePlayers[i];
+        MFP->assign(b,filename());
+        MFP->parameter(CMIDIFilePlayer::pnTrack)->setValue(0);
+        if (MFR.fileType() != 0) MFP->parameter(CMIDIFilePlayer::pnTrack)->setValue(i+1);
     }
-    for (int i=MIDIFilePlayers.count()-1;i>=MFPCount;i--)
+    QDomLiteElement channelXML;
+    if (Mx)
     {
-        IDevice* d=MIDIFilePlayers[i];
-        MIDIFilePlayers.removeOne(d);
-        DeviceList.RemoveDevice(d);
-    }
-    if (Mx != NULL)
-    {
-        if (Mx->channelCount != channelcount)
+        if (int(Mx->channelCount()) != channelcount)
         {
-            DeviceList.RemoveDevice(Mx);
+            for (uint i = 0; i < Mx->channelCount(); i++) {
+                QDomLiteElement* e = new QDomLiteElement;
+                mixerWidget->channels[i]->serialize(e);
+                e->tag = mixerWidget->channels[i]->ID;
+                channelXML.appendChild(e);
+            }
+            Mx->removerEffectRacksFromDeviceList(&DeviceList);
+            DeviceList.deleteDevice(Mx);
             Mx=new CStereoMixer(channelcount,MIDIFile2Wave::effectCount);
-            DeviceList.AddDevice(Mx,1,m_MainWindow);
+            Mx->setDisabled(true);
+            DeviceList.addDevice(Mx,1,nullptr);
+            Mx->addEffectRacksToDeviceList(&DeviceList,m_MainWindow);
         }
     }
     else
     {
         Mx=new CStereoMixer(channelcount,MIDIFile2Wave::effectCount);
-        DeviceList.AddDevice(Mx,1,m_MainWindow);
+        Mx->setDisabled(true);
+        DeviceList.addDevice(Mx,1,nullptr);
+        Mx->addEffectRacksToDeviceList(&DeviceList,m_MainWindow);
     }
     m_Form->setUpdatesEnabled(false);
     if (!m_Form->isVisible())
     {
-        MW->hide();
-        MW->hideMaster();
+        mixerWidget->hide();
+        mixerWidget->hideMaster();
     }
+    while (mixerWidget->channels.size()>channelcount)
+    {
+        DeviceList.deleteDevice(Instruments.takeAt(mixerWidget->channels.size()-1));
+        mixerWidget->removeChannel();
+    }
+    while (mixerWidget->channels.size()<channelcount)
+    {
+        Instruments.append(dynamic_cast<CDeviceContainer*>(DeviceList.addDevice(new CDeviceContainer("Instrument"),mixerWidget->channels.size()+1,m_MainWindow)));
+        mixerWidget->appendChannel();
+    }
+    qDebug() << IDList << channelXML.childTags();
     for (int i =0;i<channelcount;i++)
     {
-        CDeviceContainer* SF2P;
-        CSF2ChannelWidget* ch;
-        if (i>=MW->channels.count())
+        CDeviceContainer* SF2P=Instruments[i];
+        CSF2ChannelWidget* ch=mixerWidget->channels[i];
+        bool chVisible=true;
+        if (MFR.fileType() == 0)
         {
-            SF2P=new CDeviceContainer("Instrument");
-            DeviceList.AddDevice(SF2P,i+1,m_MainWindow);
-            Instruments.append(SF2P);
-            ch=MW->appendChannel(i);
+            if (i < MFR.minChannel())
+            {
+                if (HideEmptyChannels) chVisible=false;
+            }
+            if (i >= MFR.channelCount())
+            {
+                if (HideEmptyChannels) chVisible=false;
+            }
         }
         else
         {
-            SF2P=(CDeviceContainer*)Instruments[i];
-            ch=MW->channels[i];
-        }
-        bool chVisible=true;
-        if (MFR.FileType() != 0)
-        {
-            qDebug() << i << MFR.NoteCount(i);
-            if (MFR.NoteCount(i) == 0) chVisible=false;
+            if (MFR.noteCount(i) == 0)
+            {
+                if (HideEmptyChannels) chVisible=false;
+            }
         }
         if (chVisible)
         {
-            DeviceList.ConnectJacks("StereoMixer 1 In "+QString::number(i+1),"Instrument "+ QString::number(i+1) +" Out");
+            DeviceList.connect("StereoMixer 1 In "+QString::number(i+1),"Instrument "+ QString::number(i+1) +" Out");
         }
-        if (MFR.FileType() == 0)
-        {
-            DeviceList.ConnectJacks("Instrument "+ QString::number(i+1) +" MIDI In","MIDIFile 1 MIDI Out");
-            ch->Init(Mx->channels[i], SF2P, i, "Channel "+QString::number(i+1));
+        if (MFR.fileType() == 0) {
+            DeviceList.connect("Instrument "+ QString::number(i+1) +" MIDI In","MIDIFilePlayer 1 MIDI Out");
+            ch->init(Mx->channels[i], "Channel "+QString::number(i+1), SF2P, i);
         }
-        else
-        {
-            if (chVisible) DeviceList.ConnectJacks("Instrument "+ QString::number(i+1) +" MIDI In","MIDIFile "+ QString::number(i+1) +" MIDI Out");
-            ch->Init(Mx->channels[i], SF2P, -1, "Track "+QString::number(i+1));
+        else {
+            if (chVisible) DeviceList.connect("Instrument "+ QString::number(i+1) +" MIDI In","MIDIFilePlayer "+ QString::number(i+1) +" MIDI Out");
+            ch->init(Mx->channels[i], "Track "+QString::number(i+1), SF2P, -1);
         }
-        //qDebug() << QFileInfo(":/028.5mg Masterpiece GM Bank.sf2").size();
-        if (chVisible) ch->loadSF("/Users/thomasallin/desktop/028.5mg Masterpiece GM Bank.sf2");
-        //if (chVisible) ch->loadSF("/Users/thomasallin/desktop/jnsgm2-mini-sf2/jnsgm2 mini.sf2");
-
+        if (i < IDList.size()) {
+            if (QDomLiteElement* e = channelXML.elementByTag(IDList[i])) {
+                ch->unserialize(e);
+            }
+            else {
+                if (chVisible) ch->load(":/028.5mg Masterpiece GM Bank.sf2");
+            }
+            ch->ID = IDList[i];
+        }
+        else if (i < channelXML.childCount()) {
+            ch->unserialize(channelXML.childElements[i]);
+        }
+        else {
+            qDebug() << chVisible << "Load Masterpiece";
+            if (chVisible) ch->load(":/028.5mg Masterpiece GM Bank.sf2");
+        }
         ch->setVisible(chVisible);
     }
-    for (int i=MW->channels.count()-1;i>=channelcount;i--)
-    {
-        IDevice* d=Instruments[i];
-        Instruments.removeOne(d);
-        DeviceList.RemoveDevice(d);
-        MW->removeChannel(i);
-    }
-    MW->showMaster(Mx,Effects);
+    channelXML.clearChildren();
+    mixerWidget->showMaster(Mx,&Effects);
     for (int i=0;i<MIDIFile2Wave::effectCount;i++)
     {
-        DeviceList.ConnectJacks("Effect "+ QString::number(i+1) +" In","StereoMixer 1 Send "+ QString::number(i+1));
-        DeviceList.ConnectJacks("StereoMixer 1 Return "+ QString::number(i+1),"Effect "+ QString::number(i+1) +" Out");
+        DeviceList.connect("Effect "+ QString::number(i+1) +" In","StereoMixer 1 Send "+ QString::number(i+1));
+        DeviceList.connect("StereoMixer 1 Return "+ QString::number(i+1),"Effect "+ QString::number(i+1) +" Out");
     }
-    //delete pf;
-    m_Form->adjustSize();
-    m_Form->setFixedSize(m_Form->size());
-    Mx->Disabled=false;
-    MW->start();
-    MW->show();
+    mutex.unlock();
+    mixerWidget->adjustSize();
+    Mx->setDisabled(false);
+    mixerWidget->start();
+    mixerWidget->show();
     m_Form->setUpdatesEnabled(true);
 }
 
-void CMIDIFile2Wave::Center()
+void CMIDIFile2Wave::center()
 {
-    m_Form->adjustSize();
-    m_Form->setFixedSize(m_Form->size());
-    m_Form->move(QDesktopWidget().rect().center()-m_Form->rect().center());
+    //m_Form->setFixedSize(mixerWidget->sizeHint());
+    mixerWidget->adjustSize();
+    QSize s = QApplication::screens().first()->size();
+    m_Form->move(QRect(0,0, s.width(),s.height()).center()-m_Form->rect().center());
 }
 
-void CMIDIFile2Wave::SetTitle(const QString& t)
+void CMIDIFile2Wave::setTitle(const QString& t)
 {
     m_Form->setWindowTitle(t);
 }
 
-void CMIDIFile2Wave::Load(const QString &XML)
+void CMIDIFile2Wave::NoteOn(int Track, byte Pitch, byte Channel, byte Velocity, byte Patch, byte Bank)
 {
-    QDomLiteElement Custom("Custom");
-    Custom.fromString(XML);
-    QString Path=CPresets::ResolveFilename(Custom.attribute("File"));
-    LoadFile(Path);
-    QDomLiteElement* Mixer=Custom.elementByTag("Mixer");
-    if (Mixer != 0)
+    if (Track < Instruments.size()) (Instruments[Track])->NoteOn(Pitch,Channel,Velocity,Patch,Bank);
+}
+
+void CMIDIFile2Wave::NoteOff(int Track, byte Pitch, byte Channel)
+{
+    if (Track < Instruments.size()) (Instruments[Track])->NoteOff(Pitch,Channel);
+}
+
+MIDITimeList CMIDIFile2Wave::mSecList(const MIDITimeList& tickList)
+{
+    return MFR.mSecList(tickList);
+}
+
+ulong64 CMIDIFile2Wave::mSecsToEvent(const CMIDIEvent &event)
+{
+    return MFR.mSecsToEvent(event);
+}
+
+void CMIDIFile2Wave::unserializeCustom(const QDomLiteElement* xml)
+{
+    if (!xml) return;
+    if (!filename().isEmpty()) loadMixer(xml);
+}
+
+void CMIDIFile2Wave::clearMixer()
+{
+    for (CDeviceContainer* d : std::as_const(Effects)) d->ClearDevice();
+    for (CDeviceContainer* d : std::as_const(Instruments)) d->ClearDevice();
+}
+
+void CMIDIFile2Wave::loadMixer(const QDomLiteElement* xml)
+{
+    Mx->setDisabled(true);
+    //qDebug() << "CMIDIFile2Wave loadMixer" << xml->toString();
+    for (CDeviceContainer* d : std::as_const(Effects)) d->ClearDevice();
+    if (const QDomLiteElement* Mixer=xml->elementByTag("Mixer"))
     {
-        for (int i=0;i<MW->channels.count();i++)
+        mixerWidget->unserialize(Mixer);
+        for (int i=0;i<Effects.size();i++)
         {
-            QDomLiteElement* ch=Mixer->elementByTag("Channel"+QString::number(i));
-            if (ch != 0)
-            {
-                MW->channels[i]->Load(ch->firstChild()->toString());
-            }
-        }
-        for (int i=0;i<Effects.count();i++)
-        {
-            QDomLiteElement* e=Mixer->elementByTag("Effect"+QString::number(i));
-            if (e != 0)
-            {
-                QDomLiteElement* eff=e->firstChild();
-                if (eff)
-                {
-                    QString DeviceType=eff->attribute("DeviceType");
-                    if (DeviceType.isEmpty()) eff->setAttribute("DeviceType","VSTHost");
-                    Effects[i]->Load(eff->toString());
-                }
-            }
-        }
-        QDomLiteElement* Master=Mixer->elementByTag("Master");
-        if (Master != 0)
-        {
-            MW->master->Load(Master->toString());
+            if (const QDomLiteElement* e=Mixer->elementByTag("Effect"+QString::number(i))) Effects[i]->unserializeCustom(e->elementByTag("Custom"));
         }
     }
     else
     {
-        for (int i=0;i<Effects.count();i++)
-        {
-            Effects[i]->OpenFile("Unload");
-        }
+        for (CDeviceContainer* d : std::as_const(Instruments)) d->ClearDevice();
     }
-    m_Form->Load(XML);
+    //m_Form->setFixedSize(mixerWidget->sizeHint());
+    mixerWidget->adjustSize();
+    Mx->setDisabled(false);
 }
 
-const QString CMIDIFile2Wave::Save()
+void CMIDIFile2Wave::serializeCustom(QDomLiteElement* xml) const
 {
-    QDomLiteElement Custom("Custom");
-    Custom.fromString(m_Form->Save());
-    Custom.setAttribute("File",QDir().relativeFilePath(FileName()));
-    QDomLiteElement* Mixer=Custom.appendChild("Mixer");
-    for (int i=0;i<MW->channels.count();i++)
+    QDomLiteElement* Mixer=xml->appendChild("Mixer");
+    mixerWidget->serialize(Mixer);
+    for (int i=0;i<Effects.size();i++)
     {
-        QDomLiteElement* ch=Mixer->appendChild("Channel"+QString::number(i));
-        ch->appendChildFromString(MW->channels[i]->Save());
+        Effects[i]->serializeCustom(Mixer->appendChild("Effect"+QString::number(i))->appendChild("Custom"));
     }
-    for (int i=0;i<Effects.count();i++)
-    {
-        QDomLiteElement* e=Mixer->appendChild("Effect"+QString::number(i));
-        e->appendChildFromString(Effects[i]->Save());
-    }
-    Mixer->appendChildFromString(MW->master->Save());
-    return Custom.toString();
 }
 
-void CMIDIFile2Wave::Execute(const bool Show)
+void CMIDIFile2Wave::execute(const bool Show)
 {
     if (Show)
     {
-        if (m_FileName.isEmpty())
+        if (filename().isEmpty())
         {
-            QString fn=OpenFile(MIDIFilePlayer::MIDIFilter);
-            if (fn.isEmpty()) return;
-            LoadFile(fn);
-            m_FileName=fn;
+            if (!openFile(selectFile(MIDIFilePlayer::MIDIFilter))) return;
         }
     }
-    IDevice::Execute(Show);
+    IDevice::execute(Show);
 }
-
-void CMIDIFile2Wave::HideForm()
+/*
+void CMIDIFile2Wave::hideForm()
 {
-    foreach (IDevice* d, DeviceList.Devices)
-    {
-        d->HideForm();
-    }
+    DeviceList.hideForms();
     m_Form->hide();
 }
-
-void CMIDIFile2Wave::Skip(unsigned long MilliSeconds)
+*/
+/*
+void CMIDIFile2Wave::skip(const ulong MilliSeconds)
 {
-    foreach (IDevice* d, DeviceList.Devices)
-    {
-        if (d->Name()=="MIDIFile") ((CMIDIFilePlayer*)d)->Skip(MilliSeconds);
-    }
-    foreach (IDevice* d, DeviceList.Devices)
-    {
-        if (d->Name()=="MIDIFile")
-        {
-            d->Play(false);
-        }
-        else
-        {
-            d->Play(true);
-        }
-    }
+    DeviceList.skip(MilliSeconds);
 }
-
+*/
 CMIDIFile2Wave::~CMIDIFile2Wave()
 {
     if (m_Initialized) clear();
-    qDebug() << "Exit CMIDIFile2Wave";
+    //qDebug() << "Exit CMIDIFile2Wave";
 }
 
-void CMIDIFile2Wave::Init(const int Index, void* MainWindow)
+void CMIDIFile2Wave::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
-    IDevice::Init(Index,MainWindow);
-    AddJackStereoOut(jnOut);
-    m_Form=new CMIDI2WavForm(this,(QWidget*)MainWindow);
-    MW=((CMIDI2WavForm*)m_Form)->MW;
+    IDevice::init(Index,MainWindow);
+    addTickerDevice(&DeviceList);
+    setDeviceParent(&DeviceList);
+    addJackStereoOut(jnOut);
+    addParameter(CParameter::ParameterTypes::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
+    addParameterTune();
+    addParameterPercent("Humanize");
+    addFileParameter();
+    m_Form=new CMIDI2WavForm(this,MainWindow);
+    mixerWidget=FORMFUNC(CMIDI2WavForm)->MW;
+    for (int i=Effects.size();i<MIDIFile2Wave::effectCount;i++)
+    {
+        Effects.append(dynamic_cast<CDeviceContainer*>(DeviceList.addDevice(new CDeviceContainer("Effect"),i+1,m_MainWindow)));
+    }
+    updateDeviceParameter();
 }
 
 bool CMIDIFile2Wave::isEmpty()
@@ -452,44 +452,41 @@ bool CMIDIFile2Wave::isVisible()
 
 void CMIDIFile2Wave::clear()
 {
-    if (Mx != NULL) Mx->Disabled=true;
-    DeviceList.Pause();
-    MW->stop();
-    DeviceList.DisconnectAll();
-    MW->clear();
+    if (Mx) {
+        Mx->setDisabled(true);
+        Mx->removerEffectRacksFromDeviceList(&DeviceList);
+    }
+    DeviceList.pause();
+    mixerWidget->stop();
+    DeviceList.disconnectAll();
+    mixerWidget->clear();
     Effects.clear();
-    DeviceList.Clear();
+    DeviceList.clear();
 }
 
-void CMIDIFile2Wave::LoadEffect(int index, QString filename)
+void CMIDIFile2Wave::loadEffect(int index, const QString& filename)
 {
-    if (Effects[index]->FileName() != filename) Effects[index]->Load("<Custom DeviceType=\"VSTHost\" File=\""+filename+"\"/>");
+    if (Effects[index]->fileIsValid(filename))
+    {
+        const QDomLiteElement fileElement=QDomLite::elementFromString(R"(<Custom DeviceType="VSTHost" File=")"+filename+R"("/>)");
+        Effects[index]->unserializeCustom(&fileElement);
+    }
 }
 
-bool CMIDIFile2Wave::IsPlaying()
+ulong CMIDIFile2Wave::ticks() const
 {
-    if (!MIDIFilePlayers.isEmpty()) return ((CMIDIFilePlayer*)MIDIFilePlayers[0])->IsPlaying();
-    return false;
+    return qMax<ulong>(MFR.ticks(), IDevice::ticks());
+    //return MFR.duration();
 }
 
-unsigned long CMIDIFile2Wave::CurrentTick()
+ulong CMIDIFile2Wave::milliSeconds() const
 {
-    if (MIDIFilePlayers.count()) return ((CMIDIFilePlayer*)MIDIFilePlayers[0])->CurrentTick;
-    return 0;
+    return qMax<ulong>(MFR.milliSeconds(), IDevice::milliSeconds());
+    //return MFR.milliSeconds();
 }
 
-unsigned long CMIDIFile2Wave::Duration()
+ulong64 CMIDIFile2Wave::samples() const
 {
-    return MFR.Duration();
-}
-
-unsigned long CMIDIFile2Wave::CurrentmSec()
-{
-    if (MIDIFilePlayers.count()) return ((CMIDIFilePlayer*)MIDIFilePlayers[0])->CurrentMilliSecond;
-    return 0;
-}
-
-unsigned long CMIDIFile2Wave::MilliSeconds()
-{
-    return MFR.MilliSeconds();
+    return qMax<ulong64>(MFR.samples(), IDevice::samples());
+    //return MFR.milliSeconds();
 }

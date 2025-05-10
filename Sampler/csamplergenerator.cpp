@@ -2,241 +2,199 @@
 
 CSamplerGenerator::CSamplerGenerator()
 {
-    m_ModulationRate=CPresets::Presets.ModulationRate;
-    AudioL=new float[m_ModulationRate*2];
-    AudioR=AudioL + m_ModulationRate;
-    ZeroMemory(AudioL,m_ModulationRate*sizeof(float)*2);
-    Tune=440;
-    ID=0;
-    Channel=0;
-    FinishedPlaying=true;
-    pitchWheel=0;
-    transpose=0;
-    CurrentFrequency=0;
+    CurrentMIDINote=0;
     CurrentVelocity=0;
+    m_Loading=false;
 }
 
 CSamplerGenerator::~CSamplerGenerator()
 {
+    m_Loading=true;
     qDeleteAll(Layers);
-    delete [] AudioL;
 }
 
-float* CSamplerGenerator::GetNext(float modulation)
+float* CSamplerGenerator::getNext()
 {
-    float VolFact=ADSR.GetVol(ADSR.HoldTrigger);
+    if (m_Loading)
+    {
+        finished=true;
+        return nullptr;
+    }
+    float VolFact=ADSR.GetVol();
     if (ADSR.State==CADSR::esSilent)
     {
-        FinishedPlaying=true;
-        return NULL;
+        finished=true;
+        return nullptr;
     }
-    if (VolFact==0) return NULL;
-    if (ActiveLayers.count()==0) return NULL;
-    ZeroMemory(AudioL,m_ModulationRate*sizeof(float)*2);
-    foreach (CLayer* L,ActiveLayers)
+    if (VolFact==0) return nullptr;
+    if (ActiveLayers.isEmpty()) return nullptr;
+    Buffer.zeroBuffer();
+    for(CLayer* L : std::as_const(ActiveLayers))
     {
-        float TempTune=pow(2.0,(float)(L->LP.Tune)*0.001);
-        float Freq=CurrentFrequency*Cent_to_Percent(((transpose+L->LP.Transpose)*100)+pitchWheel);
-        L->ModifyBuffer(AudioL,AudioR,m_ModulationRate,Freq,CurrentVelocity,TempTune*modulation,VolFact*L->PlayVol);
+        const float Freq=MIDIkey2Freqf(CurrentMIDINote+m_PortamentoStep+L->parameters.Transpose,m_Tune,m_PitchWheel+L->parameters.Tune)*m_Modulation;
+        const float Vol=((float)CurrentVelocity/127.0)*VolFact*L->PlayVol;
+        L->modifyBuffer(Buffer,Freq,Vol);
     }
-    return AudioL;
+    return Buffer.data();
 }
 
-void CSamplerGenerator::setPitchWheel(int cent)
-{
-    pitchWheel=cent;
-}
-
-void CSamplerGenerator::addTranspose(int steps)
-{
-    transpose+=steps;
-}
-
-void CSamplerGenerator::setAftertouch(short value)
+void CSamplerGenerator::setAftertouch(const int value)
 {
     float val=(value*0.001)+1;
     Q_UNUSED(val);
 }
 
-void CSamplerGenerator::resetTranspose()
+void CSamplerGenerator::startNote(const short MidiNote, const short MidiVelo)
 {
-    transpose=0;
-}
-
-void CSamplerGenerator::ResetSample(short MidiNote, short MidiVelo)
-{
-    CurrentFrequency=MIDItoFreq(MidiNote,Tune);
-    CurrentVelocity=MidiVelo/127.0;
-    ADSR.HoldTrigger=1.0;
+    CurrentMIDINote=MidiNote;
+    CurrentVelocity=MidiVelo;
     ActiveLayers.clear();
-    ADSR.GetVol(0);
-    foreach (CLayer* L,Layers)
+    ADSR.Start();
+    for(CLayer* L : std::as_const(Layers))
     {
-        float Vol=L->GetVolume(MidiVelo);
+        float Vol=L->parameters.velVolume(MidiVelo);
         if (Vol > 0)
         {
             ActiveLayers.append(L);
             L->PlayVol=Vol;
-            L->ResetSample(MidiNote);
+            L->reset(MidiNote);
         }
     }
-    FinishedPlaying=false;
+    finished=false;
 }
 
-void CSamplerGenerator::EndSample()
+void CSamplerGenerator::endNote()
 {
     ID=0;
-    ADSR.HoldTrigger=0;
-    foreach (CLayer* L,ActiveLayers) L->EndSample();
+    ADSR.Finish();
+    for(CLayer* L : std::as_const(ActiveLayers)) L->release();
 }
 
-const QString CSamplerGenerator::Save()
+void CSamplerGenerator::serialize(QDomLiteElement* xml) const
 {
-    QDomLiteElement xml("Custom");
-
-    foreach (CLayer* L,Layers)
+    for(const CLayer* L : Layers)
     {
-        QDomLiteElement* Layer = xml.appendChild("Layer");
-        QDomLiteElement* Custom = Layer->appendChildFromString(L->Save());
-
-        Custom->setAttribute("UpperTop",L->LP.UpperTop);
-        Custom->setAttribute("LowerTop",L->LP.LowerTop);
-        Custom->setAttribute("UpperZero",L->LP.UpperZero);
-        Custom->setAttribute("LowerZero",L->LP.LowerZero);
-        Custom->setAttribute("Volume",L->LP.Volume);
-        Custom->setAttribute("Transpose",L->LP.Transpose);
-        Custom->setAttribute("Tune",L->LP.Tune);
-
+        QDomLiteElement* Custom = xml->appendChild("Layer")->appendChild("Custom");
+        L->serialize(Custom);
+        L->parameters.serialize(Custom);
     }
-    QDomLiteElement* ADSRelement = xml.appendChild("ADSR");
-    ADSRelement->appendChildFromString(ADSR.Save());
-    return xml.toString();
+    ADSR.serialize(xml->appendChild("ADSR")->appendChild("Custom"));
 }
 
-void CSamplerGenerator::Load(const QString &XML)
+void CSamplerGenerator::unserialize(const QDomLiteElement* xml)
 {
-    QDomLiteElement xml;
-    xml.fromString(XML);
-    QDomLiteElementList XMLLayers = xml.elementsByTag("Layer");
-    for (int i=XMLLayers.size();i<Layers.count();i++)
+    QMutexLocker locker(&mutex);
+    if (!xml) return;
+    m_Loading=true;
+    const QDomLiteElementList XMLLayers = xml->elementsByTag("Layer");
+    while (XMLLayers.size()<Layers.size())
     {
         CLayer* L=Layers.last();
         Layers.removeOne(L);
         ActiveLayers.removeOne(L);
         delete L;
     }
+    while (XMLLayers.size()>Layers.size()) Layers.append(new CLayer());
     int i=0;
-    foreach(QDomLiteElement* Layer,XMLLayers)
+    for (const QDomLiteElement* Layer : XMLLayers)
     {
-        CLayer* L;
-        if (i>=Layers.count())
-        {
-            L=new CLayer(0,0);
-            Layers.append(L);
-        }
-        else
-        {
-            L=Layers[i];
-        }
-        QDomLiteElement* Custom = Layer->elementByTag("Custom");
-
-        L->LP.UpperTop=Custom->attributeValue("UpperTop");
-        L->LP.LowerTop=Custom->attributeValue("LowerTop");
-        L->LP.UpperZero=Custom->attributeValue("UpperZero");
-        L->LP.LowerZero=Custom->attributeValue("LowerZero");
-        L->LP.Volume=Custom->attributeValue("Volume");
-        L->LP.Transpose=Custom->attributeValue("Transpose");
-        L->LP.Tune=Custom->attributeValue("Tune");
-
-        L->Load(Layer->firstChild()->toString());
+        CLayer* L=Layers[i];
+        L->parameters.unserialize(Layer->elementByTag("Custom"));
+        L->unserialize(Layer->elementByTag("Custom"));
         i++;
     }
-    QDomLiteElement* ADSRelement = xml.elementByTag("ADSR");
-    ADSR.Load(ADSRelement->firstChild()->toString());
+    ADSR.clear();
+    if (const QDomLiteElement* ADSRelement = xml->elementByTag("ADSR")) ADSR.unserialize(ADSRelement->elementByTag("Custom"));
+    m_Loading=false;
 }
 
-CSampleKeyRange::RangeParams CSamplerGenerator::RangeParams(int Layer, int Range)
+const CSampleKeyRange::RangeParams CSamplerGenerator::rangeParameters(const int Layer, const int Range) const
 {
-    return Layers[Layer]->RangeParams(Range);
+    return Layers[Layer]->rangeParameters(Range);
 }
 
-void CSamplerGenerator::setRangeParams(CSampleKeyRange::RangeParams RangeParams, int Layer, int Range)
+void CSamplerGenerator::setRangeParameters(const CSampleKeyRange::RangeParams& RangeParams, const int Layer, const int Range)
 {
-    Layers[Layer]->setRangeParams(RangeParams,Range);
+    Layers[Layer]->setRangeParameters(RangeParams,Range);
 }
 
-CWaveGenerator::LoopParameters CSamplerGenerator::LoopParams(int Layer, int Range)
+const CWaveGenerator::LoopParameters CSamplerGenerator::loopParameters(const int Layer, const int Range) const
 {
-    return Layers[Layer]->LoopParams(Range);
+    return Layers[Layer]->loopParameters(Range);
 }
 
-void CSamplerGenerator::setLoopParams(CWaveGenerator::LoopParameters LoopParams, int Layer, int Range)
+void CSamplerGenerator::setLoopParameters(const CWaveGenerator::LoopParameters& LoopParams, const int Layer, const int Range)
 {
-    Layers[Layer]->setLoopParams(LoopParams,Range);
+    Layers[Layer]->setLoopParameters(LoopParams,Range);
 }
 
-CLayer::LayerParams CSamplerGenerator::LayerParams(int Layer)
+const CLayer::LayerParams CSamplerGenerator::layerParameters(const int Layer) const
 {
-    return Layers[Layer]->LP;
+    return Layers[Layer]->parameters;
 }
 
-void CSamplerGenerator::setLayerParams(CLayer::LayerParams LayerParams, int Layer)
+void CSamplerGenerator::setLayerParameters(const CLayer::LayerParams& LayerParams, int Layer)
 {
-    Layers[Layer]->LP=LayerParams;
+    Layers[Layer]->parameters=LayerParams;
 }
 
-CADSR::ADSRParams CSamplerGenerator::ADSRParameters()
+const CADSR::ADSRParams CSamplerGenerator::ADSRParameters() const
 {
     return ADSR.AP;
 }
 
-void CSamplerGenerator::setADSRParams(CADSR::ADSRParams ADSRParams)
+void CSamplerGenerator::setADSRParams(const CADSR::ADSRParams& ADSRParams)
 {
     ADSR.AP=ADSRParams;
 }
 
-void CSamplerGenerator::AddRange(int Layer, const QString &WavePath, int Upper, int Lower)
+void CSamplerGenerator::addRange(int Layer, const QString &WavePath, int Upper, int Lower)
 {
-    Layers[Layer]->AddRange(WavePath,Upper,Lower);
+    QMutexLocker locker(&mutex);
+    Layers[Layer]->addRange(WavePath,Upper,Lower);
 }
 
-void CSamplerGenerator::ChangePath(int Layer, int Range, const QString &WavePath)
+void CSamplerGenerator::changePath(int Layer, int Range, const QString &WavePath)
 {
-    Layers[Layer]->ChangePath(Range,WavePath);
+    QMutexLocker locker(&mutex);
+    Layers[Layer]->changePath(Range,WavePath);
 }
 
-void CSamplerGenerator::RemoveRange(int Layer, int Index)
+void CSamplerGenerator::removeRange(int Layer, int Index)
 {
-    CSampleKeyRange* KR=Layers[Layer]->Range(Index);
-    Layers[Layer]->RemoveRange(KR);
+    QMutexLocker locker(&mutex);
+    CSampleKeyRange* KR=Layers[Layer]->range(Index);
+    Layers[Layer]->removeRange(KR);
 }
 
-void CSamplerGenerator::AddLayer(int Upper, int Lower)
+void CSamplerGenerator::addLayer(int Upper, int Lower)
 {
-    CLayer* L=new CLayer(Upper,Lower);
-    L->AddRange();
+    QMutexLocker locker(&mutex);
+    auto L=new CLayer(Upper,Lower);
+    L->addRange();
     Layers.append(L);
 }
 
-void CSamplerGenerator::RemoveLayer(int index)
+void CSamplerGenerator::removeLayer(int index)
 {
+    QMutexLocker locker(&mutex);
     CLayer* L=Layers[index];
     Layers.removeOne(L);
     ActiveLayers.removeOne(L);
     delete L;
 }
 
-CLayer* CSamplerGenerator::Layer(int Index)
+CLayer* CSamplerGenerator::layer(const int Index)
 {
     return Layers[Index];
 }
 
-int CSamplerGenerator::LayerCount()
+int CSamplerGenerator::layerCount() const
 {
-    return Layers.count();
+    return Layers.size();
 }
 
-int CSamplerGenerator::RangeCount(int Layer)
+int CSamplerGenerator::rangeCount(const int Layer) const
 {
-    return Layers[Layer]->RangeCount();
+    return Layers[Layer]->rangeCount();
 }
