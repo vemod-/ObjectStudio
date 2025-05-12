@@ -40,7 +40,7 @@ HEADERS += $$PWD/cvsthost.h \
     $$PWD/cvsthostclass.h \
     ##$$PWD/aeffectx.h \
     ##$$PWD/AEffect.h \
-    ##/Library/Developer/SDKs/VST_SDK/VST2_SDK/public.sdk/source/vst2.x/audioeffect.h \
+    Library/Developer/SDKs/VST_SDK/VST2_SDK/public.sdk/source/vst2.x/aeffectx.h \
     $$PWD/cmacwindow.h \
     $$PWD/macstrings.h \
     $$PWD/cvstform.h \
