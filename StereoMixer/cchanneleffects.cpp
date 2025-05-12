@@ -43,7 +43,7 @@ void CChannelEffects::init(CStereoMixerChannel* ch)
         l->setMaximumHeight(13);
         setFontSizeScr(l,9);
         l->setText("AUX "+QString::number(i+1));
-        l->setAlignment(Qt::AlignCenter | Qt::AlignHCenter);
+        l->setAlignment(Qt::AlignCenter);
         //l->setStyleSheet("background:transparent;");
         //QHBoxLayout* hlo=new QHBoxLayout();
         //hlo->setMargin(0);

@@ -5,7 +5,7 @@ DiagramTextItem::DiagramTextItem(QGraphicsItem *parent)
 {
     myBoundRect.setRect( 0, 0, 0, 0 );
 
-    textOp.setAlignment( Qt::AlignCenter | Qt::AlignHCenter );
+    textOp.setAlignment( Qt::AlignCenter );
     textOp.setWrapMode( QTextOption::WrapAtWordBoundaryOrAnywhere );
 }
 

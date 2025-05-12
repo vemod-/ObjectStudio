@@ -151,7 +151,7 @@ public:
         QSize movie_size = m->currentImage().size();
         m->setScaledSize(movie_size);
         l->setMovie(m);
-        l->setAlignment(Qt::AlignCenter | Qt::AlignHCenter);
+        l->setAlignment(Qt::AlignCenter);
         //l->setFixedSize(movie_size);
         //l->showMaximized();
         qDebug() << r;
