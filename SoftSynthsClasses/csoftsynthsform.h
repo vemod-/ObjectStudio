@@ -16,6 +16,10 @@
 
 #include "idevicebase.h"
 
+void inline setFontSizeScr(QWidget* w, const double s) {
+    QFont f(w->font()); f.setPointSizeF(s); w->setFont(f);
+}
+
 class IDevice;
 
 

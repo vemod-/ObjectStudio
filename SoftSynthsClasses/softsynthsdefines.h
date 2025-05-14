@@ -2,7 +2,6 @@
 #define SOFTSYNTHSDEFINES_H
 
 #include <qmath.h>
-#include <limits.h>
 #include <QString>
 #include <QRandomGenerator>
 
@@ -14,15 +13,15 @@ typedef long long long64;
 typedef unsigned long long ulong64;
 typedef long double ldouble;
 
-#define MAXCHARMULTIPLY 0.00787401574//1.0/MAXCHAR
+#define MAXCHARMULTIPLY 0.00787401574 //1.0/MAXCHAR
 
-#define MAXSHORTMULTIPLY 0.0000305185094759972//MAXSHORTMULTIPLY 1.0/MAXSHORT
+#define MAXSHORTMULTIPLY 0.0000305185094759972 //MAXSHORTMULTIPLY 1.0/MAXSHORT
 
 #define MAXINTMULTIPLY 4.6566129e-10
 
-#define MAXCHARMULTIPLY_F 0.00787401574f//1.0/MAXCHAR
+#define MAXCHARMULTIPLY_F 0.00787401574f //1.0/MAXCHAR
 
-#define MAXSHORTMULTIPLY_F 0.0000305185094759972f//MAXSHORTMULTIPLY 1.0/MAXSHORT
+#define MAXSHORTMULTIPLY_F 0.0000305185094759972f //MAXSHORTMULTIPLY 1.0/MAXSHORT
 
 #define MAXINTMULTIPLY_F 4.6566129e-10f
 
@@ -30,7 +29,7 @@ typedef long double ldouble;
 
 #define FreqResolution 100000
 
-#define FreqResolutionMultiply 0.00001//1/FreqResolution
+#define FreqResolutionMultiply 0.00001 //1/FreqResolution
 
 #define M_LOG2E_F 1.44269504089f
 
@@ -38,14 +37,14 @@ typedef long double ldouble;
 
 #define M_SQRT1_2_F 0.70710678118655f
 
-#define pitchBendFactor 0.0244140625//(1.0 / (0x2000/200.0))
+#define pitchBendFactor 0.0244140625 //(1.0 / (0x2000/200.0))
 
 #define EPSILON_FLOAT 1.0e-5f
 #define EPSILON_DOUBLE 1.0e-9
 
 #define PI_F 3.14159265358979f
 
-#define setFontSizeScr(w,s) {QFont f(w->font()); f.setPointSizeF(s); w->setFont(f);}
+//#define setFontSizeScr(w,s) {QFont f(w->font()); f.setPointSizeF(s); w->setFont(f);}
 
 template <typename T>
 

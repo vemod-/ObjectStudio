@@ -24,7 +24,8 @@ INCLUDEPATH += $$PWD
 INCLUDEPATH += $$PWD/../SoftSynthsClasses
 INCLUDEPATH += $$PWD/../PluginLoader
 INCLUDEPATH += /Library/Developer/SDKs/VST_SDK/VST3_SDK
-INCLUDEPATH += /Library/Developer/SDKs/VST_SDK/VST2_SDK/public.sdk/source/vst2.x
+##INCLUDEPATH += /Library/Developer/SDKs/VST_SDK/VST2_SDK/public.sdk/source/vst2.x
+INCLUDEPATH += /Library/Developer/SDKs/VST_SDK/VST3_SDK/pluginterfaces/vst2.x
 
 include($$PWD/../../EventHandlers/EventHandlers.pri)
 include($$PWD/../../QSignalMenu/QSignalMenu.pri)
@@ -40,7 +41,8 @@ HEADERS += $$PWD/cvsthost.h \
     $$PWD/cvsthostclass.h \
     ##$$PWD/aeffectx.h \
     ##$$PWD/AEffect.h \
-    Library/Developer/SDKs/VST_SDK/VST2_SDK/public.sdk/source/vst2.x/aeffectx.h \
+    /Library/Developer/SDKs/VST_SDK/VST3_SDK/pluginterfaces/vst2.x/aeffectx.h \
+    ##Library/Developer/SDKs/VST_SDK/VST2_SDK/public.sdk/source/vst2.x/aeffectx.h \
     $$PWD/cmacwindow.h \
     $$PWD/macstrings.h \
     $$PWD/cvstform.h \
