@@ -13,7 +13,7 @@ INCLUDEPATH += ../wavegenerator
 
 macx {
     contains(DEFINES,MACXSTATICLIBS) {
-        LIBS += -L/usr/local/Cellar/ffmpeg/6.0/lib
+        LIBS += -L/usr/local/Cellar/ffmpeg/7.1.1_3/lib
         LIBS += -lavformat
         LIBS += -lavcodec
         LIBS += -lswresample

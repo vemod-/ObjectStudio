@@ -7,6 +7,10 @@
 #ifdef QTMMLIB
     #include "qaudiorw.h"
 #endif
+#ifdef AVFOUNDATIONLIB
+    #include "avfaudiorw.h"
+#endif
+
 
 /* ************************* ConvertFloat() *****************************
  * Converts an 80 bit IEEE Standard 754 floating point number to an unsigned
@@ -307,6 +311,9 @@ bool CWaveFile::load(const QString &fileName, const uint SampleRate)
 #ifdef QTMMLIB
     else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CQAudioDecoderReader(fileName); //WF=new CMiniMP3;//CMP3File;
 #endif
+#ifdef AVFOUNDATIONLIB
+    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CAvFoundationReader(fileName); //WF=new CMiniMP3;//CMP3File;
+#endif
     else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile(fileName);
     if (WF) {
         if (WF->channels()) {
@@ -348,6 +355,9 @@ bool CWaveFile::save(const QString &fileName)
 #endif
 #ifdef QTMMLIB
     //else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CQAudioRecorderWriter(); //WF=new CMiniMP3;//CMP3File;
+#endif
+#ifdef AVFOUNDATIONLIB
+    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CAvFoundationWriter(); //WF=new CMiniMP3;//CMP3File;
 #endif
     else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile;
     if (WF)

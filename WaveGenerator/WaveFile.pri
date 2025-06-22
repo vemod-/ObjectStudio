@@ -18,8 +18,8 @@ INCLUDEPATH += $$PWD
 
 macx {
     contains(DEFINES,FFMPEGLIB) {
-        LIBS += -L/usr/local/Cellar/ffmpeg/6.0/lib
-        INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include
+        LIBS += -L/usr/local/Cellar/ffmpeg/7.1.1_3/lib
+        INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include
         LIBS += -lavformat
         LIBS += -lavcodec
         LIBS += -lswresample
@@ -27,6 +27,9 @@ macx {
     }
     contains(DEFINES,QTMMLIB) {
         QT += multimedia
+    }
+    contains(DEFINES,AVFOUNDATIONLIB) {
+        LIBS += -framework AVFoundation
     }
 }
 
@@ -52,18 +55,18 @@ ios {
 
 ios {
     contains(DEFINES,FFMPEGLIB) {
-        INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include
+        INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include
     }
 }
 
 ##LIBS += -lavprobe
 
-##INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include/libavcodec
-##INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include/libavformat
-##INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include/libpostproc
-##INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include/libavutil
-##INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include/libavdevice
-##INCLUDEPATH += /usr/local/Cellar/ffmpeg/6.0/include/libavprobe
+##INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include/libavcodec
+##INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include/libavformat
+##INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include/libpostproc
+##INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include/libavutil
+##INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include/libavdevice
+##INCLUDEPATH += /usr/local/Cellar/ffmpeg/7.1.1_3/include/libavprobe
 
 SOURCES += $$PWD/cwavefile.cpp \
     $$PWD/iwavefile.cpp
@@ -87,4 +90,12 @@ contains(DEFINES,QTMMLIB) {
     HEADERS += \
         $$PWD/qaudiorw.h
 }
+contains(DEFINES,AVFOUNDATIONLIB) {
+    HEADERS += \
+        $$PWD/avfaudiorw.h \
+        $$PWD/avfoundation_wrapper.h
+
+    OBJECTIVE_SOURCES += $$PWD/avfoundation_wrapper.mm
+}
+
 

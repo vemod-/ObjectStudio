@@ -1,6 +1,7 @@
 macx {
-    DEFINES += FFMPEGLIB
+    #DEFINES += FFMPEGLIB
     #DEFINES += QTMMLIB
+    DEFINES += AVFOUNDATIONLIB
 
     QT_INSTALL_LIBS = /Users/thomasallin/Qt/6.8.1/macos/lib
 
