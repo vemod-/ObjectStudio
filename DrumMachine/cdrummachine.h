@@ -60,6 +60,7 @@ private:
     byte MIDINumbers[7] = {36,38,42,46,49,50,48};
     CMIDIBuffer MIDIBuffer;
 public:
+    CDrumMachine();
     ~CDrumMachine();
     void init(const int index, QWidget* MainWindow);
     CAudioBuffer* getNextA(const int ProcIndex);

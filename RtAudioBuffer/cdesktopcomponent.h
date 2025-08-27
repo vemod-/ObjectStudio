@@ -12,7 +12,11 @@
 #include "cprojectapp.h"
 //#include "ceditmenu.h"
 
+#ifdef Q_OS_IOS
+#define _DocumentPath QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/"
+#else
 #define _DocumentPath QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/Object Studio/"
+#endif
 
 namespace DesktopComponent
 {

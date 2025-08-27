@@ -51,6 +51,9 @@ ios {
         #        -framework CoreAudio \
         #        -framework AudioToolbox
     }
+    contains(DEFINES,AVFOUNDATIONLIB) {
+        LIBS += -framework AVFoundation
+    }
 }
 
 ios {

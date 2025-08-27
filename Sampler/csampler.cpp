@@ -3,6 +3,7 @@
 
 CSampler::CSampler()
 {
+    Q_INIT_RESOURCE(Resources);
 }
 
 void CSampler::init(const int Index, QWidget* MainWindow)

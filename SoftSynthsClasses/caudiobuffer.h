@@ -16,7 +16,7 @@ protected:
     float* m_DataR;
     inline CAudioBuffer(float* b, IJackBase::AttachModes a) : m_AttachMode(a)
     {
-        m_Size=presets.ModulationRate;
+        m_Size = presets.ModulationRate;
         m_Shadow=true;
         m_WaveBufferSize=(m_AttachMode==IJackBase::Stereo) ? m_Size*2 : m_Size;
         m_Data=b;

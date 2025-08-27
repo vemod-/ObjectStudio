@@ -16,6 +16,8 @@ ios {
 
     #DEFINES += FFMPEGLIB
     #DEFINES += QTMMLIB
+    DEFINES += AVFOUNDATIONLIB
+
     QT_INSTALL_LIBS = /Users/thomasallin/Qt/6.8.1/ios/lib
     QMAKE_FRAMEWORKPATH += /Users/thomasallin/Qt/6.8.1/ios/lib
     #DEFINES += BUILD_WITH_FRAMEWORKS

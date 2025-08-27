@@ -25,9 +25,13 @@ MainWindow::MainWindow(QWidget *parent) :
 #endif
     setAcceptDrops(true);
     setWindowTitle("Object Studio");
+#ifdef Q_OS_IOS
+    showFullScreen();
+    //if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).mkdir("Object Studio");
+#else
     showMaximized();
-
     if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::MusicLocation)).mkdir("Object Studio");
+#endif
     CProjectPage* proj = new CProjectPage(_DocumentPath,false,":/paper-texture.jpg","xml",this);
     m_ProjectApp = new CProjectApp(ui->centralWidget,ui->DesktopContainer->Desktop->MainMenu,proj,this);
     m_ProjectApp->m_ProjectPage->setCustomProjects(QStringList({":/New Wave Project.zip",":/New Composer Project.zip"}));
@@ -123,7 +127,7 @@ MainWindow::~MainWindow()
     ui->AudioInDriverCombo->clear();
     ui->AudioOutDriverCombo->clear();
 #ifdef Q_OS_IOS
-    CPresets::destroyInstance();
+    //CPresets::destroyInstance();
 #endif
     delete ui;
 }

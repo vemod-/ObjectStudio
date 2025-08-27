@@ -1,4 +1,4 @@
-#-------------------------------------------------
+rj#-------------------------------------------------
 #
 # Project created by QtCreator 2011-09-18T22:59:50
 #
@@ -224,7 +224,7 @@ FORMS    += mainwindow.ui \
 RESOURCES += Resources.qrc
 
 DISTFILES += \
-    busyindicator.qml \
+    ##busyindicator.qml \
     ocgrey.png \
     ocicon.png \
     ocicon.icns
@@ -258,10 +258,27 @@ macx {
 
     # Kopiera z-bibliotek
     QMAKE_POST_LINK += cp -R -L /Applications/Audacity.app/Contents/Frameworks/libz.dylib $$OUT_PWD_APP_PATH/Contents/MacOS/;
+    ICON = ocicon.icns
 }
 
 ios {
-    OUT_PWD_APP_PATH = $$OUT_PWD/Debug-iphonesimulator/objectstudio.app
+    DISTFILES += \
+        ios/Info.plist \
+        ios/LaunchScreen.storyboard
+
+    QMAKE_BUNDLE_DATA += launch
+    launch.files = ios/LaunchScreen.storyboard
+    launch.path = .
+
+    QMAKE_ASSET_CATALOGS += ios/Assets.xcassets
+
+    QMAKE_XCODE_CODE_SIGN_IDENTITY = iPhone Developer
+    QMAKE_XCODE_DEVELOPMENT_TEAM = 0FDE9483A22E4BE0956BA226E8EB235A
+
+    QMAKE_INFO_PLIST = ios/Info.plist
+
+    ##OUT_PWD_APP_PATH = $$OUT_PWD/Debug-iphonesimulator/objectstudio.app
+    OUT_PWD_APP_PATH = $${OUT_PWD}/$${CONFIGURATION}-$${QMAKE_XSPEC}/objectstudio.app
 
     QMAKE_POST_LINK += mkdir -p $$OUT_PWD_APP_PATH/Frameworks/; \
         cp -R $$OUT_PWD/../*.a $$OUT_PWD_APP_PATH/Frameworks/; \
@@ -293,6 +310,6 @@ ios {
     QMAKE_RPATHDIR =
     #QMAKE_LFLAGS += -Wl,-rpath,@executable_path/Frameworks
     QMAKE_LFLAGS += -Wl,-rpath,@executable_path/../Frameworks
+    ##ICON = ocicon.png
 }
 
-ICON = ocicon.icns

@@ -140,6 +140,10 @@ void CDrumMachine::Reset()
     updateDeviceParameter();
 }
 
+CDrumMachine::CDrumMachine() {
+    Q_INIT_RESOURCE(Sounds);
+}
+
 void CDrumMachine::play(const bool FromStart)
 {
     CalcDuration();

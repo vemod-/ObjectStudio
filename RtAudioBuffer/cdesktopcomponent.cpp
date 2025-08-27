@@ -588,12 +588,16 @@ void CDesktopComponent::unserialize(const QDomLiteElement* xml)
         for(const QDomLiteElement* XMLConnection : (const QDomLiteElementList)Items->elementsByTag("Connection")) unserializeConnection(XMLConnection);
         if (m_ParentWindow)
         {
+#ifdef Q_OS_IOS
+            m_ParentWindow->showFullScreen();
+#else
             if (const QDomLiteElement* XMLPosition=Items->elementByTag("Position"))
             {
                 m_ParentWindow->move(QPoint(XMLPosition->attributeValueInt("Left"),XMLPosition->attributeValueInt("Top")));
                 m_ParentWindow->resize(QSize(XMLPosition->attributeValueInt("Width"),XMLPosition->attributeValueInt("Height")));
                 m_ParentWindow->setVisible(XMLPosition->attributeValueBool("Visible"));
             }
+#endif
         }
     }
     SelectDevice(0);
@@ -878,7 +882,9 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
             QApplication::restoreOverrideCursor();
             if (Pos != Start)
             {
-                currentDeviceComponent()->geometry.setTopLeft(StartPos+(Pos-StartPoint));
+                if ((m_DeviceIndex > -1) && (m_DeviceIndex < Devices.size())) {
+                    currentDeviceComponent()->geometry.setTopLeft(StartPos+(Pos-StartPoint));
+                }
                 Start=Pos;
                 DrawConnections();
             }

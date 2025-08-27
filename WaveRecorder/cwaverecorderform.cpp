@@ -10,7 +10,11 @@
 #include <QDrag>
 #include "qmacsplitter.h"
 
+#ifdef Q_OS_IOS
+#define _DocumentPath QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/Object Waves/"
+#else
 #define _DocumentPath QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/Object Waves/"
+#endif
 
 CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     CSoftSynthsForm(Device,false,parent),
@@ -18,11 +22,11 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
 {
     ui->setupUi(this);
 
-    if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::MusicLocation)).mkdir("Object Waves");
-
 #ifdef Q_OS_IOS
-    m_Document = new CWaveDocument(ui->WaveLanes,"Veinge Musik och Data","ObjectWaves",_DocumentPath,this);
+    if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).mkdir("Object Waves");
+    m_Document = new CWaveDocument(ui->WaveLanes,"Vemod","ObjectWaves",_DocumentPath,this);
 #else
+    if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::MusicLocation)).mkdir("Object Waves");
     m_Document = new CWaveDocument(ui->WaveLanes,"http://www.musiker.nu/objectstudio","ObjectWaves",_DocumentPath,this);
 #endif
     CProjectPage* proj = new CProjectPage(_DocumentPath,false,":/Brushed Aluminium 3 Tile.bmp","xml",this);

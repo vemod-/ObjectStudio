@@ -5,6 +5,13 @@
 int main(int argc, char *argv[])
 {
     qRegisterMetaType<QItemSelection>("QItemSelection");
+#ifdef Q_OS_IOS
+    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    //qputenv("QT_SCALE_FACTOR", "0.8");
+#endif
     //setlocale(LC_ALL,"");
     //QSettings::setPath(QSettings::NativeFormat, QSettings::SystemScope, "/Users/Shared/Library/Preferences");
     CObjectStudioApplication a(argc, argv);

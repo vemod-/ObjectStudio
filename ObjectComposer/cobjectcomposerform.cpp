@@ -23,8 +23,12 @@ CObjectComposerForm::CObjectComposerForm(IDevice* Device, QWidget *parent) :
 #ifdef __Lelandfont
     QFontDatabase::addApplicationFont(":/Leland.otf");
 #endif
-
+#ifdef Q_OS_IOS
+    QFontDatabase::addApplicationFont(":/Wingdings 2.ttf");
+    if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).mkdir("Object Composer");
+#else
     if (!QDir(_DocumentPath).exists()) QDir(QStandardPaths::writableLocation(QStandardPaths::MusicLocation)).mkdir("Object Composer");
+#endif
 
     OCSettings s;
     if (s.value("OCStuff").toString().isEmpty())

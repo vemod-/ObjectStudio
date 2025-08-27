@@ -220,11 +220,23 @@ private:
     COutJack* m_firstJack;
     float m_MixFactor;
     CMIDIBuffer* m_MIDIBuffer;
-    static CMonoBuffer m_NullBufferMono;
-    static CStereoBuffer m_NullBufferStereo;
+    static CMonoBuffer* m_NullBufferMono() {
+        static CMonoBuffer* buffer = nullptr;
+        if (!buffer) {
+            buffer = new CMonoBuffer(nullptr);
+        }
+        return buffer;
+    }
+    static CStereoBuffer* m_NullBufferStereo() {
+        static CStereoBuffer* buffer = nullptr;
+        if (!buffer) {
+            buffer = new CStereoBuffer(nullptr);
+        }
+        return buffer;
+    }
     inline CAudioBuffer* nullBuffer() const {
-        return (attachMode==AttachModes::Stereo) ? static_cast<CAudioBuffer*>(&m_NullBufferStereo) :
-                                                   static_cast<CAudioBuffer*>(&m_NullBufferMono);
+        return (attachMode==AttachModes::Stereo) ? static_cast<CAudioBuffer*>(m_NullBufferStereo()) :
+                                                    static_cast<CAudioBuffer*>(m_NullBufferMono());
     }
 };
 

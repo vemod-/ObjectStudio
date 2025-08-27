@@ -64,6 +64,7 @@ void CMIDI2WavForm::hideMap()
 
 CMIDIFile2Wave::CMIDIFile2Wave()
 {
+    Q_INIT_RESOURCE(midifile2waveresources);
     Mx=nullptr;
     HideEmptyChannels=true;
     mixerWidget=nullptr;
