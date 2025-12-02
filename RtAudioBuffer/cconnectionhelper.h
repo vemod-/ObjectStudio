@@ -98,12 +98,12 @@ public:
         QList<QGraphicsItem*> items;
         QGraphicsSimpleTextItem* item = Scene->addSimpleText(text,font);
         item->setPos(pos);
-        item->setBrush(QBrush("#ddd"));
+        item->setBrush(QBrush(QColor(0xdd,0xdd,0xdd)));
         item->setPen(Qt::NoPen);
         items.append(item);
         item = Scene->addSimpleText(text,font);
         item->setPos(pos+QPoint(-1,-1));
-        item->setBrush(QBrush("#222"));
+        item->setBrush(QColor(0x22,0x22,0x22));
         item->setPen(Qt::NoPen);
         items.append(item);
 
@@ -115,8 +115,8 @@ public:
         DiagramTextItem* item = new DiagramTextItem();
         item->setFont(font);
         item->setBoundingRect(QRect(pos,size));
-        item->setBrush(QBrush("#ddd"));
-        item->setPen(QPen(QColor("#ddd"),1));
+        item->setBrush(QBrush(QColor(0xdd,0xdd,0xdd)));
+        item->setPen(QPen(QColor(QColor(0xdd,0xdd,0xdd)),1));
         item->setText(text);
         item->setAlignment(alignment);
         Scene->addItem(item);
@@ -124,8 +124,8 @@ public:
         item = new DiagramTextItem();
         item->setFont(font);
         item->setBoundingRect(QRect(pos+QPoint(-1,-1),size));
-        item->setBrush(QBrush("#222"));
-        item->setPen(QPen(QColor("#222"),1));
+        item->setBrush(QBrush(QColor(0x22,0x22,0x22)));
+        item->setPen(QPen(QColor(QColor(0x22,0x22,0x22)),1));
         item->setText(text);
         item->setAlignment(alignment);
         Scene->addItem(item);

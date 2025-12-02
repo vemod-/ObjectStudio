@@ -52,18 +52,18 @@ QList<QGraphicsItem*> CDeviceComponent::paint(QGraphicsScene* Scene)
         if (m_Active)
         {
             p=QPen(Qt::black);
-            lg.setColorAt(0,"#eee");
-            lg.setColorAt(0.49999,"#bbb");
-            lg.setColorAt(0.5,"#afafaf");
-            lg.setColorAt(1,"#999");
+            lg.setColorAt(0,QColor(0xee,0xee,0xee));
+            lg.setColorAt(0.49999,QColor(0xbb,0xbb,0xbb));
+            lg.setColorAt(0.5,QColor(0xaf,0xaf,0xaf));
+            lg.setColorAt(1,QColor(0x99,0x99,0x99));
         }
         else
         {
             p=QPen(Qt::gray);
-            lg.setColorAt(0,"#ddd");
-            lg.setColorAt(0.49999,"#aaa");
-            lg.setColorAt(0.5,"#8f8f8f");
-            lg.setColorAt(1,"#777");
+            lg.setColorAt(0,QColor(0xdd,0xdd,0xdd));
+            lg.setColorAt(0.49999,QColor(0xaa,0xaa,0xaa));
+            lg.setColorAt(0.5,QColor(0x8f,0x8f,0x8f));
+            lg.setColorAt(1,QColor(0x77,0x77,0x77));
         }
         QBrush b(lg);
         //path=QPainterPath(zeroPoint);
@@ -125,10 +125,10 @@ QList<QGraphicsItem*> CJackBar::paint(QGraphicsScene* Scene)
     QList<QGraphicsItem*> items;
     //if (geometry.topLeft()==zeroPoint) Scene->addRect(geometry.translated(0,shadowOffset.y()),Qt::NoPen,shadowColor);
     QLinearGradient lg(0,geometry.top(),0,geometry.height()+geometry.top());
-    lg.setColorAt(0,"#ddd");
-    lg.setColorAt(0.49999,"#bbb");
-    lg.setColorAt(0.5,"#9f9f9f");
-    lg.setColorAt(1,"#787878");
+    lg.setColorAt(0,QColor(0xdd,0xdd,0xdd));
+    lg.setColorAt(0.49999,QColor(0xbb,0xbb,0xbb));
+    lg.setColorAt(0.5,QColor(0x9f,0x9f,0x9f));
+    lg.setColorAt(1,QColor(0x78,0x78,0x78));
     QBrush b(lg);
 
     items.append(Scene->addRect(geometry,Qt::NoPen,b));
@@ -231,6 +231,10 @@ void CDesktopComponent::parameterChange(IDevice* device, const CParameter* param
             }
         }
     }
+}
+
+void CDesktopComponent::closeAutomation(IDevice* device) {
+    emit requestCloseAutomation(device);
 }
 
 void CDesktopComponent::activate(IDevice *Device)

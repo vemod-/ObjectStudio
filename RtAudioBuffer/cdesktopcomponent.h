@@ -153,6 +153,7 @@ public:
     void hideForms();
     //IHost
     void parameterChange(IDevice* device, const CParameter* parameter = nullptr);
+    void closeAutomation(IDevice* /*Device*/);
     void activate(IDevice* Device);
     void takeString(IDevice* Device, const int type, const QString& s);
     CDeviceList* deviceList() { return &DeviceList; }
@@ -193,6 +194,7 @@ signals:
     void zoomChanged(double zoomfactor);
     void requestSerializeAutomationXML(QDomLiteElement*) const;
     void requestUnserializeAutomationXML(const QDomLiteElement*);
+    void requestCloseAutomation(IDevice* device);
 private:
     Ui::CDesktopComponent *ui;
     CDeviceList DeviceList;

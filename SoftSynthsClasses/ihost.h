@@ -16,6 +16,7 @@ public:
     virtual void parameterChange(IDevice* /*device*/, const CParameter* /*parameter*/ = nullptr){}
     //virtual void bankPresetChange(IDevice* /*device*/, const int /*program*/){}
     virtual void activate(IDevice* /*Device*/){}
+    virtual void closeAutomation(IDevice* /*Device*/){}
     virtual void takeString(IDevice* /*Device*/, const int /*type*/, const QString& /*s*/) {}
 };
 

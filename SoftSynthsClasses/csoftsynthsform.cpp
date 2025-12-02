@@ -421,6 +421,8 @@ void CSoftSynthsForm::setParameter(QString name, int value)
 {
     QMutexLocker locker(&mutex);
     //m_Device->setParameterValue(name,value);
+    if (CParameter* p = m_Device->parameter(name)) p->setValue(value);
+    /*
     for (int i=0;i<m_Device->parameterCount();i++)
     {
         if (m_Device->parameter(i)->Name==name)
@@ -429,6 +431,7 @@ void CSoftSynthsForm::setParameter(QString name, int value)
             return;
         }
     }
+*/
 }
 
 void CSoftSynthsForm::updateHost() {

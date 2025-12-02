@@ -53,9 +53,9 @@ void CPeakControl::updateSize()
 
     lgBlack.setStart(m_Left,0);
     lgBlack.setFinalStop(m_Width,0);
-    lgBlack.setColorAt(0,QColor("#666"));
-    lgBlack.setColorAt(0.5,QColor("#333"));
-    lgBlack.setColorAt(0.9,QColor("#222"));
+    lgBlack.setColorAt(0,QColor(0x66,0x66,0x66));
+    lgBlack.setColorAt(0.5,QColor(0x33,0x33,0x33));
+    lgBlack.setColorAt(0.9,QColor(0x22,0x22,0x22));
     lgBlack.setColorAt(1,Qt::black);
 
     lgYellow.setStart(m_Left,0);

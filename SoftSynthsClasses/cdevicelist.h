@@ -61,9 +61,19 @@ public:
     virtual inline IDevice* device(const int Index) const { return m_Devices[Index]; }
     virtual inline IDevice* device(const QString& DeviceID) const
     {
-        for (IDevice* d : m_Devices) if (d->deviceID()==DeviceID) return d;
+        for (IDevice* d : m_Devices) if (d->deviceID() == DeviceID) return d;
         return nullptr;
     }
+    /*
+    virtual inline CParameter* parameter(const QString& DeviceID, const int parameterIndex) {
+        if (IDevice* d = device(DeviceID)) return d->parameter(parameterIndex);
+        return nullptr;
+    }
+    virtual inline CParameter* parameter(const QString& DeviceID, const QString& parameterName) {
+        if (IDevice* d = device(DeviceID)) return d->parameter(parameterName);
+        return nullptr;
+    }
+    */
     virtual inline int jackCount() const { return m_Jacks.size(); }
     virtual inline int inJackCount() const { return m_Jacks.inJackCount(); }
     virtual inline int outJackCount() const { return m_Jacks.outJackCount(); }
@@ -118,7 +128,7 @@ public:
         }
         else
         {
-            for (CDeviceList* l : std::as_const(m_PolyDevices)) l->device(DeviceIndex)->parameter(parameter->Index)->setValue(parameter->Value);
+            for (CDeviceList* l : std::as_const(m_PolyDevices)) l->device(DeviceIndex)->parameter(parameter->Name)->setValue(parameter->Value);
         }
     }
     IDevice* createDevice(const instancefunc InstanceFunction, const int ID, QWidget* MainWindow)
@@ -138,6 +148,28 @@ public:
             return CDeviceListBase::addDevice(device);
         }
         return m_PolyDevices[VoiceIndex - 1]->addDevice(device,index,MainWindow);
+    }
+    CParameter* addCustomParameter(IDevice* device, CParameter::ParameterTypes Type, const QString& Name, const QString& Unit, const int Min, const int Max, const int DecimalFactor, const QString& ListString,int Value,int VoiceIndex = 0) {
+        QMutexLocker locker(&mutex);
+        if (VoiceIndex == 0)
+        {
+            qDebug() << "addCustomParameter" << device->deviceID() << m_PolyDevices.size();
+            CParameter* p = device->addParameter(Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value);
+            AutomationPlayer.addCustomParameter(device,p);
+            return p;
+        }
+        return m_PolyDevices[VoiceIndex - 1]->addCustomParameter(device,Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value);
+    }
+    void removeCustomParameter(IDevice* device, QString& Name, int VoiceIndex = 0) {
+        QMutexLocker locker(&mutex);
+        if (VoiceIndex == 0)
+        {
+            qDebug() << "removeCustomParameter" << device->deviceID() << m_PolyDevices.size();
+            AutomationPlayer.removeCustomParameter(device,Name);
+            device->removeParameter(Name);
+            return;
+        }
+        m_PolyDevices[VoiceIndex - 1]->removeCustomParameter(device,Name);
     }
     void disconnectDevice(const int index) { disconnectDevice(device(index)); }
     void disconnectDevice(IDevice* device)

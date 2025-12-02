@@ -40,6 +40,7 @@ signals:
     void mousePress(IDevice*, QPoint);
     void connectionsChanged();
     void aboutToChange(const QString&);
+    void closeAutomation(IDevice* d);
 private:
     Ui::CRackContainer *ui;
     CDeviceList* m_DL;

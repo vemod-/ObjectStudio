@@ -36,8 +36,9 @@ void CMacroBox::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Modulation In");
     addJackModulationIn("Frequency In");
     addJackModulationIn("Trigger In");
-    m_Form=new CMacroBoxForm(this,MainWindow);
-    CDesktopComponent* d=FORMFUNC(CMacroBoxForm)->DesktopComponent;
+    m_Form = new CMacroBoxForm(this,MainWindow);
+    FORMFUNC(CMacroBoxForm)->allowCustomParameters = true;
+    CDesktopComponent* d = FORMFUNC(CMacroBoxForm)->DesktopComponent;
     addTickerDevice(d->deviceList());
     setDeviceParent(d->deviceList());
     for (uint i=0;i<m_Jacks.size();i++)
@@ -48,6 +49,8 @@ void CMacroBox::init(const int Index, QWidget* MainWindow)
         (J->isOutJack()) ? InsideJacks.append(dynamic_cast<CInJack*>(J1)) : InsideJacks.append(dynamic_cast<CInJack*>(J));
     }
 }
+
+
 /*
 void CMacroBox::hideForm()
 {
@@ -69,4 +72,10 @@ CAudioBuffer* CMacroBox::getNextA(const int ProcIndex)
 {
     return InsideJacks[ProcIndex]->getNextA();
 }
+
+void CMacroBox::updateDeviceParameter(const CParameter *p) {
+    FORMFUNC(CMacroBoxForm)->updateDeviceParameter(p);
+}
+
+
 

@@ -10,7 +10,7 @@ class CAutomationPlayer : public ITicker
 public:
     CAutomationPlayer(){}
     ~CAutomationPlayer(){
-        clear();
+        //clear();
     }
     void clear() {
         //m_EventLists.clear();
@@ -157,9 +157,20 @@ public:
         if (m_Playing) updatePlaylist();
     }
     void removeDevice(IDevice* d) {
+        d->closeAutomation();
         for (int i = 0; i < d->parameterCount(); i++) removeParameter(d->parameter(i),d->deviceID());
         if (m_Playing) updatePlaylist();
     }
+    void addCustomParameter(IDevice* d, CParameter* p) {
+        appendParameter(p, d->deviceID());
+        if (m_Playing) updatePlaylist();
+    }
+    void removeCustomParameter(IDevice* d, const QString& Name) {
+        d->closeAutomation();
+        m_Parameters.remove(createId(d->deviceID(), Name));
+        if (m_Playing) updatePlaylist();
+    }
+
     /*
     ulong currentmSec() const {
         return m_Counter.currentmSec();

@@ -20,6 +20,7 @@ public:
     void unserializeCustom(const QDomLiteElement* xml);
     void serializeCustom(QDomLiteElement* xml) const;
     void parameterChange(IDevice* device, const CParameter* parameter);
+    void closeAutomation(IDevice* /*device*/);
 protected:
     bool event(QEvent* e);
 public slots:

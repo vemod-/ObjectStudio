@@ -326,6 +326,8 @@ void CDeviceContainer::setParameterValue(const QString &name, const int value)
     QMutexLocker locker(&mutex);
     if (m_Device)
     {
+        if (CParameter* p = m_Device->parameter(name)) p->setValue(value);
+        /*
         for (int i=0;i<m_Device->parameterCount();i++)
         {
             if (m_Device->parameter(i)->Name==name)
@@ -334,13 +336,15 @@ void CDeviceContainer::setParameterValue(const QString &name, const int value)
                 return;
             }
         }
-
+*/
     }
 }
 int CDeviceContainer::parameterValue(const QString &name) const
 {
     if (m_Device)
     {
+        if (CParameter* p = m_Device->parameter(name)) return p->Value;
+        /*
         for (int i=0;i<m_Device->parameterCount();i++)
         {
             if (m_Device->parameter(i)->Name==name)
@@ -348,6 +352,7 @@ int CDeviceContainer::parameterValue(const QString &name) const
                 return m_Device->parameter(i)->Value;
             }
         }
+*/
     }
     return 0;
 }

@@ -41,6 +41,10 @@ public:
     }
     virtual ~IDevice();
     inline CParameter* parameter(const int Index) const { return m_Parameters[uint(Index)]; }
+    inline CParameter* parameter(const QString& Name) const {
+        for (CParameter* p : m_Parameters) if (p->Name == Name) return p;
+        return nullptr;
+    }
     inline int parameterCount() const { return int(m_Parameters.size()); }
     virtual void setHost(IHost* Host) { m_Host=Host; }
     virtual void addTickerDevice(ITicker* Ticker) {
@@ -261,6 +265,7 @@ public:
     //IHost
     virtual void updateHostParameter(const CParameter* p = nullptr) { if (m_Host) m_Host->parameterChange(this,p); }
     virtual void activate() { if (m_Host != nullptr) m_Host->activate(this); }
+    virtual void closeAutomation() { if (m_Host != nullptr) m_Host->closeAutomation(this); }
     virtual bool hasUI() const { return (m_Form != nullptr); }
     virtual QWidget* UI() const { return static_cast<QWidget*>(m_Form); }
     virtual bool UIisVisible() {
@@ -301,12 +306,7 @@ public:
         for (const QDomLiteElement* XMLParameter : (const QDomLiteElementList)Parameters->elementsByTag(ParameterTag))
         {
             const QString n = XMLParameter->attribute(ParameterNameAttribute);
-            for (CParameter* p : m_Parameters) {
-                if (p->Name == n) {
-                    p->unserialize(XMLParameter);
-                    break;
-                }
-            }
+            if (CParameter* p = parameter(n)) p->unserialize(XMLParameter);
         }
     }
     void unserializeParameters(const QDomLiteElement* Parameters)
@@ -385,7 +385,7 @@ public:
     }
     CParameterGroup* parameterGroup(const int groupID)
     {
-        for (CParameterGroup* p : m_ParameterGroups)
+        for (CParameterGroup* p : std::as_const(m_ParameterGroups))
         {
             if (p->ID == groupID) return p;
         }
@@ -398,6 +398,22 @@ public:
     void showNativeMessage(QString messageText, QString informativeText) {
         nativeMessage(m_MainWindow,messageText,informativeText);
     }
+    CParameter* addParameter(CParameter::ParameterTypes Type, const QString& Name, const QString& Unit, const int Min, const int Max, const int DecimalFactor, const QString& ListString,int Value)
+    {
+        QMutexLocker locker(&mutex);
+        CParameter* p = new CParameter(Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value,this/*,int(m_Parameters.size())*/);
+        m_Parameters.push_back(p);
+        return p;
+    }
+    void removeParameter(const QString& Name) {
+        QMutexLocker locker(&mutex);
+        for (uint i = 0; i < m_Parameters.size(); i++) {
+            if (Name == m_Parameters[i]->Name) {
+                delete m_Parameters.takeAt(i);
+                return;
+            }
+        }
+    }
 protected:
     QRecursiveMutex mutex;
     bool m_Initialized;
@@ -406,17 +422,17 @@ protected:
     QWidget* m_MainWindow;
     CFileParameter* m_FileParameter;
     QString m_Name;
-    std::vector<IJack*> m_Jacks;
-    std::vector<CInJack*> m_InJacks;
-    std::vector<COutJack*> m_OutJacks;
-    std::vector<CParameter*> m_Parameters;
-    std::vector<CParameterGroup*> m_ParameterGroups;
+    QVector<IJack*> m_Jacks;
+    QVector<CInJack*> m_InJacks;
+    QVector<COutJack*> m_OutJacks;
+    QVector<CParameter*> m_Parameters;
+    QVector<CParameterGroup*> m_ParameterGroups;
     inline float Fetch(const int ProcIndex) { return (static_cast<CInJack*>(m_Jacks[uint(ProcIndex)]))->getNext(); }
     inline CMIDIBuffer* FetchP(const int ProcIndex) { return (static_cast<CInJack*>(m_Jacks[uint(ProcIndex)]))->getNextP(); }
     inline CAudioBuffer* FetchA(const int ProcIndex) { return (static_cast<CInJack*>(m_Jacks[uint(ProcIndex)]))->getNextA(); }
     inline CMonoBuffer* FetchAMono(const int ProcIndex) { return static_cast<CMonoBuffer*>(FetchA(ProcIndex)); }
     inline CStereoBuffer* FetchAStereo(const int ProcIndex) { return static_cast<CStereoBuffer*>(FetchA(ProcIndex)); }
-    std::vector<CAudioBuffer*> m_AudioBuffers;
+    QVector<CAudioBuffer*> m_AudioBuffers;
     inline CStereoBuffer* StereoBuffer(const int ProcIndex) const { return static_cast<CStereoBuffer*>(m_AudioBuffers[ProcIndex]); }
     inline CMonoBuffer* MonoBuffer(const int ProcIndex) const { return static_cast<CMonoBuffer*>(m_AudioBuffers[ProcIndex]); }
     const uint m_BufferSize;
@@ -429,11 +445,6 @@ protected:
     IDeviceParent* m_DeviceParent;
     IMainPlayer* mainPlayer() const {
         return dynamic_cast<IMainPlayer*>(m_MainWindow);
-    }
-    void addParameter(CParameter::ParameterTypes Type, const QString& Name, const QString& Unit, const int Min, const int Max, const int DecimalFactor, const QString& ListString,int Value)
-    {
-        QMutexLocker locker(&mutex);
-        m_Parameters.push_back(new CParameter(Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value,this,int(m_Parameters.size())));
     }
     IJack* addJack(const QString& Name,IJack::AttachModes AttachMode,IJack::Directions Direction,int ProcIndex=-1)
     {
@@ -590,7 +601,7 @@ protected:
     }
     void endParameterGroup()
     {
-        m_ParameterGroups.back()->endIndex=int(m_Parameters.size())-1;
+        m_ParameterGroups.back()->endIndex = int(m_Parameters.size()) - 1;
     }
     virtual void updateParameter(const CParameter* p = nullptr) {
         //QMutexLocker locker(&mutex);

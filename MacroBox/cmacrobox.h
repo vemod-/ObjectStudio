@@ -23,6 +23,8 @@ private:
     QList<CInJack*> InsideJacks;
     QList<IJack*> JacksCreated;
     //QRecursiveMutex mutex;
+    void updateDeviceParameter(const CParameter* p = nullptr);
+
 };
 
 #endif // CMACROBOX_H

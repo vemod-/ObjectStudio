@@ -265,7 +265,7 @@ protected:
         if (m_MousePlacing == MouseOnLine)
         {
             if (event->modifiers() != Qt::ControlModifier) m_Selected.clear();
-            if (!m_Selected.contains(i)) m_Selected.append(i);
+            if (!m_Selected.contains(uint(i))) m_Selected.append(i);
             if (!m_Selected.contains(i+1)) m_Selected.append(i+1);
             DrawAutomation(true);
         }
@@ -384,6 +384,17 @@ protected:
             Paint();
         }
     }
+public slots:
+    void close(IDevice* d = nullptr) {
+        if (d == nullptr) {
+            m_Device->removeTickerDevice(this);
+            this->deleteLater();
+        }
+        else if (d == m_Device) {
+            m_Device->removeTickerDevice(this);
+            this->deleteLater();
+        }
+    }
 private slots:
     void setZoom(double zoom) {
         double s = double(horizontalScrollBar()->maximum())/horizontalScrollBar()->value();
@@ -393,8 +404,7 @@ private slots:
     }
     void selectParameter(int i) {
         if (i < 0) {
-            m_Device->removeTickerDevice(this);
-            this->deleteLater();
+            close();
             return;
         }
         m_ParameterIndex = i;

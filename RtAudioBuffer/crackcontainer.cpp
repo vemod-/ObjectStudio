@@ -139,6 +139,7 @@ void CRackContainer::createAutomationLane(IDevice* d, int parameterIndex)
     a->updateGeometry();
     a->fill(d,parameterIndex,m_DL);
     a->show();
+    connect(this,&CRackContainer::closeAutomation,a,&CAutomationLane::close);
 }
 
 void CRackContainer::showAutomation(IDevice* d, int ParameterIndex)

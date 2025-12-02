@@ -35,3 +35,4 @@ SOURCES += $$PWD/cmacrobox.cpp
 HEADERS += $$PWD/cmacrobox.h
 
 }
+

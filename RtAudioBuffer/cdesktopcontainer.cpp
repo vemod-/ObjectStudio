@@ -37,6 +37,7 @@ CDesktopContainer::CDesktopContainer(QWidget *parent) :
     connect(ui->UIMap,&CUIMap::deviceSelected,this,&CDesktopContainer::hideMap,Qt::QueuedConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::requestSerializeAutomationXML,ui->RackContainer,&CRackContainer::serialize,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::requestUnserializeAutomationXML,ui->RackContainer,&CRackContainer::unserialize,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::requestCloseAutomation,ui->RackContainer,&CRackContainer::closeAutomation,Qt::DirectConnection);
 }
 
 CDesktopContainer::~CDesktopContainer()

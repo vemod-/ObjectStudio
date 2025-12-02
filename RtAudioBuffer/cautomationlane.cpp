@@ -15,11 +15,7 @@ CAutomationLane::CAutomationLane(QWidget *parent) :
     connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CAutomationLane::setZoom);
     m_ParameterMenu = new QSignalMenu(this);
     setFrameStyle(0);
-    //setBackgroundBrush(Qt::darkGray);
-    //setAttribute(Qt::WA_TranslucentBackground);
-    //setBackgroundBrush(QColor("#A9A9A9A9"));
     setStyleSheet("QGraphicsView{background-color: rgba(128, 128, 128, 190);}");
-    //setBackgroundBrush(QBrush(QColor(128, 128, 128, 190)));
     setScene(&Scene);
     setOptimizationFlags(QGraphicsView::DontSavePainterState | QGraphicsView::DontAdjustForAntialiasing);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);

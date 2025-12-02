@@ -46,7 +46,7 @@ class CParameter : protected IPresetRef
 {
 public:
     enum ParameterTypes {Numeric,SelectBox,dB,Percent};
-    CParameter(ParameterTypes type, const QString& name, const QString& unit, const int min, const int max, const int decimalFactor, const QString& listString, const int value, IParameterHost* owner, const int index){
+    CParameter(ParameterTypes type, const QString& name, const QString& unit, const int min, const int max, const int decimalFactor, const QString& listString, const int value, IParameterHost* owner /*, const int index*/){
         //m_Wrapper = nullptr;
         m_OwnerDevice=owner;
         Type=type;
@@ -60,7 +60,7 @@ public:
         Value=value;
         PercentValue = percentValue();
         DryValue = dryValue();
-        Index = index;
+        //Index = index;
     }
     void setControl(IParameterHost* control)
     {
@@ -80,12 +80,12 @@ public:
     {
         xml->setAttribute(ParameterNameAttribute,Name);
         xml->setAttribute(ParameterValueAttribute,Value,0);
-        xml->setAttribute("Index",Index);
+        //xml->setAttribute("Index",Index);
         for (const CParameterEvent& e : events) {
             e.serialize(xml->appendChild("AutomationEvent"));
         }
     }
-    int Index;
+    //int Index;
     int Min;
     int Max;
     ParameterTypes Type;

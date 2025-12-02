@@ -47,7 +47,7 @@ void CTunerWidget::setTune(CPitchDetect::PitchRecord rec, double calib)
         {
             if (rec.MidiCents==0)
             {
-                QColor c("#4F4");
+                QColor c(0x44,0xff,0x44);
                 setPenBrush(c);
                 drawRectangle(x-3,indRect.top()+1,7,indRect.height()-2);
                 setPenBrush(Qt::yellow);
@@ -56,8 +56,8 @@ void CTunerWidget::setTune(CPitchDetect::PitchRecord rec, double calib)
             }
             else
             {
-                QColor c("#F22");
-                if (rec.MidiCents < 0) c=QColor("#AA0");
+                QColor c(0xff,0x22,0x22);
+                if (rec.MidiCents < 0) c=QColor(0xa,0xa,0);
                 QRect diffRect(QPoint(xc,indRect.top()+1),QPoint(x,indRect.bottom()-1));
                 setPenBrush(c);
                 drawRectangle(diffRect.normalized());
@@ -74,9 +74,6 @@ void CTunerWidget::setTune(CPitchDetect::PitchRecord rec, double calib)
             hw = QFontMetrics(layerFont()).horizontalAdvance(txt)/2;
             drawText(noteRect.center().x()-hw,noteRect.top(),txt);
         }
-        //update(freqRect);
-        //update(indRect);
-        //update(noteRect);
         update();
     }
     r=rec;

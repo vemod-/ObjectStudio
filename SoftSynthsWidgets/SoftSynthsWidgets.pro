@@ -71,14 +71,17 @@ HEADERS += \
     ctimelineslider.h \
     cundomenu.h \
         ##softsynthswidgets.h \
-    ../MacroBox/cmacroboxform.h
+    ../MacroBox/cmacroboxform.h \
+    ../MacroBox/ccustomparameterdialog.h
 
 FORMS += \
     ../MacroBox/cmacroboxform.ui \
+    ../MacroBox/ccustomparameterdialog.ui \
     ctimelineedit.ui
 
 SOURCES += \
     ../MacroBox/cmacroboxform.cpp \
+    ../MacroBox/ccustomparameterdialog.cpp \
     ../RtAudioBuffer/cthreadedfunction.cpp \
     cprojectapp.cpp \
     #ctimeline.cpp \

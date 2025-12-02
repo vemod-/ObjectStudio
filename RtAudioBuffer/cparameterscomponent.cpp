@@ -107,7 +107,16 @@ void CParametersComponent::showParameters()
     //ui->LCDWidget->setVisible(false);
     ui->PresetLabel->clear();
     if (m_Device)
-    {        
+    {
+        if (m_Device->parameterCount() != Dials.size()) {
+            for (int i = Dials.size(); i >= 0; i--) {
+                delete ui->horizontalLayout_2->takeAt(ui->horizontalLayout_2->count()-1);
+            }
+            Parameters.clear();
+            qDeleteAll(Dials);
+            Dials.clear();
+            init(m_Device);
+        }
         for (int i=0;i<m_Device->parameterCount();i++) Dials.at(i)->setValue(m_Device->parameter(i));
         if (m_Device->hasUI())
         {
