@@ -193,7 +193,7 @@ public:
             IJack* J=m_DL->jack(i);
             if (jack->canConnectTo(J))
             {
-                QAction* a=addAction(J->jackID(),J->jackID());
+                QAction* a=addAction(J->captionX(),J->jackID());
                 a->setCheckable(true);
                 a->setChecked(jack->isConnectedTo(J));
             }

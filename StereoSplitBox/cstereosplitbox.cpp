@@ -10,8 +10,8 @@ CStereoSplitBox::~CStereoSplitBox()
     qDebug() << "~CStereoSplitBox";
     if (m_Initialized)
     {
-        FORMFUNC(CMacroBoxForm)->DesktopComponent->clear();
-        qDeleteAll(JacksCreated);
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clearJacksCreated();
+        //qDeleteAll(JacksCreated);
     }
 }
 
@@ -23,16 +23,16 @@ void CStereoSplitBox::init(const int Index, QWidget* MainWindow)
     addJackStereoIn();
 
     m_Form=new CMacroBoxForm(this,MainWindow);
-    CDesktopComponent* d=FORMFUNC(CMacroBoxForm)->DesktopComponent;
+    CDesktopComponent* d = FORMFUNC(CMacroBoxForm)->DesktopComponent;
     addTickerDevice(d->deviceList());
     setDeviceParent(d->deviceList());
 
-    WaveOutL=new CInJack("Out Left","This",IJack::Wave,IJack::In,this);
-    JacksCreated.append(d->addJack(WaveOutL,0));
-    WaveOutR=new CInJack("Out Right","This",IJack::Wave,IJack::In,this);
-    JacksCreated.append(d->addJack(WaveOutR,0));
-    JacksCreated.append(d->addJack(new COutJack("In Left","This",IJack::Wave,IJack::Out,this,jnInLeft),0));
-    JacksCreated.append(d->addJack(new COutJack("In Right","This",IJack::Wave,IJack::Out,this,jnInRight),0));
+    WaveOutL = new CInJack("Out Left","This",IJack::Wave,IJack::In,this);
+    d->JacksCreated.append(d->addJack(WaveOutL,0));
+    WaveOutR = new CInJack("Out Right","This",IJack::Wave,IJack::In,this);
+    d->JacksCreated.append(d->addJack(WaveOutR,0));
+    d->JacksCreated.append(d->addJack(new COutJack("In Left","This",IJack::Wave,IJack::Out,this,jnInLeft),0));
+    d->JacksCreated.append(d->addJack(new COutJack("In Right","This",IJack::Wave,IJack::Out,this,jnInRight),0));
 }
 /*
 void CStereoSplitBox::hideForm()
@@ -48,12 +48,12 @@ void CStereoSplitBox::process()
 
 CAudioBuffer* CStereoSplitBox::getNextA(const int ProcIndex)
 {
-    if (ProcIndex==jnOut) StereoBuffer(jnOut)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
-    if (ProcIndex==jnInLeft)
+    if (ProcIndex == jnOut) StereoBuffer(jnOut)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
+    if (ProcIndex == jnInLeft)
     {
         if (m_Process)
         {
-            m_Process=false;
+            m_Process = false;
             process();
         }
         if (InBuffer->leftBuffer->isValid()) return InBuffer->leftBuffer;

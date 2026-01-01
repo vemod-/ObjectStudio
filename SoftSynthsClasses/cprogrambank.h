@@ -5,6 +5,7 @@
 #include "QDomLite"
 
 #define PresetNameAttribute "PresetName"
+#define AliasAttribute "Alias"
 #define PresetTag "Preset"
 #define PresetListTag "Presets"
 

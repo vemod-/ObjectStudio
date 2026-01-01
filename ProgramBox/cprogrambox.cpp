@@ -8,8 +8,10 @@ CProgramBox::~CProgramBox()
     qDebug() << "~CProgramBox";
     if (m_Initialized)
     {
-        for (CDesktopContainer* d : std::as_const(Desktops)) d->Desktop->clear();
-        qDeleteAll(JacksCreated);
+        for (CDesktopComponent* d : std::as_const(form()->DesktopComponents)) {
+            d->clearJacksCreated();
+        }
+        //qDeleteAll(JacksCreated);
     }
 }
 
@@ -18,7 +20,7 @@ void CProgramBox::init(const int Index, QWidget* MainWindow)
     QMutexLocker locker(&mutex);
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-
+/*
     addJackStereoOut(0);
     addJackDualMonoOut(1);
     addJackMIDIOut(3);
@@ -31,11 +33,15 @@ void CProgramBox::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Modulation In");
     addJackModulationIn("Frequency In");
     addJackModulationIn("Trigger In");
-    addParameterMIDIChannel();
+*/
+    //addParameterMIDIChannel();
     addParameter(CParameter::Numeric,"Program","",1,MaxPrograms,0,"",1);
 
     m_Form=new CMacroBoxForm(this,MainWindow);
-    CDesktopContainer* d=form()->DesktopContainer;
+    form()->allowCustomJacks = true;
+    CDesktopContainer* d = form()->DesktopContainer;
+    //form()->JacksCreated = &d->Desktop->JacksCreated;
+    //form()->InsideJacks = &d->Desktop->InsideJacks;
     auto l = dynamic_cast<QVBoxLayout*>(m_Form->layout());
     l->removeWidget(d);
     buttonPanel = new QSynthButtonPanel(m_Form);
@@ -44,27 +50,31 @@ void CProgramBox::init(const int Index, QWidget* MainWindow)
     CDesktopComponent::connect(buttonPanel,&QSynthButtonPanel::valueChanged,m_Form,qOverload<QString,int>(&CSoftSynthsForm::setParameter));
     l->addWidget(buttonPanel);
 
-    Desktops.append(d);
     for (int i = 1; i < MaxPrograms; i++)
     {
-        Desktops.append(new CDesktopContainer(m_Form));
-        CDesktopComponent::connect(Desktops.last()->Desktop,&CDesktopComponent::parametersChanged,form(),&CMacroBoxForm::PlugInIndexChanged);
+        CDesktopContainer* d = new CDesktopContainer(m_Form);
+        d->Desktop->init(MainWindow);
+        CDesktopComponent::connect(d->Desktop,&CDesktopComponent::parametersChanged,form(),&CMacroBoxForm::PlugInIndexChanged);
+        CDesktopComponent::connect(d->Desktop,&CDesktopComponent::deviceRemoved,form(),&CMacroBoxForm::removeDeviceParameters);
+        CDesktopComponent::connect(d->Desktop,&CDesktopComponent::devicesCleared,form(),&CMacroBoxForm::removeAllParameters);
+        form()->DesktopContainers.append(d);
+        form()->DesktopComponents.append(d->Desktop);
     }
 
     layout=new QStackedLayout();
     l->addLayout(layout);
     l->setStretchFactor(layout,1000);
-    for (CDesktopContainer* c : std::as_const(Desktops)) layout->addWidget(c);
-
-    for (int p = 0; p < MaxPrograms; p++)
-    {
-        for (uint i=0;i<m_Jacks.size();i++)
+    for (CDesktopContainer* c : std::as_const(form()->DesktopContainers)) {
+        layout->addWidget(c);
+        /*
+        for (uint i = 0; i < m_Jacks.size(); i++)
         {
-            IJack* J=m_Jacks[i];
-            IJack* J1=Desktops[p]->Desktop->addJack(J->createInsideJack(i,this),0);
+            IJack* J = m_Jacks[i];
+            IJack* J1 = c->Desktop->addJack(J->createInsideJack(i,this),0);
             JacksCreated.append(J1);
             (J->isOutJack()) ? InsideJacks.append(dynamic_cast<CInJack*>(J1)) : InsideJacks.append(dynamic_cast<CInJack*>(J));
         }
+*/
     }
     currentIndex = -1;
     updateDeviceParameter();
@@ -72,17 +82,17 @@ void CProgramBox::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CProgramBox::getNextA(const int ProcIndex)
 {
-    return (ProcIndex < 8) ? InsideJacks[(program()*16)+ProcIndex]->getNextA() : InsideJacks[ProcIndex]->getNextA();
+    return FORMFUNC(CMacroBoxForm)->DesktopComponents[program()]->InsideJacks[ProcIndex]->getNextA();
 }
 
 CMIDIBuffer* CProgramBox::getNextP(const int ProcIndex)
 {
-    return (ProcIndex < 8) ? InsideJacks[(program()*16)+ProcIndex]->getNextP() : InsideJacks[ProcIndex]->getNextP();
+    return FORMFUNC(CMacroBoxForm)->DesktopComponents[program()]->InsideJacks[ProcIndex]->getNextP();
 }
 
 float CProgramBox::getNext(const int ProcIndex)
 {
-    return (ProcIndex < 8) ? InsideJacks[(program()*16)+ProcIndex]->getNext() : InsideJacks[ProcIndex]->getNext();
+    return FORMFUNC(CMacroBoxForm)->DesktopComponents[program()]->InsideJacks[ProcIndex]->getNext();
 }
 
 void CProgramBox::updateDeviceParameter(const CParameter* /*p*/)
@@ -100,11 +110,11 @@ void CProgramBox::updateDeviceParameter(const CParameter* /*p*/)
         currentIndex = program();
     }
 }
-
+/*
 void CProgramBox::serializeCustom(QDomLiteElement* xml) const
 {
     QDomLiteElement* desktops = xml->appendChild("Desktops");
-    for (const CDesktopContainer* d : Desktops) d->Desktop->serialize(desktops->appendChild("Desktop"));
+    for (const CDesktopContainer* d : std::as_const(form()->DesktopContainers)) d->Desktop->serialize(desktops->appendChild("Desktop"));
 }
 
 void CProgramBox::unserializeCustom(const QDomLiteElement* xml)
@@ -113,17 +123,17 @@ void CProgramBox::unserializeCustom(const QDomLiteElement* xml)
     QMutexLocker locker(&mutex);
     if (const QDomLiteElement* desktops = xml->elementByTag("Desktops"))
     {
-        int i=0;
+        int i = 0;
         for (const QDomLiteElement* d : (const QDomLiteElementList)desktops->elementsByTag("Desktop"))
         {
-            if (i<Desktops.size()) Desktops[i++]->Desktop->unserialize(d);
+            if (i < form()->DesktopContainers.size()) form()->DesktopContainers[i++]->Desktop->unserialize(d);
         }
     }
     form()->fillList(currentProgram());
 }
-
+*/
 void CProgramBox::tick()
 {
-    for (CDesktopContainer* c : std::as_const(Desktops)) c->Desktop->deviceList()->tick();
+    for (CDesktopContainer* c : std::as_const(form()->DesktopContainers)) c->Desktop->deviceList()->tick();
     IDevice::tick();
 }

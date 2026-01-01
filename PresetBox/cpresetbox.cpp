@@ -10,7 +10,8 @@ CPresetBox::~CPresetBox()
     qDebug() << "~CPresetBox";
     if (m_Initialized)
     {
-        qDeleteAll(JacksCreated);
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clear();
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clearJacksCreated();
     }
 }
 
@@ -19,7 +20,7 @@ void CPresetBox::init(const int Index, QWidget* MainWindow)
     QMutexLocker locker(&mutex);
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-
+/*
     addJackStereoOut(0);
     addJackDualMonoOut(1);
     addJackMIDIOut(3);
@@ -32,11 +33,14 @@ void CPresetBox::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Modulation In");
     addJackModulationIn("Frequency In");
     addJackModulationIn("Trigger In");
-    addParameterMIDIChannel();
+*/
+    //addParameterMIDIChannel();
     addParameter(CParameter::Numeric,"Preset","",1,MaxPresets,0,"",1);
-
-    m_Form=new CMacroBoxForm(this,MainWindow);
-    CDesktopContainer* d=form()->DesktopContainer;
+    m_Form = new CMacroBoxForm(this,MainWindow);
+    FORMFUNC(CMacroBoxForm)->allowCustomJacks = true;
+    CDesktopContainer* d = form()->DesktopContainer;
+    //FORMFUNC(CMacroBoxForm)->JacksCreated = &d->Desktop->JacksCreated;
+    //FORMFUNC(CMacroBoxForm)->InsideJacks = &d->Desktop->InsideJacks;
 
     auto l = dynamic_cast<QVBoxLayout*>(m_Form->layout());
     l->removeWidget(d);
@@ -47,8 +51,8 @@ void CPresetBox::init(const int Index, QWidget* MainWindow)
     l->addWidget(buttonPanel);
     l->addWidget(d);
 
-    for (QDomLiteElement& e : presetList) e.tag="Preset";
-
+    for (QDomLiteElement& e : presetList) e.tag = "Preset";
+/*
     for (uint i=0;i<m_Jacks.size();i++)
     {
         IJack* J=m_Jacks[i];
@@ -56,23 +60,24 @@ void CPresetBox::init(const int Index, QWidget* MainWindow)
         JacksCreated.append(J1);
         (J->isOutJack()) ? InsideJacks.append(dynamic_cast<CInJack*>(J1)) : InsideJacks.append(dynamic_cast<CInJack*>(J));
     }
+*/
     currentIndex = -1;
     updateDeviceParameter();
 }
 
 CAudioBuffer* CPresetBox::getNextA(const int ProcIndex)
 {
-    return InsideJacks[ProcIndex]->getNextA();
+    return FORMFUNC(CMacroBoxForm)->DesktopComponent->InsideJacks[ProcIndex]->getNextA();
 }
 
 CMIDIBuffer* CPresetBox::getNextP(const int ProcIndex)
 {
-    return InsideJacks[ProcIndex]->getNextP();
+    return FORMFUNC(CMacroBoxForm)->DesktopComponent->InsideJacks[ProcIndex]->getNextP();
 }
 
 float CPresetBox::getNext(const int ProcIndex)
 {
-    return InsideJacks[ProcIndex]->getNext();
+    return FORMFUNC(CMacroBoxForm)->DesktopComponent->InsideJacks[ProcIndex]->getNext();
 }
 
 void CPresetBox::savePreset(const int index)
@@ -86,7 +91,7 @@ void CPresetBox::savePreset(const int index)
         {
             IDevice* d = deviceList()->device(i);
             QDomLiteElement* Device = XMLPreset.appendChild("Device","ID",d->deviceID());
-            d->serializeParameters(Device);
+            d->serializeStandardParameters(Device);
         }
     }
 }
@@ -102,7 +107,7 @@ void CPresetBox::loadPreset(const int index)
             if (i < deviceList()->deviceCount())
             {
                 IDevice* d = deviceList()->device(i);
-                d->unserializeParameters(XMLDevice);
+                d->unserializeStandardParameters(XMLDevice);
                 deviceList()->updateParameter(i);
                 desktopContainer()->showParameters(d);
             }
@@ -125,7 +130,8 @@ void CPresetBox::updateDeviceParameter(const CParameter* /*p*/)
 
 void CPresetBox::serializeCustom(QDomLiteElement* xml) const
 {
-    QDomLiteElement* XMLPresets = xml->appendChild("Presets");
+    QDomLiteElement* XMLPresets = xml->elementByTagCreate("Presets");
+    XMLPresets->clearChildren();
     for (const QDomLiteElement& e : presetList) XMLPresets->appendChild(e.clone());
 }
 

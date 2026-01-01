@@ -111,6 +111,9 @@ public:
     inline int outJackCount() const { return int(m_OutJacks.size()); }
     inline int index() const { return m_Index; }
     inline const QString name() const { return m_Name; }
+    inline const QString alias() const { return m_Alias; }
+    inline void setAlias(const QString& alias) { m_Alias = alias; }
+    inline const QString caption() const { return (!m_Alias.isEmpty()) ? m_Alias : m_DeviceID; }
     virtual const QPixmap* picture() const {
         if (m_Form) {
             QPixmap* pm = new QPixmap(m_Form->grab().scaled(m_Form->size(),Qt::KeepAspectRatio,Qt::SmoothTransformation));
@@ -264,6 +267,9 @@ public:
     }
     //IHost
     virtual void updateHostParameter(const CParameter* p = nullptr) { if (m_Host) m_Host->parameterChange(this,p); }
+    virtual void removeHostJack(IJack* jack) { if (m_Host) m_Host->removeDeviceJack(jack); }
+    virtual void addHostJack(IJack* jack) { if (m_Host) m_Host->addDeviceJack(jack); }
+    virtual void updateHostJacks() { if (m_Host) m_Host->updateDeviceJacks(); }
     virtual void activate() { if (m_Host != nullptr) m_Host->activate(this); }
     virtual void closeAutomation() { if (m_Host != nullptr) m_Host->closeAutomation(this); }
     virtual bool hasUI() const { return (m_Form != nullptr); }
@@ -303,6 +309,7 @@ public:
     {
         if (!Parameters) return;
         QMutexLocker locker(&mutex);
+        m_Alias = Parameters->attribute(AliasAttribute);
         for (const QDomLiteElement* XMLParameter : (const QDomLiteElementList)Parameters->elementsByTag(ParameterTag))
         {
             const QString n = XMLParameter->attribute(ParameterNameAttribute);
@@ -328,11 +335,12 @@ public:
         if (!Parameters) return;
         QMutexLocker locker(&mutex);
         unserializeParameters(Parameters);
-        m_CurrentProgram=Parameters->attribute(PresetNameAttribute);
+        m_CurrentProgram = Parameters->attribute(PresetNameAttribute);
     }
     void serializeStandardParameters(QDomLiteElement* Parameters) const
     {
         if (!Parameters) return;
+        Parameters->setAttribute(AliasAttribute,m_Alias);
         for (const CParameter* p : m_Parameters) p->serialize(Parameters->appendChild(ParameterTag));
     }
     void serializeParameters(QDomLiteElement* Parameters) const
@@ -359,7 +367,7 @@ public:
     void saveCurrentProgram(const QString& programName=QString()) const
     {
         QString n=programName;
-        if (n.isEmpty()) n=m_CurrentProgram;
+        if (n.isEmpty()) n = m_CurrentProgram;
         if (n.isEmpty()) return;
         QDomLiteElement e(PresetTag);
         serializeProgram(&e);
@@ -414,6 +422,39 @@ public:
             }
         }
     }
+    IJack* addJack(const QString& Name,IJack::AttachModes AttachMode,IJack::Directions Direction,int ProcIndex=-1)
+    {
+        QMutexLocker locker(&mutex);
+        return (Direction==IJack::In) ? static_cast<IJack*>(addInJack(Name,AttachMode)) :
+                   addOutJack(Name,AttachMode,ProcIndex);
+    }
+    void removeJack(IJack* jack) {
+        QMutexLocker locker(&mutex);
+        m_InJacks.removeOne(jack);
+        m_OutJacks.removeOne(jack);
+        m_Jacks.removeOne(jack);
+    }
+    int jackIndex(const QString& JackId) {
+        QMutexLocker locker(&mutex);
+        for (int i = 0; i < m_Jacks.size(); i++) {
+            if (m_Jacks[i]->jackID() == JackId) return i;
+        }
+        return -1;
+    }
+    void swapJacks(const int i1, const int i2) {
+        QMutexLocker locker(&mutex);
+        m_InJacks.clear();
+        m_OutJacks.clear();
+        m_Jacks.swapItemsAt(i1,i2);
+        for (IJack* j : std::as_const(m_Jacks)) {
+            if (j->isInJack()) {
+                m_InJacks.append(static_cast<CInJack*>(j));
+            }
+            else {
+                m_OutJacks.append(static_cast<COutJack*>(j));
+            }
+        }
+    }
 protected:
     QRecursiveMutex mutex;
     bool m_Initialized;
@@ -422,6 +463,7 @@ protected:
     QWidget* m_MainWindow;
     CFileParameter* m_FileParameter;
     QString m_Name;
+    QString m_Alias;
     QVector<IJack*> m_Jacks;
     QVector<CInJack*> m_InJacks;
     QVector<COutJack*> m_OutJacks;
@@ -445,12 +487,6 @@ protected:
     IDeviceParent* m_DeviceParent;
     IMainPlayer* mainPlayer() const {
         return dynamic_cast<IMainPlayer*>(m_MainWindow);
-    }
-    IJack* addJack(const QString& Name,IJack::AttachModes AttachMode,IJack::Directions Direction,int ProcIndex=-1)
-    {
-        QMutexLocker locker(&mutex);
-        return (Direction==IJack::In) ? static_cast<IJack*>(addInJack(Name,AttachMode)) :
-                                        addOutJack(Name,AttachMode,ProcIndex);
     }
     COutJack* addOutJack(const QString& Name,IJack::AttachModes AttachMode,int ProcIndex=-1)
     {

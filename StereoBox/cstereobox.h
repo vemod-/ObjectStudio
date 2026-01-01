@@ -16,7 +16,7 @@ private:
     enum ParameterNames
     {};
     void process();
-    QList<IJack*> JacksCreated;
+    //QList<IJack*> JacksCreated;
     CInJack* WaveOutL;
     CInJack* WaveOutR;
     CMonoBuffer* InL;

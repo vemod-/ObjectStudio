@@ -130,7 +130,6 @@ public:
                         if (m_Selected.contains(i-1)) lc = Qt::white;
                         p += delta;
                     }
-                    //qDebug() << p << e.time << e.value;
                     QRectF r(p-QPointF(2,2),p+QPointF(2,2));
                     retval.append(Scene.addEllipse(r,QPen(c)));
                     if (oldPoint != QPointF()) retval.append(Scene.addLine(oldPoint.x(),oldPoint.y(),p.x(),p.y(),QPen(lc)));
@@ -161,14 +160,8 @@ public:
         if (m_Device) return m_Device->deviceID();
         return QString();
     }
-    /*
-    void tick() {
-        m_mSecCounter.eatTick();
-    }
-*/
     void play(const bool /*FromStart*/) {
         m_TimerID = startTimer(50);
-        //if (FromStart) m_mSecCounter.reset();
     }
     void pause() {
         if (m_TimerID) killTimer(m_TimerID);
@@ -184,9 +177,7 @@ public:
 protected:
     void timerEvent(QTimerEvent* /*e*/) {
         if (!m_TimerID) return;
-        //qDebug() << m_Device->requestCurrentMilliSecond();
         m_TimeLine.handleTimer(m_Device);
-        //Scene.update();
     }
     void showEvent(QShowEvent* e) {
         QGraphicsView::showEvent(e);
@@ -266,7 +257,7 @@ protected:
         {
             if (event->modifiers() != Qt::ControlModifier) m_Selected.clear();
             if (!m_Selected.contains(uint(i))) m_Selected.append(i);
-            if (!m_Selected.contains(i+1)) m_Selected.append(i+1);
+            if (!m_Selected.contains(uint(i + 1))) m_Selected.append(i + 1);
             DrawAutomation(true);
         }
         QGraphicsView::mousePressEvent(event);
@@ -302,12 +293,11 @@ protected:
                 textPoint = translateEvent(e.time,e.value,currentParameter());
             }
         }
-        QString v=currentParameter()->valueText(valueFromY(textPoint.y(),currentParameter()));
+        QString v = currentParameter()->valueText(valueFromY(textPoint.y(),currentParameter()));
         ulong64 t = timeFromX(textPoint.x());
         if (!InfoLabel->isVisible()) InfoLabel->show();
         InfoLabel->setText(v + "\n" + m_TimeLine.timeToText(t));
         InfoLabel->move(event->pos()+geometry().topLeft()+QPoint(4,4));
-        //InfoLabel->setFixedSize(InfoLabel->sizeHint());
         InfoLabel->adjustSize();
         QGraphicsView::mouseMoveEvent(event);
     }
@@ -441,7 +431,6 @@ private:
         return QRect(o - QPoint(2,2),o + QPoint(2,2));
     }
     int timeToX(ulong64 time) {
-        //return (ldouble(double(width())*zoomer->getZoom()) / ldouble(m_Duration)) * ldouble(time);
         return m_TimeLine.timeToX(time);
     }
     int valueToY(int value, CParameter* p) {
@@ -449,14 +438,11 @@ private:
         return m_TimeLineHeight + h - ((h / double(p->Max - p->Min)) * (double(value)-p->Min));
     }
     ulong64 timeFromX(int x) {
-        //return (ldouble(m_Duration) / ldouble(double(width())*zoomer->getZoom())) * ldouble(x);
         return m_TimeLine.timeFromX(x);
     }
     int valueFromY(int y, CParameter* p) {
         const double h = sceneRect().height() - m_TimeLineHeight;
         int v = (double(p->Max - p->Min) / h * double(h-(y-m_TimeLineHeight))) + p->Min;
-        //v = qMax<int>(p->Min,v);
-        //v = qMin<int>(p->Max,v);
         return v;
     }
     int insideEvent(QPointF p) {
@@ -503,7 +489,6 @@ private:
     QGraphicsViewZoomer* zoomer;
     QSignalMenu* m_ParameterMenu;
     CDeviceList* m_DL;
-    //CmSecCounter m_mSecCounter;
     int m_TimerID;
     bool m_TimeLineVisible = true;
     int m_TimeLineHeight = timelineheight;

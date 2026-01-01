@@ -17,22 +17,23 @@ protected:
     QString m_Name;
     QString m_Owner;
     QString m_JackID;
+    QString m_Alias;
 public:
     inline IJack(const QString& sName,const QString& sOwner,AttachModes tAttachMode,Directions tDirection,IDeviceBase* OwnerClass)
         : IJackBase(tAttachMode,tDirection), m_OwnerDevice(OwnerClass), /*m_BufferSize(CPresets::presets().BufferSize),*/ m_Name(sName), m_Owner(sOwner), audioBuffer(nullptr)
     {
-        m_JackID=m_Owner + " " + m_Name;
+        m_JackID = m_Owner + " " + m_Name;
         //qDebug() << "Jack Created " << sOwner << sName;
-        if (attachMode==Wave)
+        if (attachMode == Wave)
         {
             QMutexLocker locker(&mutex);
-            audioBuffer=new CMonoBuffer;
+            audioBuffer = new CMonoBuffer;
             //qDebug() << "MonoBuffer Created" << sName << sOwner;
         }
-        if (attachMode==Stereo)
+        if (attachMode == Stereo)
         {
             QMutexLocker locker(&mutex);
-            audioBuffer=new CStereoBuffer;
+            audioBuffer = new CStereoBuffer;
             //qDebug() << "StereoBuffer Created" << sName << sOwner;
         }
     }
@@ -53,20 +54,24 @@ public:
         return false;
     }
     IJack* createInsideJack(int ProcIndex, IDeviceBase *DeviceClass);
+    inline const QString alias() const { return m_Alias; }
+    inline void setAlias(const QString& alias) { m_Alias = alias; }
+    inline const QString caption() const { return (!m_Alias.isEmpty()) ? m_Alias : m_Name; }
+    inline const QString captionX() const { return (!m_Alias.isEmpty()) ? m_Owner + " " + m_Alias : m_JackID; }
 };
 
 class CJackList
 {
 public:
     inline CJackList() {
-        size=0;
-        capacity=5;
+        size = 0;
+        capacity = 5;
         data=new IJack*[capacity];
     }
     inline ~CJackList() { delete [] data; }
     inline bool process(IJack* Jack) {
-        if (size==0) return setFirst(Jack);
-        for (uint i=0;i<size;i++) if (data[i]==Jack) return setFirst(Jack);
+        if (size == 0) return setFirst(Jack);
+        for (uint i = 0; i < size; i++) if (data[i] == Jack) return setFirst(Jack);
         append(Jack);
         return false;
     }
@@ -77,8 +82,8 @@ private:
     inline void append(IJack* Jack) {
         if (size >= capacity)
         {
-            capacity+=5;
-            IJack** temp=new IJack*[capacity];
+            capacity += 5;
+            IJack** temp = new IJack*[capacity];
             copyMemory(temp,data,size*sizeof(IJack*));
             delete [] data;
             data=temp;
@@ -86,8 +91,8 @@ private:
         data[size++]=Jack;
     }
     inline bool setFirst(IJack* Jack) {
-        data[0]=Jack;
-        size=1;
+        data[0] = Jack;
+        size = 1;
         return true;
     }
 };
@@ -99,21 +104,25 @@ class COutJack : public IJack
 public:
     inline COutJack(const QString& sName,const QString& sOwner,AttachModes tAttachMode,Directions tDirection,IDeviceBase* OwnerClass,const int tProcIndex) :IJack(sName,sOwner,tAttachMode,tDirection,OwnerClass), procIndex(tProcIndex), m_ConnectCount(0), m_LastGet(0), m_LastGetP(nullptr), m_LastGetA(nullptr) {}
     int procIndex;
-    inline void addConnection() { m_ConnectCount++; }
-    inline void removeConnection() { m_ConnectCount--; }
+    inline void addConnection() {
+        m_ConnectCount++;
+    }
+    inline void removeConnection() {
+        m_ConnectCount--;
+    }
     inline float getNext(IJack* InJack) {
-        if (m_ConnectCount==1) return m_OwnerDevice->getNext(procIndex);
-        if (m_InJackCalls.process(InJack)) m_LastGet=m_OwnerDevice->getNext(procIndex);
+        if (m_ConnectCount == 1) return m_OwnerDevice->getNext(procIndex);
+        if (m_InJackCalls.process(InJack)) m_LastGet = m_OwnerDevice->getNext(procIndex);
         return m_LastGet;
     }
     inline CMIDIBuffer* getNextP(IJack* InJack) {
-        if (m_ConnectCount==1) return m_OwnerDevice->getNextP(procIndex);
-        if (m_InJackCalls.process(InJack)) m_LastGetP=m_OwnerDevice->getNextP(procIndex);
+        if (m_ConnectCount == 1) return m_OwnerDevice->getNextP(procIndex);
+        if (m_InJackCalls.process(InJack)) m_LastGetP = m_OwnerDevice->getNextP(procIndex);
         return m_LastGetP;
     }
     inline CAudioBuffer* getNextA(IJack* InJack) {
-        if (m_ConnectCount==1) return m_OwnerDevice->getNextA(procIndex);
-        if (m_InJackCalls.process(InJack)) m_LastGetA=m_OwnerDevice->getNextA(procIndex);
+        if (m_ConnectCount == 1) return m_OwnerDevice->getNextA(procIndex);
+        if (m_InJackCalls.process(InJack)) m_LastGetA = m_OwnerDevice->getNextA(procIndex);
         return m_LastGetA;
     }
     bool connectToIn(CInJack* InJack);
@@ -140,37 +149,37 @@ public:
     }
     virtual ~CInJack();
     inline float getNext() {
-        if (m_OutJackCount==1) return m_firstJack->getNext(this);
-        if (m_OutJackCount==0) return 0;
+        if (m_OutJackCount == 1) return m_firstJack->getNext(this);
+        if (m_OutJackCount == 0) return 0;
         m_LastGetNext=0;
-        for (COutJack* j : std::as_const(m_OutJacks)) m_LastGetNext+=j->getNext(this);
+        for (COutJack* j : std::as_const(m_OutJacks)) m_LastGetNext += j->getNext(this);
         return m_LastGetNext;
     }
     inline CMIDIBuffer* getNextP() {
-        if (m_OutJackCount==1) return m_firstJack->getNextP(this);
-        if (m_OutJackCount==0) return nullptr;
+        if (m_OutJackCount == 1) return m_firstJack->getNextP(this);
+        if (m_OutJackCount == 0) return nullptr;
 
         std::vector<CMIDIBuffer*> MIDIBuffers;
         for (COutJack* j : std::as_const(m_OutJacks)) {
-            CMIDIBuffer* MB=j->getNextP(this);
+            CMIDIBuffer* MB = j->getNextP(this);
             if (MB != nullptr) if (!MB->isEmpty()) MIDIBuffers.push_back(MB);
         }
         if (MIDIBuffers.empty()) return nullptr;
-        if (MIDIBuffers.size()==1) return MIDIBuffers.front();
+        if (MIDIBuffers.size() == 1) return MIDIBuffers.front();
         if (m_MIDIBuffer == nullptr) m_MIDIBuffer=new CMIDIBuffer;
         return m_MIDIBuffer->fromBufferList(MIDIBuffers);
     }
     inline CAudioBuffer* getNextA() {
-        if (m_OutJackCount==1) {
+        if (m_OutJackCount == 1) {
             const CAudioBuffer* b = m_firstJack->getNextA(this);
             if (!b) return nullBuffer();
             audioBuffer->writeBuffer(b,m_firstJack->attachMode);
             return audioBuffer;
         }
-        if (m_OutJackCount==0) return nullBuffer();
-        int FetchCount=0;
+        if (m_OutJackCount == 0) return nullBuffer();
+        int FetchCount = 0;
         for (COutJack* j : std::as_const(m_OutJacks)) audioBuffer->updateBuffer(j->getNextA(this),j->attachMode,FetchCount++ == 0);
-        if (FetchCount==0) return nullBuffer();
+        if (FetchCount == 0) return nullBuffer();
         audioBuffer->multiplyBuffer(m_MixFactor);
         return audioBuffer;
     }
@@ -196,7 +205,7 @@ public:
         QMutexLocker locker(&mutex);
         if (!m_OutJacks.removeOne(OutJack)) return false;
         OutJack->removeConnection();
-        if (!m_OutJacks.isEmpty()) m_firstJack=m_OutJacks.first();
+        if (!m_OutJacks.isEmpty()) m_firstJack = m_OutJacks.first();
         m_MixFactor=mixFactorf(--m_OutJackCount);
         m_OwnerDevice->connectionChanged();
         return true;
@@ -235,7 +244,7 @@ private:
         return buffer;
     }
     inline CAudioBuffer* nullBuffer() const {
-        return (attachMode==AttachModes::Stereo) ? static_cast<CAudioBuffer*>(m_NullBufferStereo()) :
+        return (attachMode == AttachModes::Stereo) ? static_cast<CAudioBuffer*>(m_NullBufferStereo()) :
                                                     static_cast<CAudioBuffer*>(m_NullBufferMono());
     }
 };

@@ -114,7 +114,7 @@ MainWindow::MainWindow(QWidget *parent) :
     qDebug() << MainBuffers.sampleRates();
     m_TimerID=startTimer(50);
     if (qApp->arguments().size() > 1) {
-        if (QFileInfo(qApp->arguments().at(1)).exists()) dropfile(qApp->arguments().at(1));
+        if (QFileInfo::exists(qApp->arguments().at(1))) dropfile(qApp->arguments().at(1));
     }
 }
 

@@ -20,8 +20,8 @@ private:
     enum ParameterNames
     {pnMIDIChannel,pnVolume};
     */
-    QList<CInJack*> InsideJacks;
-    QList<IJack*> JacksCreated;
+    //QList<CInJack*> InsideJacks;
+    //QList<IJack*> JacksCreated;
     //QRecursiveMutex mutex;
     void updateDeviceParameter(const CParameter* p = nullptr);
 

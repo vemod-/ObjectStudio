@@ -247,7 +247,7 @@ void CEffectRackForm::parameterChange(IDevice* device, const CParameter* paramet
     }
 }
 
-void CEffectRackForm::closeAutomation(IDevice *device) {
+void CEffectRackForm::closeAutomation(IDevice* /*device*/) {
 }
 
 bool CEffectRackForm::event(QEvent* e) {

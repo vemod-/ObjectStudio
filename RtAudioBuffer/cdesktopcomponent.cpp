@@ -39,6 +39,10 @@ QList<QGraphicsItem*> CDeviceComponent::paint(QGraphicsScene* Scene)
     QList<QGraphicsItem*> items;
     if (m_Device != nullptr)
     {
+        //if (m_Device->jackCount() != jackRects.count()) {
+            jackRects.clear();
+            for (int i = 0; i < m_Device->jackCount(); i++) jackRects.append(JackRect(m_Device->jack(i)));
+        //}
         if (geometry.left()<1) geometry.setLeft(1);
         if (geometry.top()<1) geometry.setTop(1);
         geometry.setSize(QSize(120,60));
@@ -80,21 +84,29 @@ QList<QGraphicsItem*> CDeviceComponent::paint(QGraphicsScene* Scene)
                 items.append(pi);
             }
         }
-        QString Caption=m_Device->deviceID();//m_Device->name() + " " + QString::number(m_Device->index());
+        QString Caption = m_Device->caption();//m_Device->name() + " " + QString::number(m_Device->index());
         QString FileName;
-        if (!m_Device->filename().isEmpty()) FileName="("+QFileInfo(m_Device->filename()).fileName()+")";
+        if (!m_Device->alias().isEmpty()) {
+            FileName = "(" + Caption + ")";
+        }
+        else if (!m_Device->filename().isEmpty()) {
+            FileName = "(" + Caption + ")";
+            Caption = QFileInfo(m_Device->filename()).fileName();
+        }
         QFont f;
         QFontMetrics fm(f);
-        if (fm.horizontalAdvance(Caption)>geometry.width()) Caption=Caption.left(7)+QStringLiteral("...")+Caption.right(7);
+        if (fm.horizontalAdvance(Caption) > geometry.width()) Caption = Caption.left(7)+QStringLiteral("...") + Caption.right(7);
 
-        QPoint TextOffset((geometry.width()-fm.horizontalAdvance(Caption))/2,(geometry.height()-fm.height())/2);
-        if (!FileName.isEmpty()) TextOffset.setY(TextOffset.y()-(fm.height()/2));
+        QPoint TextOffset((geometry.width() - fm.horizontalAdvance(Caption))/2,(geometry.height() - fm.height())/2);
+        captionRect.setTopLeft(geometry.topLeft() + TextOffset);
+        captionRect.setSize(QSize(fm.horizontalAdvance(Caption),fm.height()));
+        if (!FileName.isEmpty()) TextOffset.setY(TextOffset.y() - (fm.height()/2));
         items.append(CConnectionHelper::DrawShadowText(Caption,f,geometry.topLeft()+TextOffset,Scene));
         if (!FileName.isEmpty())
         {
-            if (fm.horizontalAdvance(FileName)>geometry.width()) FileName=FileName.left(7)+QStringLiteral("...")+FileName.right(7);
-            TextOffset.setX((geometry.width()-fm.horizontalAdvance(FileName))/2);
-            TextOffset.setY(TextOffset.y()+fm.height());
+            if (fm.horizontalAdvance(FileName) > geometry.width()) FileName = FileName.left(7) + QStringLiteral("...") + FileName.right(7);
+            TextOffset.setX((geometry.width() - fm.horizontalAdvance(FileName)) / 2);
+            TextOffset.setY(TextOffset.y() + fm.height());
             items.append(CConnectionHelper::DrawShadowText(FileName,f,geometry.topLeft()+TextOffset,Scene));
         }
         int InCount=1;
@@ -135,7 +147,7 @@ QList<QGraphicsItem*> CJackBar::paint(QGraphicsScene* Scene)
 
     for (int i=0;i<jackRects.size();i++)
     {
-        JackRect* JR=&jackRects[i];
+        JackRect* JR = &jackRects[i];
         JR->setTopLeft(QPoint((i*20)+height,2));
     }
     items.append(CJackContainer::paint(Scene));
@@ -205,6 +217,49 @@ IJack* CDesktopComponent::addJack(IJack* Jack, int PolyIndex)
     return Jack;
 }
 
+void CDesktopComponent::addInsideJack(IJack *J, IDevice *d, const QString &alias) {
+    IJack* J1 = addJack(J->createInsideJack(JacksCreated.size(),d),0);
+    J1->setAlias(alias);
+    JacksCreated.append(J1);
+    (J->isOutJack()) ? InsideJacks.append(dynamic_cast<CInJack*>(J1)) : InsideJacks.append(dynamic_cast<CInJack*>(J));
+}
+
+void CDesktopComponent::removeJack(IJack* jack, int PolyIndex){
+    DeviceList.disconnectJack(jack);
+    DeviceList.removeJack(jack,PolyIndex);
+    for (int i = 0; i < JackBar1.jackCount(); i++) {
+        if (JackBar1.jack(i) == jack) JackBar1.jackRects.removeAt(i);
+    }
+    for (int i = 0; i < JackBar2.jackCount(); i++) {
+        if (JackBar2.jack(i) == jack) JackBar2.jackRects.removeAt(i);
+    }
+}
+
+void CDesktopComponent::reorderJackbarJacks(QList<IJack*>* jacksCreated) {
+    QMutexLocker locker(&mutex);
+    JackBar1.jackRects.clear();
+    JackBar2.jackRects.clear();
+    for (IJack* Jack : *jacksCreated) {
+        (Jack->isInJack()) ? JackBar2.addJack(Jack) : JackBar1.addJack(Jack);
+    }
+}
+
+void CDesktopComponent::removeDeviceJack(IJack* jack){
+    DeviceList.disconnectJack(jack);
+    DeviceList.removeJack(jack);
+    updateDeviceJacks();
+}
+
+void CDesktopComponent::addDeviceJack(IJack *jack){
+    DeviceList.addJack(jack);
+    updateDeviceJacks();
+}
+
+void CDesktopComponent::updateDeviceJacks() {
+    DrawConnections();
+    connectionsChanged();
+}
+
 void CDesktopComponent::parameterChange(IDevice* device, const CParameter* parameter)
 {
     if (device)
@@ -272,6 +327,19 @@ void CDesktopComponent::MacroMenuClicked(QString ProgramName)
     }
 }
 
+void CDesktopComponent::editDeviceCaption() {
+    if (m_DeviceIndex > -1) {
+        QLineEdit* l = findChild<QLineEdit*>();
+        if (l) {
+            currentDevice()->setAlias(l->text());
+            l->hide();
+            l->deleteLater();
+            DrawConnections();
+            emit parametersChanged(currentDevice());
+        }
+    }
+}
+
 CDeviceComponent* CDesktopComponent::addDevice(const QString &ClassName)
 {
     CDeviceComponent* D = addDevice(ClassName,DeviceList.findFreeIndex(ClassName));
@@ -322,6 +390,13 @@ void CDesktopComponent::clear()
     Devices.clear();
 }
 
+void CDesktopComponent::clearJacksCreated(){
+    clear();
+    qDeleteAll(JacksCreated);
+    JacksCreated.clear();
+    InsideJacks.clear();
+}
+
 void CDesktopComponent::DisconnectJackBar(CJackBar& JackBar)
 {
     QMutexLocker locker(&mutex);
@@ -332,7 +407,7 @@ Qt::CursorShape CDesktopComponent::connectCursor(IJack* J1,IJack* J2)
 {
     if (J1 != J2)
     {
-        setToolTip(J2->jackID());
+        setToolTip(J2->captionX());
         return  ((J1->canConnectTo(J2)) && (!J1->isConnectedTo(J2))) ? Qt::PointingHandCursor : Qt::ForbiddenCursor;
     }
     setToolTip(QString());
@@ -473,9 +548,9 @@ void CDesktopComponent::DrawConnections()
 QList<QGraphicsItem*> CDesktopComponent::DrawDeviceConnections(CDeviceComponent* Device,QList<CJackContainer*>& paintedContainers)
 {
     QList<QGraphicsItem*> items;
-    for (int j=0;j<Device->jackCount();j++) {
+    for (int j = 0; j < Device->jackCount(); j++) {
         for (const CJackContainer* k : paintedContainers) {
-            for (int l=0;l<k->jackCount();l++) {
+            for (int l = 0; l < k->jackCount(); l++) {
                 if (Device->jack(j)->isConnectedTo(k->jack(l))) {
                     const QPoint Pos1=k->jackPos(l);
                     const QPoint Pos2=Device->jackPos(j);
@@ -512,7 +587,7 @@ void CDesktopComponent::serializeDevice(IDevice* d, const QRect& geometry, QDomL
 
 void CDesktopComponent::serializeConnection(CInJack* jack, QDomLiteElement* xml) const
 {
-    for (int i=0;i<jack->outJackCount();i++)
+    for (int i = 0; i < jack->outJackCount(); i++)
     {
         QDomLiteElement* Connection = xml->appendChild("Connection","InJack",jack->jackID());
         Connection->setAttribute("OutJack",jack->outJack(i)->jackID());
@@ -528,7 +603,7 @@ void CDesktopComponent::serialize(QDomLiteElement* xml) const
     QDomLiteElement* Items=xml->appendChild("Items");
     for (const CDeviceComponent* dc : Devices) serializeDevice(dc->device(), dc->geometry, Items);
     emit requestSerializeAutomationXML(Items);
-    for (int i=0;i<DeviceList.inJackCount();i++) serializeConnection(DeviceList.inJack(i),Items);
+    for (int i = 0; i < DeviceList.inJackCount(); i++) serializeConnection(DeviceList.inJack(i),Items);
     if (m_ParentWindow)
     {
         QDomLiteElement* Position = Items->appendChild("Position");
@@ -615,6 +690,7 @@ void CDesktopComponent::CloseDoc() {
 
 void CDesktopComponent::OpenDoc(QString path)
 {
+    QMutexLocker l(&mutex);
     unserialize(CProjectPage::openFile(path).documentElement);
     emit MilliSecondsChanged();
     SelectDevice(0);
@@ -714,14 +790,20 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
 {
     qDebug() << "mousePress" << event->pos();
     Rubberband->hide();
+    if (QLineEdit* l = findChild<QLineEdit*>()) {
+        l->hide();
+        l->deleteLater();
+    }
     MarkList.clear();
     MainMenu->EditMenu->setSelectionStatus(canCopy());
     Dragging=false;
     DragJack=nullptr;
     MouseDown=true;
     StartPoint=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
-    const int DI=DeviceIndex(StartPoint);
-    if (DI > -1) if (m_DeviceIndex != DI) SelectDevice(DI);
+    const int DI = DeviceIndex(StartPoint);
+    if (DI > -1) {
+        if (m_DeviceIndex != DI) SelectDevice(DI);
+    }
     DragJack=MouseOverJack(StartPoint,DragJackPos);
     if (DragJack)
     {
@@ -857,7 +939,7 @@ void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
         return;
     }
     const IJack* HoverJack=MouseOverJack(Pos);
-    (HoverJack) ? setToolTip(HoverJack->jackID()) : setToolTip(QString());
+    (HoverJack) ? setToolTip(HoverJack->captionX()) : setToolTip(QString());
     if (MouseDown) //rubberband
     {
         if (DeviceIndex(Pos) == -1)
@@ -925,7 +1007,7 @@ void CDesktopComponent::mouseDoubleClickEvent(QMouseEvent *event)
 {
     Dragging=false;
     DragJack=nullptr;
-
+    m_MD=false;
     QMutexLocker locker(&mutex);
     QApplication::restoreOverrideCursor();
     const QPoint Pos=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
@@ -933,14 +1015,27 @@ void CDesktopComponent::mouseDoubleClickEvent(QMouseEvent *event)
     {
         MainMenu->UndoMenu->addItem("Disconnect");
         DeviceList.disconnectJack(J->jackID());
-        setToolTip(J->jackID());
+        setToolTip(J->captionX());
         DrawConnections();
         emit connectionsChanged();
         return;
     }
     SelectDevice(DeviceIndex(Pos));
+    if (m_DeviceIndex > -1) {
+        if (currentDeviceComponent()->captionRect.contains(Pos)) {
+            QLineEdit* l = new QLineEdit(this);
+            QRect editRect = currentDeviceComponent()->geometry;
+            editRect.setTop(currentDeviceComponent()->captionRect.top());
+            editRect.setBottom(currentDeviceComponent()->captionRect.bottom());
+            l->setGeometry(editRect);
+            if (!currentDevice()->alias().isEmpty()) l->setText(currentDevice()->alias());
+            l->show();
+            l->setFocus();
+            connect(l,&QLineEdit::editingFinished,this,&CDesktopComponent::editDeviceCaption);
+            return;
+        }
+    }
     toggleUI();
-    m_MD=false;
 }
 
 void CDesktopComponent::NewDoc()

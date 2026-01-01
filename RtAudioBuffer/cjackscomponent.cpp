@@ -17,15 +17,15 @@ CJacksDevice::~CJacksDevice()
 
 void CJacksDevice::init(IDevice* device)
 {
-    m_Device=device;
-    m_Left=0;
+    m_Device = device;
+    m_Left = 0;
 }
 
 void CJacksDevice::paint(QGraphicsScene* scene, int index, int width)
 {
-    m_Index=index;
-    int w=qMax<int>(width,this->width());
-    const int top=calcTop(0,index);
+    m_Index = index;
+    int w = qMax<int>(width,this->width());
+    const int top = calcTop(0,index);
     QBrush bg(QPixmap(":/Black Aluminium Tile.jpg"));
     scene->addRect(m_Left,top,w,112,QPen(Qt::black),bg);
     scene->addLine(m_Left,top,w,top,QPen(Qt::darkGray));
@@ -40,11 +40,11 @@ void CJacksDevice::paint(QGraphicsScene* scene, int index, int width)
     int InIndex = 0;
     int OutIndex = 0;
     JackRects.clear();
-    for (int i=0;i<m_Device->jackCount();i++)
+    for (int i = 0; i < m_Device->jackCount(); i++)
     {
         QRect r;
         IJack* j = m_Device->jack(i);
-        QString txt=j->name();
+        QString txt = j->caption();
         QFont f;
         f.setPointSizeF(9.5);
         if (j->isInJack())
@@ -121,7 +121,7 @@ CJacksComponent::~CJacksComponent()
 
 void CJacksComponent::Init(CDeviceList *DeviceList)
 {
-    m_DL=DeviceList;
+    m_DL = DeviceList;
 }
 
 int CJacksComponent::deviceIndex(IDevice* device)
@@ -341,7 +341,7 @@ QString CJacksComponent::MouseOverJack(const QPoint &Pos)
 
 void CJacksComponent::mouseMoveEvent(QMouseEvent* event)
 {
-    QPoint Pos=mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    QPoint Pos = mapToScene(event->pos().x(),event->pos().y()).toPoint();
     if (Pos != MousePoint)
     {
         setToolTip(MouseOverJack(Pos));
@@ -352,8 +352,8 @@ void CJacksComponent::mouseMoveEvent(QMouseEvent* event)
 
 void CJacksComponent::mousePressEvent(QMouseEvent *event)
 {
-    const QPoint Pos=mapToScene(event->pos().x(),event->pos().y()).toPoint();
-    const QString JackID=MouseOverJack(Pos);
+    const QPoint Pos = mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const QString JackID = MouseOverJack(Pos);
     if (!JackID.isEmpty()) {
         //emit popupTriggered(m_DL->jack(JackID),mapToGlobal(event->pos()));
         //JackMenuPopup(m_DL->jack(JackID),mapToGlobal(event->pos()));

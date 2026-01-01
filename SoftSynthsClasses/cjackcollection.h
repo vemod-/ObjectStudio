@@ -32,11 +32,11 @@ public:
     }
     void addDevice(const IDevice* Device)
     {
-        for (int i=0;i<Device->jackCount();i++) addJack(Device->jack(i));
+        for (int i = 0; i < Device->jackCount(); i++) addJack(Device->jack(i));
     }
     void removeDevice(const IDevice* Device)
     {
-        for (int i=0;i<Device->jackCount();i++) removeJack(Device->jackID(i));
+        for (int i = 0; i < Device->jackCount(); i++) removeJack(Device->jackID(i));
     }
     void disconnectFrom(IJack* Jack)
     {
@@ -44,7 +44,7 @@ public:
     }
     inline IJack* item(const QString& Key) const
     {
-        const int Index=m_Keys.indexOf(Key);
+        const int Index = m_Keys.indexOf(Key);
         return (Index > -1) ? m_Jacks[Index] : nullptr;
     }
     inline bool contains(const QString& Key) const
@@ -67,7 +67,7 @@ public:
     }
     inline IJack* operator [] (const QString& Key) const
     {
-        const int Index=m_Keys.indexOf(Key);
+        const int Index = m_Keys.indexOf(Key);
         return (Index > -1) ? m_Jacks[Index] : nullptr;
     }
     inline int inJackCount() const { return m_InJacks.size(); }

@@ -7,6 +7,7 @@
 
 class IDevice;
 class CParameter;
+class IJack;
 
 class IHost
 {
@@ -14,7 +15,9 @@ public:
     IHost(){}
     virtual ~IHost();
     virtual void parameterChange(IDevice* /*device*/, const CParameter* /*parameter*/ = nullptr){}
-    //virtual void bankPresetChange(IDevice* /*device*/, const int /*program*/){}
+    virtual void removeDeviceJack(IJack* /*jack*/){}
+    virtual void addDeviceJack(IJack* /*jack*/){}
+    virtual void updateDeviceJacks() {}
     virtual void activate(IDevice* /*Device*/){}
     virtual void closeAutomation(IDevice* /*Device*/){}
     virtual void takeString(IDevice* /*Device*/, const int /*type*/, const QString& /*s*/) {}

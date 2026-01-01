@@ -26,10 +26,11 @@ private:
     //enum JackNames
     //{jnOut,jnIn,jnMIDIIn};
     enum ParameterNames
-    {pnMIDIChannel,pnPreset};
+    {pnPreset};
+    //{pnMIDIChannel,pnPreset};
     void inline updateDeviceParameter(const CParameter* p = nullptr);
-    QList<IJack*> JacksCreated;
-    QList<CInJack*> InsideJacks;
+    //QList<IJack*> JacksCreated;
+    //QList<CInJack*> InsideJacks;
     //QDomLiteElementList presetList;
     //std::array<QDomLiteElement*,MaxPresets> presetList={nullptr};
     QDomLiteElement presetList[MaxPresets];
@@ -37,7 +38,7 @@ private:
     QSynthButtonPanel* buttonPanel;
     //QRecursiveMutex mutex;
     int currentIndex;
-    inline int preset() const { return m_Parameters[pnPreset]->Value-1; }
+    inline int preset() const { return m_Parameters[pnPreset]->Value - 1; }
     inline CDesktopContainer* desktopContainer() const { return form()->DesktopContainer; }
     inline CDesktopComponent* desktopComponent() const { return desktopContainer()->Desktop; }
     inline CDeviceList* deviceList() const { return desktopComponent()->deviceList(); }

@@ -65,7 +65,12 @@ void CParametersComponent::init(IDevice* Device)
             m_Width+=d->width();
         }
         ui->horizontalLayout_2->addWidget(Spacer);
-        ui->NameLabel->setText(m_Device->name());
+        if (m_Device->alias().isEmpty()) {
+            ui->NameLabel->setText(m_Device->name());
+        }
+        else {
+            ui->NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
+        }
         ui->IDLabel->setText(m_Device->deviceID());
 
         if (Device->hasUI()) {
@@ -108,6 +113,12 @@ void CParametersComponent::showParameters()
     ui->PresetLabel->clear();
     if (m_Device)
     {
+        if (m_Device->alias().isEmpty()) {
+            ui->NameLabel->setText(m_Device->name());
+        }
+        else {
+            ui->NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
+        }
         if (m_Device->parameterCount() != Dials.size()) {
             for (int i = Dials.size(); i >= 0; i--) {
                 delete ui->horizontalLayout_2->takeAt(ui->horizontalLayout_2->count()-1);

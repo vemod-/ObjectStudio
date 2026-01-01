@@ -24,8 +24,8 @@ private:
     {pnMIDIChannel,pnTranspose,pnTune};
     void Reset();
     void inline updateDeviceParameter(const CParameter* p = nullptr);
-    QList<IJack*> JacksCreated;
-    QList<CInJack*> WaveOut;
+    //QList<IJack*> JacksCreated;
+    //QList<CInJack*> WaveOut;
     CCVDevice CVDevice;
     CMIDIBuffer MIDIBuffer;
     int prevMIDIkey[CVDevice::CVVoices];

@@ -6,6 +6,7 @@
 #include "idevice.h"
 #include "cdevicelist.h"
 #include "qiphotorubberband.h"
+#include <QtWidgets/qlineedit.h>
 #include <qsignalmenu.h>
 #include <QPixmap>
 #include "../../QGraphicsViewZoomer/qgraphicsviewzoomer.h"
@@ -97,9 +98,9 @@ public:
     virtual ~CDeviceComponent() { if (m_px) delete m_px; }
     void init(IDevice* Device, const QString& ClassName)
     {
-        m_ClassName=ClassName;
-        m_Device=Device;
-        for (int i=0;i<Device->jackCount();i++) jackRects.append(JackRect(Device->jack(i)));
+        m_ClassName = ClassName;
+        m_Device = Device;
+        for (int i = 0; i < Device->jackCount(); i++) jackRects.append(JackRect(Device->jack(i)));
         getPic();
     }
     inline IDevice* device() const { return m_Device; }
@@ -109,6 +110,7 @@ public:
         //if (Active) getPic();
     }
     bool inside(const QRect& r) { return r.contains(geometry); }
+    QRect captionRect;
     QList<QGraphicsItem*> paint(QGraphicsScene* Scene);
 };
 
@@ -149,7 +151,14 @@ public:
     QPair<QString,QString> unserializeDevice(const QDomLiteElement* xml, const QPoint& StartPoint=QPoint(), bool ReIndex=false);
     void unserializeConnection(const QDomLiteElement* xml, const QList<QPair<QString,QString>>& ReIndexer=QList<QPair<QString,QString>>());
     IJack* addJack(IJack* Jack, int PolyIndex);
+    void addInsideJack(IJack* J, IDevice* d, const QString& alias = QString());
+    void removeJack(IJack* jack, int PolyIndex);
+    void reorderJackbarJacks(QList<IJack*>* jacksCreated);
+    void removeDeviceJack(IJack* jack);
+    void addDeviceJack(IJack* jack);
+    void updateDeviceJacks();
     void clear();
+    void clearJacksCreated();
     void hideForms();
     //IHost
     void parameterChange(IDevice* device, const CParameter* parameter = nullptr);
@@ -161,6 +170,8 @@ public:
     CMainMenu* MainMenu;
     bool findSuffix(const QString& path, const QString& filter);
     bool initWithFile(const QString& path, QPoint pos);
+    QList<CInJack*> InsideJacks;
+    QList<IJack*> JacksCreated;
 public slots:
     void NewDoc();
     void OpenDoc(QString);
@@ -181,6 +192,18 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event);
     void scrollContentsBy(int dx, int dy);
     void resizeEvent(QResizeEvent *event);
+    bool event(QEvent* event) {
+        if (event->type() == QEvent::Leave) {
+            if (m_DeviceIndex > -1) {
+                QLineEdit* l = findChild<QLineEdit*>();
+                if (l) {
+                    l->hide();
+                    l->deleteLater();
+                }
+            }
+        }
+        return QGraphicsView::event(event);
+    }
 signals:
     void parametersChanged(IDevice *Device);
     void controlChanged(IDevice* Device, const CParameter* Parameter);
@@ -258,6 +281,7 @@ private:
 private slots:
     void PluginMenuClicked(QString ClassName);
     void MacroMenuClicked(QString ProgramName);
+    void editDeviceCaption();
 };
 
 #endif // CDESKTOPCOMPONENT_H

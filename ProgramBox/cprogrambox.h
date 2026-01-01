@@ -19,25 +19,25 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
     CMIDIBuffer* getNextP(const int ProcIndex);
     float getNext(const int ProcIndex);
-    void serializeCustom(QDomLiteElement* xml) const;
-    void unserializeCustom(const QDomLiteElement* xml);
+    //void serializeCustom(QDomLiteElement* xml) const;
+    //void unserializeCustom(const QDomLiteElement* xml);
     void tick();
 private:
     //enum JackNames
     //{jnOut,jnIn,jnMIDIIn};
     enum ParameterNames
-    {pnMIDIChannel,pnProgram};
+    {pnProgram};
+    //{pnMIDIChannel,pnProgram};
     void inline updateDeviceParameter(const CParameter* p = nullptr);
-    QList<IJack*> JacksCreated;
-    QList<CInJack*> InsideJacks;
+    //QList<IJack*> JacksCreated;
+    //QList<CInJack*> InsideJacks;
     CMIDIBuffer MIDIBuffer;
     QSynthButtonPanel* buttonPanel;
-    QList<CDesktopContainer*> Desktops;
     //QRecursiveMutex mutex;
     QStackedLayout* layout;
     int currentIndex;
-    inline int program() const { return m_Parameters[pnProgram]->Value-1; }
-    inline CDesktopContainer* desktopContainer() const { return Desktops[program()]; }
+    inline int program() const { return m_Parameters[pnProgram]->Value - 1; }
+    inline CDesktopContainer* desktopContainer() const { return form()->DesktopContainers[program()]; }
     inline CDesktopComponent* desktopComponent() const { return desktopContainer()->Desktop; }
     inline CDeviceList* deviceList() const { return desktopComponent()->deviceList(); }
     inline CMacroBoxForm* form() const { return static_cast<CMacroBoxForm*>(m_Form); }

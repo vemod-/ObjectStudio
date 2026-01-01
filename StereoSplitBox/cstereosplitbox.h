@@ -17,10 +17,10 @@ private:
     enum ParameterNames
     {};
     void process();
-    QList<IJack*> JacksCreated;
+    //QList<IJack*> JacksCreated;
     CInJack* WaveOutL;
     CInJack* WaveOutR;
-    CStereoBuffer* InBuffer;
+    CStereoBuffer* InBuffer = nullptr;
 };
 
 #endif // CSTEREOSPLITBOX_H

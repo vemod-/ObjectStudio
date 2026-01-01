@@ -96,11 +96,17 @@ public:
         while (m_PolyDevices.size() > Voices) delete m_PolyDevices.takeLast();
         while (m_PolyDevices.size() < Voices) m_PolyDevices.append(new CDeviceList);
     }
-    // for the JackBar!!!
+    // for the JackBar or Custom Jacks!!!
     IJack* addJack(IJack* Jack, int VoiceIndex = 0)
     {
         QMutexLocker locker(&mutex);
         return (VoiceIndex == 0) ? m_Jacks.addJack(Jack) : m_PolyDevices[VoiceIndex - 1]->addJack(Jack);
+    }
+    // for the JackBar or Custom Jacks!!!
+    void removeJack(IJack* Jack, int VoiceIndex = 0)
+    {
+        QMutexLocker locker(&mutex);
+        (VoiceIndex == 0) ? m_Jacks.removeJack(Jack->jackID()) : m_PolyDevices[VoiceIndex - 1]->removeJack(Jack);
     }
     void updateParameter(const int DeviceIndex, const CParameter* parameter = nullptr)
     {

@@ -552,7 +552,7 @@ void CCoreMainBuffers::setInDriver(const QString &driverName)
 #ifdef __MINIAUDIO__
         if (m_InDriverID.coreaudio != m_InDriverIDs[index].coreaudio)
 #else
-        if (m_InDriverID != m_InDriverIDs[index])
+        if (m_InDriverID != (int)m_InDriverIDs[index])
 #endif
         {
             finish();
@@ -570,7 +570,7 @@ void CCoreMainBuffers::setOutDriver(const QString &driverName)
 #ifdef __MINIAUDIO__
         if (m_OutDriverID.coreaudio != m_OutDriverIDs[index].coreaudio)
 #else
-        if (m_OutDriverID != m_OutDriverIDs[index])
+        if (m_OutDriverID != (int)m_OutDriverIDs[index])
 #endif
         {
             finish();
@@ -589,7 +589,7 @@ void CCoreMainBuffers::setDrivers(const QString &inDriverName, const QString &ou
 #ifdef __MINIAUDIO__
         if ((m_InDriverID.coreaudio != m_InDriverIDs[inIndex].coreaudio) || (m_OutDriverID.coreaudio != m_OutDriverIDs[outIndex].coreaudio))
 #else
-        if ((m_InDriverID != m_InDriverIDs[inIndex]) || (m_OutDriverID != m_OutDriverIDs[outIndex]))
+        if ((m_InDriverID != (int)m_InDriverIDs[inIndex]) || (m_OutDriverID != (int)m_OutDriverIDs[outIndex]))
 #endif
         {
             finish();

@@ -8,8 +8,8 @@ CPolyBox::~CPolyBox()
     qDebug() << "~CPolyBox";
     if (m_Initialized)
     {
-        FORMFUNC(CMacroBoxForm)->DesktopComponent->clear();
-        qDeleteAll(JacksCreated);
+        FORMFUNC(CMacroBoxForm)->DesktopComponent->clearJacksCreated();
+        //qDeleteAll(JacksCreated);
     }
 }
 
@@ -28,18 +28,18 @@ void CPolyBox::init(const int Index, QWidget* MainWindow)
 
     for (int i = 0; i < 3; i++)
     {
-        WaveOut.append(dynamic_cast<CInJack*>(m_Jacks[i]->createInsideJack(i,this)));
-        JacksCreated.append(WaveOut[i]);
+        d->InsideJacks.append(dynamic_cast<CInJack*>(m_Jacks[i]->createInsideJack(i,this)));
+        d->JacksCreated.append(d->InsideJacks[i]);
     }
 
 
 
-    for (int i=0;i<CVDevice::CVVoices;i++)
+    for (int i = 0;i < CVDevice::CVVoices; i++)
     {
-        for (int j = 0; j < 3; j++) d->addJack(WaveOut[j],i);
-        JacksCreated.append(d->addJack(new COutJack("Frequency In","This",IJack::Voltage,IJack::Out,this,2+i),i));
-        JacksCreated.append(d->addJack(new COutJack("Trigger In","This",IJack::Voltage,IJack::Out,this,2+i+CVDevice::CVVoices),i));
-        JacksCreated.append(d->addJack(new COutJack("MIDI In","This",IJack::MIDI,IJack::Out,this,2+i+CVDevice::CVVoices+CVDevice::CVVoices),i));
+        for (int j = 0; j < 3; j++) d->addJack(d->InsideJacks[j],i);
+        d->JacksCreated.append(d->addJack(new COutJack("Frequency In","This",IJack::Voltage,IJack::Out,this,2+i),i));
+        d->JacksCreated.append(d->addJack(new COutJack("Trigger In","This",IJack::Voltage,IJack::Out,this,2+i+CVDevice::CVVoices),i));
+        d->JacksCreated.append(d->addJack(new COutJack("MIDI In","This",IJack::MIDI,IJack::Out,this,2+i+CVDevice::CVVoices+CVDevice::CVVoices),i));
     }
     addParameterMIDIChannel();
     addParameterTranspose();
@@ -102,7 +102,7 @@ CMIDIBuffer* CPolyBox::getNextP(int ProcIndex)
 
 CAudioBuffer* CPolyBox::getNextA(const int ProcIndex)
 {
-    if (ProcIndex < 3) return WaveOut[ProcIndex]->getNextA();
+    if (ProcIndex < 3) return FORMFUNC(CMacroBoxForm)->DesktopComponent->InsideJacks[ProcIndex]->getNextA();
     return nullptr;
 }
 
