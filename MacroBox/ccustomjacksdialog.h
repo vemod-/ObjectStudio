@@ -27,9 +27,10 @@ private:
     void addJackClicked();
     void addCustomJack(QString id);
     void removeJackClicked();
-
     void acceptDialog();
     void applyDialog();
+
+    QTreeWidgetItem* addElementToList(const QDomLiteElement* xml);
     QDomLiteElement m_xml;
     QList<CDesktopComponent*>* m_Desktops;
     CDesktopComponent* m_Desktop;

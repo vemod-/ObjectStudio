@@ -25,12 +25,13 @@ void CCustomJacksDialog::fill(QList<CDesktopComponent*>* desktops, CDesktopCompo
     m_ParentDevice = d;
     //JacksCreated = created;
     //InsideJacks = inside;
-    OutJacksItem()->setExpanded(true);
-    OutJacksItem()->setFlags(ui->JacksList->topLevelItem(0)->flags() & ~Qt::ItemIsSelectable);
-    inJacksItem()->setExpanded(true);
-    inJacksItem()->setFlags(ui->JacksList->topLevelItem(1)->flags() & ~Qt::ItemIsSelectable);
+    for (int i = 0; i < ui->JacksList->topLevelItemCount(); i++) {
+        ui->JacksList->topLevelItem(i)->setExpanded(true);
+        ui->JacksList->topLevelItem(i)->setFlags(ui->JacksList->topLevelItem(i)->flags() & ~Qt::ItemIsSelectable);
+    }
     m_CustomJacks->serialize(&m_xml,d);
     for (const QDomLiteElement* c : (const QDomLiteElementList)m_xml.elementsByTag("Jack")) {
+        /*
         QString caption = c->attribute("Alias");
         if (caption.isEmpty()) caption = c->attribute("Name");
         QTreeWidgetItem* i = new QTreeWidgetItem();
@@ -43,11 +44,15 @@ void CCustomJacksDialog::fill(QList<CDesktopComponent*>* desktops, CDesktopCompo
         else {
             inJacksItem()->addChild(i);
         }
+*/
+        addElementToList(c);
     }
     connect(ui->JacksList,&QTreeWidget::itemClicked,this,&CCustomJacksDialog::selectCustomJack);
     connect(ui->JacksList,&QTreeWidget::itemChanged,this,&CCustomJacksDialog::editJackName);
     connect(ui->JacksList,&QTreeWidgetEx::itemsReordered,this,&CCustomJacksDialog::reorderJacks);
     connect(ui->JacksList,&QTreeWidget::currentItemChanged,this,&CCustomJacksDialog::itemSelectionChanged);
+    ui->JacksList->setCurrentItem(OutJacksItem());
+    /*
     for (int i = 0; i < ui->JacksList->topLevelItemCount(); i++) {
         if (ui->JacksList->topLevelItem(i)->childCount()) {
             ui->JacksList->setCurrentItem(ui->JacksList->topLevelItem(i)->child(0));
@@ -55,6 +60,7 @@ void CCustomJacksDialog::fill(QList<CDesktopComponent*>* desktops, CDesktopCompo
             break;
         }
     }
+*/
 }
 
 void CCustomJacksDialog::selectCustomJack(QTreeWidgetItem *){
@@ -78,7 +84,7 @@ void CCustomJacksDialog::reorderJacks(){
     QDomLiteElementList newOrder;
     for (int i = 0; i < ui->JacksList->topLevelItemCount(); i++) {
         for (int j = 0; j < ui->JacksList->topLevelItem(i)->childCount(); j++) {
-            QDomLiteElement* e = customJackElement(ui->JacksList->topLevelItem(i)->child(j)->text(1));
+            QDomLiteElement* e = customJackElement(ui->JacksList->topLevelItem(i)->child(j)->data(1,34).toString());
             newOrder.append(e);
         }
     }
@@ -115,6 +121,7 @@ void CCustomJacksDialog::addCustomJack(QString id){
         QDomLiteElement* c = m_xml.appendChild("Jack","Name",jack->jackID());
         c->setAttribute("AttachMode",jack->attachMode);
         c->setAttribute("Direction",jack->direction);
+        /*
         QTreeWidgetItem* i = new QTreeWidgetItem();
         i->setText(1,jack->jackID());
         i->setFlags(i->flags() | Qt::ItemIsEditable);
@@ -127,6 +134,8 @@ void CCustomJacksDialog::addCustomJack(QString id){
         }
         ui->JacksList->setCurrentItem(i);
         selectCustomJack(i);
+*/
+        ui->JacksList->setCurrentItem(addElementToList(c));
     }
 }
 
@@ -146,16 +155,32 @@ void CCustomJacksDialog::applyDialog(){
     m_CustomJacks->unserialize(&m_xml,m_ParentDevice,m_Desktops);
 }
 
+QTreeWidgetItem* CCustomJacksDialog::addElementToList(const QDomLiteElement *xml) {
+    QString caption = xml->attribute("Alias");
+    if (caption.isEmpty()) caption = xml->attribute("Name");
+    QTreeWidgetItem* i = new QTreeWidgetItem();
+    i->setText(1,caption);
+    i->setData(1,34,QString(xml->attribute("Name")));
+    i->setFlags(i->flags() | Qt::ItemIsEditable);
+    i->setFlags(i->flags() & ~Qt::ItemIsDropEnabled);
+    if (xml->attributeValueInt("Direction") == 1) {
+        OutJacksItem()->addChild(i);
+    }
+    else {
+        inJacksItem()->addChild(i);
+    }
+    return i;
+}
+
 QDomLiteElement *CCustomJacksDialog::customJackElement(const QString &customJackName) {
     for (QDomLiteElement* c : std::as_const(m_xml.childElements)) {
-        if (c->attribute("Alias") == customJackName) return c;
         if (c->attribute("Name") == customJackName) return c;
     }
     return nullptr;
 }
 
 QDomLiteElement *CCustomJacksDialog::currentCustomJack() {
-    return customJackElement(ui->JacksList->currentItem()->text(1));
+    return customJackElement(ui->JacksList->currentItem()->data(1,34).toString());
 }
 
 QTreeWidgetItem *CCustomJacksDialog::inJacksItem() {
