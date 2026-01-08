@@ -24,6 +24,7 @@ void CCustomParameterDialog::fill(CDeviceList *l, CCustomParameterList *p, IDevi
     m_CustomParameters = p;
     m_ParentDevice = d;
     m_CustomParameters->serialize(&m_xml);
+    ui->removeParameterButton->setEnabled(false);
     for (const QDomLiteElement* c : (const QDomLiteElementList)m_xml.elementsByTag("CustomParameter")) {
         QListWidgetItem* i = new QListWidgetItem(c->attribute("Name"));
         i->setFlags(i->flags() | Qt::ItemIsEditable);
@@ -51,6 +52,7 @@ void CCustomParameterDialog::fill(CDeviceList *l, CCustomParameterList *p, IDevi
         }
     }
     if (ui->parameterList->count()) {
+        ui->removeParameterButton->setEnabled(true);
         ui->parameterList->item(0)->setSelected(true);
         selectParameter(ui->parameterList->item(0));
     }
@@ -230,6 +232,9 @@ void CCustomParameterDialog::removeParameterClicked(){
     delete ui->parameterList->takeItem(ui->parameterList->currentRow());
     if (ui->parameterList->count()) {
         selectParameter(ui->parameterList->currentItem());
+    }
+    else {
+        ui->removeParameterButton->setEnabled(false);
     }
 }
 

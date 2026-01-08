@@ -23,44 +23,20 @@ void CCustomJacksDialog::fill(QList<CDesktopComponent*>* desktops, CDesktopCompo
     m_Desktop = desktop;
     m_CustomJacks = p;
     m_ParentDevice = d;
-    //JacksCreated = created;
-    //InsideJacks = inside;
+    ui->DeleteJackButton->setEnabled(false);
     for (int i = 0; i < ui->JacksList->topLevelItemCount(); i++) {
         ui->JacksList->topLevelItem(i)->setExpanded(true);
         ui->JacksList->topLevelItem(i)->setFlags(ui->JacksList->topLevelItem(i)->flags() & ~Qt::ItemIsSelectable);
     }
     m_CustomJacks->serialize(&m_xml,d);
     for (const QDomLiteElement* c : (const QDomLiteElementList)m_xml.elementsByTag("Jack")) {
-        /*
-        QString caption = c->attribute("Alias");
-        if (caption.isEmpty()) caption = c->attribute("Name");
-        QTreeWidgetItem* i = new QTreeWidgetItem();
-        i->setText(1,caption);
-        i->setFlags(i->flags() | Qt::ItemIsEditable);
-        i->setFlags(i->flags() & ~Qt::ItemIsDropEnabled);
-        if (c->attributeValueInt("Direction") == 1) {
-            OutJacksItem()->addChild(i);
-        }
-        else {
-            inJacksItem()->addChild(i);
-        }
-*/
         addElementToList(c);
     }
     connect(ui->JacksList,&QTreeWidget::itemClicked,this,&CCustomJacksDialog::selectCustomJack);
     connect(ui->JacksList,&QTreeWidget::itemChanged,this,&CCustomJacksDialog::editJackName);
     connect(ui->JacksList,&QTreeWidgetEx::itemsReordered,this,&CCustomJacksDialog::reorderJacks);
     connect(ui->JacksList,&QTreeWidget::currentItemChanged,this,&CCustomJacksDialog::itemSelectionChanged);
-    ui->JacksList->setCurrentItem(OutJacksItem());
-    /*
-    for (int i = 0; i < ui->JacksList->topLevelItemCount(); i++) {
-        if (ui->JacksList->topLevelItem(i)->childCount()) {
-            ui->JacksList->setCurrentItem(ui->JacksList->topLevelItem(i)->child(0));
-            //selectCustomJack(ui->JacksList->topLevelItem(i)->child(0));
-            break;
-        }
-    }
-*/
+    ui->JacksList->setCurrentItem(outJacksItem());
 }
 
 void CCustomJacksDialog::selectCustomJack(QTreeWidgetItem *){
@@ -68,9 +44,19 @@ void CCustomJacksDialog::selectCustomJack(QTreeWidgetItem *){
 
 void CCustomJacksDialog::itemSelectionChanged(QTreeWidgetItem* current, QTreeWidgetItem* ) {
     qDebug() << current->text(0) << current->text(1);
-    if ((current == inJacksItem() || current == OutJacksItem()) && (current->childCount() > 0)) {
+    if (!current->parent() && (current->childCount() > 0)) {
         QTimer::singleShot(0, ui->JacksList, [this, current](){
-            ui->JacksList->setCurrentItem(current->child(0));
+            if (current->childCount()) {
+                ui->JacksList->setCurrentItem(current->child(0));
+            }
+            else {
+                if (current == inJacksItem()) {
+                    if (outJacksItem()->childCount()) ui->JacksList->setCurrentItem(outJacksItem()->child(0));
+                }
+                else if (current == outJacksItem()) {
+                    if (inJacksItem()->childCount()) ui->JacksList->setCurrentItem(inJacksItem()->child(0));
+                }
+            }
         });
     }
 }
@@ -121,20 +107,6 @@ void CCustomJacksDialog::addCustomJack(QString id){
         QDomLiteElement* c = m_xml.appendChild("Jack","Name",jack->jackID());
         c->setAttribute("AttachMode",jack->attachMode);
         c->setAttribute("Direction",jack->direction);
-        /*
-        QTreeWidgetItem* i = new QTreeWidgetItem();
-        i->setText(1,jack->jackID());
-        i->setFlags(i->flags() | Qt::ItemIsEditable);
-        i->setFlags(i->flags() & ~Qt::ItemIsDropEnabled);
-        if (c->attributeValueInt("Direction") == 1) {
-            OutJacksItem()->addChild(i);
-        }
-        else {
-            inJacksItem()->addChild(i);
-        }
-        ui->JacksList->setCurrentItem(i);
-        selectCustomJack(i);
-*/
         ui->JacksList->setCurrentItem(addElementToList(c));
     }
 }
@@ -144,6 +116,8 @@ void CCustomJacksDialog::removeJackClicked(){
         m_xml.removeChild(currentCustomJack());
         ui->JacksList->currentItem()->parent()->removeChild(ui->JacksList->currentItem());
     }
+    if (outJacksItem()->childCount() + inJacksItem()->childCount() == 0) ui->DeleteJackButton->setEnabled(false);
+
 }
 
 void CCustomJacksDialog::acceptDialog(){
@@ -164,11 +138,12 @@ QTreeWidgetItem* CCustomJacksDialog::addElementToList(const QDomLiteElement *xml
     i->setFlags(i->flags() | Qt::ItemIsEditable);
     i->setFlags(i->flags() & ~Qt::ItemIsDropEnabled);
     if (xml->attributeValueInt("Direction") == 1) {
-        OutJacksItem()->addChild(i);
+        outJacksItem()->addChild(i);
     }
     else {
         inJacksItem()->addChild(i);
     }
+    ui->DeleteJackButton->setEnabled(true);
     return i;
 }
 
@@ -187,6 +162,6 @@ QTreeWidgetItem *CCustomJacksDialog::inJacksItem() {
     return ui->JacksList->topLevelItem(1);
 }
 
-QTreeWidgetItem *CCustomJacksDialog::OutJacksItem() {
+QTreeWidgetItem *CCustomJacksDialog::outJacksItem() {
     return ui->JacksList->topLevelItem(0);
 }

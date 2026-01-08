@@ -34,6 +34,7 @@ TEMPLATE = subdirs
 SUBDIRS = PluginLoader \
     SoftSynthsClasses \
     SoftSynthsWidgets \
+    Switch \
     WaveBank \
     WaveGenerator \
     SF2Generator \

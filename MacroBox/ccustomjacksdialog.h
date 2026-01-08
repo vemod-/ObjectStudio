@@ -41,7 +41,7 @@ private:
     QDomLiteElement *customJackElement(const QString &customParameterName);
     QDomLiteElement *currentCustomJack();
     QTreeWidgetItem* inJacksItem();
-    QTreeWidgetItem* OutJacksItem();
+    QTreeWidgetItem* outJacksItem();
 };
 
 #endif // CCUSTOMJACKSDIALOG_H
