@@ -300,7 +300,7 @@ void CEffectRack::tick()
 */
 void CEffectRack::process()
 {
-    InBuffer=FetchAStereo(jnIn);
+    InBuffer = FetchAStereo(jnIn);
 }
 
 CAudioBuffer* CEffectRack::getNextA(const int ProcIndex)

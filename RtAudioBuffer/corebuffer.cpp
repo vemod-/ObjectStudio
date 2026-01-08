@@ -53,7 +53,7 @@ void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint
                 //if (m_TickerDevice) m_TickerDevice->tick(); //Tick All Devices!!!
                 IDevice::tick();
                 ParseMidi(FetchP(jnMIDIOut));
-                OutChannelBuffer=FetchAStereo(jnOut);
+                OutChannelBuffer = FetchAStereo(jnOut);
                 if (OutChannelBuffer->isValid()) {
                     OutChannelBuffer->peakStereoBuffer(&PeakL,&PeakR,outputVol,outputVol);
                 }

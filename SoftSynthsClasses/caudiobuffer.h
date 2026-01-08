@@ -126,8 +126,7 @@ public:
         return m_Data;
     }
     inline void updateBuffer(const float *b, const IJackBase::AttachModes a, bool overwrite) {
-        if (b)
-        {
+        if (b) {
             (overwrite) ? writeBuffer(b,a) : addBuffer(b,a);
         }
     }
@@ -149,6 +148,13 @@ public:
     inline void operator = (CAudioBuffer& b) { writeBuffer(b.m_Data,b.m_AttachMode); }
     inline void operator = (const float* b) { writeBuffer(b); }
     inline IJackBase::AttachModes attachmode() const { return m_AttachMode; }
+};
+
+class CNullBuffer : public CAudioBuffer
+{
+public:
+    inline CNullBuffer() : CAudioBuffer(nullptr,IJackBase::Wave){}
+    inline bool isValid() const { return false; }
 };
 
 class CMonoBuffer : public CAudioBuffer

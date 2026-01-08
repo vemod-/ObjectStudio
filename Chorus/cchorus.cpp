@@ -41,7 +41,7 @@ float inline chorus_run(const CRingBuffer* ring,uint pos,float fpos)
 
 void CChorus::process() {
     const CStereoBuffer* InBuffer = FetchAStereo(jnIn);
-    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    CStereoBuffer* OutBuffer = StereoBuffer(jnOut);
     float in_L=0;
     float in_R=0;
     for (uint sample_index = 0; sample_index < m_BufferSize; sample_index++)

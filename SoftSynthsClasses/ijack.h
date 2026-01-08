@@ -9,6 +9,8 @@
 ;
 #pragma pack(push,1)
 
+static const CNullBuffer nullBuffer;
+
 class IJack : public IJackBase
 {
 protected:
@@ -166,20 +168,22 @@ public:
         }
         if (MIDIBuffers.empty()) return nullptr;
         if (MIDIBuffers.size() == 1) return MIDIBuffers.front();
-        if (m_MIDIBuffer == nullptr) m_MIDIBuffer=new CMIDIBuffer;
+        if (m_MIDIBuffer == nullptr) m_MIDIBuffer = new CMIDIBuffer;
         return m_MIDIBuffer->fromBufferList(MIDIBuffers);
     }
     inline CAudioBuffer* getNextA() {
         if (m_OutJackCount == 1) {
             const CAudioBuffer* b = m_firstJack->getNextA(this);
-            if (!b) return nullBuffer();
+            if (!b || !b->data()) return static_cast<CAudioBuffer*>(const_cast<CNullBuffer*>(&nullBuffer));
             audioBuffer->writeBuffer(b,m_firstJack->attachMode);
             return audioBuffer;
         }
-        if (m_OutJackCount == 0) return nullBuffer();
+        if (m_OutJackCount == 0) return static_cast<CAudioBuffer*>(const_cast<CNullBuffer*>(&nullBuffer));
         int FetchCount = 0;
-        for (COutJack* j : std::as_const(m_OutJacks)) audioBuffer->updateBuffer(j->getNextA(this),j->attachMode,FetchCount++ == 0);
-        if (FetchCount == 0) return nullBuffer();
+        for (COutJack* j : std::as_const(m_OutJacks)) {
+            audioBuffer->updateBuffer(j->getNextA(this),j->attachMode,FetchCount++ == 0);
+        }
+        if (FetchCount == 0) return static_cast<CAudioBuffer*>(const_cast<CNullBuffer*>(&nullBuffer));
         audioBuffer->multiplyBuffer(m_MixFactor);
         return audioBuffer;
     }
@@ -229,6 +233,7 @@ private:
     COutJack* m_firstJack;
     float m_MixFactor;
     CMIDIBuffer* m_MIDIBuffer;
+    /*
     static CMonoBuffer* m_NullBufferMono() {
         static CMonoBuffer* buffer = nullptr;
         if (!buffer) {
@@ -247,6 +252,7 @@ private:
         return (attachMode == AttachModes::Stereo) ? static_cast<CAudioBuffer*>(m_NullBufferStereo()) :
                                                     static_cast<CAudioBuffer*>(m_NullBufferMono());
     }
+*/
 };
 
 #pragma pack(pop)
