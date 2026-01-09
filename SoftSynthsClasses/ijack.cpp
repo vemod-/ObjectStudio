@@ -1,7 +1,7 @@
 #include "ijack.h"
 
-//CMonoBuffer CInJack::m_NullBufferMono = CMonoBuffer(nullptr);
-//CStereoBuffer CInJack::m_NullBufferStereo = CStereoBuffer(nullptr);
+const CMonoBuffer CInJack::m_NullBufferMono = CMonoBuffer(nullptr);
+const CStereoBuffer CInJack::m_NullBufferStereo = CStereoBuffer(nullptr);
 
 IJack::~IJack() {
     if (attachMode & Audio)

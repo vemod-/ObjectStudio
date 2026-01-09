@@ -8,8 +8,8 @@
 class CFloatBuffer
 {
 protected:
-    float* m_Data;
-    ulong64 m_Size;
+    float* m_Data = nullptr;
+    ulong64 m_Size = 0;
 public:
     inline CFloatBuffer(float* d = nullptr,ulong64 s = 0) : m_Data(d),m_Size(s) { }
     inline float at(const ulong64 p) const { return m_Data[p]; }

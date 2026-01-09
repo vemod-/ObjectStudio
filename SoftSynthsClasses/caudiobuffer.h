@@ -10,15 +10,15 @@
 class CAudioBuffer : public CFloatBuffer, protected IPresetRef
 {
 protected:
-    IJackBase::AttachModes m_AttachMode;
-    ulong64 m_WaveBufferSize;
-    bool m_Shadow;
-    float* m_DataR;
+    IJackBase::AttachModes m_AttachMode = IJackBase::Audio;
+    ulong64 m_WaveBufferSize = 0;
+    bool m_Shadow = false;
+    float* m_DataR = nullptr;
     inline CAudioBuffer(float* b, IJackBase::AttachModes a) : m_AttachMode(a)
     {
         m_Size = presets.ModulationRate;
         m_Shadow = true;
-        m_WaveBufferSize = (m_AttachMode==IJackBase::Stereo) ? m_Size * 2 : m_Size;
+        m_WaveBufferSize = (m_AttachMode == IJackBase::Stereo) ? m_Size * 2 : m_Size;
         m_Data = b;
         m_DataR = (m_Data != nullptr) ? m_Data + m_Size : nullptr;
     }
@@ -29,7 +29,7 @@ protected:
         m_Shadow = true;
         m_AttachMode = a;
         m_Size = presets.ModulationRate;
-        m_WaveBufferSize = (m_AttachMode==IJackBase::Stereo) ? m_Size * 2 : m_Size;
+        m_WaveBufferSize = (m_AttachMode == IJackBase::Stereo) ? m_Size * 2 : m_Size;
         m_Data = static_cast<float*>(d);
         m_DataR = (m_Data != nullptr) ? m_Data + m_Size : nullptr;
     }
@@ -39,7 +39,7 @@ public:
     {
         m_Size = presets.ModulationRate;
         m_Shadow = false;
-        m_WaveBufferSize = (m_AttachMode==IJackBase::Stereo) ? m_Size * 2 : m_Size;
+        m_WaveBufferSize = (m_AttachMode == IJackBase::Stereo) ? m_Size * 2 : m_Size;
         m_Data = new float[m_WaveBufferSize];
         m_DataR = m_Data + m_Size;
         zeroBuffer();
@@ -150,13 +150,6 @@ public:
     inline IJackBase::AttachModes attachmode() const { return m_AttachMode; }
 };
 
-class CNullBuffer : public CAudioBuffer
-{
-public:
-    inline CNullBuffer() : CAudioBuffer(nullptr,IJackBase::Wave){}
-    inline bool isValid() const { return false; }
-};
-
 class CMonoBuffer : public CAudioBuffer
 {
 public:
@@ -168,8 +161,8 @@ public:
     inline void fromRawData(void* d)
     {
         deleteData();
-        m_Shadow=true;
-        m_Data=static_cast<float*>(d);
+        m_Shadow = true;
+        m_Data = static_cast<float*>(d);
     }
     inline void makeNull()
     {
@@ -331,10 +324,19 @@ public:
         fromRawData(nullptr);
     }
     inline bool isValid() const { return (m_Data != nullptr); }
-    CMonoBuffer* leftBuffer;
-    CMonoBuffer* rightBuffer;
+    CMonoBuffer* leftBuffer = nullptr;
+    CMonoBuffer* rightBuffer = nullptr;
 };
-
+/*
+class CNullBuffer : public CAudioBuffer
+{
+public:
+    inline CNullBuffer() : CAudioBuffer(nullptr,IJackBase::Wave){}
+    inline bool isValid() const { return false; }
+    CMonoBuffer* leftBuffer = nullptr;
+    CMonoBuffer* rightBuffer = nullptr;
+};
+*/
 #pragma pack(pop)
 
 #endif // CAUDIOBUFFER_H
