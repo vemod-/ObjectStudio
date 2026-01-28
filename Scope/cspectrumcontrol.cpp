@@ -103,6 +103,7 @@ void CSpectrumControl::PaintScale()
     static const QString notchtext[11] = {"10Hz","20Hz","50Hz","100Hz","200Hz","500Hz","1kHz","2kHz","5kHz","10kHz","20kHz"};
     //if (_points2 == 0) return;
     QPainter p(&ScaleImage);
+    p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
     p.fillRect(ScaleImage.rect(),Qt::black);
     const int x0 = ScaleImage.rect().width();
     for (int y=0;y<_height;y++)
@@ -148,6 +149,7 @@ uint CSpectrumControl::freq2point(double freq)
 void CSpectrumControl::Update()
 {
     QPainter imgPainter(&BackImage);
+    imgPainter.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
     int lasty=-1;
     int hiVal=0;
     int* pm = pointMap.data();
@@ -213,6 +215,7 @@ void CSpectrumControl::Update()
         const QColor* cm = colorMap.data();
         WorkImage.fill(Qt::black);
         QPainter p(&WorkImage);
+        p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
         for (uint i = 0; i < pointMap.size(); i++ )
         {
             const int y=pm[i];
@@ -255,6 +258,7 @@ void CSpectrumControl::Update()
 void CSpectrumControl::Fake()
 {
     QPainter p(&BackImage);
+    p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
     if (Mode>=2)
     {
         BackImage.fill(Qt::black);
@@ -291,6 +295,7 @@ void CSpectrumControl::paintEvent(QPaintEvent* /*event*/)
     if (!pointMap.empty())
     {
         QPainter p(this);
+        p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
         p.drawImage(BackImage.rect().translated(24,0),BackImage);
         p.drawImage(ScaleImage.rect(),ScaleImage);
     }

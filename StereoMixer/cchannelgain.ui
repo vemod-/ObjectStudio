@@ -14,10 +14,10 @@
    <string>Frame</string>
   </property>
   <property name="frameShape">
-   <enum>QFrame::NoFrame</enum>
+   <enum>QFrame::Shape::NoFrame</enum>
   </property>
   <property name="frameShadow">
-   <enum>QFrame::Raised</enum>
+   <enum>QFrame::Shadow::Raised</enum>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -38,10 +38,10 @@
    <item>
     <widget class="QSynthPanel" name="frame">
      <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
+      <enum>QFrame::Shape::NoFrame</enum>
      </property>
      <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
+      <enum>QFrame::Shadow::Raised</enum>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout" stretch="10,1">
       <property name="spacing">
@@ -93,7 +93,10 @@
              <number>100</number>
             </property>
             <property name="maximum">
-             <number>1000</number>
+             <number>300</number>
+            </property>
+            <property name="notchesVisible">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -116,7 +119,7 @@
            <string>Gain</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -147,7 +150,7 @@
            <string>Low Cut</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -187,25 +190,25 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>EffectLabel</class>
+   <extends>QLabel</extends>
+   <header>effectlabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QSynthKnob</class>
+   <extends>QDial</extends>
+   <header>qsynthknob.h</header>
+  </customwidget>
+  <customwidget>
    <class>QSynthPanel</class>
    <extends>QFrame</extends>
    <header>qsynthpanel.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>EffectLabel</class>
-   <extends>QLabel</extends>
-   <header>effectlabel.h</header>
-  </customwidget>
-  <customwidget>
    <class>QToggleButton</class>
    <extends>QToolButton</extends>
    <header location="global">qtogglebutton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>QSynthKnob</class>
-   <extends>QDial</extends>
-   <header>qsynthknob.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -47,6 +47,7 @@ public:
     virtual bool connectTo(IJack* /*Jack*/) { return false; }
     virtual bool disconnectFrom(IJack* /*Jack*/) { return false; }
     virtual bool isConnectedTo(const IJack* /*Jack*/) const { return false; }
+    virtual bool isConnected() const { return false; }
     inline bool canConnectTo(const IJack* Jack) const {
         if (!Jack) return false;
         if (Jack == this) return false;
@@ -133,6 +134,7 @@ public:
     bool connectTo(IJack* Jack);
     bool disconnectFrom(IJack* Jack);
     bool isConnectedTo(const IJack* Jack) const;
+    bool isConnected() const { return (m_ConnectCount > 0); }
     int connectCount() const { return m_ConnectCount; }
 private:
     int m_ConnectCount;
@@ -226,6 +228,7 @@ public:
     bool isConnectedTo(const IJack* Jack) const {
         return (Jack->isOutJack()) ? isConnectedToOut(static_cast<const COutJack*>(Jack)) : false;
     }
+    bool isConnected() const { return (m_OutJackCount > 0); }
 private:
     QVector<COutJack*> m_OutJacks;
     float m_LastGetNext;

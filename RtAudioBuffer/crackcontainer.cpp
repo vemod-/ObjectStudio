@@ -13,6 +13,7 @@ CRackContainer::CRackContainer(QWidget *parent) :
     //connect(ui->ParametersContainer,&CParametersContainer::popupTriggered,this,&CRackContainer::ParameterPopupTriggered,Qt::DirectConnection);
     connect(ui->ParametersContainer,&CParametersContainer::automationRequested,this,&CRackContainer::showAutomation);
     connect(ui->ParametersContainer,&CParametersContainer::mousePress,this,&CRackContainer::mousePress);
+    connect(this,&CRackContainer::parametersPixmap,ui->ParametersContainer,&CParametersContainer::parametersPixmap,Qt::DirectConnection);
     //connect(ui->JacksComponent,&CJacksComponent::popupTriggered,this,&CRackContainer::JackPopupTriggered,Qt::DirectConnection);
     connect(ui->JacksComponent,&CJacksComponent::mousePress,this,&CRackContainer::mousePress);
     connect(ui->JacksComponent,&CJacksComponent::connectionsChanged,this,&CRackContainer::connectionsChanged);

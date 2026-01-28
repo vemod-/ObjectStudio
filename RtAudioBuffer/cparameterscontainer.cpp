@@ -83,6 +83,11 @@ void CParametersContainer::moveDevice(int index, int move)
     for (CParametersComponent* p : std::as_const(devices)) l->addWidget(p);
 }
 
+void CParametersContainer::parametersPixmap(IDevice *d, QPixmap* p) {
+    const int i = deviceIndex(d);
+    if (i > -1) *p = devices[i]->grabPanel();
+}
+
 void CParametersContainer::clear()
 {
     for (CParametersComponent* p: std::as_const(devices))

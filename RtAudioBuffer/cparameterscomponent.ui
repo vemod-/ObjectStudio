@@ -31,7 +31,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QSynthPanel" name="DialsFrame">
+  <widget class="CParametersPanel" name="DialsFrame">
    <property name="geometry">
     <rect>
      <x>0</x>
@@ -66,7 +66,7 @@
      <number>0</number>
     </property>
     <property name="sizeConstraint">
-     <enum>QLayout::SetDefaultConstraint</enum>
+     <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
     </property>
     <property name="leftMargin">
      <number>30</number>
@@ -86,7 +86,7 @@
        <number>0</number>
       </property>
       <property name="sizeConstraint">
-       <enum>QLayout::SetFixedSize</enum>
+       <enum>QLayout::SizeConstraint::SetFixedSize</enum>
       </property>
       <property name="rightMargin">
        <number>0</number>
@@ -97,7 +97,7 @@
          <number>2</number>
         </property>
         <property name="sizeConstraint">
-         <enum>QLayout::SetFixedSize</enum>
+         <enum>QLayout::SizeConstraint::SetFixedSize</enum>
         </property>
         <property name="leftMargin">
          <number>0</number>
@@ -140,7 +140,7 @@
            <string>Label</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -176,7 +176,7 @@
            <string>TextLabel</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -209,7 +209,7 @@
            <string>TextLabel</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -240,7 +240,7 @@
           <number>0</number>
          </property>
          <property name="sizeConstraint">
-          <enum>QLayout::SetFixedSize</enum>
+          <enum>QLayout::SizeConstraint::SetFixedSize</enum>
          </property>
          <property name="leftMargin">
           <number>12</number>
@@ -275,10 +275,10 @@
             </size>
            </property>
            <property name="frameShape">
-            <enum>QFrame::Panel</enum>
+            <enum>QFrame::Shape::Panel</enum>
            </property>
            <property name="frameShadow">
-            <enum>QFrame::Sunken</enum>
+            <enum>QFrame::Shadow::Sunken</enum>
            </property>
            <property name="lineWidth">
             <number>1</number>
@@ -287,7 +287,7 @@
             <string/>
            </property>
            <property name="alignment">
-            <set>Qt::AlignCenter</set>
+            <set>Qt::AlignmentFlag::AlignCenter</set>
            </property>
           </widget>
          </item>
@@ -301,12 +301,6 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QSynthPanel</class>
-   <extends>QFrame</extends>
-   <header>qsynthpanel.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>EffectLabel</class>
    <extends>QLabel</extends>
    <header>effectlabel.h</header>
@@ -315,6 +309,12 @@
    <class>QLCDLabel</class>
    <extends>QLabel</extends>
    <header>qlcdlabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CParametersPanel</class>
+   <extends>QFrame</extends>
+   <header>cparameterscomponent.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

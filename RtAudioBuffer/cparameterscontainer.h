@@ -24,6 +24,7 @@ public slots:
     int deviceIndex(IDevice* Device);
     int deviceCount() { return devices.size(); }
     void moveDevice(int, int);
+    void parametersPixmap(IDevice* d, QPixmap* p);
     //QMenu* parametersMenu(IDevice*);
     //QAction* pasteParameters(IDevice*);
 protected:

@@ -5,6 +5,7 @@
 #include <QGraphicsPathItem>
 #include <QGraphicsTextItem>
 #include "softsynthsdefines.h"
+#include "qdprpixmap.h"
 
 class DiagramTextItem : public QGraphicsTextItem
 {
@@ -36,7 +37,7 @@ private:
 class CConnectionHelper
 {
 public:
-    static QList<QGraphicsItem*> DrawArrow(const QPoint& OutPoint, const QPoint& InPoint, QColor Color, QGraphicsScene* Scene, const int lineWidth=1)
+    static QList<QGraphicsItem*> DrawArrow(const QPoint& OutPoint, const QPoint& InPoint, QColor Color, QGraphicsScene* Scene, const qreal lineWidth = 2.0)
     {
         QList<QGraphicsItem*> items;
         QPointF s(InPoint-OutPoint);
@@ -85,12 +86,12 @@ public:
         QPainterPath path(QPoint(0,0));
         path.moveTo(OutPoint);
         path.cubicTo(p34,p14,InPoint);
-        items.append(Scene->addPath(path,QPen(Color,lineWidth),Qt::NoBrush));
+        items.append(Scene->addPath(path,QPen(Color,lineWidth,Qt::SolidLine,Qt::RoundCap),Qt::NoBrush));
         path=QPainterPath(QPoint(0,0));
         path.moveTo(p3);
         path.lineTo(Mid);
         path.lineTo(p4);
-        items.append(Scene->addPath(path,QPen(Color,lineWidth),Color));
+        items.append(Scene->addPath(path,QPen(Color,lineWidth,Qt::SolidLine,Qt::RoundCap),Color));
         return items;
     }
     static QList<QGraphicsItem*> DrawShadowText(const QString& text, const QFont& font, const QPoint& pos, QGraphicsScene* Scene)

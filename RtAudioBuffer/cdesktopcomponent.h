@@ -7,10 +7,12 @@
 #include "cdevicelist.h"
 #include "qiphotorubberband.h"
 #include <QtWidgets/qlineedit.h>
+#include <QGraphicsProxyWidget>
 #include <qsignalmenu.h>
 #include <QPixmap>
 #include "../../QGraphicsViewZoomer/qgraphicsviewzoomer.h"
 #include "cprojectapp.h"
+#include "qdprpixmap.h"
 //#include "ceditmenu.h"
 
 #ifdef Q_OS_IOS
@@ -18,6 +20,12 @@
 #else
 #define _DocumentPath QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/Object Studio/"
 #endif
+
+#define deviceResolution 80
+#define deviceTopSize QSize(deviceResolution * 3,deviceResolution * 1.5)
+#define deviceBackSize QSize(deviceResolution * 3,48)
+#define jackSize QSize(10,10)
+#define jackPen 2
 
 namespace DesktopComponent
 {
@@ -34,7 +42,10 @@ namespace DesktopComponent
 class JackRect : public QRect
 {
 public:
-    JackRect(IJack* j=nullptr) { jack=j; }
+    JackRect(IJack* j = nullptr) {
+        jack = j;
+        setSize(jackSize);
+    }
     IJack* jack;
 };
 
@@ -55,7 +66,7 @@ public:
     inline bool contains(const QPoint& Pos) const { return geometry.contains(Pos); }
     QPoint jackPos(const int Index) const
     {
-        return (Index >= jackRects.size()) ? QPoint() : jackRects.at(Index).topLeft()+QPoint(4,4)+geometry.topLeft();
+        return (Index >= jackRects.size()) ? QPoint() : jackRects.at(Index).center() + geometry.topLeft();
     }
     inline int jackCount() const { return jackRects.size(); }
     inline IJack* jack(const int Index) const { return jackRects.at(Index).jack; }
@@ -64,54 +75,36 @@ public:
 
 class CDeviceComponent : public CJackContainer
 {
+public:
+    enum DeviceView {
+        TopView,
+        BackView,
+        FrontView,
+        Drawing
+    };
 private:
     IDevice* m_Device;
     bool m_Active;
     QString m_ClassName;
     QPixmap* m_px;
+    DeviceView m_View = Drawing;
+    QDPRPixmap m_frontPix;
 public:
-    void getPic()
-    {
-        geometry.setSize(QSize(120,60));
-        if (m_px) delete m_px;
-        m_px=nullptr;
-        if (m_Device->hasUI())
-        {
-            const QPixmap* px = m_Device->picture();
-            if (px)
-            {
-                //qDebug() << px->size();
-                m_px=new QPixmap(px->scaled((geometry.size()-QSize(2,2))*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-                m_px->setDevicePixelRatio(2);
-                delete px;
-            }
-        }
-    }
-    CDeviceComponent() : m_Device(nullptr), m_Active(false), m_px(nullptr) {
-        geometry.setTopLeft(QPoint(100,100));
-    }
-    CDeviceComponent(IDevice* Device, const QString& ClassName) : m_Device(nullptr), m_Active(false), m_px(nullptr)
-    {
-        geometry.setTopLeft(QPoint(100,100));
-        init(Device,ClassName);
-    }
-    virtual ~CDeviceComponent() { if (m_px) delete m_px; }
-    void init(IDevice* Device, const QString& ClassName)
-    {
-        m_ClassName = ClassName;
-        m_Device = Device;
-        for (int i = 0; i < Device->jackCount(); i++) jackRects.append(JackRect(Device->jack(i)));
-        getPic();
-    }
-    inline IDevice* device() const { return m_Device; }
-    const inline QString className() const { return m_ClassName; }
-    void setSelected(const bool Active) {
-        m_Active=Active;
-        //if (Active) getPic();
-    }
-    bool inside(const QRect& r) { return r.contains(geometry); }
+    void getPic();
+    CDeviceComponent();
+    CDeviceComponent(IDevice* Device, const QString& ClassName);
+    virtual ~CDeviceComponent();
+    void init(IDevice* Device, const QString& ClassName);
+    IDevice* device() const;
+    const QString className() const;
+    void setSelected(const bool Active);
+    bool inside(const QRect& r);
+    DeviceView view();
+    void setView(DeviceView v);
     QRect captionRect;
     QList<QGraphicsItem*> paint(QGraphicsScene* Scene);
+    void setFrontPix(const QDPRPixmap& p);
+    bool frontPixSet();
 };
 
 class CJackBar : public CJackContainer
@@ -125,7 +118,7 @@ public:
         return J;
     }
     QList<QGraphicsItem*> paint(QGraphicsScene* Scene);
-    static const int height=12;
+    static const int height = 12;
 };
 
 namespace Ui {
@@ -195,10 +188,9 @@ protected:
     bool event(QEvent* event) {
         if (event->type() == QEvent::Leave) {
             if (m_DeviceIndex > -1) {
-                QLineEdit* l = findChild<QLineEdit*>();
-                if (l) {
-                    l->hide();
-                    l->deleteLater();
+                if (m_LineEdit) {
+                    delete m_LineEdit;
+                    m_LineEdit = nullptr;
                 }
             }
         }
@@ -218,6 +210,7 @@ signals:
     void requestSerializeAutomationXML(QDomLiteElement*) const;
     void requestUnserializeAutomationXML(const QDomLiteElement*);
     void requestCloseAutomation(IDevice* device);
+    void requestParametersPixmap(IDevice* device, QPixmap* p);
 private:
     Ui::CDesktopComponent *ui;
     CDeviceList DeviceList;
@@ -227,6 +220,7 @@ private:
     bool MouseDown;
     bool Marked;
     QList<IDevice*> MarkList;
+    QGraphicsProxyWidget* m_LineEdit = nullptr;
 
     bool Dragging;
     IJack* DragJack;
@@ -257,6 +251,7 @@ private:
     void ConnectDrop(const QPoint& Pos);
     IJack* MouseOverJack(const QPoint& Pos, QPoint& JackPoint);
     IJack* MouseOverJack(const QPoint &Pos);
+    int MouseOverRotateButton(const QPoint& Pos);
     QList<QGraphicsItem*> DragList;
     void SelectDevice(const int Index);
     int m_DeviceIndex;
@@ -266,6 +261,7 @@ private:
     QPoint StartPoint;
     QPoint MousePos;
     QRect CopyRect;
+    QGraphicsPixmapItem* rotateItem = nullptr;
 
     QRecursiveMutex mutex;
     QWidget* m_MainWindow;

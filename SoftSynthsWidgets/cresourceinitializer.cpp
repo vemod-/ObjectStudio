@@ -12,7 +12,6 @@ void CResourceInitializer::initializeResources() {
         Q_INIT_RESOURCE(SynthPanelResources);
         Q_INIT_RESOURCE(QSynthSliderResources);
         Q_INIT_RESOURCE(synthswitchresources);
-        Q_INIT_RESOURCE(synthbuttonpanelresources);
-
+        //Q_INIT_RESOURCE(synthbuttonpanelresources);
     }
 }

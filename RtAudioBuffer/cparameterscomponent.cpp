@@ -4,33 +4,22 @@
 //#include <QMessageBox>
 #include <QClipboard>
 #include "cparametersmenu.h"
+#include "qdprpixmap.h"
 
 CParametersComponent::CParametersComponent(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::CParametersComponent)
 {
     ui->setupUi(this);
-    m_Device=nullptr;
+    m_Device = nullptr;
     Spacer=new QWidget(this);
     Spacer->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
     ui->NameLabel->setEffect(EffectLabel::Raised);
     ui->NameLabel->setTextColor(QColor(0,0,0,200));
     ui->NameLabel->setShadowColor(QColor(255,255,255,200));
-    //auto e=new MouseEvents();
-    //ui->UILabel->installEventFilter(e);
-    //connect(e,&MouseEvents::MousePressed,this,&CParametersComponent::showUI);
-    ui->DialsFrame->installEventFilter(this);
+    ui->DialsFrame->m_Device = &m_Device;
+    ui->DialsFrame->Dials = &Dials;
     m_Width=0;
-    /*
-    ParameterPresetsMenu=new QSignalMenu("Load",this);
-    connect(ParameterPresetsMenu,qOverload<QString>(&QSignalMenu::menuClicked),this,&CParametersComponent::OpenPreset);
-    ParametersMenu=new QMenu("Parameters",this);
-    ParametersMenu->addMenu(ParameterPresetsMenu);
-    ParametersMenu->addAction("Save as Preset",this,&CParametersComponent::SavePresetAs);
-    ParametersMenu->addAction("Copy Parameters",this,&CParametersComponent::CopyParameters);
-    actionPasteParameters = ParametersMenu->addAction("Paste Parameters",this,&CParametersComponent::PasteParameters);
-    AutomationAction = ParametersMenu->addAction("Automation",this,&CParametersComponent::Automation);
-*/
 }
 
 CParametersComponent::~CParametersComponent()
@@ -85,7 +74,6 @@ void CParametersComponent::init(IDevice* Device)
 
 void CParametersComponent::updateControls()
 {
-    //QMutexLocker locker(&mutex);
     if (m_Device)
     {
         for (int i=0;i<m_Device->parameterCount();i++) Dials.at(i)->setValue(m_Device->parameter(i));
@@ -95,7 +83,6 @@ void CParametersComponent::updateControls()
 
 void CParametersComponent::updateControl(const CParameter* Parameter)
 {
-    //QMutexLocker locker(&mutex);
     if (m_Device)
     {
         for (int i=0;i<m_Device->parameterCount();i++) {
@@ -109,7 +96,6 @@ void CParametersComponent::showParameters()
 {
     qDebug() << "CParametersComåponent showParameters";
     ui->UILabel->clear();
-    //ui->LCDWidget->setVisible(false);
     ui->PresetLabel->clear();
     if (m_Device)
     {
@@ -139,11 +125,14 @@ void CParametersComponent::showParameters()
                 pm.setDevicePixelRatio(1);
                 ui->UILabel->setPixmap(pm);
                 delete px;
-                //repaint();
             }
         }
         ui->PresetLabel->setText(m_Device->currentProgramMatches());
     }
+}
+
+QPixmap CParametersComponent::grabPanel() {
+    return QDPRPixmap(ui->DialsFrame->grab());
 }
 
 void CParametersComponent::updateParameterValue(int i)
@@ -195,46 +184,8 @@ QMenu* CParametersComponent::parametersMenu()
     connect(m,&CParametersMenu::parametersChanged,this,&CParametersComponent::parametersChanged);
     connect(m,&CParametersMenu::updateControls,this,&CParametersComponent::updateControls);
     return m;
-/*
-    actionPasteParameters->setEnabled(QApplication::clipboard()->text().startsWith("<Parameters"));
-    ParametersMenu->setEnabled((m_Device->parameterCount() > 0) || (m_Device->hasUI()));
-    AutomationAction->setEnabled(m_Device->parameterCount() > 0);
-    fillParameterPresetsMenu();
-    return ParametersMenu;
-*/
 }
-/*
-QAction* CParametersComponent::pasteParameters()
-{
-    CPasteParametersAction* a = new CPasteParametersAction(m_Device,this);
-    connect(a,&CPasteParametersAction::updateControls,this,&CParametersComponent::updateControls);
-    connect(a,&CPasteParametersAction::parametersChanged,this,&CParametersComponent::parametersChanged);
-    return a;
-}
-*/
-/*
-void CParametersComponent::fillParameterPresetsMenu()
-{
-    ParameterPresetsMenu->clear();
-    QString PresetName;
-    if (m_Device != nullptr)
-    {
-        PresetName=m_Device->currentProgramMatches();
-        const QStringList& l=m_Device->programNames();
-        for (const QString& s : l)
-        {
-            QAction* a=ParameterPresetsMenu->addAction(s,s);
-            a->setCheckable(true);
-            if (s==PresetName) a->setChecked(true);
-        }
-    }
-    if (ParameterPresetsMenu->isEmpty())
-    {
-        QAction* a=ParameterPresetsMenu->addAction("No Presets");
-        a->setEnabled(false);
-    }
-}
-*/
+
 void CParametersComponent::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
@@ -242,55 +193,54 @@ void CParametersComponent::resizeEvent(QResizeEvent* event)
     ui->DialsFrame->move(0,0);
 }
 
-bool CParametersComponent::eventFilter(QObject* obj, QEvent* event)
-{
-    bool retval = obj->eventFilter(obj,event);
-    if (event->type()==QEvent::Paint)
-    {
-        QPainter p(ui->DialsFrame);
-        p.setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing);
-        QFont f(p.font()); f.setPointSizeF(10); p.setFont(f);
-        QFontMetricsF fm(p.font());
-        QPixmap screwPix=QPixmap::fromImage(QImage(":/screwhead.png"), Qt::AutoColor | Qt::DiffuseDither | Qt::DiffuseAlphaDither).scaled(QSize(12,12),Qt::KeepAspectRatio,Qt::SmoothTransformation);
-        p.drawPixmap(QRect(3,ui->DialsFrame->geometry().top() + 3,12,12),screwPix);
-        p.drawPixmap(QRect(3,ui->DialsFrame->geometry().top() + 97,12,12),screwPix);
-        if (!Dials.empty())
-        {
-            for (int i = 0; i < m_Device->parameterGroupCount(); i++)
-            {
-                const CParameterGroup* g = m_Device->parameterGroup(i);
-                QColor c = g->color;
-                c.setAlphaF(0.2);
-                p.setBrush(c);
-                p.setPen(QColor(0,0,0,40));
-                QRect r1 = Dials.at(g->startIndex)->geometry().adjusted(1,-6,-2,6);
-                QRect r2 = (g->endIndex > -1) ? Dials.at(g->endIndex)->geometry().adjusted(1,-6,-2,6) : Dials.last()->geometry().adjusted(1,-6,-2,6);
-                QRect r = r1.united(r2);
-                p.drawRoundedRect(r,5,5);
-                if (!g->Name.isEmpty())
-                {
-                    p.setBrush(QColor(255,255,255,200));
-                    p.setPen(QColor(255,255,255,200));
-                    p.drawText(r.center().x()-(fm.boundingRect(g->Name).width()/2)-1,r.top()+(fm.height()/2)+1,g->Name);
-                    p.setBrush(QColor(0,0,0,200));
-                    p.setPen(QColor(0,0,0,200));
-                    p.drawText(r.center().x()-(fm.boundingRect(g->Name).width()/2),r.top()+(fm.height()/2)+2,g->Name);
-                }
-            }
-        }
-        int x = 0;
-        for (int i = 100; i > 0; i = i - 10) {
-            p.setPen(QColor(0,0,0,i));
-            if (this->geometry().top() == 0) {
-                p.drawLine(x,x,x,ui->DialsFrame->geometry().height());
-                p.drawLine(x,x,ui->DialsFrame->geometry().width(),x);
-            }
-            else {
-                p.drawLine(x,0,x,ui->DialsFrame->geometry().height());
-            }
-            x++;
-        }
-    }
-    return retval;
+CParametersPanel::CParametersPanel(QWidget *parent) : QSynthPanel(parent) {
+
 }
 
+void CParametersPanel::paintEvent(QPaintEvent *e) {
+    static QDPRPixmap screwPix(QSize(12,12),":/screwhead.png");
+    QSynthPanel::paintEvent(e);
+    QPainter p(this);
+    p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
+    QFont f(p.font()); f.setPointSizeF(10); p.setFont(f);
+    QFontMetricsF fm(p.font());
+    p.drawPixmap(QRect(3,geometry().top() + 3,12,12),screwPix);
+    p.drawPixmap(QRect(3,geometry().top() + 97,12,12),screwPix);
+    if (!Dials->empty())
+    {
+        for (int i = 0; i < (*m_Device)->parameterGroupCount(); i++)
+        {
+            const CParameterGroup* g = (*m_Device)->parameterGroup(i);
+            QColor c = g->color;
+            c.setAlphaF(0.2);
+            p.setBrush(c);
+            p.setPen(QColor(0,0,0,40));
+            QRect r1 = Dials->at(g->startIndex)->geometry().adjusted(1,-6,-2,6);
+            QRect r2 = (g->endIndex > -1) ? Dials->at(g->endIndex)->geometry().adjusted(1,-6,-2,6) : Dials->last()->geometry().adjusted(1,-6,-2,6);
+            QRect r = r1.united(r2);
+            p.drawRoundedRect(r,5,5);
+            if (!g->Name.isEmpty())
+            {
+                p.setBrush(QColor(255,255,255,200));
+                p.setPen(QColor(255,255,255,200));
+                p.drawText(r.center().x()-(fm.boundingRect(g->Name).width()/2)-1,r.top()+(fm.height()/2)+1,g->Name);
+                p.setBrush(QColor(0,0,0,200));
+                p.setPen(QColor(0,0,0,200));
+                p.drawText(r.center().x()-(fm.boundingRect(g->Name).width()/2),r.top()+(fm.height()/2)+2,g->Name);
+            }
+        }
+    }
+    int x = 0;
+    const bool isFirst = (parentWidget()->mapToParent(QPoint(0,0)).y() == 0);
+    for (int i = 100; i > 0; i = i - 10) {
+        p.setPen(QColor(0,0,0,i));
+        if (isFirst) {
+            p.drawLine(x,x,x,geometry().height());
+            p.drawLine(x,x,geometry().width(),x);
+        }
+        else {
+            p.drawLine(x,0,x,geometry().height());
+        }
+        x++;
+    }
+}

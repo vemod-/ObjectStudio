@@ -2,7 +2,6 @@
 #include "ui_cdbscale.h"
 #include "softsynthsdefines.h"
 #include <QPainter>
-#include <array>
 
 CdBScale::CdBScale(QWidget *parent) :
     QCanvas(parent),

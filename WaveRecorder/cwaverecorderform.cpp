@@ -9,6 +9,7 @@
 #include <QMainWindow>
 #include <QDrag>
 #include "qmacsplitter.h"
+#include "qdprpixmap.h"
 
 #ifdef Q_OS_IOS
 #define _DocumentPath QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/Object Waves/"
@@ -125,8 +126,12 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     s->setStretchFactor(0,1);
     s->setStretchFactor(1,100);
 
-    ui->scrollArea->setStyleSheet("QScrollArea{background:url(:/Black Aluminium Tile.jpg);}");
-    setStyleSheet("QTreeView,QListWidget{background:url(:/Brushed Aluminium 3 Tile.bmp);}");
+    //ui->scrollArea->setStyleSheet("QScrollArea{background:url(:/Black Aluminium Tile.jpg);}");
+    QDPRPixmap::setWidgetBackground(ui->scrollArea,":/Black Aluminium Tile.jpg");
+    QDPRPixmap::setWidgetBackground(ui->FileList,":/Brushed Aluminium 3 Tile.bmp",QPalette::Base);
+    QDPRPixmap::setWidgetBackground(ui->FileListWidget,":/Brushed Aluminium 3 Tile.bmp",QPalette::Base);
+    QDPRPixmap::setWidgetBackground(ui->FileTree,":/Brushed Aluminium 3 Tile.bmp",QPalette::Base);
+    //setStyleSheet("QTreeView,QListWidget{background:url(:/Brushed Aluminium 3 Tile.bmp);}");
     m_TimerID =  startTimer(50);
     projectApp->newInit();
 }

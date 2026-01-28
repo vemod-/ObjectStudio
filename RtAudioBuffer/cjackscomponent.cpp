@@ -5,6 +5,7 @@
 #include "cconnectionhelper.h"
 #include "QScrollBar"
 #include "cparametersmenu.h"
+#include "qdprpixmap.h"
 
 CJacksDevice::CJacksDevice() : m_Device(nullptr)
 {
@@ -23,13 +24,15 @@ void CJacksDevice::init(IDevice* device)
 
 void CJacksDevice::paint(QGraphicsScene* scene, int index, int width)
 {
+    static QBrush bg(QDPRPixmap(":/Black Aluminium Tile.jpg"));
+    static QDPRPixmap screwPix(QSize(10,10),":/screwhead.png");
+    static QDPRPixmap freeDeviceJack(QSize(14,14),":/Jack.png");
+    static QDPRPixmap connectedDeviceJack(QSize(14,14),":/Plug.png");
     m_Index = index;
     int w = qMax<int>(width,this->width());
     const int top = calcTop(0,index);
-    QBrush bg(QPixmap(":/Black Aluminium Tile.jpg"));
     scene->addRect(m_Left,top,w,112,QPen(Qt::black),bg);
     scene->addLine(m_Left,top,w,top,QPen(Qt::darkGray));
-    QPixmap screwPix=QPixmap::fromImage(QImage(":/screwhead.png"), Qt::AutoColor | Qt::DiffuseDither | Qt::DiffuseAlphaDither).scaled(QSize(10,10),Qt::KeepAspectRatio,Qt::SmoothTransformation);
     QGraphicsPixmapItem* s = scene->addPixmap(screwPix);
     s->setPos(m_Left + 4,top + 4);
     QGraphicsPixmapItem* s1 = scene->addPixmap(screwPix);
@@ -49,20 +52,22 @@ void CJacksDevice::paint(QGraphicsScene* scene, int index, int width)
         f.setPointSizeF(9.5);
         if (j->isInJack())
         {
-            r=QRect(calcLeft(InIndex),calcTop(42,index), 12,12);
+            r = QRect(calcLeft(InIndex),calcTop(42,index), 15,15);
             JackRects.append(r);
             CConnectionHelper::DrawShadowTextCenter(txt,f,QPoint(calcLeft(InIndex)-22,calcTop(4,index)),QSize(56,34), Qt::AlignHCenter | Qt::AlignBottom, scene);
             InIndex++;
         }
         else
         {
-            r=QRect(calcLeft(OutIndex),calcTop(62,index),12,12);
+            r = QRect(calcLeft(OutIndex),calcTop(62,index),15,15);
             JackRects.append(r);
             CConnectionHelper::DrawShadowTextCenter(txt,f,QPoint(calcLeft(OutIndex)-22,calcTop(76,index)),QSize(56,34),Qt::AlignHCenter | Qt::AlignTop,scene);
             OutIndex++;
         }
-        scene->addEllipse(r.translated(5,5),Qt::NoPen,QBrush(QColor(0,0,0,40)));
-        scene->addEllipse(r,QPen(j->JackColor(),3),QBrush(QColor(0,0,0,100)));
+        scene->addEllipse(QRect(r.translated(5,5).topLeft(),r.size() - QSize(3,3)),Qt::NoPen,QBrush(QColor(0,0,0,40)));
+        scene->addEllipse(QRect(r.topLeft(),r.size() - QSize(3,3)),QPen(j->JackColor(),3),QBrush(QColor(0,0,0,100)));
+        QGraphicsPixmapItem* px = (j->isConnected()) ? scene->addPixmap(connectedDeviceJack) : scene->addPixmap(freeDeviceJack);
+        px->setPos(r.topLeft() - QPoint(1,1));
     }
 }
 
@@ -80,7 +85,7 @@ QString CJacksDevice::jackID(const int j)
 
 QPoint CJacksDevice::jackPoint(int i)
 {
-    return JackRects[i].center();
+    return JackRects[i].center() - QPoint(1,1);
 }
 
 int CJacksDevice::MouseOverJack(const QPoint& p)
@@ -220,12 +225,12 @@ void CJacksComponent::wheelEvent(QWheelEvent* event)
 
 void CJacksComponent::DrawConnections()
 {
+    static QBrush bg(QDPRPixmap(":/Black Aluminium Tile.jpg"));
     Scene.clear();
     QRect MaxRect(0,0,width(),devices.size()*112);
     if (devices.isEmpty())
     {
         MaxRect.setHeight(112);
-        QBrush bg(QPixmap(":/Black Aluminium Tile.jpg"));
         Scene.addRect(MaxRect,QPen(Qt::black),bg);
         Scene.addLine(MaxRect.left(),MaxRect.top(),MaxRect.width(),MaxRect.top(),QPen(Qt::darkGray));
     }
@@ -238,6 +243,28 @@ void CJacksComponent::DrawConnections()
     {
         DrawDeviceConnections(inDevice,paintedContainers);
     }
+    int inJackCount = 0;
+    int outJackCount = 0;
+    for (int ji = 0; ji < m_DL->jackCount(); ji++) {
+        if (m_DL->jack(ji)->owner() == "This") {
+            const IJack* thisJack = m_DL->jack(ji);
+            for (IDevice* d : std::as_const(*m_DL->devices())) {
+                for (int i = 0; i < d->jackCount(); i++) {
+                    const IJack* j = d->jack(i);
+                    if (j->isConnectedTo(thisJack)) {
+                        if (thisJack->isInJack()) {
+                            DrawConnection(QPoint(inJackCount * 15,MaxRect.height()),jackPoint(d,i),j->JackColor());
+                        }
+                        else {
+                            DrawConnection(jackPoint(d,i),QPoint(outJackCount * 15,0),j->JackColor());
+                        }
+                    }
+                }
+            }
+            (thisJack->isInJack()) ? inJackCount++ : outJackCount++;
+        }
+    }
+    /*
     if (IJack* thisIn = m_DL->jack("This In")) {
         for (IDevice* d : std::as_const(*m_DL->devices())) {
             for (int i = 0; i < d->jackCount(); i++) {
@@ -254,6 +281,7 @@ void CJacksComponent::DrawConnections()
             }
         }
     }
+*/
     int x = 0;
     for (int i = 100; i > 0; i = i - 10) {
         Scene.addLine(0,x,MaxRect.width(),x,QColor(0,0,0,i));
@@ -303,7 +331,7 @@ void CJacksComponent::DrawChangedConnections()
     DrawConnections();
 }
 
-void CJacksComponent::DrawConnection(QPoint p1, QPoint p2, const QColor& color)
+void CJacksComponent::DrawConnection(QPoint p1, QPoint p2, const QColor& color, const qreal linewidth)
 {
     QPainterPath p;
     QRect r(p1,p2);
@@ -322,10 +350,10 @@ void CJacksComponent::DrawConnection(QPoint p1, QPoint p2, const QColor& color)
     {
         p.cubicTo(p1+((r.bottomLeft()-p1)/2),r.bottomRight(),p2);
     }
-    Scene.addPath(p.translated(5,5),QPen(QColor(0,0,0,40),4));
+    Scene.addPath(p.translated(5,5),QPen(QColor(0,0,0,40),linewidth,Qt::SolidLine,Qt::RoundCap));
     QColor c(color);
     c.setAlphaF(CPresets::presets().ConnectionsOpacity);
-    Scene.addPath(p,QPen(c,4));
+    Scene.addPath(p,QPen(c,linewidth,Qt::SolidLine,Qt::RoundCap));
 }
 
 

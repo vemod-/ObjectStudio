@@ -12,9 +12,9 @@ CChannelGain::CChannelGain(QWidget *parent) :
     ui->label_2->setEffect(EffectLabel::Raised);
     ui->label_2->setShadowColor(QColor(255,255,255,200));
     ui->label_2->setTextColor(QColor(0,0,0,200));
-    ui->Gain->setKnobStyle(QSynthKnob::SynthStyle);
-    ui->Gain->setNotchesVisible(true);
-    ui->Gain->setNotchStyle(QSynthKnob::dBNotch);
+    //ui->Gain->setKnobStyle(QSynthKnob::SimpleStyle);
+    //ui->Gain->setNotchesVisible(true);
+    //ui->Gain->setNotchStyle(QSynthKnob::dBNotch);
     connect(ui->Gain,&QAbstractSlider::valueChanged,this,&CChannelGain::setGain);
     connect(ui->LoCut,&QAbstractButton::toggled,this,&CChannelGain::setLoCut);
 }

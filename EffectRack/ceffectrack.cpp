@@ -5,6 +5,7 @@
 #include "mouseevents.h"
 #include "cparametersmenu.h"
 #include "caddins.h"
+#include "qdprpixmap.h"
 
 CEffectRackForm::CEffectRackForm(IDevice* Device,QWidget* Parent) :
     CSoftSynthsForm(Device,false,Parent)
@@ -24,8 +25,16 @@ CEffectRackForm::CEffectRackForm(IDevice* Device,QWidget* Parent) :
     tbly->setContentsMargins(0,0,0,0);
     tbly->setSpacing(0);
     auto btnAdd = new QPushButton("+",m_Toolbar);
+    QFont f = btnAdd->font();
+    f.setPixelSize(24);
+    btnAdd->setFont(f);
+    QPalette pal = btnAdd->palette();
+    pal.setColor(QPalette::ButtonText,Qt::white);
+    btnAdd->setPalette(pal);
     btnAdd->setFlat(true);
-    btnAdd->setStyleSheet("color:white;background-image:url(:/Black Aluminium Tile.jpg);font-size:24px;");
+    QDPRPixmap::setWidgetBackground(btnAdd,":/Black Aluminium Tile.jpg",QPalette::Button);
+    btnAdd->setAutoFillBackground(true);
+    //btnAdd->setStyleSheet("color:white;background-image:url(:/Black Aluminium Tile.jpg);font-size:24px;");
     tbly->addWidget(btnAdd);
     m_Toolbar->setFixedHeight(btnAdd->height());
     connect(btnAdd,&QPushButton::clicked,this,&CEffectRackForm::addDevice);

@@ -13,6 +13,7 @@ LIBS += -lSoftSynthsWidgets
 INCLUDEPATH += ../RtAudioBuffer \
 ../../SynthKnob \
 ../../SynthSlider \
+../../SynthPanel \
 ../../ToggleButton \
 ../../QCanvas
 

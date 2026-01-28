@@ -38,6 +38,8 @@ CDesktopContainer::CDesktopContainer(QWidget *parent) :
     connect(ui->DesktopComponent,&CDesktopComponent::requestSerializeAutomationXML,ui->RackContainer,&CRackContainer::serialize,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::requestUnserializeAutomationXML,ui->RackContainer,&CRackContainer::unserialize,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::requestCloseAutomation,ui->RackContainer,&CRackContainer::closeAutomation,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::requestParametersPixmap,ui->RackContainer,&CRackContainer::parametersPixmap,Qt::DirectConnection);
+
 }
 
 CDesktopContainer::~CDesktopContainer()

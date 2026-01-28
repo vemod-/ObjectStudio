@@ -11,6 +11,7 @@
 #include <QClipboard>
 #include <QWidgetAction>
 #include "ctimelineedit.h"
+#include "qdprpixmap.h"
 
 CWaveLanes::CWaveLanes(QWidget *parent) :
     QGraphicsView(parent),
@@ -51,7 +52,7 @@ CWaveLanes::CWaveLanes(QWidget *parent) :
     m_TimerID=0;
     connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveLanes::paint);
     connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveLanes::UpdateAutomationGeometry);
-    setBackgroundBrush(QPixmap(":/Brushed Aluminium 3 Tile.bmp"));
+    setBackgroundBrush(QDPRPixmap(":/Brushed Aluminium 3 Tile.bmp"));
 }
 
 CWaveLanes::~CWaveLanes()
@@ -374,7 +375,7 @@ void CWaveLanes::unserialize(const QDomLiteElement* xml)
         CurrentLane = xml->attributeValueInt("CurrentLane",CurrentLane);
         QStringList l = xml->attribute("CurrentTrack","").split("&",Qt::SkipEmptyParts);
         CurrentTrack.clear();
-        for (const QString& s : l) CurrentTrack.append(s.toInt());
+        for (const QString& s : std::as_const(l)) CurrentTrack.append(s.toInt());
     }
     if (lanes.isEmpty()) AddLaneInternal();
     paint();

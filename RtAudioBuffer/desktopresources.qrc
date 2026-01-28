@@ -8,5 +8,14 @@
         <file>../../SynthPanel/Black Aluminium Tile.jpg</file>
         <file>paper-texture.jpg</file>
         <file>grey-paper-texture.jpg</file>
+        <file>DeviceFront.png</file>
+        <file>RackTop.png</file>
+        <file>Jack.png</file>
+        <file>Plug.png</file>
+        <file>Rotate.png</file>
+        <file>RackFront.png</file>
+        <file>RackUnitBack.png</file>
+        <file>RackUnitFront.png</file>
+        <file>RackBack.png</file>
     </qresource>
 </RCC>

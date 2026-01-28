@@ -41,6 +41,7 @@ signals:
     void connectionsChanged();
     void aboutToChange(const QString&);
     void closeAutomation(IDevice* d);
+    void parametersPixmap(IDevice* d, QPixmap* p);
 private:
     Ui::CRackContainer *ui;
     CDeviceList* m_DL;

@@ -56,7 +56,10 @@ public:
     void DrawAutomation(bool TopLayer, QPointF delta = QPointF()) {
         if (TopLayer)
         {
-            for (QGraphicsItem* i : std::as_const(m_TopLayer)) Scene.removeItem(i);
+            for (QGraphicsItem* i : std::as_const(m_TopLayer)) {
+                Scene.removeItem(i);
+                delete i;
+            }
             m_TopLayer.clear();
         }
         else

@@ -5,6 +5,7 @@
 //#include <QMouseEvent>
 //#include <qsignalmenu.h>
 #include "cdevicelist.h"
+#include "qdprpixmap.h"
 
 namespace Ui {
     class CJacksComponent;
@@ -27,7 +28,7 @@ public:
         if (m_Device)
         {
             int i = qMax<int>(m_Device->inJackCount(),m_Device->outJackCount());
-            return (i*60) + 60 + 60;
+            return (i * 60) + 60 + 60;
         }
         return 0;
     }
@@ -61,7 +62,7 @@ public slots:
     void clear();
     void DrawConnections();
     void DrawDeviceConnections(IDevice* device, QList<IDevice*>& paintedContainers);
-    void DrawConnection(QPoint p1, QPoint p2, const QColor& color);
+    void DrawConnection(QPoint p1, QPoint p2, const QColor& color, const qreal linewidth = 5.0);
     //void JackMenuPopup(IJack* jack, QPoint pos);
     //void ToggleConnection(QString JackID);
 private slots:

@@ -5,10 +5,21 @@
 #include "cknobcontrol.h"
 #include <QLabel>
 #include "idevice.h"
+#include "qsynthpanel.h"
+
+class CParametersPanel : public QSynthPanel {
+    Q_OBJECT
+public:
+    explicit CParametersPanel(QWidget *parent = nullptr);
+    IDevice** m_Device;
+    QList<CKnobControl*>* Dials;
+protected:
+    void paintEvent(QPaintEvent* e);
+};
 
 namespace Ui {
     class CParametersComponent;
-}
+}        
 
 class CParametersComponent : public QWidget
 {
@@ -20,11 +31,12 @@ public:
     QString deviceID();
     void init(IDevice* Device);
     void showParameters();
+    QPixmap grabPanel();
 protected:
     void wheelEvent(QWheelEvent* event);
     void mousePressEvent(QMouseEvent *event);
     void resizeEvent(QResizeEvent* event);
-    bool eventFilter(QObject* obj, QEvent* event);
+    //bool eventFilter(QObject* obj, QEvent* event);
 private:
     Ui::CParametersComponent *ui;
     QList<CKnobControl*> Dials;

@@ -73,7 +73,8 @@ HEADERS += \
         ##softsynthswidgets.h \
     ../MacroBox/cmacroboxform.h \
     ../MacroBox/ccustomjacksdialog.h \
-    ../MacroBox/ccustomparameterdialog.h
+    ../MacroBox/ccustomparameterdialog.h \
+    qdprpixmap.h
 
 FORMS += \
     ../MacroBox/cmacroboxform.ui \

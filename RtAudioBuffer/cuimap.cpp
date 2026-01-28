@@ -38,9 +38,7 @@ QPixmap applyEffectToPixmap(const QPixmap& src, QGraphicsEffect *effect, int ext
     QPixmap res(src.size()+QSize(extent*2, extent*2));
     res.fill(Qt::transparent);
     QPainter ptr(&res);
-    ptr.setRenderHint(QPainter::Antialiasing);
-    ptr.setRenderHint(QPainter::TextAntialiasing);
-    ptr.setRenderHint(QPainter::SmoothPixmapTransform);
+    ptr.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
     scene.render(&ptr, QRectF( extent, extent, src.width(), src.height() ));
     return res;
 }
