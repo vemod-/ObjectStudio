@@ -1,18 +1,32 @@
 #include "cparameterscontainer.h"
-#include "ui_cparameterscontainer.h"
+#include "qdprpixmap.h"
 #include <QScrollBar>
 
 CParametersContainer::CParametersContainer(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::CParametersContainer)
+    QGraphicsView(parent)//,
 {
-    ui->setupUi(this);
-    setFixedHeight(112);
+    setScene(&Scene);
+    setOptimizationFlags(QGraphicsView::DontSavePainterState | QGraphicsView::DontAdjustForAntialiasing);
+    setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
+    Scene.setItemIndexMethod(QGraphicsScene::NoIndex);
+    setRenderHint(QPainter::Antialiasing);
+    setRenderHint(QPainter::TextAntialiasing);
+    setRenderHint(QPainter::SmoothPixmapTransform);
+    setMouseTracking(true);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    setFrameStyle(0);
+    setLineWidth(0);
+    Scene.setBackgroundBrush(QDPRPixmap(":/Brushed Aluminium Tile.bmp"));
+    setFixedHeight(rackUnitHeight);
+    setAcceptDrops(false);
+    zoomer = new QGraphicsViewZoomer(this);
 }
 
 CParametersContainer::~CParametersContainer()
 {
-    delete ui;
+    Scene.clear();
 }
 
 int CParametersContainer::deviceIndex(IDevice* Device)
@@ -30,14 +44,11 @@ void CParametersContainer::addDevice(IDevice* Device)
 {
     if (Device != nullptr)
     {
-        ui->emptyFrame->setVisible(false);
-        auto p = new CParametersComponent(this);
-        layout()->addWidget(p);
+        auto p = new CParametersComponent(scene());
         devices.append(p);
-        p->show();
         p->init(Device);
-        p->showParameters();
-        setFixedHeight(112*devices.size());
+        p->showParameters(devices.size() - 1);
+        setFixedHeight(rackUnitHeight * devices.size());
         connect(p,&CParametersComponent::parametersChanged,this,&CParametersContainer::ParametersChanged);
         connect(p,&CParametersComponent::aboutToChange,this,&CParametersContainer::aboutToChange,Qt::DirectConnection);
         connect(p,&CParametersComponent::showAutomationRequested,this,&CParametersContainer::automationRequested);
@@ -48,21 +59,19 @@ void CParametersContainer::addDevice(IDevice* Device)
 
 void CParametersContainer::removeDevice(IDevice* Device)
 {
-    const int i=deviceIndex(Device);
+    const int i = deviceIndex(Device);
     if (i > -1)
     {
-        CParametersComponent* p = devices[i];
-        layout()->removeWidget(p);
         delete devices.takeAt(i);
         if (devices.isEmpty())
         {
-            ui->emptyFrame->setVisible(true);
-            setFixedHeight(112);
+            setFixedHeight(rackUnitHeight);
         }
         else
         {
-            setFixedHeight(112*devices.size());
+            setFixedHeight(rackUnitHeight * devices.size());
         }
+        drawParameters();
     }
 }
 
@@ -71,46 +80,42 @@ void CParametersContainer::moveDevice(int index, int move)
     if (index < 0) return;
     if (index > devices.size() -1) return;
     if (move == 0) return;
-    //int newIndex = index + move;
     int newIndex = std::clamp<int>(index + move,0,devices.size()-1);
-    //newIndex = qMax(0, newIndex);
-    //newIndex = qMin(devices.size() -1, newIndex);
     if (newIndex == index) return;
-    QLayout* l = layout();
-    for (CParametersComponent* p : std::as_const(devices)) l->removeWidget(p);
     CParametersComponent* temp = devices.takeAt(index);
     devices.insert(newIndex, temp);
-    for (CParametersComponent* p : std::as_const(devices)) l->addWidget(p);
+    drawParameters();
 }
 
 void CParametersContainer::parametersPixmap(IDevice *d, QPixmap* p) {
     const int i = deviceIndex(d);
-    if (i > -1) *p = devices[i]->grabPanel();
+    if (i > -1) {
+        //QDPRPixmap pix = grab().copy(QRect(60*qApp->devicePixelRatio(),i*rackUnitHeight*qApp->devicePixelRatio(),(width()-60)*qApp->devicePixelRatio(),rackUnitHeight*qApp->devicePixelRatio()));
+        *p = grab().copy(QRect(60*qApp->devicePixelRatio(),i*rackUnitHeight*qApp->devicePixelRatio(),(width()-60)*qApp->devicePixelRatio(),rackUnitHeight*qApp->devicePixelRatio()));
+    }
 }
 
 void CParametersContainer::clear()
 {
     for (CParametersComponent* p: std::as_const(devices))
     {
-        layout()->removeWidget(p);
         devices.removeOne(p);
         delete p;
     }
-    ui->emptyFrame->setVisible(true);
-    setFixedHeight(112);
+    setFixedHeight(rackUnitHeight);
 }
 
 void CParametersContainer::showParameters(IDevice* Device)
 {
     qDebug() << "CParametersContainer showParameters";
-    const int i=deviceIndex(Device);
-    if (i > -1) devices[i]->showParameters();
+    const int i = deviceIndex(Device);
+    if (i > -1) devices[i]->showParameters(i);
 }
 
 void CParametersContainer::updateControls(IDevice* Device)
 {
     //qDebug() << "CParametersContainer updateControls";
-    const int i=deviceIndex(Device);
+    const int i = deviceIndex(Device);
     if (i > -1) devices[i]->updateControls();
 }
 
@@ -118,21 +123,6 @@ void CParametersContainer::updateControl(IDevice* Device, const CParameter* Para
 {
     //qDebug() << "CParametersContainer updateControl";
     if (Device == nullptr) return;
-    const int i=deviceIndex(Device);
+    const int i = deviceIndex(Device);
     if (i > -1) devices[i]->updateControl(Parameter);
 }
-/*
-QMenu* CParametersContainer::parametersMenu(IDevice* Device)
-{
-    const int i=deviceIndex(Device);
-    if (i < 0) return new QMenu();
-    return devices[i]->parametersMenu();
-}
-
-QAction* CParametersContainer::pasteParameters(IDevice* Device)
-{
-    const int i=deviceIndex(Device);
-    if (i < 0) return new QAction();
-    return devices[i]->pasteParameters();
-}
-*/

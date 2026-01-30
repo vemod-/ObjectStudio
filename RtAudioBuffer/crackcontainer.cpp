@@ -8,17 +8,21 @@ CRackContainer::CRackContainer(QWidget *parent) :
     ui(new Ui::CRackContainer)
 {
     ui->setupUi(this);
-    connect(ui->ParametersContainer,&CParametersContainer::ParametersChanged,this,&CRackContainer::ParametersChanged);
-    connect(ui->ParametersContainer,&CParametersContainer::aboutToChange,this,&CRackContainer::aboutToChange,Qt::DirectConnection);
+    m_ParametersContainer = new CParametersContainer(this);
+    m_JacksComponent = new CJacksComponent(this, m_ParametersContainer->scene());
+    ui->scrollAreaWidgetContents->layout()->addWidget(m_ParametersContainer);
+    ui->scrollAreaWidgetContents->layout()->addWidget(m_JacksComponent);
+    connect(m_ParametersContainer,&CParametersContainer::ParametersChanged,this,&CRackContainer::ParametersChanged);
+    connect(m_ParametersContainer,&CParametersContainer::aboutToChange,this,&CRackContainer::aboutToChange,Qt::DirectConnection);
     //connect(ui->ParametersContainer,&CParametersContainer::popupTriggered,this,&CRackContainer::ParameterPopupTriggered,Qt::DirectConnection);
-    connect(ui->ParametersContainer,&CParametersContainer::automationRequested,this,&CRackContainer::showAutomation);
-    connect(ui->ParametersContainer,&CParametersContainer::mousePress,this,&CRackContainer::mousePress);
-    connect(this,&CRackContainer::parametersPixmap,ui->ParametersContainer,&CParametersContainer::parametersPixmap,Qt::DirectConnection);
+    connect(m_ParametersContainer,&CParametersContainer::automationRequested,this,&CRackContainer::showAutomation);
+    connect(m_ParametersContainer,&CParametersContainer::mousePress,this,&CRackContainer::mousePress);
+    connect(this,&CRackContainer::parametersPixmap,m_ParametersContainer,&CParametersContainer::parametersPixmap,Qt::DirectConnection);
     //connect(ui->JacksComponent,&CJacksComponent::popupTriggered,this,&CRackContainer::JackPopupTriggered,Qt::DirectConnection);
-    connect(ui->JacksComponent,&CJacksComponent::mousePress,this,&CRackContainer::mousePress);
-    connect(ui->JacksComponent,&CJacksComponent::connectionsChanged,this,&CRackContainer::connectionsChanged);
-    connect(ui->JacksComponent,&CJacksComponent::aboutToChange,this,&CRackContainer::aboutToChange,Qt::DirectConnection);
-    verticalScrollBar()->setPageStep(112);
+    connect(m_JacksComponent,&CJacksComponent::mousePress,this,&CRackContainer::mousePress);
+    connect(m_JacksComponent,&CJacksComponent::connectionsChanged,this,&CRackContainer::connectionsChanged);
+    connect(m_JacksComponent,&CJacksComponent::aboutToChange,this,&CRackContainer::aboutToChange,Qt::DirectConnection);
+    verticalScrollBar()->setPageStep(rackUnitHeight);
 }
 
 CRackContainer::~CRackContainer()
@@ -29,7 +33,7 @@ CRackContainer::~CRackContainer()
 void CRackContainer::Init(CDeviceList* dl)
 {
     m_DL = dl;
-    ui->JacksComponent->Init(dl);
+    m_JacksComponent->Init(dl);
     ui->scrollAreaWidgetContents->setAutoFillBackground(false);
     ui->scrollAreaWidgetContents->setVisible(false);
     setMaximumHeight(0);
@@ -38,19 +42,19 @@ void CRackContainer::Init(CDeviceList* dl)
 void CRackContainer::addDevice(IDevice* d)
 {
     ui->scrollAreaWidgetContents->setVisible(true);
-    ui->ParametersContainer->addDevice(d);
-    ui->JacksComponent->addDevice(d);
-    setMaximumHeight(112 * deviceCount());
-    const int i = ui->ParametersContainer->deviceIndex(d);
+    m_ParametersContainer->addDevice(d);
+    m_JacksComponent->addDevice(d);
+    setMaximumHeight(rackUnitHeight * deviceCount());
+    const int i = m_ParametersContainer->deviceIndex(d);
     if (i > -1) animateTo(i);
 }
 
 void CRackContainer::removeDevice(IDevice* d)
 {
-    ui->ParametersContainer->removeDevice(d);
-    ui->JacksComponent->removeDevice(d);
-    setMaximumHeight(112 * deviceCount());
-    if (!ui->ParametersContainer->deviceCount())
+    m_ParametersContainer->removeDevice(d);
+    m_JacksComponent->removeDevice(d);
+    setMaximumHeight(rackUnitHeight * deviceCount());
+    if (!m_ParametersContainer->deviceCount())
     {
         ui->scrollAreaWidgetContents->setVisible(false);
     }
@@ -58,50 +62,50 @@ void CRackContainer::removeDevice(IDevice* d)
 
 void CRackContainer::moveDevice(int index, int move)
 {
-    ui->ParametersContainer->moveDevice(index, move);
-    ui->JacksComponent->moveDevice(index, move);
+    m_ParametersContainer->moveDevice(index, move);
+    m_JacksComponent->moveDevice(index, move);
 }
 
 void CRackContainer::clear()
 {
-    ui->ParametersContainer->clear();
-    ui->JacksComponent->clear();
+    m_ParametersContainer->clear();
+    m_JacksComponent->clear();
     ui->scrollAreaWidgetContents->setVisible(false);
 }
 
 int CRackContainer::deviceCount()
 {
-    return ui->ParametersContainer->deviceCount();
+    return m_ParametersContainer->deviceCount();
 }
 
 void CRackContainer::showParameters(IDevice* d)
 {
     qDebug() << "CRackContainer showParameters";
-    ui->ParametersContainer->showParameters(d);
-    const int i = ui->ParametersContainer->deviceIndex(d);
-    if (((i*112) > verticalScrollBar()->sliderPosition()) && (((i+1)*112)<verticalScrollBar()->sliderPosition()+height())) return;
+    m_ParametersContainer->showParameters(d);
+    const int i = m_ParametersContainer->deviceIndex(d);
+    if (((i*rackUnitHeight) > verticalScrollBar()->sliderPosition()) && (((i+1)*rackUnitHeight)<verticalScrollBar()->sliderPosition()+height())) return;
     if (i > -1) animateTo(i);
 }
 
 void CRackContainer::updateControls(IDevice* d)
 {
-    ui->ParametersContainer->updateControls(d);
+    m_ParametersContainer->updateControls(d);
 }
 
 void CRackContainer::updateControl(IDevice* d, const CParameter* p)
 {
-    ui->ParametersContainer->updateControl(d,p);
+    m_ParametersContainer->updateControl(d,p);
 }
 
-void CRackContainer::drawConnections()
+void CRackContainer::updateConnections()
 {
-    ui->JacksComponent->DrawConnections();
+    m_JacksComponent->updateConnections();
 }
 
 void CRackContainer::animateTo(int i)
 {
     const int oldPos = verticalScrollBar()->sliderPosition();
-    const int newPos = 112*i;
+    const int newPos = rackUnitHeight*i;
     if (newPos == oldPos) return;
     QPropertyAnimation *animation = new QPropertyAnimation(verticalScrollBar(), "sliderPosition");
     animation->setEasingCurve(QEasingCurve::OutQuart);
@@ -114,8 +118,8 @@ void CRackContainer::animateTo(int i)
 void CRackContainer::resizeEvent(QResizeEvent* event)
 {
     const int w = event->size().width()*0.75;
-    ui->ParametersContainer->setFixedWidth(w);
-    ui->JacksComponent->setFixedWidth(w);
+    m_ParametersContainer->setFixedWidth(w);
+    m_JacksComponent->setFixedWidth(w);
     verticalScrollBar()->setPageStep(w);
     for (CAutomationLane* a : (const QList<CAutomationLane*>)findChildren<CAutomationLane*>()) a->setFixedWidth(event->size().width());
     QScrollArea::resizeEvent(event);
@@ -133,10 +137,10 @@ void CRackContainer::scrollContentsBy(int dx, int dy)
 
 void CRackContainer::createAutomationLane(IDevice* d, int parameterIndex)
 {
-    const int i = ui->ParametersContainer->deviceIndex(d);
-    const int newPos = (112*i)-verticalScrollBar()->sliderPosition();
+    const int i = m_ParametersContainer->deviceIndex(d);
+    const int newPos = (rackUnitHeight*i)-verticalScrollBar()->sliderPosition();
     CAutomationLane* a = new CAutomationLane(this);
-    a->setGeometry(0,newPos,width(),112);
+    a->setGeometry(0,newPos,width(),rackUnitHeight);
     a->updateGeometry();
     a->fill(d,parameterIndex,m_DL);
     a->show();

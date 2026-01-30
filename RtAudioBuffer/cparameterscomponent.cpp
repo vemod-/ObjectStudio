@@ -1,30 +1,73 @@
 #include "cparameterscomponent.h"
-#include "ui_cparameterscomponent.h"
+//#include "ui_cparameterscomponent.h"
 #include <QInputDialog>
 //#include <QMessageBox>
 #include <QClipboard>
 #include "cparametersmenu.h"
 #include "qdprpixmap.h"
 
-CParametersComponent::CParametersComponent(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::CParametersComponent)
+#define rackLeftWidth 68
+
+CParametersComponent::CParametersComponent(QGraphicsScene* s)
 {
-    ui->setupUi(this);
     m_Device = nullptr;
-    Spacer=new QWidget(this);
-    Spacer->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
-    ui->NameLabel->setEffect(EffectLabel::Raised);
-    ui->NameLabel->setTextColor(QColor(0,0,0,200));
-    ui->NameLabel->setShadowColor(QColor(255,255,255,200));
-    ui->DialsFrame->m_Device = &m_Device;
-    ui->DialsFrame->Dials = &Dials;
+    m_Scene = s;
+    m_RackLeftPix = m_Scene->addPixmap(QDPRPixmap(QSize(rackUnitHeight,rackUnitHeight),":/RackLeft.png",Qt::KeepAspectRatio));
+    m_NameLabel = new EffectLabel();
+    m_UILabel = new QLCDLabel();
+    m_UILabel->setFixedSize(130,91);
+    m_UILabel->setFrameShadow(QFrame::Sunken);
+    m_UILabel->setFrameShape(QFrame::Panel);
+    m_UILabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    m_IDLabel = new QLCDLabel();
+    m_IDLabel->setFixedSize(120,12);
+    m_IDLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    m_PresetLabel = new QLCDLabel();
+    m_PresetLabel->setFixedSize(120,12);
+    m_PresetLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    m_NameLabel->setFixedSize(120,80);
+    m_NameLabel->setEffect(EffectLabel::Raised);
+    m_NameLabel->setTextColor(QColor(0,0,0,200));
+    m_NameLabel->setShadowColor(QColor(255,255,255,200));
+    m_NameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+
+    QFont f(m_NameLabel->font());
+    f.setPointSize(15);
+    m_NameLabel->setFont(f);
     m_Width=0;
+    f = m_PresetLabel->font();
+    f.setPointSize(9);
+    m_PresetLabel->setFont(f);
+    m_IDLabel->setFont(f);
+    m_ProxyPresetLabel = m_Scene->addWidget(m_PresetLabel);
+    m_ProxyIDLabel = m_Scene->addWidget(m_IDLabel);
+    m_ProxyNameLabel = m_Scene->addWidget(m_NameLabel);
+    m_ProxyUILabel = m_Scene->addWidget(m_UILabel);
 }
 
 CParametersComponent::~CParametersComponent()
 {
-    delete ui;
+    //m_Scene->clear();
+    for (QGraphicsProxyWidget* w : std::as_const(m_ProxyDials)) {
+        m_Scene->removeItem(w);
+        delete w;
+    }
+    for (QGraphicsItem* w : std::as_const(m_GroupList)) {
+        m_Scene->removeItem(w);
+        delete w;
+    }
+    for (QGraphicsItem* w : std::as_const(m_FrameList)) {
+        m_Scene->removeItem(w);
+        delete w;
+    }
+    m_Scene->removeItem(m_ProxyNameLabel);
+    delete m_ProxyNameLabel;
+    m_Scene->removeItem(m_ProxyUILabel);
+    delete m_ProxyUILabel;
+    m_Scene->removeItem(m_ProxyIDLabel);
+    delete m_ProxyIDLabel;
+    m_Scene->removeItem(m_ProxyPresetLabel);
+    delete m_ProxyPresetLabel;
 }
 
 QString CParametersComponent::deviceID()
@@ -35,49 +78,43 @@ QString CParametersComponent::deviceID()
 
 void CParametersComponent::init(IDevice* Device)
 {
-    m_Device=Device;
-    setUpdatesEnabled(false);
-    ui->DialsFrame->hide();
-    ui->LCDWidget->setVisible(false);
-    m_Width=160;
+    m_Device = Device;
     if (Device != nullptr)
     {
-        for (int i=0;i<Device->parameterCount();i++)
+        Parameters.clear();
+        for (QGraphicsProxyWidget* w : std::as_const(m_ProxyDials)) {
+            m_Scene->removeItem(w);
+            delete w;
+        }
+        m_ProxyDials.clear();
+        Dials.clear();
+        for (int i = 0; i < Device->parameterCount(); i++)
         {
             Parameters.append(Device->parameter(i));
-            auto d=new CKnobControl(this);
-            ui->horizontalLayout_2->addWidget(d);
+            auto d = new CKnobControl();
+            m_ProxyDials.append(m_Scene->addWidget(d));
+            m_ProxyDials.last()->setZValue(1);
             connect(d, &CKnobControl::valueChanged, [=] { updateParameterValue(i); });
             connect(d,&CKnobControl::requestAutomation,this,&CParametersComponent::showAutomation);
             Dials.append(d);
             d->show();
-            m_Width+=d->width();
         }
-        ui->horizontalLayout_2->addWidget(Spacer);
         if (m_Device->alias().isEmpty()) {
-            ui->NameLabel->setText(m_Device->name());
+            m_NameLabel->setText(m_Device->name());
         }
         else {
-            ui->NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
+            m_NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
         }
-        ui->IDLabel->setText(m_Device->deviceID());
-
-        if (Device->hasUI()) {
-            ui->LCDWidget->setVisible(true);
-            m_Width += ui->LCDWidget->width();
-        }
+        m_IDLabel->setText(m_Device->deviceID());
     }
-    ui->DialsFrame->setFixedWidth(qMax<int>(width(),m_Width));
-    ui->DialsFrame->show();
-    setUpdatesEnabled(true);
 }
 
 void CParametersComponent::updateControls()
 {
     if (m_Device)
     {
-        for (int i=0;i<m_Device->parameterCount();i++) Dials.at(i)->setValue(m_Device->parameter(i));
-        ui->PresetLabel->setText(m_Device->currentProgramMatches());
+        for (int i = 0;i < m_Device->parameterCount(); i++) Dials.at(i)->setValue(m_Device->parameter(i));
+        m_PresetLabel->setText(m_Device->currentProgramMatches());
     }
 }
 
@@ -85,72 +122,129 @@ void CParametersComponent::updateControl(const CParameter* Parameter)
 {
     if (m_Device)
     {
-        for (int i=0;i<m_Device->parameterCount();i++) {
+        for (int i = 0;i < m_Device->parameterCount(); i++) {
             if (m_Device->parameter(i) == Parameter) Dials.at(i)->setValue(m_Device->parameter(i));
         }
-        ui->PresetLabel->setText(m_Device->currentProgramMatches());
+        m_PresetLabel->setText(m_Device->currentProgramMatches());
     }
 }
 
-void CParametersComponent::showParameters()
+void CParametersComponent::showParameters(int index)
 {
+    static QDPRPixmap screwPix(QSize(10,10),":/screwhead.png");
+    m_Index = index;
     qDebug() << "CParametersComåponent showParameters";
-    ui->UILabel->clear();
-    ui->PresetLabel->clear();
+    for (QGraphicsItem* i : std::as_const(m_GroupList)) {
+        m_Scene->removeItem(i);
+        delete i;
+    }
+    m_GroupList.clear();
+    m_Width = 172;
+    m_UILabel->clear();
+    m_PresetLabel->clear();
+    m_RackLeftPix->setPos(0,calcY(0));
+    m_ProxyPresetLabel->setPos(rackLeftWidth + 12,calcY(96));
+    m_ProxyIDLabel->setPos(rackLeftWidth + 12,calcY(80));
+    m_ProxyNameLabel->setPos(rackLeftWidth + 12,calcY(0));
+    m_ProxyUILabel->setPos(rackLeftWidth + 136,calcY(12));
     if (m_Device)
     {
         if (m_Device->alias().isEmpty()) {
-            ui->NameLabel->setText(m_Device->name());
+            m_NameLabel->setText(m_Device->name());
         }
         else {
-            ui->NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
+            m_NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
         }
-        if (m_Device->parameterCount() != Dials.size()) {
-            for (int i = Dials.size(); i >= 0; i--) {
-                delete ui->horizontalLayout_2->takeAt(ui->horizontalLayout_2->count()-1);
-            }
-            Parameters.clear();
-            qDeleteAll(Dials);
-            Dials.clear();
-            init(m_Device);
-        }
-        for (int i=0;i<m_Device->parameterCount();i++) Dials.at(i)->setValue(m_Device->parameter(i));
+        if (m_Device->parameterCount() != Dials.size()) init(m_Device);
+        for (int i = 0;i<m_Device->parameterCount();i++) Dials.at(i)->setValue(m_Device->parameter(i));
+        int dialOffset = rackLeftWidth + m_NameLabel->width() + 16;
+
+        m_ProxyUILabel->setVisible(false);
         if (m_Device->hasUI())
         {
-            const QPixmap* px=m_Device->picture();
+            const QPixmap* px = m_Device->picture();
             if (px)
             {
-                //qDebug() << px->size() << px->scaled(ui->UILabel->size(),Qt::KeepAspectRatio,Qt::SmoothTransformation).size();
-                QPixmap pm(*px);//->scaled(ui->UILabel->size(),Qt::KeepAspectRatio,Qt::SmoothTransformation);
-                pm.setDevicePixelRatio(1);
-                ui->UILabel->setPixmap(pm);
+                QPixmap pm(*px);
+                m_UILabel->setPixmap(pm);
                 delete px;
+                dialOffset += m_UILabel->width() + 4;
+                m_Width += m_UILabel->width();
+                m_ProxyUILabel->setVisible(true);
             }
         }
-        ui->PresetLabel->setText(m_Device->currentProgramMatches());
+        m_PresetLabel->setText(m_Device->currentProgramMatches());
+        for (int i = 0; i < m_ProxyDials.size(); i++) {
+            m_ProxyDials[i]->setPos(dialOffset + (i * 75),calcY(8));
+            m_Width += 75;
+        }
+        if (!m_ProxyDials.isEmpty()) {
+            QFont f;
+            f.setPointSizeF(10);
+            QFontMetricsF fm(f);
+            for (int i = 0; i < (m_Device)->parameterGroupCount(); i++)
+            {
+                const CParameterGroup* g = (m_Device)->parameterGroup(i);
+                QColor c = g->color;
+                c.setAlphaF(0.2);
+                QRectF r1 = m_ProxyDials.at(g->startIndex)->geometry().adjusted(1,-6,-2,6);
+                QRectF r2 = (g->endIndex > -1) ? m_ProxyDials.at(g->endIndex)->geometry().adjusted(1,-6,-2,6) : m_ProxyDials.last()->geometry().adjusted(1,-6,-2,6);
+                QRectF r = r1.united(r2);
+                QPainterPath path;
+                path.addRoundedRect(r, 5, 5);
+                m_GroupList.append(m_Scene->addPath(path,QColor(0,0,0,40),c));
+                if (!g->Name.isEmpty())
+                {
+                    QGraphicsSimpleTextItem* t = m_Scene->addSimpleText(g->Name,f);
+                    t->setBrush(QColor(255,255,255,200));
+                    t->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2) - 1, r.top() - 2);
+                    QGraphicsSimpleTextItem* s = m_Scene->addSimpleText(g->Name,f);
+                    s->setBrush(QColor(0,0,0,200));
+                    s->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2), r.top() - 1);
+                    m_GroupList.append(t);
+                    m_GroupList.append(s);
+                }
+            }
+        }
     }
-}
-
-QPixmap CParametersComponent::grabPanel() {
-    return QDPRPixmap(ui->DialsFrame->grab());
+    for (QGraphicsItem* i : std::as_const(m_FrameList)) {
+        m_Scene->removeItem(i);
+        delete i;
+    }
+    m_FrameList.clear();
+    QGraphicsPixmapItem* s = m_Scene->addPixmap(screwPix);
+    s->setPos(rackLeftWidth,calcY(4));
+    m_FrameList.append(s);
+    QGraphicsPixmapItem* s1 = m_Scene->addPixmap(screwPix);
+    s1->setPos(rackLeftWidth,calcY(98));
+    m_FrameList.append(s1);
+    QRect r(m_Scene->sceneRect().toRect());
+    r.setLeft(rackLeftWidth - 4);
+    r.setTop(calcY(0));
+    r.setHeight(rackUnitHeight);
+    m_FrameList.append(m_Scene->addLine(QLine(r.bottomLeft(),r.bottomRight()),QPen(Qt::darkGray)));
+    m_FrameList.append(m_Scene->addLine(QLine(r.topRight(),r.bottomRight()),QPen(Qt::darkGray)));
+    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.topRight()),QPen(Qt::white)));
+    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.bottomLeft()),QPen(Qt::white)));
 }
 
 void CParametersComponent::updateParameterValue(int i)
 {
-    const int v=Dials[i]->value();
+    const int v = Dials[i]->value();
     Parameters[i]->setValue(v);
     Dials.at(i)->setLabels(Parameters[i]);
-    ui->PresetLabel->setText(m_Device->currentProgramMatches());
+    m_PresetLabel->setText(m_Device->currentProgramMatches());
 }
 
-void CParametersComponent::wheelEvent(QWheelEvent* event)
+void CParametersComponent::wheelEvent(QWheelEvent* /*event*/)
 {
+    /*
     const int move = event->pixelDelta().rx();
     if (move != 0)
     {
         if (m_Width > width())
         {
-            int l = ui->DialsFrame->geometry().left()+move;
+            int l = m_DialsFrame->geometry().left()+move;
             if (l > 0) l = 0;
             if (l < width()-m_Width) l = width()-m_Width;
             ui->DialsFrame->move(l,0);
@@ -159,88 +253,38 @@ void CParametersComponent::wheelEvent(QWheelEvent* event)
         }
     }
     event->ignore();
+*/
 }
 
-void CParametersComponent::mousePressEvent(QMouseEvent *event)
+bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* item)
 {
-    if (event->button()==Qt::RightButton) {
-        parametersMenu()->popup(mapToGlobal(event->pos())); //emit popupTriggered(m_Device, mapToGlobal(event->pos()));
-        return;
+    if (event->button() == Qt::RightButton) {
+        if (m_ProxyDials.contains(item)) {
+            QGraphicsProxyWidget* w = static_cast<QGraphicsProxyWidget*>(item);
+            CKnobControl* k = static_cast<CKnobControl*>(w->widget());
+            k->popupMenu(event->globalPosition().toPoint());
+        }
+        else {
+            parametersMenu()->popup(event->globalPosition().toPoint());
+        }
+        return true;
     }
-    if ((ui->NameLabel->geometry().contains(event->pos())) || (ui->UILabel->geometry().contains(ui->UILabel->mapFrom(this,event->pos()))))
+    if ((m_ProxyNameLabel == item) || (m_ProxyUILabel == item))
     {
         if (m_Device) m_Device->toggleUI();
-        return;
+        return true;
     }
-    if (event->button()==Qt::LeftButton) emit mousePress(m_Device, mapToGlobal(event->pos()));
+    if (event->button() == Qt::LeftButton) emit mousePress(m_Device, event->globalPosition().toPoint());
+    return false;
 }
 
 QMenu* CParametersComponent::parametersMenu()
 {
-    CParametersMenu* m = new CParametersMenu(m_Device,this);
+    CParametersMenu* m = new CParametersMenu(m_Device,nullptr);
     m->setAttribute(Qt::WA_DeleteOnClose,true);
     connect(m,&CParametersMenu::showAutomationRequested,this,&CParametersComponent::showDefaultAutomation);
     connect(m,&CParametersMenu::aboutToChange,this,&CParametersComponent::aboutToChange,Qt::DirectConnection);
     connect(m,&CParametersMenu::parametersChanged,this,&CParametersComponent::parametersChanged);
     connect(m,&CParametersMenu::updateControls,this,&CParametersComponent::updateControls);
     return m;
-}
-
-void CParametersComponent::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    ui->DialsFrame->setFixedWidth(qMax<int>(width(),m_Width));
-    ui->DialsFrame->move(0,0);
-}
-
-CParametersPanel::CParametersPanel(QWidget *parent) : QSynthPanel(parent) {
-
-}
-
-void CParametersPanel::paintEvent(QPaintEvent *e) {
-    static QDPRPixmap screwPix(QSize(12,12),":/screwhead.png");
-    QSynthPanel::paintEvent(e);
-    QPainter p(this);
-    p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
-    QFont f(p.font()); f.setPointSizeF(10); p.setFont(f);
-    QFontMetricsF fm(p.font());
-    p.drawPixmap(QRect(3,geometry().top() + 3,12,12),screwPix);
-    p.drawPixmap(QRect(3,geometry().top() + 97,12,12),screwPix);
-    if (!Dials->empty())
-    {
-        for (int i = 0; i < (*m_Device)->parameterGroupCount(); i++)
-        {
-            const CParameterGroup* g = (*m_Device)->parameterGroup(i);
-            QColor c = g->color;
-            c.setAlphaF(0.2);
-            p.setBrush(c);
-            p.setPen(QColor(0,0,0,40));
-            QRect r1 = Dials->at(g->startIndex)->geometry().adjusted(1,-6,-2,6);
-            QRect r2 = (g->endIndex > -1) ? Dials->at(g->endIndex)->geometry().adjusted(1,-6,-2,6) : Dials->last()->geometry().adjusted(1,-6,-2,6);
-            QRect r = r1.united(r2);
-            p.drawRoundedRect(r,5,5);
-            if (!g->Name.isEmpty())
-            {
-                p.setBrush(QColor(255,255,255,200));
-                p.setPen(QColor(255,255,255,200));
-                p.drawText(r.center().x()-(fm.boundingRect(g->Name).width()/2)-1,r.top()+(fm.height()/2)+1,g->Name);
-                p.setBrush(QColor(0,0,0,200));
-                p.setPen(QColor(0,0,0,200));
-                p.drawText(r.center().x()-(fm.boundingRect(g->Name).width()/2),r.top()+(fm.height()/2)+2,g->Name);
-            }
-        }
-    }
-    int x = 0;
-    const bool isFirst = (parentWidget()->mapToParent(QPoint(0,0)).y() == 0);
-    for (int i = 100; i > 0; i = i - 10) {
-        p.setPen(QColor(0,0,0,i));
-        if (isFirst) {
-            p.drawLine(x,x,x,geometry().height());
-            p.drawLine(x,x,geometry().width(),x);
-        }
-        else {
-            p.drawLine(x,0,x,geometry().height());
-        }
-        x++;
-    }
 }

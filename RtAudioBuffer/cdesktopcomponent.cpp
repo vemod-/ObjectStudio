@@ -53,9 +53,8 @@ void CDeviceComponent::getPic()
         const QPixmap* px = m_Device->picture();
         if (px)
         {
-            //qDebug() << px->size();
-            m_px=new QPixmap(px->scaled((geometry.size()-QSize(deviceResolution / 5, deviceResolution / 12))*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-            m_px->setDevicePixelRatio(2);
+            m_px = new QPixmap(px->scaled((geometry.size()-QSize(deviceResolution / 5, deviceResolution / 12))*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+            m_px->setDevicePixelRatio(qApp->devicePixelRatio());
             delete px;
         }
     }

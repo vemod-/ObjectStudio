@@ -1,59 +1,51 @@
 #ifndef CPARAMETERSCOMPONENT_H
 #define CPARAMETERSCOMPONENT_H
 
-#include <QWidget>
+#include <QGraphicsView>
+#include <QGraphicsProxyWidget>
 #include "cknobcontrol.h"
-#include <QLabel>
+#include "../../LCDLabel/qlcdlabel.h"
+#include "../../EffectLabel/effectlabel.h"
 #include "idevice.h"
-#include "qsynthpanel.h"
 
-class CParametersPanel : public QSynthPanel {
-    Q_OBJECT
-public:
-    explicit CParametersPanel(QWidget *parent = nullptr);
-    IDevice** m_Device;
-    QList<CKnobControl*>* Dials;
-protected:
-    void paintEvent(QPaintEvent* e);
-};
+#define rackUnitHeight 112
 
-namespace Ui {
-    class CParametersComponent;
-}        
-
-class CParametersComponent : public QWidget
+class CParametersComponent : public QObject
 {
     Q_OBJECT
-
 public:
-    explicit CParametersComponent(QWidget *parent = nullptr);
+    explicit CParametersComponent(QGraphicsScene* s);
     ~CParametersComponent();
     QString deviceID();
     void init(IDevice* Device);
-    void showParameters();
-    QPixmap grabPanel();
+    void showParameters(int index);
+    bool swallowMousePress(QMouseEvent *event, QGraphicsItem* item);
 protected:
     void wheelEvent(QWheelEvent* event);
-    void mousePressEvent(QMouseEvent *event);
-    void resizeEvent(QResizeEvent* event);
-    //bool eventFilter(QObject* obj, QEvent* event);
 private:
-    Ui::CParametersComponent *ui;
+    QGraphicsScene* m_Scene;
     QList<CKnobControl*> Dials;
     QList<CParameter*> Parameters;
-    QWidget* Spacer;
     IDevice* m_Device;
-    int m_Width;
-    /*
-    QMenu* ParametersMenu;
-    QAction* AutomationAction;
-    QSignalMenu* ParameterPresetsMenu;
-    QAction* actionPasteParameters;
-    void fillParameterPresetsMenu();
-*/
-    //QAction* pasteParameters();
+    int m_Width = 0;
+    int m_Index = 0;
+    EffectLabel* m_NameLabel;
+    QLCDLabel* m_UILabel;
+    QLCDLabel* m_IDLabel;
+    QLCDLabel* m_PresetLabel;
+    QList<QGraphicsProxyWidget*> m_ProxyDials;
+    QGraphicsProxyWidget* m_ProxyNameLabel = nullptr;
+    QGraphicsProxyWidget* m_ProxyUILabel = nullptr;
+    QGraphicsProxyWidget* m_ProxyIDLabel = nullptr;
+    QGraphicsProxyWidget* m_ProxyPresetLabel = nullptr;
+    QGraphicsPixmapItem* m_RackLeftPix = nullptr;
+    QList<QGraphicsItem*> m_GroupList;
+    QList<QGraphicsItem*> m_FrameList;
     QMenu* parametersMenu();
     QRecursiveMutex mutex;
+    int calcY(int y) {
+        return (m_Index * rackUnitHeight) + y;
+    }
 private slots:
     void updateParameterValue(int i);
     void showAutomation(CParameter* p) {
@@ -67,13 +59,6 @@ private slots:
     void showDefaultAutomation(IDevice* d) {
         emit showAutomationRequested(d,0);
     }
-     /*
-    void OpenPreset(QString PresetName);
-    void SavePresetAs();
-    void CopyParameters();
-    void PasteParameters();
-    void Automation();
-*/
 public slots:
     void updateControls();
     void updateControl(const CParameter* Parameter);

@@ -29,7 +29,7 @@ CDesktopContainer::CDesktopContainer(QWidget *parent) :
     connect(ui->DesktopComponent,&CDesktopComponent::deviceRemoved,this,&CDesktopContainer::removeDevice,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::devicesCleared,this,&CDesktopContainer::clear,Qt::DirectConnection);
 
-    connect(ui->DesktopComponent,&CDesktopComponent::connectionsChanged,ui->RackContainer,&CRackContainer::drawConnections,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::connectionsChanged,ui->RackContainer,&CRackContainer::updateConnections,Qt::QueuedConnection);
     connect(ui->RackContainer,&CRackContainer::connectionsChanged,ui->DesktopComponent,&CDesktopComponent::DrawConnections,Qt::QueuedConnection);
     connect(ui->RackContainer,&CRackContainer::aboutToChange,ui->DesktopComponent->MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
     connect(ui->RackContainer,&CRackContainer::ParametersChanged,ui->DesktopComponent,&CDesktopComponent::DrawConnections,Qt::QueuedConnection);
@@ -55,11 +55,11 @@ void CDesktopContainer::resizeEvent(QResizeEvent* event)
 
 void CDesktopContainer::resizeContent()
 {
-    const int MaxHeight=ui->RackContainer->deviceCount()*112;
+    const int MaxHeight=ui->RackContainer->deviceCount()*rackUnitHeight;
     //splitter->setCollapsible(0,(MaxHeight == 0));
-    ui->RackContainer->setMinimumHeight((MaxHeight > 0) * 112);
+    ui->RackContainer->setMinimumHeight((MaxHeight > 0) * rackUnitHeight);
     ui->RackContainer->setMaximumHeight(MaxHeight);
-    splitter->setMinimumHeight((MaxHeight > 0) * 112);
+    splitter->setMinimumHeight((MaxHeight > 0) * rackUnitHeight);
     //splitter->setCollapsible(1,(splitter->height()<=MaxHeight));
     //ui->DesktopComponent->updateGeometry();
     //Desktop->DrawConnections();

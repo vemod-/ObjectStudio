@@ -5,7 +5,6 @@
 #include <QGraphicsPathItem>
 #include <QGraphicsTextItem>
 #include "softsynthsdefines.h"
-#include "qdprpixmap.h"
 
 class DiagramTextItem : public QGraphicsTextItem
 {

@@ -60,14 +60,12 @@ HEADERS += $$PWD/cparameterscomponent.h \
     $$PWD/cdesktopcomponent.h \
     $$PWD/../../ObjectComposerXML/qmacsplitter.h
 
-FORMS += $$PWD/cparameterscomponent.ui \
+FORMS += \
     $$PWD/cknobcontrol.ui \
-    $$PWD/cjackscomponent.ui \
     $$PWD/cdesktopcontainer.ui \
     $$PWD/cdesktopcomponent.ui
 
 FORMS += \
-    $$PWD/cparameterscontainer.ui \
     $$PWD/crackcontainer.ui
 
 HEADERS += \

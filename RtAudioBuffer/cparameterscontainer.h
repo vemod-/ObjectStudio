@@ -2,12 +2,9 @@
 #define CPARAMETERSCONTAINER_H
 
 #include "cparameterscomponent.h"
+#include "../../QGraphicsViewZoomer/qgraphicsviewzoomer.h"
 
-namespace Ui {
-class CParametersContainer;
-}
-
-class CParametersContainer : public QWidget
+class CParametersContainer : public QGraphicsView
 {
     Q_OBJECT
 
@@ -25,12 +22,25 @@ public slots:
     int deviceCount() { return devices.size(); }
     void moveDevice(int, int);
     void parametersPixmap(IDevice* d, QPixmap* p);
-    //QMenu* parametersMenu(IDevice*);
-    //QAction* pasteParameters(IDevice*);
+    void drawParameters() {
+        int i = 0;
+        for (CParametersComponent* p : std::as_const(devices)) {
+            p->showParameters(i++);
+        }
+    }
 protected:
+    void mousePressEvent(QMouseEvent* event) {
+        const QPointF scenePos = mapToScene(event->pos());
+        int i = scenePos.y() / rackUnitHeight;
+        if ((i >= 0) && (i < devices.size())) {
+            QGraphicsItem* item = scene()->itemAt(scenePos, transform());
+            if (!devices[i]->swallowMousePress(event,item)) QGraphicsView::mousePressEvent(event);
+        }
+    }
 private:
-    Ui::CParametersContainer *ui;
     QList<CParametersComponent*> devices;
+    QGraphicsScene Scene;
+    QGraphicsViewZoomer* zoomer;
 signals:
     void automationRequested(IDevice*,int);
     void ParametersChanged(IDevice* Device);

@@ -3,6 +3,8 @@
 
 #include <QScrollArea>
 #include "cdevicelist.h"
+#include "cparameterscontainer.h"
+#include "cjackscomponent.h"
 #include <QMenu>
 
 namespace Ui {
@@ -28,7 +30,7 @@ public slots:
     void showParameters(IDevice* d);
     void updateControls(IDevice* d);
     void updateControl(IDevice* d, const CParameter* p);
-    void drawConnections();
+    void updateConnections();
     void animateTo(int i);
     void showAutomation(IDevice* d, int ParameterIndex);
 protected:
@@ -44,6 +46,8 @@ signals:
     void parametersPixmap(IDevice* d, QPixmap* p);
 private:
     Ui::CRackContainer *ui;
+    CParametersContainer* m_ParametersContainer;
+    CJacksComponent* m_JacksComponent;
     CDeviceList* m_DL;
     void createAutomationLane(IDevice* d, int parameterIndex);
 };

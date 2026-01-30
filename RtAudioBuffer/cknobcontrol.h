@@ -27,8 +27,7 @@ public:
     void setValue(CParameter* p);
     void setLabels(CParameter* p);
     int value();
-protected:
-    void mousePressEvent(QMouseEvent *);
+    void popupMenu(QPoint p);
 signals:
     void valueChanged(int Value);
     void requestAutomation(CParameter*);

@@ -5,7 +5,7 @@
 //#include <QMouseEvent>
 //#include <qsignalmenu.h>
 #include "cdevicelist.h"
-#include "qdprpixmap.h"
+#include "../../QGraphicsViewZoomer/qgraphicsviewzoomer.h"
 
 namespace Ui {
     class CJacksComponent;
@@ -22,7 +22,7 @@ public:
     QString jackID(const int j);
     QPoint jackPoint(int i);
     int MouseOverJack(const QPoint& p);
-    void setLeft(const int l) { m_Left=l; }
+    void setLeft(const int l) { m_Left = l; }
     int left() { return m_Left; }
     int width() {
         if (m_Device)
@@ -32,6 +32,8 @@ public:
         }
         return 0;
     }
+    QList<QGraphicsItem*> PlugImages;
+    QList<QGraphicsItem*> JackItems;
 private:
     int m_Index;
     IDevice* m_Device;
@@ -39,11 +41,11 @@ private:
     int m_Left;
     int calcLeft(int i)
     {
-        return (i*60) + 60 + m_Left;
+        return (i * 60) + 60 + m_Left;
     }
     int calcTop(int i, int index)
     {
-        return (index*112) + i;
+        return (index * 112) + i;
     }
 };
 
@@ -52,7 +54,7 @@ class CJacksComponent : public QGraphicsView
     Q_OBJECT
 
 public:
-    explicit CJacksComponent(QWidget *parent = 0);
+    explicit CJacksComponent(QWidget *parent = 0, QGraphicsScene* s = nullptr);
     ~CJacksComponent();
     void Init(CDeviceList* DeviceList);
 public slots:
@@ -61,8 +63,7 @@ public slots:
     void moveDevice(int, int);
     void clear();
     void DrawConnections();
-    void DrawDeviceConnections(IDevice* device, QList<IDevice*>& paintedContainers);
-    void DrawConnection(QPoint p1, QPoint p2, const QColor& color, const qreal linewidth = 5.0);
+    void updateConnections();
     //void JackMenuPopup(IJack* jack, QPoint pos);
     //void ToggleConnection(QString JackID);
 private slots:
@@ -77,8 +78,10 @@ protected:
     void resizeEvent(QResizeEvent* event);
     void wheelEvent(QWheelEvent* event);
 private:
-    Ui::CJacksComponent *ui;
-    QGraphicsScene Scene;
+    //Ui::CJacksComponent *ui;
+    QList<QGraphicsItem*> connectionItems;
+    QRect MaxRect;
+    QGraphicsScene* Scene;
     CDeviceList* m_DL;
     QString MouseOverJack(const QPoint& Pos);
     QList<CJacksDevice*> devices;
@@ -88,6 +91,10 @@ private:
     //QSignalMenu* JackPopup;
     QString MenuJackID;
     QRecursiveMutex mutex;
+    QGraphicsViewZoomer* zoomer;
+    QList<QGraphicsItem*> DrawThisConnections();
+    QList<QGraphicsItem*> DrawDeviceConnections(IDevice* device, QList<IDevice*>& paintedContainers);
+    QList<QGraphicsItem*> DrawConnection(QPoint p1, QPoint p2, const QColor& color, const qreal linewidth = 5.0);
 };
 
 #endif // CJACKSCOMPONENT_H

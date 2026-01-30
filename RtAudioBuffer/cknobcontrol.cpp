@@ -6,12 +6,13 @@ CKnobControl::CKnobControl(QWidget *parent) :
     ui(new Ui::CKnobControl)
 {
     ui->setupUi(this);
-    popup=new QSignalMenu(this);
-    QFont f=popup->font();
+    setAttribute(Qt::WA_TranslucentBackground);
+    popup = new QSignalMenu();
+    QFont f = popup->font();
     f.setPointSize(10);
     popup->setFont(f);
-    spinbox=new QDoubleSpinBox(this);
-    spinboxAction=new QWidgetAction(this);
+    spinbox = new QDoubleSpinBox(this);
+    spinboxAction = new QWidgetAction(this);
     spinboxAction->setDefaultWidget(spinbox);
     ui->verticalSlider->setVisible(false);
     ui->pushButton->setVisible(false);
@@ -110,56 +111,53 @@ void CKnobControl::setLabels(CParameter* p)
     */
 }
 
-void CKnobControl::mousePressEvent(QMouseEvent *event)
+void CKnobControl::popupMenu(QPoint p)
 {
-    if (event->button()==Qt::RightButton)
+    disconnect(spinbox);
+    spinbox->setAttribute(Qt::WA_MacShowFocusRect, false);
+    popup->removeAction(spinboxAction);
+    popup->clear();
+    QAction* automationAction = new QAction("Automation");
+    connect(automationAction,&QAction::triggered,this,&CKnobControl::sendAutomationRequest);
+    if (m_Parameter->Type==CParameter::SelectBox)
     {
-        disconnect(spinbox);
-        spinbox->setAttribute(Qt::WA_MacShowFocusRect, false);
-        popup->removeAction(spinboxAction);
-        popup->clear();
-        QAction* automationAction = new QAction("Automation");
-        connect(automationAction,&QAction::triggered,this,&CKnobControl::sendAutomationRequest);
-        if (m_Parameter->Type==CParameter::SelectBox)
+        QStringList l=m_Parameter->stringList();
+        for (int i=0;i<l.size();i++)
         {
-            QStringList l=m_Parameter->stringList();
-            for (int i=0;i<l.size();i++)
-            {
-                QAction* a=popup->addAction(l[i],i);
-                if (value()==i) popup->setActiveAction(a);
-            }
-            popup->addSeparator();
-            popup->addAction(automationAction);
-            popup->popup(mapToGlobal(event->pos()));
+            QAction* a=popup->addAction(l[i],i);
+            if (value()==i) popup->setActiveAction(a);
         }
-        else if (m_Parameter->Type==CParameter::dB)
-        {
-            spinbox->setMinimum(lin2dB(m_Parameter->Min*0.01));
-            spinbox->setMaximum(lin2dB(m_Parameter->Max*0.01));
-            spinbox->setDecimals(2);
-            spinbox->setValue(lin2dB(value()*0.01));
-            spinbox->selectAll();
-            popup->addAction(spinboxAction);
-            connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetdBValue);
-            popup->addSeparator();
-            popup->addAction(automationAction);
-            popup->popup(mapToGlobal(event->pos()));
-            spinbox->setFocus();
-        }
-        else
-        {
-            spinbox->setMinimum(m_Parameter->Min/double(m_Parameter->DecimalFactor));
-            spinbox->setMaximum(m_Parameter->Max/double(m_Parameter->DecimalFactor));
-            spinbox->setDecimals(QString::number(m_Parameter->DecimalFactor).length()-1);
-            spinbox->setValue(value()/double(m_Parameter->DecimalFactor));
-            spinbox->selectAll();
-            popup->addAction(spinboxAction);
-            connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetNumericValue);
-            popup->addSeparator();
-            popup->addAction(automationAction);
-            popup->popup(mapToGlobal(event->pos()));
-            spinbox->setFocus();
-        }
+        popup->addSeparator();
+        popup->addAction(automationAction);
+        popup->popup(p);
+    }
+    else if (m_Parameter->Type==CParameter::dB)
+    {
+        spinbox->setMinimum(lin2dB(m_Parameter->Min*0.01));
+        spinbox->setMaximum(lin2dB(m_Parameter->Max*0.01));
+        spinbox->setDecimals(2);
+        spinbox->setValue(lin2dB(value()*0.01));
+        spinbox->selectAll();
+        popup->addAction(spinboxAction);
+        connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetdBValue);
+        popup->addSeparator();
+        popup->addAction(automationAction);
+        popup->popup(p);
+        spinbox->setFocus();
+    }
+    else
+    {
+        spinbox->setMinimum(m_Parameter->Min/double(m_Parameter->DecimalFactor));
+        spinbox->setMaximum(m_Parameter->Max/double(m_Parameter->DecimalFactor));
+        spinbox->setDecimals(QString::number(m_Parameter->DecimalFactor).length()-1);
+        spinbox->setValue(value()/double(m_Parameter->DecimalFactor));
+        spinbox->selectAll();
+        popup->addAction(spinboxAction);
+        connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetNumericValue);
+        popup->addSeparator();
+        popup->addAction(automationAction);
+        popup->popup(p);
+        spinbox->setFocus();
     }
 }
 

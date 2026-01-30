@@ -17,5 +17,7 @@
         <file>RackUnitBack.png</file>
         <file>RackUnitFront.png</file>
         <file>RackBack.png</file>
+        <file>RackRight.png</file>
+        <file>RackLeft.png</file>
     </qresource>
 </RCC>
