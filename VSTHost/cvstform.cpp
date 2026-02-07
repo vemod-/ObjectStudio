@@ -104,7 +104,7 @@ bool CVSTForm::event(QEvent *event)
         qDebug() << "CVSTform event" << event->type() << dynamic_cast<QMouseEvent*>(event)->button();
         if (dynamic_cast<QMouseEvent*>(event)->button()==Qt::RightButton)
         {
-            plugIn->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(event)->pos()));
+            plugIn->popup(dynamic_cast<QMouseEvent*>(event)->globalPosition().toPoint());
         }
     }
     /*

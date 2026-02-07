@@ -80,13 +80,13 @@ public:
         pal.setBrush(r,QBrush(QDPRPixmap(img)));
         w->setPalette(pal);
     }
-    QPixmap& shadowedPixmap() {
+    QPixmap& shadowedPixmap(int s = 8) {
         if (m_ShadowedPixmap.isNull()) {
-            m_ShadowedPixmap = QDPRPixmap((QPixmap::size() / qApp->devicePixelRatio()) + QSize(8,8));
+            m_ShadowedPixmap = QDPRPixmap((QPixmap::size() / qApp->devicePixelRatio()) + QSize(s,s));
             m_ShadowedPixmap.fill(Qt::transparent);
             QPainter p(&m_ShadowedPixmap);
             p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
-            for (int i = 0; i < 8; i++) p.drawPixmap(i + 1, i + 1, shadow());
+            for (int i = 0; i < s; i++) p.drawPixmap(i + 1, i + 1, shadow());
             p.drawPixmap(0,0,*this);
             p.end();
         }

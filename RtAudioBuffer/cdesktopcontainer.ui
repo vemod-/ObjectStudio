@@ -16,7 +16,7 @@
   <property name="styleSheet">
    <string notr="true">#ParametersComponent, #ParametersComponent QScrollArea{background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(230, 230, 230, 255), stop:0.8 rgba(200, 200, 200, 255));}</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -33,9 +33,6 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="CRackContainer" name="RackContainer" native="true"/>
-   </item>
-   <item>
     <widget class="CDesktopComponent" name="DesktopComponent"/>
    </item>
    <item>
@@ -48,12 +45,6 @@
    <class>CDesktopComponent</class>
    <extends>QGraphicsView</extends>
    <header>cdesktopcomponent.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CRackContainer</class>
-   <extends>QWidget</extends>
-   <header>crackcontainer.h</header>
-   <container>1</container>
   </customwidget>
   <customwidget>
    <class>CUIMap</class>

@@ -2,7 +2,6 @@
 #include <QLayout>
 #include <QPushButton>
 #include <QDrag>
-#include "mouseevents.h"
 #include "cparametersmenu.h"
 #include "caddins.h"
 #include "qdprpixmap.h"
@@ -13,7 +12,7 @@ CEffectRackForm::CEffectRackForm(IDevice* Device,QWidget* Parent) :
     auto ly=new QVBoxLayout(this);
     ly->setContentsMargins(0,0,0,0);
     ly->setSpacing(0);
-    m_Rack = new CRackContainer(this);
+    m_Rack = new CParametersContainer(this);
     ly->addWidget(m_Rack);
     m_Rack->Init(&m_DeviceList);
     Device->addTickerDevice(&m_DeviceList);
@@ -34,72 +33,49 @@ CEffectRackForm::CEffectRackForm(IDevice* Device,QWidget* Parent) :
     btnAdd->setFlat(true);
     QDPRPixmap::setWidgetBackground(btnAdd,":/Black Aluminium Tile.jpg",QPalette::Button);
     btnAdd->setAutoFillBackground(true);
-    //btnAdd->setStyleSheet("color:white;background-image:url(:/Black Aluminium Tile.jpg);font-size:24px;");
     tbly->addWidget(btnAdd);
     m_Toolbar->setFixedHeight(btnAdd->height());
     connect(btnAdd,&QPushButton::clicked,this,&CEffectRackForm::addDevice);
     PluginsPopup=new QSignalMenu("New Device",this);
     connect(PluginsPopup,SIGNAL(menuClicked(QString)),this,SLOT(PluginMenuClicked(QString)));
-    connect(m_Rack,&CRackContainer::mousePress,this,&CEffectRackForm::rackMousePressed);
-    //connect(m_Rack,&CRackContainer::automationRequested,this,&CEffectRackForm::showAutomation);
+    //connect(m_Rack,&CParametersContainer::mousePressed,this,&CEffectRackForm::rackMousePressed);
+    connect(m_Rack,&CParametersContainer::sizeChanged,this,&CEffectRackForm::rackSizeChanged);
     setMinimumWidth(800);
-
-    DropEvent* ev = new DropEvent();
-    QWidget* rackWidget = (QWidget*)m_Rack->widget();
-    rackWidget->setAcceptDrops(true);
-    rackWidget->installEventFilter(ev);
-    connect(ev,&DropEvent::Drop,this,&CEffectRackForm::rackDrop);
-    connect(ev,&DropEvent::DragEnter,this,&CEffectRackForm::rackDragEnter);
-    connect(this,&CEffectRackForm::controlChanged,m_Rack,&CRackContainer::updateControl,Qt::QueuedConnection);
+    //setAcceptDrops(true);
+    connect(this,&CEffectRackForm::controlChanged,m_Rack,&CParametersContainer::updateControl,Qt::QueuedConnection);
+    connect(m_Rack,&CParametersContainer::devicesReordered,this,&CEffectRackForm::reorderDevices);
+    connect(m_Rack,&CParametersContainer::deviceRemoved,this,&CEffectRackForm::removeDevice);
 }
 
-void CEffectRackForm::rackDrop(QDropEvent* e)
-{
-    QByteArray b(e->mimeData()->data("application/x-dnditemdata"));
-    qDebug() << "Drop" << e->position() << QString::fromLatin1(b);
-    int deviceIndex = m_DeviceList.indexOfDevice(m_DeviceList.device(QString::fromLatin1(b)));
-    int newIndex = e->position().y() / rackUnitHeight;
-    int move = newIndex - deviceIndex;
-    qDebug() << "move" << move;
-    if (m_DeviceList.moveDevice(deviceIndex, move))
-    {
-        e->setAccepted(true);
-        m_Rack->moveDevice(deviceIndex, move);
-        updateConnections();
-    }
+void CEffectRackForm::rackSizeChanged(){
+    setMaximumHeight(m_Toolbar->height() + m_Rack->maximumHeight());
+    setMinimumHeight(m_Toolbar->height() + m_Rack->minimumHeight());
+    setGeometry(geometry().left(),geometry().top(),geometry().width(),m_Rack->height() + m_Toolbar->height());
+    updateGeometry();
 }
-
-void CEffectRackForm::rackDragEnter(QDragEnterEvent* e)
-{
-    qDebug() << "DragEnter" << e->position();
-    e->acceptProposedAction();
-}
-
-void CEffectRackForm::rackMousePressed(IDevice* d, QPoint p)
+/*
+void CEffectRackForm::rackMousePressed(IDevice* d, QPoint globalPos)
 {
     if (m_DeviceList.deviceCount() < 1) return;
-    qDebug() << d->deviceID() << p;
     const int index = m_DeviceList.indexOfDevice(d);
-    QWidget* rackWidget = m_Rack->widget();
-    qDebug() << rackWidget->rect();
-    QPixmap pm = rackWidget->grab().scaled(rackWidget->size(),Qt::KeepAspectRatio,Qt::SmoothTransformation);
-    pm.setDevicePixelRatio(1);
-    QList<QPixmap> l;
-    for (int i = 0; i < m_DeviceList.deviceCount(); i++)
-    {
-        l.append(pm.copy(0,i*rackUnitHeight,width(),rackUnitHeight));
-    }
+    QPoint viewPos = m_Rack->mapFromGlobal(globalPos);
+    QPointF scenePos = m_Rack->mapToScene(viewPos);
+    QPixmap pm;
+    m_Rack->parametersPixmap(d, &pm);
     QMimeData *mimeData = new QMimeData;
     mimeData->setData("application/x-dnditemdata", QByteArray(d->deviceID().toLatin1()));
-    QDrag* drag = new QDrag(rackWidget);
+    QDrag* drag = new QDrag(this);
     drag->setMimeData(mimeData);
-    drag->setPixmap(l[index]);
-    drag->setHotSpot(rackWidget->mapFromGlobal(p) - QPoint(0,rackUnitHeight * index));
+    drag->setPixmap(pm);
+    QPoint hotspot = scenePos.toPoint() - QPoint(0, 112 * index);
+    drag->setHotSpot(hotspot);
     Qt::DropActions a = drag->exec(Qt::MoveAction);
-    qDebug() << "Drag Target" << drag->target();
-    if ((a == Qt::IgnoreAction) && (!rackWidget->rect().contains(mapFromGlobal(QCursor::pos())))) removeDevice(d);
+    if (a == Qt::IgnoreAction) {
+        QPoint viewCursor = m_Rack->mapFromGlobal(QCursor::pos());
+        if (!m_Rack->rect().contains(viewCursor)) removeDevice(d);
+    }
 }
-
+*/
 void CEffectRackForm::init(CInJack* in, COutJack* out)
 {
     QMutexLocker locker(&mutex);
@@ -107,7 +83,6 @@ void CEffectRackForm::init(CInJack* in, COutJack* out)
     insideOut = out;
     m_DeviceList.addJack(insideIn);
     m_DeviceList.addJack(insideOut);
-    setMaximumHeight(m_Toolbar->height());
 }
 
 void CEffectRackForm::addDevice()
@@ -124,14 +99,6 @@ void CEffectRackForm::removeDevice(IDevice* d)
     m_DeviceList.removeDevice(d);
     m_Rack->removeDevice(d);
     delete d;
-    setMaximumHeight((rackUnitHeight*m_DeviceList.deviceCount())+m_Toolbar->height());
-    if (m_DeviceList.deviceCount() == 0) {
-        setMinimumHeight(m_Toolbar->height());
-    }
-    else {
-        setMinimumHeight(rackUnitHeight + m_Toolbar->height());
-    }
-    adjustSize();
     updateConnections();
 }
 
@@ -142,9 +109,14 @@ void CEffectRackForm::PluginMenuClicked(QString AddInName)
     if (MenuIndex<0) return;
     IDevice* D=m_DeviceList.createDevice(instancefn(MenuIndex),m_DeviceList.findFreeIndex(AddInName),parentWidget());
     m_Rack->addDevice(D);
-    setMaximumHeight((rackUnitHeight*m_DeviceList.deviceCount())+m_Toolbar->height());
-    setMinimumHeight(rackUnitHeight + m_Toolbar->height());
     updateConnections();
+}
+
+void CEffectRackForm::reorderDevices(int deviceIndex, int move) {
+    if (m_DeviceList.moveDevice(deviceIndex, move)) {
+        m_Rack->moveDevice(deviceIndex, move);
+        updateConnections();
+    }
 }
 
 void CEffectRackForm::updateConnections()
@@ -209,12 +181,12 @@ void CEffectRackForm::unserializeCustom(const QDomLiteElement* xml)
             m_DeviceList.connect(InJack,OutJack);
         }
     }
-    setMaximumHeight((rackUnitHeight*m_DeviceList.deviceCount())+m_Toolbar->height());
+    setMaximumHeight((m_Rack->unitHeight()*m_DeviceList.deviceCount())+m_Toolbar->height());
     if (m_DeviceList.deviceCount() == 0) {
         setMinimumHeight(m_Toolbar->height());
     }
     else {
-        setMinimumHeight(rackUnitHeight + m_Toolbar->height());
+        setMinimumHeight(m_Rack->unitHeight() + m_Toolbar->height());
     }
     updateConnections();
 }
@@ -247,7 +219,6 @@ void CEffectRackForm::parameterChange(IDevice* device, const CParameter* paramet
     {
         if (parameter)
         {
-            //QMutexLocker locker(&mutex);
             emit controlChanged(device,parameter);
             const int d = m_DeviceList.indexOfDevice(device);
             if (d > -1) m_DeviceList.updateParameter(d,parameter);
@@ -263,26 +234,37 @@ bool CEffectRackForm::event(QEvent* e) {
     {
         if (dynamic_cast<QMouseEvent*>(e)->button()==Qt::RightButton)
         {
-            //actionPasteParameters->setEnabled(QApplication::clipboard()->text().startsWith("<Parameters"));
-            //parametersMenu->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(event)->pos()));
             CParametersMenu* m = new CParametersMenu(m_Device,this,false);
             m->setAttribute(Qt::WA_DeleteOnClose,true);
             connect(m,&CParametersMenu::parametersChanged,this,&CEffectRackForm::updateConnections);
-            //m->addSeparator();
-            //m->addAction("UI map",ui->DesktopContainer,&CDesktopContainer::showMap);
-            //m->addAction("Hide UIs",ui->DesktopContainer,&CDesktopContainer::hideUIs);
-            //m->addAction("Cascade UIs",this,&CMacroBoxForm::cascadeUIs);
-
-            m->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(e)->pos()));
+            m->popup(dynamic_cast<QMouseEvent*>(e)->globalPosition().toPoint());
         }
     }
     return CSoftSynthsForm::event(e);
 }
-
 /*
-void CEffectRackForm::showAutomation(IDevice* d)
-{
-    m_Rack->showAutomation(d, &m_DeviceList);
+void CEffectRackForm::dragEnterEvent(QDragEnterEvent *e) {
+    if (e->mimeData()->hasFormat("application/x-dnditemdata")) {
+        e->acceptProposedAction();
+    }
+}
+
+void CEffectRackForm::dropEvent(QDropEvent *e) {
+    QByteArray b(e->mimeData()->data("application/x-dnditemdata"));
+    int deviceIndex =
+        m_DeviceList.indexOfDevice(
+            m_DeviceList.device(QString::fromLatin1(b)));
+
+    QPointF scenePos = m_Rack->mapToScene(e->position().toPoint());
+    int newIndex = scenePos.y() / 112;//m_Rack->unitHeight();
+
+    int move = newIndex - deviceIndex;
+
+    if (m_DeviceList.moveDevice(deviceIndex, move)) {
+        e->acceptProposedAction();
+        m_Rack->moveDevice(deviceIndex, move);
+        updateConnections();
+    }
 }
 */
 CEffectRack::CEffectRack()
@@ -300,12 +282,7 @@ void CEffectRack::init(const int Index, QWidget* MainWindow)
     FORMFUNC(CEffectRackForm)->updateConnections();
     updateDeviceParameter();
 }
-/*
-void CEffectRack::tick()
-{
-    IDevice::tick();
-}
-*/
+
 void CEffectRack::process()
 {
     InBuffer = FetchAStereo(jnIn);

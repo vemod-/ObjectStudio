@@ -5,6 +5,9 @@
 #include <QGraphicsPathItem>
 #include <QGraphicsTextItem>
 #include "softsynthsdefines.h"
+#include "qgraphicsitemlist.h"
+#include "ijack.h"
+#include <QApplication>
 
 class DiagramTextItem : public QGraphicsTextItem
 {
@@ -36,9 +39,9 @@ private:
 class CConnectionHelper
 {
 public:
-    static QList<QGraphicsItem*> DrawArrow(const QPoint& OutPoint, const QPoint& InPoint, QColor Color, QGraphicsScene* Scene, const qreal lineWidth = 2.0)
+    static QGraphicsItemList DrawArrow(const QPoint& OutPoint, const QPoint& InPoint, QColor Color, QGraphicsScene* Scene, int zValue = 0, const qreal lineWidth = 2.0)
     {
-        QList<QGraphicsItem*> items;
+        QGraphicsItemList items;
         QPointF s(InPoint-OutPoint);
         QPoint Mid(InPoint -((InPoint-OutPoint)/2));
         QPoint Mid14(InPoint-((InPoint-OutPoint)/4));
@@ -91,11 +94,38 @@ public:
         path.lineTo(Mid);
         path.lineTo(p4);
         items.append(Scene->addPath(path,QPen(Color,lineWidth,Qt::SolidLine,Qt::RoundCap),Color));
+        if (zValue) items.setZValue(zValue);
         return items;
     }
-    static QList<QGraphicsItem*> DrawShadowText(const QString& text, const QFont& font, const QPoint& pos, QGraphicsScene* Scene)
+    static QGraphicsItemList DrawCord(QPoint p1, QPoint p2, const QColor& color, QGraphicsScene* Scene, const qreal linewidth = 5.0)
     {
-        QList<QGraphicsItem*> items;
+        QGraphicsItemList l;
+        QPainterPath p;
+        QRect r(p1,p2);
+        r=r.normalized();
+        int adjust = 60 - r.width();
+        if (adjust < 0) adjust=0;
+        r.adjust(adjust,(r.height()/5)+50,-adjust,(r.height()/5)+100);
+        if (p1.x() > p2.x()) std::swap(p1,p2);
+        p.moveTo(p1);
+        if (p1.y() < p2.y())
+        {
+            p.cubicTo(r.bottomLeft(),p2+((r.bottomRight()-p2)/2),p2);
+        }
+        else
+        {
+            p.cubicTo(p1+((r.bottomLeft()-p1)/2),r.bottomRight(),p2);
+        }
+        l.append(Scene->addPath(p.translated(5,5),QPen(QColor(0,0,0,40),linewidth,Qt::SolidLine,Qt::RoundCap)));
+        QColor c(color);
+        l.append(Scene->addPath(p,QPen(c,linewidth,Qt::SolidLine,Qt::RoundCap)));
+        l.setZValue(2);
+        //for (QGraphicsItem* i : l)  i->setZValue(2);
+        return l;
+    }
+    static QGraphicsItemList DrawShadowText(const QString& text, const QFont& font, const QPoint& pos, QGraphicsScene* Scene, int zValue = 0)
+    {
+        QGraphicsItemList items;
         QGraphicsSimpleTextItem* item = Scene->addSimpleText(text,font);
         item->setPos(pos);
         item->setBrush(QBrush(QColor(0xdd,0xdd,0xdd)));
@@ -106,12 +136,12 @@ public:
         item->setBrush(QColor(0x22,0x22,0x22));
         item->setPen(Qt::NoPen);
         items.append(item);
-
+        if (zValue) items.setZValue(zValue);
         return items;
     }
-    static QList<QGraphicsItem*> DrawShadowTextCenter(const QString& text, const QFont& font, const QPoint& pos, const QSize& size, const Qt::Alignment& alignment, QGraphicsScene* Scene)
+    static QGraphicsItemList DrawShadowTextCenter(const QString& text, const QFont& font, const QPoint& pos, const QSize& size, const Qt::Alignment& alignment, QGraphicsScene* Scene, int zValue = 0)
     {
-        QList<QGraphicsItem*> items;
+        QGraphicsItemList items;
         DiagramTextItem* item = new DiagramTextItem();
         item->setFont(font);
         item->setBoundingRect(QRect(pos,size));
@@ -130,9 +160,32 @@ public:
         item->setAlignment(alignment);
         Scene->addItem(item);
         items.append(item);
-
+        if (zValue) items.setZValue(zValue);
         return items;
     }
+    static Qt::CursorShape connectCursor(QWidget* w, IJack* J1, IJack* J2)
+    {
+        if (J1 != J2)
+        {
+            w->setToolTip(J2->captionX());
+            return  ((J1->canConnectTo(J2)) && (!J1->isConnectedTo(J2))) ? Qt::PointingHandCursor : Qt::ForbiddenCursor;
+        }
+        w->setToolTip(QString());
+        return Qt::OpenHandCursor;
+    }
+
+    static void SetConnectCursor(QWidget* w, IJack* HoverJack, IJack* DragJack)
+    {
+        if (HoverJack)
+        {
+            QApplication::restoreOverrideCursor();
+            QApplication::setOverrideCursor(connectCursor(w,DragJack,HoverJack));
+            return;
+        }
+        QApplication::restoreOverrideCursor();
+        w->setToolTip(QString());
+    }
+
 };
 
 #endif // CCONNECTIONHELPER_H

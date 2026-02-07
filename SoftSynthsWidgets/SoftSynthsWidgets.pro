@@ -74,7 +74,8 @@ HEADERS += \
     ../MacroBox/cmacroboxform.h \
     ../MacroBox/ccustomjacksdialog.h \
     ../MacroBox/ccustomparameterdialog.h \
-    qdprpixmap.h
+    qdprpixmap.h \
+    qgraphicsitemlist.h
 
 FORMS += \
     ../MacroBox/cmacroboxform.ui \

@@ -1,18 +1,29 @@
 #include "cparameterscomponent.h"
-//#include "ui_cparameterscomponent.h"
 #include <QInputDialog>
-//#include <QMessageBox>
 #include <QClipboard>
 #include "cparametersmenu.h"
 #include "qdprpixmap.h"
 
 #define rackLeftWidth 68
+#define rackFrontWidth 1140
 
 CParametersComponent::CParametersComponent(QGraphicsScene* s)
 {
+    static QDPRPixmap rackLeftPix(QSize(rackUnitHeight,rackUnitHeight),":/RackLeft.png",Qt::KeepAspectRatio);
+    static QDPRPixmap rackRightPix(QSize(rackUnitHeight,rackUnitHeight),":/RackRight.png",Qt::KeepAspectRatio);
+    static QDPRPixmap screwPix(QSize(10,10),":/screwhead.png");
     m_Device = nullptr;
     m_Scene = s;
-    m_RackLeftPix = m_Scene->addPixmap(QDPRPixmap(QSize(rackUnitHeight,rackUnitHeight),":/RackLeft.png",Qt::KeepAspectRatio));
+    m_FrameList.addToScene(m_Scene);
+    m_GroupList.addToScene(m_Scene);
+    m_ProxyDials.addToScene(m_Scene);
+    //m_Scene->addItem(&m_FrameList);
+    //m_Scene->addItem(&m_GroupList);
+    //m_Scene->addItem(&m_ProxyDials);
+    m_FrameList.append(m_Scene->addPixmap(rackLeftPix));
+    QGraphicsPixmapItem* i =  m_Scene->addPixmap(rackRightPix);
+    i->setPos(rackLeftWidth + rackFrontWidth,0);
+    m_FrameList.append(i);
     m_NameLabel = new EffectLabel();
     m_UILabel = new QLCDLabel();
     m_UILabel->setFixedSize(130,91);
@@ -30,44 +41,48 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     m_NameLabel->setTextColor(QColor(0,0,0,200));
     m_NameLabel->setShadowColor(QColor(255,255,255,200));
     m_NameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    QRect r(rackLeftWidth - 4, 0, rackFrontWidth + 5, rackUnitHeight);
+    m_FrameList.append(m_Scene->addRect(r,Qt::NoPen,QDPRPixmap(":/Brushed Aluminium Tile.bmp")));
+    QGraphicsPixmapItem* s1 = m_Scene->addPixmap(screwPix);
+    s1->setPos(rackLeftWidth, 4);
+    m_FrameList.append(s1);
+    QGraphicsPixmapItem* s2 = m_Scene->addPixmap(screwPix);
+    s2->setPos(rackLeftWidth, 98);
+    m_FrameList.append(s2);
+    QGraphicsPixmapItem* s3 = m_Scene->addPixmap(screwPix);
+    s3->setPos(rackLeftWidth + rackFrontWidth - 14 ,4);
+    m_FrameList.append(s3);
+    QGraphicsPixmapItem* s4 = m_Scene->addPixmap(screwPix);
+    s4->setPos(rackLeftWidth + rackFrontWidth - 14, 98);
+    m_FrameList.append(s4);
+    m_FrameList.append(m_Scene->addLine(QLine(r.bottomLeft(),r.bottomRight()),QPen(Qt::darkGray)));
+    m_FrameList.append(m_Scene->addLine(QLine(r.topRight(),r.bottomRight()),QPen(Qt::darkGray)));
+    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.topRight()),QPen(Qt::white)));
+    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.bottomLeft()),QPen(Qt::white)));
 
     QFont f(m_NameLabel->font());
     f.setPointSize(15);
     m_NameLabel->setFont(f);
-    m_Width=0;
     f = m_PresetLabel->font();
     f.setPointSize(9);
     m_PresetLabel->setFont(f);
     m_IDLabel->setFont(f);
-    m_ProxyPresetLabel = m_Scene->addWidget(m_PresetLabel);
-    m_ProxyIDLabel = m_Scene->addWidget(m_IDLabel);
+    QGraphicsProxyWidget* p = m_Scene->addWidget(m_PresetLabel);
+    p->setPos(rackLeftWidth + 12, 96);
+    m_FrameList.append(p);
+    QGraphicsProxyWidget* p1 = m_Scene->addWidget(m_IDLabel);
+    p1->setPos(rackLeftWidth + 12, 80);
+    m_FrameList.append(p1);
     m_ProxyNameLabel = m_Scene->addWidget(m_NameLabel);
+    m_ProxyNameLabel->setPos(rackLeftWidth + 12, 0);
+    m_FrameList.append(m_ProxyNameLabel);
     m_ProxyUILabel = m_Scene->addWidget(m_UILabel);
+    m_ProxyUILabel->setPos(rackLeftWidth + 136, 12);
+    m_FrameList.append(m_ProxyUILabel);
 }
 
 CParametersComponent::~CParametersComponent()
 {
-    //m_Scene->clear();
-    for (QGraphicsProxyWidget* w : std::as_const(m_ProxyDials)) {
-        m_Scene->removeItem(w);
-        delete w;
-    }
-    for (QGraphicsItem* w : std::as_const(m_GroupList)) {
-        m_Scene->removeItem(w);
-        delete w;
-    }
-    for (QGraphicsItem* w : std::as_const(m_FrameList)) {
-        m_Scene->removeItem(w);
-        delete w;
-    }
-    m_Scene->removeItem(m_ProxyNameLabel);
-    delete m_ProxyNameLabel;
-    m_Scene->removeItem(m_ProxyUILabel);
-    delete m_ProxyUILabel;
-    m_Scene->removeItem(m_ProxyIDLabel);
-    delete m_ProxyIDLabel;
-    m_Scene->removeItem(m_ProxyPresetLabel);
-    delete m_ProxyPresetLabel;
 }
 
 QString CParametersComponent::deviceID()
@@ -82,22 +97,52 @@ void CParametersComponent::init(IDevice* Device)
     if (Device != nullptr)
     {
         Parameters.clear();
-        for (QGraphicsProxyWidget* w : std::as_const(m_ProxyDials)) {
-            m_Scene->removeItem(w);
-            delete w;
-        }
         m_ProxyDials.clear();
+        m_GroupList.clear();
         Dials.clear();
         for (int i = 0; i < Device->parameterCount(); i++)
         {
             Parameters.append(Device->parameter(i));
             auto d = new CKnobControl();
-            m_ProxyDials.append(m_Scene->addWidget(d));
-            m_ProxyDials.last()->setZValue(1);
+            QGraphicsProxyWidget* w = m_Scene->addWidget(d);
+            m_ProxyDials.append(w);
+            w->setPos(i * 75, 8);
+            //w->setZValue(1);
             connect(d, &CKnobControl::valueChanged, [=] { updateParameterValue(i); });
             connect(d,&CKnobControl::requestAutomation,this,&CParametersComponent::showAutomation);
             Dials.append(d);
-            d->show();
+        }
+        m_ProxyDials.setZValue(1);
+        if (!m_ProxyDials.childItems().isEmpty()) {
+            QFont f;
+            f.setPointSizeF(10);
+            QFontMetricsF fm(f);
+            for (int i = 0; i < (m_Device)->parameterGroupCount(); i++)
+            {
+                const CParameterGroup* g = (m_Device)->parameterGroup(i);
+                QColor c = g->color;
+                c.setAlphaF(0.2);
+                const int endIndex = (g->endIndex > -1) ? g->endIndex : m_ProxyDials.childItems().size() - 1;
+                const QGraphicsProxyWidget* sw = static_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(g->startIndex));
+                const QGraphicsProxyWidget* ew = static_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(endIndex));
+                QRectF r1 = sw->geometry().adjusted(1,-6,-2,6);
+                QRectF r2 = ew->geometry().adjusted(1,-6,-2,6);
+                QRectF r = r1.united(r2);
+                QPainterPath path;
+                path.addRoundedRect(r, 5, 5);
+                m_GroupList.append(m_Scene->addPath(path,QColor(0,0,0,40),c));
+                if (!g->Name.isEmpty())
+                {
+                    QGraphicsSimpleTextItem* t = m_Scene->addSimpleText(g->Name,f);
+                    t->setBrush(QColor(255,255,255,200));
+                    t->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2) - 1, r.top() - 2);
+                    QGraphicsSimpleTextItem* s = m_Scene->addSimpleText(g->Name,f);
+                    s->setBrush(QColor(0,0,0,200));
+                    s->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2), r.top() - 1);
+                    m_GroupList.append(t);
+                    m_GroupList.append(s);
+                }
+            }
         }
         if (m_Device->alias().isEmpty()) {
             m_NameLabel->setText(m_Device->name());
@@ -131,22 +176,10 @@ void CParametersComponent::updateControl(const CParameter* Parameter)
 
 void CParametersComponent::showParameters(int index)
 {
-    static QDPRPixmap screwPix(QSize(10,10),":/screwhead.png");
-    m_Index = index;
     qDebug() << "CParametersComåponent showParameters";
-    for (QGraphicsItem* i : std::as_const(m_GroupList)) {
-        m_Scene->removeItem(i);
-        delete i;
-    }
-    m_GroupList.clear();
-    m_Width = 172;
     m_UILabel->clear();
     m_PresetLabel->clear();
-    m_RackLeftPix->setPos(0,calcY(0));
-    m_ProxyPresetLabel->setPos(rackLeftWidth + 12,calcY(96));
-    m_ProxyIDLabel->setPos(rackLeftWidth + 12,calcY(80));
-    m_ProxyNameLabel->setPos(rackLeftWidth + 12,calcY(0));
-    m_ProxyUILabel->setPos(rackLeftWidth + 136,calcY(12));
+    m_FrameList.setPos(0, index * rackUnitHeight);
     if (m_Device)
     {
         if (m_Device->alias().isEmpty()) {
@@ -169,63 +202,13 @@ void CParametersComponent::showParameters(int index)
                 m_UILabel->setPixmap(pm);
                 delete px;
                 dialOffset += m_UILabel->width() + 4;
-                m_Width += m_UILabel->width();
                 m_ProxyUILabel->setVisible(true);
             }
         }
         m_PresetLabel->setText(m_Device->currentProgramMatches());
-        for (int i = 0; i < m_ProxyDials.size(); i++) {
-            m_ProxyDials[i]->setPos(dialOffset + (i * 75),calcY(8));
-            m_Width += 75;
-        }
-        if (!m_ProxyDials.isEmpty()) {
-            QFont f;
-            f.setPointSizeF(10);
-            QFontMetricsF fm(f);
-            for (int i = 0; i < (m_Device)->parameterGroupCount(); i++)
-            {
-                const CParameterGroup* g = (m_Device)->parameterGroup(i);
-                QColor c = g->color;
-                c.setAlphaF(0.2);
-                QRectF r1 = m_ProxyDials.at(g->startIndex)->geometry().adjusted(1,-6,-2,6);
-                QRectF r2 = (g->endIndex > -1) ? m_ProxyDials.at(g->endIndex)->geometry().adjusted(1,-6,-2,6) : m_ProxyDials.last()->geometry().adjusted(1,-6,-2,6);
-                QRectF r = r1.united(r2);
-                QPainterPath path;
-                path.addRoundedRect(r, 5, 5);
-                m_GroupList.append(m_Scene->addPath(path,QColor(0,0,0,40),c));
-                if (!g->Name.isEmpty())
-                {
-                    QGraphicsSimpleTextItem* t = m_Scene->addSimpleText(g->Name,f);
-                    t->setBrush(QColor(255,255,255,200));
-                    t->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2) - 1, r.top() - 2);
-                    QGraphicsSimpleTextItem* s = m_Scene->addSimpleText(g->Name,f);
-                    s->setBrush(QColor(0,0,0,200));
-                    s->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2), r.top() - 1);
-                    m_GroupList.append(t);
-                    m_GroupList.append(s);
-                }
-            }
-        }
+        m_ProxyDials.setPos(dialOffset, index * rackUnitHeight);
+        m_GroupList.setPos(dialOffset, index * rackUnitHeight);
     }
-    for (QGraphicsItem* i : std::as_const(m_FrameList)) {
-        m_Scene->removeItem(i);
-        delete i;
-    }
-    m_FrameList.clear();
-    QGraphicsPixmapItem* s = m_Scene->addPixmap(screwPix);
-    s->setPos(rackLeftWidth,calcY(4));
-    m_FrameList.append(s);
-    QGraphicsPixmapItem* s1 = m_Scene->addPixmap(screwPix);
-    s1->setPos(rackLeftWidth,calcY(98));
-    m_FrameList.append(s1);
-    QRect r(m_Scene->sceneRect().toRect());
-    r.setLeft(rackLeftWidth - 4);
-    r.setTop(calcY(0));
-    r.setHeight(rackUnitHeight);
-    m_FrameList.append(m_Scene->addLine(QLine(r.bottomLeft(),r.bottomRight()),QPen(Qt::darkGray)));
-    m_FrameList.append(m_Scene->addLine(QLine(r.topRight(),r.bottomRight()),QPen(Qt::darkGray)));
-    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.topRight()),QPen(Qt::white)));
-    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.bottomLeft()),QPen(Qt::white)));
 }
 
 void CParametersComponent::updateParameterValue(int i)
@@ -236,30 +219,10 @@ void CParametersComponent::updateParameterValue(int i)
     m_PresetLabel->setText(m_Device->currentProgramMatches());
 }
 
-void CParametersComponent::wheelEvent(QWheelEvent* /*event*/)
-{
-    /*
-    const int move = event->pixelDelta().rx();
-    if (move != 0)
-    {
-        if (m_Width > width())
-        {
-            int l = m_DialsFrame->geometry().left()+move;
-            if (l > 0) l = 0;
-            if (l < width()-m_Width) l = width()-m_Width;
-            ui->DialsFrame->move(l,0);
-            event->accept();
-            return;
-        }
-    }
-    event->ignore();
-*/
-}
-
 bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* item)
 {
     if (event->button() == Qt::RightButton) {
-        if (m_ProxyDials.contains(item)) {
+        if (itemIsKnob(item)) {
             QGraphicsProxyWidget* w = static_cast<QGraphicsProxyWidget*>(item);
             CKnobControl* k = static_cast<CKnobControl*>(w->widget());
             k->popupMenu(event->globalPosition().toPoint());
@@ -272,10 +235,12 @@ bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* 
     if ((m_ProxyNameLabel == item) || (m_ProxyUILabel == item))
     {
         if (m_Device) m_Device->toggleUI();
-        return true;
     }
-    if (event->button() == Qt::LeftButton) emit mousePress(m_Device, event->globalPosition().toPoint());
     return false;
+}
+
+bool CParametersComponent::itemIsKnob(QGraphicsItem *item) {
+    return m_ProxyDials.childItems().contains(item);
 }
 
 QMenu* CParametersComponent::parametersMenu()

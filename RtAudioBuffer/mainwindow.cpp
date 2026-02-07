@@ -166,6 +166,22 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *e) {
+    qDebug() << "MainWindow dragEnter" << e->mimeData()->formats();
+    if (e->mimeData()->hasFormat("application/x-objectstudio-deviceid")) {
+        qDebug() << "ignored";
+        e->ignore();
+        return;
+    }
+    e->acceptProposedAction();
+}
+
+void MainWindow::dragMoveEvent(QDragMoveEvent *e){
+    qDebug() << "MainWindow dragMove" << e->mimeData()->formats();
+    if (e->mimeData()->hasFormat("application/x-objectstudio-deviceid")) {
+        qDebug() << "ignored";
+        e->ignore();
+        return;
+    }
     e->acceptProposedAction();
 }
 
@@ -177,6 +193,10 @@ bool MainWindow::dropfile(const QString& path, QPoint pos) {
 }
 
 void MainWindow::dropEvent(QDropEvent *e) {
+    qDebug() << "MainWindow drop";
+    if (e->mimeData()->hasFormat("application/x-objectstudio-deviceid")) {
+        return;
+    }
     QPoint Pos(e->position().toPoint());
     const QMimeData* d = e->mimeData();
     qDebug() << d->urls() << d->html() << d->formats();

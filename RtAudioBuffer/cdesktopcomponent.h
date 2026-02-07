@@ -13,6 +13,7 @@
 #include "../../QGraphicsViewZoomer/qgraphicsviewzoomer.h"
 #include "cprojectapp.h"
 #include "qdprpixmap.h"
+#include "qgraphicsitemlist.h"
 //#include "ceditmenu.h"
 
 #ifdef Q_OS_IOS
@@ -42,18 +43,26 @@ namespace DesktopComponent
 class JackRect : public QRect
 {
 public:
-    JackRect(IJack* j = nullptr) {
+    JackRect(IJack* j) {
         jack = j;
         setSize(jackSize);
     }
     IJack* jack;
+    bool match(const JackRect& r) {
+        if (r.jack != jack) return false;
+        if (r.topLeft() != topLeft()) return false;
+        return true;
+    }
 };
 
 class CJackContainer
 {
 public:
-    virtual ~CJackContainer(){}
+    virtual ~CJackContainer(){
+        ContainerItem.removeOne(&jackItems);
+    }
     QList<JackRect> jackRects;
+    QGraphicsContainerItem jackItems;
     QRect geometry;
     int jackIndex(const QPoint& Pos) const
     {
@@ -70,7 +79,11 @@ public:
     }
     inline int jackCount() const { return jackRects.size(); }
     inline IJack* jack(const int Index) const { return jackRects.at(Index).jack; }
-    virtual QList<QGraphicsItem*> paint(QGraphicsScene* Scene);
+    virtual void paint(QGraphicsScene* Scene);
+    QGraphicsContainerItem ContainerItem;
+private:
+    QList<JackRect> paintedJacks;
+    QList<QGraphicsPixmapItem*> plugItems;
 };
 
 class CDeviceComponent : public CJackContainer
@@ -86,9 +99,18 @@ private:
     IDevice* m_Device;
     bool m_Active;
     QString m_ClassName;
-    QPixmap* m_px;
     DeviceView m_View = Drawing;
     QDPRPixmap m_frontPix;
+    QDPRPixmap createDrawing(bool active);
+    QGraphicsProxyWidget* m_DeviceLabel;
+    QGraphicsPixmapItem* m_DeviceUIPic;
+    QGraphicsPixmapItem* m_DevicePic;
+    QGraphicsPixmapItem* m_DeviceShadowPic;
+    int m_OldView = -1;
+    bool m_OldActive = false;
+    bool m_UIPic = false;
+    double m_InJackFactor = 0.1;
+    double m_OutJackFactor = 0.1;
 public:
     void getPic();
     CDeviceComponent();
@@ -102,7 +124,7 @@ public:
     DeviceView view();
     void setView(DeviceView v);
     QRect captionRect;
-    QList<QGraphicsItem*> paint(QGraphicsScene* Scene);
+    void paint(QGraphicsScene* Scene);
     void setFrontPix(const QDPRPixmap& p);
     bool frontPixSet();
 };
@@ -117,7 +139,7 @@ public:
         jackRects.append(JackRect(J));
         return J;
     }
-    QList<QGraphicsItem*> paint(QGraphicsScene* Scene);
+    void paint(QGraphicsScene* Scene);
     static const int height = 12;
 };
 
@@ -178,6 +200,8 @@ public slots:
     void DrawConnections();
     void SelectDevice(IDevice* d);
     void changeZoom(const double zoom);
+    void RemoveDevice(IDevice* Device);
+    void moveDevice(int deviceIndex, int move);
 protected:
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
@@ -185,17 +209,7 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event);
     void scrollContentsBy(int dx, int dy);
     void resizeEvent(QResizeEvent *event);
-    bool event(QEvent* event) {
-        if (event->type() == QEvent::Leave) {
-            if (m_DeviceIndex > -1) {
-                if (m_LineEdit) {
-                    delete m_LineEdit;
-                    m_LineEdit = nullptr;
-                }
-            }
-        }
-        return QGraphicsView::event(event);
-    }
+    bool event(QEvent* event);
 signals:
     void parametersChanged(IDevice *Device);
     void controlChanged(IDevice* Device, const CParameter* Parameter);
@@ -203,8 +217,10 @@ signals:
     void MilliSecondsChanged();
     void deviceAdded(IDevice* Device);
     void deviceRemoved(IDevice* Device);
+    void devicesReordered(int deviceIndex, int move);
     void devicesCleared();
     void connectionsChanged();
+    void jacksChanged();
     //void selectionChanged(bool);
     void zoomChanged(double zoomfactor);
     void requestSerializeAutomationXML(QDomLiteElement*) const;
@@ -242,18 +258,17 @@ private:
     void DisconnectJackBar(CJackBar& JackBar);
     int DeviceIndex(const QPoint& Pos) const;
     CDeviceComponent* addDevice(const QString& ClassName, const int ID);
-    void RemoveDevice(IDevice* Device);
     void FillJackList();
     void hideRubberband();
-    QList<QGraphicsItem*> DrawDeviceConnections(CDeviceComponent* Device,QList<CJackContainer*>& paintedContainers);
-    Qt::CursorShape connectCursor(IJack* J1,IJack* J2);
-    void SetConnectCursor(const QPoint& Pos);
+    QGraphicsItemList DrawDeviceConnections(CDeviceComponent* Device, QList<CJackContainer*>& paintedContainers);
     void ConnectDrop(const QPoint& Pos);
     IJack* MouseOverJack(const QPoint& Pos, QPoint& JackPoint);
     IJack* MouseOverJack(const QPoint &Pos);
     int MouseOverRotateButton(const QPoint& Pos);
-    QList<QGraphicsItem*> DragList;
+    QGraphicsItemList DragList;
+    QGraphicsItemList ConnectionsList;
     void SelectDevice(const int Index);
+    void RemoveDeviceNoPaint(IDevice* Device);
     int m_DeviceIndex;
     bool m_MD;
     QPoint Start;

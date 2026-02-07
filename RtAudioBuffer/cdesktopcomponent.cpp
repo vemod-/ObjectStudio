@@ -15,62 +15,132 @@
 #include <QScrollBar>
 #include "caddins.h"
 #include "cresourceinitializer.h"
+#include "qgraphicsitemlist.h"
+#include "effectlabel.h"
 
 #define shadowColor QColor(0,0,0,40)
 #define shadowOffset QPoint(5,5)
 #define zeroPoint QPoint(0,0)
 
-QList<QGraphicsItem*> CJackContainer::paint(QGraphicsScene* Scene)
+void CJackContainer::paint(QGraphicsScene* Scene)
 {
-    static QDPRPixmap freeDeviceJack(jackSize,":/Jack.png");
-    static QDPRPixmap connectedDeviceJack(jackSize,":/Plug.png");
-    QList<QGraphicsItem*> items;
+    static QDPRPixmap freeDeviceJack = QDPRPixmap(jackSize,":/Jack.png").shadowedPixmap(2);
+    static QDPRPixmap connectedDeviceJack = QDPRPixmap(jackSize,":/Plug.png").shadowedPixmap(4);
+    if (!paintedJacks.isEmpty()) {
+        if (paintedJacks.size() == jackRects.size()) {
+            bool match = true;
+            for (int i = 0; i < paintedJacks.size(); i++) {
+                match = paintedJacks[i].match(jackRects[i]);
+            }
+            if (match) {
+                for (int i = 0; i < jackRects.size(); i++) {
+                    plugItems[i]->setVisible(jackRects[i].jack->isConnected());
+                }
+                return;
+            }
+        }
+    }
+    jackItems.clear();
+    paintedJacks.clear();
+    plugItems.clear();
     for (JackRect& j : jackRects)
     {
         QPen p(j.jack->JackColor(),jackPen);
-        items.append(Scene->addEllipse(QRect(j.translated(geometry.topLeft()).topLeft(),QSize(j.size() - QSize(jackPen,jackPen))),p,QBrush(QColor(0,0,0,80))));
-        QGraphicsPixmapItem* i = (j.jack->isConnected()) ? Scene->addPixmap(connectedDeviceJack) : Scene->addPixmap(freeDeviceJack);
-        i->setPos(j.translated(geometry.topLeft()).topLeft()-QPoint(1,1));
-        items.append(i);
+        jackItems.append(Scene->addEllipse(QRect(j.topLeft(),QSize(j.size() - QSize(jackPen,jackPen))),p,QBrush(QColor(0,0,0,80))));
+        QGraphicsPixmapItem* plug = Scene->addPixmap(connectedDeviceJack);
+        QGraphicsPixmapItem* jack = Scene->addPixmap(freeDeviceJack);
+        plug->setPos(j.topLeft()-QPoint(1,1));
+        jack->setPos(j.topLeft()-QPoint(1,1));
+        plug->setVisible(j.jack->isConnected());
+        jackItems.append(jack);
+        jackItems.append(plug);
+        plugItems.append(plug);
+        paintedJacks.append(j);
     }
-    return items;
 }
 
 //---------------------------------------------------------------------------------------
 
+QDPRPixmap CDeviceComponent::createDrawing(bool active) {
+    QDPRPixmap pm(deviceTopSize);
+    pm.fill(Qt::transparent);
+
+    QPainter p(&pm);
+    p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing | QPainter::TextAntialiasing);
+    QPainterPath path(zeroPoint);
+    path.addRoundedRect(QRectF(QPointF(0.5,0.5),deviceTopSize - (QSize(1,1))),5,5);
+    QPen pen(Qt::NoPen);
+    pen.setWidth(1);
+    QLinearGradient lg(0,0,0,deviceTopSize.height());
+    if (active)
+    {
+        pen=QPen(Qt::black);
+        lg.setColorAt(0,QColor(0xee,0xee,0xee));
+        lg.setColorAt(0.49999,QColor(0xbb,0xbb,0xbb));
+        lg.setColorAt(0.5,QColor(0xaf,0xaf,0xaf));
+        lg.setColorAt(1,QColor(0x99,0x99,0x99));
+    }
+    else
+    {
+        pen=QPen(Qt::gray);
+        lg.setColorAt(0,QColor(0xdd,0xdd,0xdd));
+        lg.setColorAt(0.49999,QColor(0xaa,0xaa,0xaa));
+        lg.setColorAt(0.5,QColor(0x8f,0x8f,0x8f));
+        lg.setColorAt(1,QColor(0x77,0x77,0x77));
+    }
+    QBrush b(lg);
+    p.setBrush(b);
+    p.setPen(pen);
+    p.drawPath(path);
+    return pm;
+}
+
 void CDeviceComponent::getPic()
 {
-    if (m_View == BackView) {
-        geometry.setSize(deviceBackSize);
-    }
-    else if (m_View == TopView) {
-        geometry.setSize(deviceTopSize);
-    }
-    if (m_px) delete m_px;
-    m_px=nullptr;
     if (m_Device->hasUI())
     {
         const QPixmap* px = m_Device->picture();
         if (px)
         {
-            m_px = new QPixmap(px->scaled((geometry.size()-QSize(deviceResolution / 5, deviceResolution / 12))*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-            m_px->setDevicePixelRatio(qApp->devicePixelRatio());
+            QPixmap p(px->scaled((deviceTopSize-QSize(deviceResolution / 5, deviceResolution / 12))*2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+            p.setDevicePixelRatio(qApp->devicePixelRatio());
             delete px;
+            m_DeviceUIPic->setPixmap(p);
+            m_DeviceUIPic->setVisible(true);
         }
     }
 }
 
-CDeviceComponent::CDeviceComponent() : m_Device(nullptr), m_Active(false), m_px(nullptr) {
+CDeviceComponent::CDeviceComponent() : m_Device(nullptr), m_Active(false) {
     geometry.moveTopLeft(QPoint(100,100));
 }
 
-CDeviceComponent::CDeviceComponent(IDevice *Device, const QString &ClassName) : m_Device(nullptr), m_Active(false), m_px(nullptr)
+CDeviceComponent::CDeviceComponent(IDevice *Device, const QString &ClassName) : m_Device(nullptr), m_Active(false)
 {
     geometry.moveTopLeft(QPoint(100,100));
+    EffectLabel* e = new EffectLabel();
+    e->setEffect(EffectLabel::Sunken);
+    e->setTextColor(QColor(0,0,0,200));
+    e->setShadowColor(QColor(255,255,255,200));
+    e->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    e->setFixedSize(deviceTopSize);
+    e->setIconSize(deviceTopSize - QSize(8,8));
+    m_DeviceLabel = new QGraphicsProxyWidget();
+    m_DeviceLabel->setWidget(e);
+    m_DeviceUIPic = new QGraphicsPixmapItem();
+    m_DeviceUIPic->setVisible(false);
+    m_DevicePic = new QGraphicsPixmapItem();
+    m_DeviceShadowPic = new QGraphicsPixmapItem();
+    ContainerItem.setZValue(1);
+    ContainerItem.append(m_DevicePic);
+    ContainerItem.append(&jackItems);
+    ContainerItem.append(m_DeviceUIPic);
+    ContainerItem.append(m_DeviceLabel);
     init(Device,ClassName);
 }
 
-CDeviceComponent::~CDeviceComponent() { if (m_px) delete m_px; }
+CDeviceComponent::~CDeviceComponent() {
+}
 
 void CDeviceComponent::init(IDevice *Device, const QString &ClassName)
 {
@@ -99,103 +169,70 @@ void CDeviceComponent::setView(DeviceView v) {
     m_View = v;
 }
 
-QList<QGraphicsItem*> CDeviceComponent::paint(QGraphicsScene* Scene)
+void CDeviceComponent::paint(QGraphicsScene* Scene)
 {
     static QDPRPixmap rackTopPix(deviceTopSize,":/RackTop.png");
     static QDPRPixmap rackBackPix(deviceBackSize,":/RackBack.png",Qt::KeepAspectRatio);
     static QDPRPixmap rackFrontPix(deviceBackSize,":/RackFront.png",Qt::KeepAspectRatio);
-    QList<QGraphicsItem*> items;
+    static QDPRPixmap activeDrawing(deviceTopSize,createDrawing(true));
+    static QDPRPixmap inactiveDrawing(deviceTopSize,createDrawing(false));
+    ContainerItem.addToScene(Scene);
+    //if (ContainerItem.scene() != Scene) Scene->addItem(&ContainerItem);
+    if (m_DeviceShadowPic->scene() != Scene) Scene->addItem(m_DeviceShadowPic);
+    m_DeviceUIPic->setVisible(false);
     if (m_Device != nullptr)
     {
-        double inJackFactor = 0.1;
-        double outJackFactor = 0.1;
-        double textFactor = 0.5;
-        bool uiPic = false;
         jackRects.clear();
         for (int i = 0; i < m_Device->jackCount(); i++) jackRects.append(JackRect(m_Device->jack(i)));
         if (geometry.left()<1) geometry.moveLeft(1);
         if (geometry.top()<1) geometry.moveTop(1);
-        if (m_View == BackView) {
-            textFactor = -0.4;
-            inJackFactor = 0.19;
-            outJackFactor = 0.27;
-            geometry.setSize(deviceBackSize);
-            QGraphicsPixmapItem* shadow = (m_Active) ? Scene->addPixmap(rackBackPix.activeShadow()) : Scene->addPixmap(rackBackPix.inactiveShadow());
-            shadow->setPos(geometry.topLeft());
-            QGraphicsPixmapItem* front = Scene->addPixmap(rackBackPix.shadowedPixmap());
-            front->setPos(geometry.topLeft());
-            items.append(front);
-        }
-        else if (m_View == TopView) {
-            uiPic = true;
-            geometry.setSize(deviceTopSize);
-            QGraphicsPixmapItem* shadow = (m_Active) ? Scene->addPixmap(rackTopPix.activeShadow()) : Scene->addPixmap(rackTopPix.inactiveShadow());
-            shadow->setPos(geometry.topLeft());
-            QGraphicsPixmapItem* front = Scene->addPixmap(rackTopPix.shadowedPixmap());
-            front->setPos(geometry.topLeft());
-            items.append(front);
-        }
-        else if (m_View == FrontView) {
-            textFactor = -0.4;
-            inJackFactor = 0.02;
-            outJackFactor = 0.5;
-            geometry.setSize(deviceBackSize);
-            QGraphicsPixmapItem* shadow = (m_Active) ? Scene->addPixmap(rackFrontPix.activeShadow()) : Scene->addPixmap(rackFrontPix.inactiveShadow());
-            shadow->setPos(geometry.topLeft());
-            QGraphicsPixmapItem* front = Scene->addPixmap(rackFrontPix.shadowedPixmap());
-            front->setPos(geometry.topLeft());
-            items.append(front);
-            if (!m_frontPix.isNull()) {
-                QGraphicsPixmapItem* front1 = Scene->addPixmap(m_frontPix);
-                front1->setPos(geometry.left() + (deviceResolution / 6.4),geometry.bottom() - (deviceResolution / 2.08));
-                items.append(front1);
+        if ((m_View != m_OldView) || (m_OldActive != m_Active)) {
+            while (!m_DevicePic->childItems().isEmpty()) delete m_DevicePic->childItems().takeLast();
+            m_UIPic = false;
+            m_InJackFactor = 0.1;
+            m_OutJackFactor = 0.1;
+            if (m_View == BackView) {
+                //textFactor = -0.4;
+                m_InJackFactor = 0.19;
+                m_OutJackFactor = 0.27;
+                geometry.setSize(deviceBackSize);
+                (m_Active) ? m_DeviceShadowPic->setPixmap(rackBackPix.activeShadow()) : m_DeviceShadowPic->setPixmap(rackBackPix.inactiveShadow());
+                m_DevicePic->setPixmap(rackBackPix.shadowedPixmap());
             }
-        }
-        else if (m_View == Drawing) {
-            uiPic = true;
-            geometry.setSize(deviceTopSize);
-            QPainterPath path(zeroPoint);
-            path.addRoundedRect(geometry,5,5);
-            for (int i = 0; i < 10 ; i++) Scene->addPath(path.translated(i+1,i+1),Qt::NoPen,QColor(0,0,0,10));
-
-            QPen p(Qt::NoPen);
-            p.setWidth(1);
-            QLinearGradient lg(0,geometry.top(),0,geometry.height()+geometry.top());
-            if (m_Active)
-            {
-                p=QPen(Qt::black);
-                lg.setColorAt(0,QColor(0xee,0xee,0xee));
-                lg.setColorAt(0.49999,QColor(0xbb,0xbb,0xbb));
-                lg.setColorAt(0.5,QColor(0xaf,0xaf,0xaf));
-                lg.setColorAt(1,QColor(0x99,0x99,0x99));
+            else if (m_View == TopView) {
+                m_UIPic = true;
+                geometry.setSize(deviceTopSize);
+                (m_Active) ? m_DeviceShadowPic->setPixmap(rackTopPix.activeShadow()) : m_DeviceShadowPic->setPixmap(rackTopPix.inactiveShadow());
+                m_DevicePic->setPixmap(rackTopPix.shadowedPixmap());
             }
-            else
-            {
-                p=QPen(Qt::gray);
-                lg.setColorAt(0,QColor(0xdd,0xdd,0xdd));
-                lg.setColorAt(0.49999,QColor(0xaa,0xaa,0xaa));
-                lg.setColorAt(0.5,QColor(0x8f,0x8f,0x8f));
-                lg.setColorAt(1,QColor(0x77,0x77,0x77));
-            }
-            QBrush b(lg);
-            //path=QPainterPath(zeroPoint);
-            //path.addRoundedRect(geometry,5,5);
-            items.append(Scene->addPath(path,p,b));
-        }
-        if (uiPic) {
-            if (m_Device->hasUI())
-            {
-                if (m_px)
-                {
-                    QGraphicsPixmapItem* pi = Scene->addPixmap(*m_px);
-                    const QSize sz = QSizeF((geometry.size() - pi->boundingRect().size()) / 2).toSize();
-                    pi->setPos(geometry.topLeft()+QPoint(sz.width(),sz.height()));
-                    pi->setZValue(0);
-                    items.append(pi);
+            else if (m_View == FrontView) {
+                m_InJackFactor = 0.02;
+                m_OutJackFactor = 0.5;
+                geometry.setSize(deviceBackSize);
+                (m_Active) ? m_DeviceShadowPic->setPixmap(rackFrontPix.activeShadow()) : m_DeviceShadowPic->setPixmap(rackFrontPix.inactiveShadow());
+                m_DevicePic->setPixmap(rackFrontPix.shadowedPixmap());
+                if (!m_frontPix.isNull()) {
+                    QGraphicsPixmapItem* front1 = Scene->addPixmap(m_frontPix);
+                    front1->setPos(0,geometry.height() - (deviceResolution / 2.08));
+                    front1->setParentItem(m_DevicePic);
                 }
             }
+            else if (m_View == Drawing) {
+                m_UIPic = true;
+                geometry.setSize(deviceTopSize);
+                (m_Active) ? m_DeviceShadowPic->setPixmap(activeDrawing.activeShadow()) : m_DeviceShadowPic->setPixmap(inactiveDrawing.inactiveShadow());
+                (m_Active) ? m_DevicePic->setPixmap(activeDrawing.shadowedPixmap()) : m_DevicePic->setPixmap(inactiveDrawing.shadowedPixmap());
+            }
+            m_DeviceLabel->widget()->setFixedSize(geometry.size());
+            m_OldView = m_View;
+            m_OldActive = m_Active;
         }
-        QString Caption = m_Device->caption();//m_Device->name() + " " + QString::number(m_Device->index());
+        if (m_UIPic) {
+            const QSize sz = QSizeF((geometry.size() - m_DeviceUIPic->boundingRect().size()) / 2.0).toSize();
+            m_DeviceUIPic->setPos(QPoint(sz.width(),sz.height()));
+            m_DeviceUIPic->setVisible(true);
+        }
+        QString Caption = m_Device->caption();
         QString FileName;
         if (!m_Device->alias().isEmpty()) {
             FileName = "(" + Caption + ")";
@@ -204,61 +241,39 @@ QList<QGraphicsItem*> CDeviceComponent::paint(QGraphicsScene* Scene)
             FileName = "(" + Caption + ")";
             Caption = QFileInfo(m_Device->filename()).fileName();
         }
-        QFont f;
-        QFontMetrics fm(f);
-        if (fm.horizontalAdvance(Caption) > geometry.width()) Caption = Caption.left(7)+QStringLiteral("...") + Caption.right(7);
-        QPoint TextOffset((geometry.width() - fm.horizontalAdvance(Caption))/2,(geometry.height() - fm.height()) * textFactor);
-        captionRect.setTopLeft(geometry.topLeft() + TextOffset);
-        captionRect.setSize(QSize(fm.horizontalAdvance(Caption),fm.height()));
-        if (!FileName.isEmpty()) TextOffset.setY(TextOffset.y() - (fm.height()/2));
-        qDebug() << geometry << TextOffset << textFactor << Caption << f;
-        items.append(CConnectionHelper::DrawShadowText(Caption,f,geometry.topLeft()+TextOffset,Scene));
-        if (!FileName.isEmpty())
-        {
-            if (fm.horizontalAdvance(FileName) > geometry.width()) FileName = FileName.left(7) + QStringLiteral("...") + FileName.right(7);
-            TextOffset.setX((geometry.width() - fm.horizontalAdvance(FileName)) / 2);
-            TextOffset.setY(TextOffset.y() + fm.height());
-            items.append(CConnectionHelper::DrawShadowText(FileName,f,geometry.topLeft()+TextOffset,Scene));
-        }
-        /*
-        int InCount=1;
-        int OutCount=1;
-        for (JackRect& j : jackRects)
-        {
-            (j.jack->isInJack()) ? InCount++ : OutCount++;
-        }
-*/
+        QString LabelText = (FileName.isEmpty()) ? Caption : Caption + "\n" + FileName;
+        static_cast<EffectLabel*>(m_DeviceLabel->widget())->setText(LabelText);
+
         int MaxCount = qMax(m_Device->inJackCount(),m_Device->outJackCount());
 
-        int InIndex=0;
-        int OutIndex=0;
         if (m_View == FrontView) {
-            const float InFactor = (geometry.width() * 8.0) / (MaxCount * 12.0);
-            const float OutFactor = (geometry.width() * 8.0) / (MaxCount * 12.0);
+            int InIndex = m_Device->inJackCount() - 1;
+            int OutIndex = m_Device->outJackCount() - 1;
+            const float Factor = geometry.width() / 22.6;
+            const float RightOffset = deviceResolution * 0.21;
             for (JackRect& j : jackRects) {
-                (j.jack->isInJack()) ? j.moveCenter(QPoint(geometry.width() - ((InIndex++ * InFactor) + (deviceResolution * 0.5)),deviceResolution * inJackFactor)) :
-                    j.moveCenter(QPoint(geometry.width() - ((OutIndex++ * OutFactor) + (deviceResolution * 0.5)),geometry.height() - (deviceResolution * outJackFactor)));
-                //qDebug() << front->boundingRect() << front->pixmap().size() << geometry << j.center() << j.topLeft() << j.size();
+                (j.jack->isInJack()) ? j.moveCenter(QPoint(geometry.width() - ((InIndex-- * Factor) + RightOffset),deviceResolution * m_InJackFactor)) :
+                    j.moveCenter(QPoint(geometry.width() - ((OutIndex-- * Factor) + RightOffset),geometry.height() - (deviceResolution * m_OutJackFactor)));
             }
         }
         else {
+            int InIndex=0;
+            int OutIndex=0;
             for (JackRect& j : jackRects) {
                 const float InFactor = (geometry.width() * 10.0) / (MaxCount * 12.0);
                 const float OutFactor = (geometry.width() * 10.0) / (MaxCount * 12.0);
-                (j.jack->isInJack()) ? j.moveCenter(QPoint((InIndex++ * InFactor) + (deviceResolution * 0.2),deviceResolution * inJackFactor)) :
-                    j.moveCenter(QPoint((OutIndex++ * OutFactor) + (deviceResolution * 0.2),geometry.height() - (deviceResolution * outJackFactor)));
-                //qDebug() << front->boundingRect() << front->pixmap().size() << geometry << j.center() << j.topLeft() << j.size();
+                (j.jack->isInJack()) ? j.moveCenter(QPoint((InIndex++ * InFactor) + (deviceResolution * 0.2),deviceResolution * m_InJackFactor)) :
+                    j.moveCenter(QPoint((OutIndex++ * OutFactor) + (deviceResolution * 0.2),geometry.height() - (deviceResolution * m_OutJackFactor)));
             }
-            items.append(CJackContainer::paint(Scene));
         }
+        CJackContainer::paint(Scene);
     }
-    return items;
+    ContainerItem.setPos(geometry.topLeft());
+    m_DeviceShadowPic->setPos(geometry.topLeft());
 }
 
 void CDeviceComponent::setFrontPix(const QDPRPixmap &p) {
-    m_frontPix = QDPRPixmap(p).scaled(p.size() * 0.19,Qt::KeepAspectRatio,Qt::SmoothTransformation);
-    const int w = qMin<int>(deviceResolution * 2.6 * qApp->devicePixelRatio(), m_frontPix.width());
-    if (w < m_frontPix.width()) m_frontPix = m_frontPix.copy(0, 0, w, m_frontPix.height());
+    m_frontPix = QDPRPixmap(p).scaled(deviceBackSize *  qApp->devicePixelRatio(),Qt::KeepAspectRatio,Qt::SmoothTransformation);
 }
 
 bool CDeviceComponent::frontPixSet() {
@@ -267,26 +282,29 @@ bool CDeviceComponent::frontPixSet() {
 
 //---------------------------------------------------------------------------
 
-QList<QGraphicsItem*> CJackBar::paint(QGraphicsScene* Scene)
+void CJackBar::paint(QGraphicsScene* Scene)
 {
-    QList<QGraphicsItem*> items;
-    //if (geometry.topLeft()==zeroPoint) Scene->addRect(geometry.translated(0,shadowOffset.y()),Qt::NoPen,shadowColor);
-    QLinearGradient lg(0,geometry.top(),0,geometry.height()+geometry.top());
+    //if (jackItems.scene() != Scene) Scene->addItem(&jackItems);
+    jackItems.addToScene(Scene);
+    ContainerItem.addToScene(Scene);
+    ContainerItem.removeOne(&jackItems);
+    ContainerItem.clear();
+    QLinearGradient lg(0,0,0,geometry.height());
     lg.setColorAt(0,QColor(0xdd,0xdd,0xdd));
     lg.setColorAt(0.49999,QColor(0xbb,0xbb,0xbb));
     lg.setColorAt(0.5,QColor(0x9f,0x9f,0x9f));
     lg.setColorAt(1,QColor(0x78,0x78,0x78));
     QBrush b(lg);
-
-    items.append(Scene->addRect(geometry,Qt::NoPen,b));
-
-    for (int i=0;i<jackRects.size();i++)
+    ContainerItem.append(Scene->addRect(0,0,geometry.width(),geometry.height(),Qt::NoPen,b));
+    for (int i = 0; i < jackRects.size(); i++)
     {
         JackRect* JR = &jackRects[i];
         JR->moveCenter(QPoint((i*20)+height,height * 0.5));
     }
-    items.append(CJackContainer::paint(Scene));
-    return items;
+    CJackContainer::paint(Scene);
+    ContainerItem.append(&jackItems);
+    ContainerItem.setPos(geometry.topLeft());
+    //items.setZValue(1);
 }
 
 //---------------------------------------------------------------------------
@@ -392,7 +410,7 @@ void CDesktopComponent::addDeviceJack(IJack *jack){
 
 void CDesktopComponent::updateDeviceJacks() {
     DrawConnections();
-    connectionsChanged();
+    jacksChanged();
 }
 
 void CDesktopComponent::parameterChange(IDevice* device, const CParameter* parameter)
@@ -504,12 +522,19 @@ CDeviceComponent* CDesktopComponent::addDeviceComponent(IDevice *Device, const Q
 
 void CDesktopComponent::RemoveDevice(IDevice* Device)
 {
-    const int Index=DeviceList.indexOfDevice(Device);
-    if (Index==m_DeviceIndex) SelectDevice(-1);
-    QMutexLocker locker(&mutex);
-    emit deviceRemoved(Device);
-    DeviceList.deleteDevice(Device);
-    delete Devices.takeAt(Index);
+    RemoveDeviceNoPaint(Device);
+    SelectDevice(Devices.size()-1);
+}
+
+void CDesktopComponent::moveDevice(int deviceIndex, int move){
+    if (DeviceList.moveDevice(deviceIndex,move)) {
+        int newIndex = std::clamp<int>(deviceIndex + move,0,Devices.size()-1);
+        if (newIndex == deviceIndex) return;
+        CDeviceComponent* temp = Devices.takeAt(deviceIndex);
+        Devices.insert(newIndex, temp);
+        m_DeviceIndex = newIndex;
+        emit devicesReordered(deviceIndex,move);
+    }
 }
 
 void CDesktopComponent::clear()
@@ -538,31 +563,9 @@ void CDesktopComponent::DisconnectJackBar(CJackBar& JackBar)
     for (int i=0;i<JackBar.jackCount();i++) DeviceList.disconnectJack(JackBar.jack(i)->jackID());
 }
 
-Qt::CursorShape CDesktopComponent::connectCursor(IJack* J1,IJack* J2)
-{
-    if (J1 != J2)
-    {
-        setToolTip(J2->captionX());
-        return  ((J1->canConnectTo(J2)) && (!J1->isConnectedTo(J2))) ? Qt::PointingHandCursor : Qt::ForbiddenCursor;
-    }
-    setToolTip(QString());
-    return Qt::OpenHandCursor;
-}
-
-void CDesktopComponent::SetConnectCursor(const QPoint& Pos)
-{
-    if (IJack* HoverJack=MouseOverJack(Pos))
-    {
-        QApplication::restoreOverrideCursor();
-        QApplication::setOverrideCursor(connectCursor(DragJack,HoverJack));
-        return;
-    }
-    QApplication::restoreOverrideCursor();
-    setToolTip(QString());
-}
-
 void CDesktopComponent::ConnectDrop(const QPoint& Pos)
 {
+    DragList.erase(&Scene);
     if (Dragging)
     {
         MainMenu->UndoMenu->addItem("Add Connection");
@@ -591,6 +594,18 @@ void CDesktopComponent::resizeEvent(QResizeEvent* event)
 {
     QGraphicsView::resizeEvent(event);
     hideRubberband();
+}
+
+bool CDesktopComponent::event(QEvent *event) {
+    if (event->type() == QEvent::Leave) {
+        if (m_DeviceIndex > -1) {
+            if (m_LineEdit) {
+                delete m_LineEdit;
+                m_LineEdit = nullptr;
+            }
+        }
+    }
+    return QGraphicsView::event(event);
 }
 
 bool CDesktopComponent::selectedDeviceIsValid() const
@@ -648,29 +663,22 @@ bool CDesktopComponent::initWithFile(const QString &path, QPoint pos) {
 
 void CDesktopComponent::DrawConnections()
 {
-    Scene.clear();
-    m_LineEdit = nullptr;
-    rotateItem = nullptr;
-    QList<QGraphicsItem*> items;
+    ConnectionsList.erase(&Scene);
+    if (m_LineEdit) {
+        Scene.removeItem(m_LineEdit);
+        delete m_LineEdit;
+        m_LineEdit = nullptr;
+    }
+    if (rotateItem) {
+        Scene.removeItem(rotateItem);
+        delete rotateItem;
+        rotateItem = nullptr;
+    }
 
     QRect MaxRect;
     for (const CDeviceComponent* d : std::as_const(Devices)) MaxRect=MaxRect.united(d->geometry);
     MaxRect=MaxRect.united(QRect((QPoint(0,0)),QGraphicsView::mapToScene(rect().bottomRight()).toPoint()));
     setSceneRect(MaxRect);
-    JackBar1.geometry=QRect(0,0,MaxRect.width(),CJackBar::height);
-    items.append(JackBar1.paint(&Scene));
-    JackBar2.geometry=QRect(0,MaxRect.height()-CJackBar::height,MaxRect.width(),CJackBar::height);
-    items.append(JackBar2.paint(&Scene));
-    //Scene.addRect(0,CJackBar::height+shadowOffset.y(),shadowOffset.x(),MaxRect.height()-(CJackBar::height+shadowOffset.y()),Qt::NoPen,QBrush(shadowColor));
-    int x = 0;
-    for (int i = 100; i > 0; i = i - 10) {
-        Scene.addLine(x,x + CJackBar::height,x,MaxRect.height()-CJackBar::height,QColor(0,0,0,i));
-        Scene.addLine(x,x + CJackBar::height,MaxRect.width(),x + CJackBar::height,QColor(0,0,0,i));
-        x++;
-    }
-    QList<CJackContainer*> paintedContainers;
-    paintedContainers.append(&JackBar1);
-    paintedContainers.append(&JackBar2);
 
     if (isVisible()) {
         for (int i = 0; i < Devices.size(); i++) {
@@ -679,39 +687,45 @@ void CDesktopComponent::DrawConnections()
                 emit requestParametersPixmap(Devices[i]->device(),&p);
                 if (!p.isNull()) {
                     Devices[i]->setFrontPix(p);
-                    //Devices[i]->frontPix = QDPRPixmap(p.realSize() * 0.199,p,Qt::KeepAspectRatio);
                 }
             }
         }
     }
+    QList<CDeviceComponent*> deviceOrder;
+    for (CDeviceComponent* d : std::as_const(Devices)) deviceOrder.append(d);
+    if (selectedDeviceIsValid()) deviceOrder.move(m_DeviceIndex,0);
 
-    for (int i = 0; i < Devices.size(); i++) {
-        if (i!=m_DeviceIndex) {
-            items.append(Devices[i]->paint(&Scene));
-            if (Devices[i]->view() == CDeviceComponent::FrontView) {
-                DrawDeviceConnections(Devices[i],paintedContainers);
-            }
-            else {
-                items.append(DrawDeviceConnections(Devices[i],paintedContainers));
-            }
-        }
+    for (int i = 0; i < deviceOrder.size(); i++) {
+        qDebug() << i << deviceOrder[i]->device()->deviceID();
+        CDeviceComponent* d = deviceOrder[i];
+        d->paint(&Scene);
+        if (i > 0) d->ContainerItem.stackBefore(&deviceOrder[i - 1]->ContainerItem);
+    }
+    JackBar1.geometry=QRect(0,0,MaxRect.width(),CJackBar::height);
+    JackBar1.paint(&Scene);
+    JackBar2.geometry=QRect(0,MaxRect.height()-CJackBar::height,MaxRect.width(),CJackBar::height);
+    JackBar2.paint(&Scene);
+    if (!deviceOrder.isEmpty()) {
+        JackBar1.ContainerItem.stackBefore(&deviceOrder.last()->ContainerItem);
+        JackBar2.ContainerItem.stackBefore(&deviceOrder.last()->ContainerItem);
     }
 
-    if (selectedDeviceIsValid()) {
-        items.append(currentDeviceComponent()->paint(&Scene));
-        if (currentDeviceComponent()->view() == CDeviceComponent::FrontView) {
-            DrawDeviceConnections(currentDeviceComponent(),paintedContainers);
-        }
-        else {
-            items.append(DrawDeviceConnections(currentDeviceComponent(),paintedContainers));
+    QList<CJackContainer*> paintedContainers;
+    paintedContainers.append(&JackBar1);
+    paintedContainers.append(&JackBar2);
+
+    for (int i = deviceOrder.size() - 1; i >= 0; i--) {
+        QGraphicsItemList l = DrawDeviceConnections(deviceOrder[i],paintedContainers);
+        if (!l.isEmpty()) {
+            if (i > 0) l.stackBefore(&deviceOrder[i - 1]->ContainerItem);
+            ConnectionsList.append(l);
         }
     }
-    for(QGraphicsItem* i : items) i->setZValue(1);
 }
 
-QList<QGraphicsItem*> CDesktopComponent::DrawDeviceConnections(CDeviceComponent* Device,QList<CJackContainer*>& paintedContainers)
+QGraphicsItemList CDesktopComponent::DrawDeviceConnections(CDeviceComponent* Device,QList<CJackContainer*>& paintedContainers)
 {
-    QList<QGraphicsItem*> items;
+    QGraphicsItemList items;
     for (int j = 0; j < Device->jackCount(); j++) {
         for (const CJackContainer* k : paintedContainers) {
             for (int l = 0; l < k->jackCount(); l++) {
@@ -722,12 +736,12 @@ QList<QGraphicsItem*> CDesktopComponent::DrawDeviceConnections(CDeviceComponent*
                         QColor c(Device->jack(j)->JackColor());
                         c.setAlphaF(CPresets::presets().ConnectionsOpacity);
                         if (Device->jack(j)->isInJack()) {
-                            items.append(CConnectionHelper::DrawArrow(Pos1,Pos2,c,&Scene));
-                            CConnectionHelper::DrawArrow(Pos1+shadowOffset,Pos2+shadowOffset,shadowColor,&Scene);
+                            items.append(CConnectionHelper::DrawArrow(Pos1,Pos2,c,&Scene,1));
+                            items.append(CConnectionHelper::DrawArrow(Pos1+shadowOffset,Pos2+shadowOffset,shadowColor,&Scene,0));
                         }
                         else {
-                            items.append(CConnectionHelper::DrawArrow(Pos2,Pos1,c,&Scene));
-                            CConnectionHelper::DrawArrow(Pos2+shadowOffset,Pos1+shadowOffset,shadowColor,&Scene);
+                            items.append(CConnectionHelper::DrawArrow(Pos2,Pos1,c,&Scene,1));
+                            items.append(CConnectionHelper::DrawArrow(Pos2+shadowOffset,Pos1+shadowOffset,shadowColor,&Scene,0));
                         }
                     }
                 }
@@ -957,6 +971,15 @@ void CDesktopComponent::SelectDevice(const int Index)
     DrawConnections();
 }
 
+void CDesktopComponent::RemoveDeviceNoPaint(IDevice *Device) {
+    const int Index = DeviceList.indexOfDevice(Device);
+    if (Index == m_DeviceIndex) SelectDevice(-1);
+    QMutexLocker locker(&mutex);
+    emit deviceRemoved(Device);
+    DeviceList.deleteDevice(Device);
+    delete Devices.takeAt(Index);
+}
+
 void CDesktopComponent::mousePressEvent(QMouseEvent *event)
 {
     qDebug() << "mousePress" << event->pos();
@@ -984,7 +1007,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             DrawConnections();
         }
     }
-    DragJack=MouseOverJack(StartPoint,DragJackPos);
+    DragJack = MouseOverJack(StartPoint,DragJackPos);
     if (DragJack)
     {
         if (event->button()==Qt::LeftButton)
@@ -1000,7 +1023,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             connect(m,&CConnectionsMenu::aboutToChange,MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
             connect(m,&CConnectionsMenu::connectionsChanged,this,&CDesktopComponent::connectionsChanged);
             connect(m,&CConnectionsMenu::connectionsChanged,this,&CDesktopComponent::DrawConnections);
-            m->popup(mapToGlobal(event->pos()));
+            m->popup(event->globalPosition().toPoint());
             MouseDown=false;
             return;
         }
@@ -1032,7 +1055,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             DeviceMenu->addSeparator();
             DeviceMenu->addAction("Disconnect",this,&CDesktopComponent::RemoveConnections);
             DeviceMenu->addAction("Show/Hide UI",this,&CDesktopComponent::toggleUI);
-            DeviceMenu->popup(mapToGlobal(event->pos()));
+            DeviceMenu->popup(event->globalPosition().toPoint());
             MouseDown=false;
             return;
         }
@@ -1076,7 +1099,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             DesktopMenu->addActions(MainMenu->FileMenu->actions());
             DesktopMenu->addSeparator();
             DesktopMenu->addMenu(MainMenu->RecentMenu);
-            DesktopMenu->popup(mapToGlobal(event->pos()));
+            DesktopMenu->popup(event->globalPosition().toPoint());
             return;
         }
     }
@@ -1084,6 +1107,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
 
 void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
 {
+    static QDPRPixmap plugPix = QDPRPixmap(jackSize,":/Plug.png").shadowedPixmap(4);
     const QPoint Pos = QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
     if (Pos == MousePos) return;
     MousePos=Pos;
@@ -1099,21 +1123,34 @@ void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
     }
     if (Dragging) //drag connection
     {
-        SetConnectCursor(Pos);
-        DragList.clear();
-        DrawConnections();
+        //SetConnectCursor(Pos);
+        CConnectionHelper::SetConnectCursor(this,MouseOverJack(Pos),DragJack);
+        DragList.erase(&Scene);
+        //DrawConnections();
         QColor c(DragJack->JackColor());
         c.setAlphaF(CPresets::presets().ConnectionsOpacity);
+        QGraphicsPixmapItem* plug2 = Scene.addPixmap(plugPix);
+        plug2->setPos(DragJackPos);
+        //plug2->setZValue(2);
+        DragList.append(plug2);
+        QGraphicsPixmapItem* plug1 = Scene.addPixmap(plugPix);
+        plug1->setPos(Pos);
+        //plug1->setZValue(2);
+        DragList.append(plug1);
+        //DragList.setZValue(2);
+        DragList.setPos(-jackSize.width() / 2, -jackSize.height() / 2);
         if (DragJack->isOutJack())
         {
             DragList.append(CConnectionHelper::DrawArrow(DragJackPos,Pos,c,&Scene));
-            for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
+            //for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
+            DragList.setZValue(3);
             DragList.append(CConnectionHelper::DrawArrow(DragJackPos+shadowOffset,Pos+shadowOffset,shadowColor,&Scene));
         }
         else
         {
             DragList.append(CConnectionHelper::DrawArrow(Pos,DragJackPos,c,&Scene));
-            for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
+            //for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
+            DragList.setZValue(3);
             DragList.append(CConnectionHelper::DrawArrow(Pos+shadowOffset,DragJackPos+shadowOffset,shadowColor,&Scene));
         }
         return;
@@ -1195,7 +1232,7 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
             MarkMenu->addAction(pp);
             MarkMenu->addSeparator();
             MarkMenu->addAction("Disconnect",this,&CDesktopComponent::RemoveConnections);
-            MarkMenu->popup(mapToGlobal(event->pos()));
+            MarkMenu->popup(event->globalPosition().toPoint());
         }
     }
 }
@@ -1207,7 +1244,7 @@ void CDesktopComponent::mouseDoubleClickEvent(QMouseEvent *event)
     m_MD=false;
     QMutexLocker locker(&mutex);
     QApplication::restoreOverrideCursor();
-    const QPoint Pos=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const QPoint Pos = QGraphicsView::mapToScene(event->pos()).toPoint();
     if (IJack* J=MouseOverJack(Pos))
     {
         MainMenu->UndoMenu->addItem("Disconnect");
@@ -1252,7 +1289,7 @@ void CDesktopComponent::DeleteDoc()
     MainMenu->UndoMenu->addItem("Delete");
     QMutexLocker locker(&mutex);
     if ((MarkList.isEmpty()) && (selectedDeviceIsValid())) MarkList.append(currentDevice());
-    for(IDevice* d : std::as_const(MarkList)) RemoveDevice(d);
+    for(IDevice* d : std::as_const(MarkList)) RemoveDeviceNoPaint(d);
     SelectDevice(Devices.size()-1);
 }
 

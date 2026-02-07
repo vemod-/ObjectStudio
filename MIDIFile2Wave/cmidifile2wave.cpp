@@ -50,7 +50,7 @@ bool CMIDI2WavForm::event(QEvent *event)
     {
         if (dynamic_cast<QMouseEvent*>(event)->button()==Qt::RightButton)
         {
-            UIMenu->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(event)->pos()));
+            UIMenu->popup(dynamic_cast<QMouseEvent*>(event)->globalPosition().toPoint());
         }
     }
     return CSoftSynthsForm::event(event);

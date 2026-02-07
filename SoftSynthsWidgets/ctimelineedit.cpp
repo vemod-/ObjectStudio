@@ -41,14 +41,19 @@ CTimeLineEdit::~CTimeLineEdit()
 
 CTimeLineMenu::CTimeLineMenu(CTimeLine *t, QWidget *parent)
     : QMenu(parent) {
-    setAttribute(Qt::WA_DeleteOnClose);
+    //setAttribute(Qt::WA_DeleteOnClose);
     QWidgetAction* a = new QWidgetAction(this);
-    CTimeLineEdit* w = new CTimeLineEdit(t,this);
-    a->setDefaultWidget(w);
+    m_Edit = new CTimeLineEdit(t,this);
+    a->setDefaultWidget(m_Edit);
     addAction(a);
-    connect(w,&CTimeLineEdit::Changed,this,&CTimeLineMenu::Changed);
-    w->show();
-    w->setFixedSize(w->sizeHint());
-    w->updateGeometry();
-    setFixedSize(w->size()+QSize(10,10));
+    connect(m_Edit,&CTimeLineEdit::Changed,this,&CTimeLineMenu::Changed);
+    m_Edit->show();
+    m_Edit->setFixedSize(m_Edit->sizeHint());
+    m_Edit->updateGeometry();
+    setFixedSize(m_Edit->size()+QSize(10,10));
+}
+
+void CTimeLineMenu::closeEvent(QCloseEvent *) {
+    m_Edit->deleteLater();
+    deleteLater();
 }

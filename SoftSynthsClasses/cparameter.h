@@ -192,8 +192,8 @@ public:
         color = col;
         Name = name;
     }
-    int startIndex=-1;
-    int endIndex=-1;
+    int startIndex = -1;
+    int endIndex = -1;
     int ID=-1;
     QString Name;
     QColor color;

@@ -7,6 +7,7 @@
 #include "../../LCDLabel/qlcdlabel.h"
 #include "../../EffectLabel/effectlabel.h"
 #include "idevice.h"
+#include "qgraphicsitemlist.h"
 
 #define rackUnitHeight 112
 
@@ -20,32 +21,30 @@ public:
     void init(IDevice* Device);
     void showParameters(int index);
     bool swallowMousePress(QMouseEvent *event, QGraphicsItem* item);
-protected:
-    void wheelEvent(QWheelEvent* event);
+    bool itemIsKnob(QGraphicsItem* item);
 private:
     QGraphicsScene* m_Scene;
     QList<CKnobControl*> Dials;
     QList<CParameter*> Parameters;
     IDevice* m_Device;
-    int m_Width = 0;
-    int m_Index = 0;
+    //int m_Width = 0;
+    //int m_Index = 0;
     EffectLabel* m_NameLabel;
     QLCDLabel* m_UILabel;
     QLCDLabel* m_IDLabel;
     QLCDLabel* m_PresetLabel;
-    QList<QGraphicsProxyWidget*> m_ProxyDials;
+    QGraphicsContainerItem m_ProxyDials;
     QGraphicsProxyWidget* m_ProxyNameLabel = nullptr;
     QGraphicsProxyWidget* m_ProxyUILabel = nullptr;
-    QGraphicsProxyWidget* m_ProxyIDLabel = nullptr;
-    QGraphicsProxyWidget* m_ProxyPresetLabel = nullptr;
-    QGraphicsPixmapItem* m_RackLeftPix = nullptr;
-    QList<QGraphicsItem*> m_GroupList;
-    QList<QGraphicsItem*> m_FrameList;
+    QGraphicsContainerItem m_GroupList;
+    QGraphicsContainerItem m_FrameList;
     QMenu* parametersMenu();
     QRecursiveMutex mutex;
+    /*
     int calcY(int y) {
         return (m_Index * rackUnitHeight) + y;
     }
+*/
 private slots:
     void updateParameterValue(int i);
     void showAutomation(CParameter* p) {
@@ -64,7 +63,6 @@ public slots:
     void updateControl(const CParameter* Parameter);
 signals:
     void popupTriggered(IDevice* Device, QPoint Pos);
-    void mousePress(IDevice*, QPoint);
     void parametersChanged(IDevice*);
     void aboutToChange(const QString&);
     void showAutomationRequested(IDevice*,int);

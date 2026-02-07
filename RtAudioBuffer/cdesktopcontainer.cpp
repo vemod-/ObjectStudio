@@ -8,38 +8,41 @@ CDesktopContainer::CDesktopContainer(QWidget *parent) :
     ui(new Ui::CDesktopContainer)
 {
     ui->setupUi(this);
+    Rack = new CParametersContainer(this);
     ui->UIMap->setVisible(false);
     splitter=new QMacSplitter(this);
     splitter->setHandleWidth(1);
     splitter->setOrientation(Qt::Vertical);
     layout()->addWidget(splitter);
-    splitter->addWidget(ui->RackContainer);
+    splitter->addWidget(Rack);
     splitter->addWidget(ui->DesktopComponent);
     splitter->setStretchFactor(0,1);
     splitter->setStretchFactor(1,100);
     splitter->setChildrenCollapsible(false);
     Desktop=ui->DesktopComponent;
+    setAcceptDrops(false);
 
-    ui->RackContainer->Init(Desktop->deviceList());
+    Rack->Init(Desktop->deviceList());
 
-    connect(ui->DesktopComponent,&CDesktopComponent::parametersChanged,ui->RackContainer,&CRackContainer::showParameters,Qt::QueuedConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::controlChanged,ui->RackContainer,&CRackContainer::updateControl,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::parametersChanged,Rack,&CParametersContainer::showParameters,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::controlChanged,Rack,&CParametersContainer::updateControl,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::deviceAdded,Rack,&CParametersContainer::addDevice,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::deviceRemoved,Rack,&CParametersContainer::removeDevice,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::devicesReordered,Rack,&CParametersContainer::moveDevice,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::devicesCleared,Rack,&CParametersContainer::clear,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::connectionsChanged,Rack,&CParametersContainer::updateConnections,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::jacksChanged,Rack,&CParametersContainer::DrawConnections,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::requestSerializeAutomationXML,Rack,&CParametersContainer::serialize,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::requestUnserializeAutomationXML,Rack,&CParametersContainer::unserialize,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::requestCloseAutomation,Rack,&CParametersContainer::closeAutomation,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::requestParametersPixmap,Rack,&CParametersContainer::parametersPixmap,Qt::DirectConnection);
 
-    connect(ui->DesktopComponent,&CDesktopComponent::deviceAdded,this,&CDesktopContainer::addDevice,Qt::DirectConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::deviceRemoved,this,&CDesktopContainer::removeDevice,Qt::DirectConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::devicesCleared,this,&CDesktopContainer::clear,Qt::DirectConnection);
-
-    connect(ui->DesktopComponent,&CDesktopComponent::connectionsChanged,ui->RackContainer,&CRackContainer::updateConnections,Qt::QueuedConnection);
-    connect(ui->RackContainer,&CRackContainer::connectionsChanged,ui->DesktopComponent,&CDesktopComponent::DrawConnections,Qt::QueuedConnection);
-    connect(ui->RackContainer,&CRackContainer::aboutToChange,ui->DesktopComponent->MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
-    connect(ui->RackContainer,&CRackContainer::ParametersChanged,ui->DesktopComponent,&CDesktopComponent::DrawConnections,Qt::QueuedConnection);
-
+    connect(Rack,&CParametersContainer::connectionsChanged,ui->DesktopComponent,&CDesktopComponent::DrawConnections,Qt::QueuedConnection);
+    connect(Rack,&CParametersContainer::aboutToChange,ui->DesktopComponent->MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
+    connect(Rack,&CParametersContainer::ParametersChanged,ui->DesktopComponent,&CDesktopComponent::DrawConnections,Qt::QueuedConnection);
+    connect(Rack,&CParametersContainer::deviceRemoved,ui->DesktopComponent,&CDesktopComponent::RemoveDevice);
+    connect(Rack,&CParametersContainer::devicesReordered,ui->DesktopComponent,&CDesktopComponent::moveDevice);
     connect(ui->UIMap,&CUIMap::deviceSelected,this,&CDesktopContainer::hideMap,Qt::QueuedConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::requestSerializeAutomationXML,ui->RackContainer,&CRackContainer::serialize,Qt::DirectConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::requestUnserializeAutomationXML,ui->RackContainer,&CRackContainer::unserialize,Qt::DirectConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::requestCloseAutomation,ui->RackContainer,&CRackContainer::closeAutomation,Qt::DirectConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::requestParametersPixmap,ui->RackContainer,&CRackContainer::parametersPixmap,Qt::DirectConnection);
-
 }
 
 CDesktopContainer::~CDesktopContainer()
@@ -55,37 +58,37 @@ void CDesktopContainer::resizeEvent(QResizeEvent* event)
 
 void CDesktopContainer::resizeContent()
 {
-    const int MaxHeight=ui->RackContainer->deviceCount()*rackUnitHeight;
+    const int MaxHeight = Rack->deviceCount() * Rack->unitHeight();
     //splitter->setCollapsible(0,(MaxHeight == 0));
-    ui->RackContainer->setMinimumHeight((MaxHeight > 0) * rackUnitHeight);
-    ui->RackContainer->setMaximumHeight(MaxHeight);
-    splitter->setMinimumHeight((MaxHeight > 0) * rackUnitHeight);
+    //Rack->setMinimumHeight((MaxHeight > 0) * rackUnitHeight);
+    //Rack->setMaximumHeight(MaxHeight);
+    splitter->setMinimumHeight((MaxHeight > 0) * Rack->unitHeight());
     //splitter->setCollapsible(1,(splitter->height()<=MaxHeight));
     //ui->DesktopComponent->updateGeometry();
     //Desktop->DrawConnections();
 }
-
+/*
 void CDesktopContainer::addDevice(IDevice* d)
 {
     QMutexLocker locker(&mutex);
-    ui->RackContainer->addDevice(d);
+    Rack->addDevice(d);
     resizeContent();
 }
 
 void CDesktopContainer::removeDevice(IDevice* d)
 {
     QMutexLocker locker(&mutex);
-    ui->RackContainer->removeDevice(d);
+    Rack->removeDevice(d);
     resizeContent();
 }
 
 void CDesktopContainer::clear()
 {
     QMutexLocker locker(&mutex);
-    ui->RackContainer->clear();
+    Rack->clear();
     resizeContent();
 }
-
+*/
 void CDesktopContainer::showMap()
 {
     ui->UIMap->showMap(Desktop->deviceList(),this,splitter);
@@ -93,7 +96,7 @@ void CDesktopContainer::showMap()
 
 void CDesktopContainer::showParameters(IDevice* d)
 {
-    ui->RackContainer->showParameters(d);
+    Rack->showParameters(d);
 }
 /*
 void CDesktopContainer::showAutomation(IDevice* d)
@@ -131,11 +134,12 @@ void CDesktopContainer::getPasteParameters(QMenu* m, IDevice* d)
     m->addAction(a);
 }
 */
+/*
 void CDesktopContainer::updateControls(IDevice* d)
 {
-    ui->RackContainer->updateControls(d);
+    Rack->updateControls(d);
 }
-
+*/
 void CDesktopContainer::hideMap()
 {
     ui->UIMap->setVisible(false);

@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QVBoxLayout>
+#include "qgraphicsitemlist.h"
 
 #define timelineheight 20
 #define timelinehalfheight 10
@@ -192,12 +193,13 @@ public:
                     bottom += h;
                 }
             }
-            m_PlayLine = new QGraphicsItemGroup();
-            m_PlayLine->addToGroup(Scene->addLine(0,0,0,visibleRect.height(),QPen(Qt::yellow)));
-            m_PlayLine->addToGroup(Scene->addLine(1,0,1,visibleRect.height(),QPen(QColor(0,0,0,40))));
+            m_PlayLine = new QGraphicsContainerItem();
+            m_PlayLine->addToScene(Scene);
+            m_PlayLine->append(Scene->addLine(0,0,0,visibleRect.height(),QPen(Qt::yellow)));
+            m_PlayLine->append(Scene->addLine(1,0,1,visibleRect.height(),QPen(QColor(0,0,0,40))));
             m_PlayLine->setVisible(true);
             m_PlayLine->setZValue(1);
-            Scene->addItem(m_PlayLine);
+            //Scene->addItem(m_PlayLine);
             m_PlayLine->setPos(sampleToX(m_CurrentSample),0);
         }
     }
@@ -282,7 +284,7 @@ public:
     }
 private:
     QPen m_Pen = QPen(Qt::white);
-    QGraphicsItemGroup* m_PlayLine;
+    QGraphicsContainerItem* m_PlayLine;
     int m_Width=100;
     int m_Offset = 0;
     double m_Zoom=1;

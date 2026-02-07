@@ -53,6 +53,7 @@ protected:
     void timerEvent(QTimerEvent *event);
     void closeEvent(QCloseEvent* event);
     void dragEnterEvent(QDragEnterEvent* e);
+    void dragMoveEvent(QDragMoveEvent* e);
     void dropEvent(QDropEvent* e);
     /*
     bool event(QEvent* event) {

@@ -261,7 +261,17 @@ void CWaveLanes::UpdateGeometry() {
 void CWaveLanes::paint()
 {
     QMutexLocker locker(&mutex);
+    //QList<QGraphicsProxyWidget*> l;
+    QGraphicsItemList l;
+    for (QGraphicsItem* i : Scene.items()) {
+        if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
+            if (i->zValue() > 4) l.append(proxy);
+        }
+    }
+    l.removeFromScene(&Scene);
     Scene.clear();
+    l.addToScene(&Scene);
+
     UpdateGeometry();
     const ulong64 timelineSamples = requestSamples();
     long MaxLen = sample2Pos(timelineSamples) + LaneTrail;
@@ -458,6 +468,15 @@ void CWaveLanes::ShowInfoLabel(ulong64 Start, CWaveLane* Lane)
 
 void CWaveLanes::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    const QPointF scenePos = mapToScene(event->pos());
+    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
+    if (w) {
+        if (w->zValue() > 4) {
+            QGraphicsView::mouseDoubleClickEvent(event);
+            return;
+        }
+    }
+
     QPoint Pos=mapToScene(event->pos()).toPoint();
     if (event->button()==Qt::LeftButton) {
         if (m_TimeLine.handleDoubleClick(Pos,this)) return;
@@ -540,6 +559,15 @@ void CWaveLanes::EffectRack() {
 
 void CWaveLanes::mousePressEvent(QMouseEvent *event)
 {
+    const QPointF scenePos = mapToScene(event->pos());
+    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
+    if (w) {
+        if (w->zValue() > 4) {
+            QGraphicsView::mousePressEvent(event);
+            return;
+        }
+    }
+
     StartPos=mapToScene(event->pos()).toPoint();
     int Lane=MouseOverLane(StartPos);
     int Track=MouseOverTrack(StartPos,Lane);
@@ -572,7 +600,7 @@ void CWaveLanes::mousePressEvent(QMouseEvent *event)
     }
     if ((CurrentLane > -1) && (!CurrentTrack.isEmpty())) ShowInfoLabel(lanes[CurrentLane]->tracks[CurrentTrack.first()]->start,CurrentLane);
     if (event->button()==Qt::RightButton) {
-        MainMenu->EditMenu->popup(mapToGlobal(event->pos()));
+        MainMenu->EditMenu->popup(event->globalPosition().toPoint());
         return;
     }
     if (CurrentLane > -1) {
@@ -589,6 +617,15 @@ void CWaveLanes::mousePressEvent(QMouseEvent *event)
 
 void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
 {
+    const QPointF scenePos = mapToScene(event->pos());
+    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
+    if (w) {
+        if (w->zValue() > 4) {
+            QGraphicsView::mouseMoveEvent(event);
+            return;
+        }
+    }
+
     QPoint Pos=mapToScene(event->pos()).toPoint();
     if (m_TimeLine.handleMouseMove(Pos,this)) return;
     if (CurrentLane > -1) {
@@ -633,6 +670,15 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
 
 void CWaveLanes::mouseReleaseEvent(QMouseEvent *event)
 {
+    const QPointF scenePos = mapToScene(event->pos());
+    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
+    if (w) {
+        if (w->zValue() > 4) {
+            QGraphicsView::mouseReleaseEvent(event);
+            return;
+        }
+    }
+
     QPoint Pos=mapToScene(event->pos()).toPoint();
     if (DragBackup) {
         if (Pos != StartPos) MainMenu->UndoMenu->addElement(DragBackup,"Drag");
@@ -720,19 +766,27 @@ void CWaveLanes::Split()
 
 void CWaveLanes::Automation() {
     if (CurrentLane > -1) {
-        CAutomationLane* a = new CAutomationLane(this);
-        a->setGeometry(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0));
-        a->updateGeometry();
+        CAutomationLane* a = new CAutomationLane();
         a->fill(lanes[CurrentLane],0,&deviceList,false);
-        a->show();
+        QGraphicsProxyWidget* w = addProxyWidget(a);
+        w->setPos(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).topLeft());
+        //a->setGeometry(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0));
+        //a->updateGeometry();
+        //a->show();
     }
 }
 
 void CWaveLanes::UpdateAutomationGeometry() {
-    for (CAutomationLane* a : (const QList<CAutomationLane*>)findChildren<CAutomationLane*>()) {
-        a->setGeometry(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).translated(-horizontalScrollBar()->value(),0));
-        a->updateGeometry();
+    for (QWidget* a : ProxyWidgets()) {
+        CAutomationLane* w = static_cast<CAutomationLane*>(a);
+        w->resize(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).size());
     }
+
+
+    //for (CAutomationLane* a : (const QList<CAutomationLane*>)findChildren<CAutomationLane*>()) {
+        //a->setGeometry(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).translated(-horizontalScrollBar()->value(),0));
+        //a->updateGeometry();
+    //}
 }
 
 

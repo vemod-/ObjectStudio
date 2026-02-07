@@ -45,7 +45,7 @@ void CTimeLineSlider::mouseDoubleClickEvent(QMouseEvent* e) {
 void CTimeLineSlider::mousePressEvent(QMouseEvent* e) {
     QPointF p = QGraphicsView::mapToScene(e->pos());
     if (e->button() == Qt::RightButton) {
-        CTimeLineMenu* d = new CTimeLineMenu(&m_TimeLine,this);
+        CTimeLineMenu* d = new CTimeLineMenu(&m_TimeLine,nullptr);
         connect(d,&CTimeLineMenu::Changed,this,&CTimeLineSlider::draw);
         d->popup(cursor().pos());
         return;

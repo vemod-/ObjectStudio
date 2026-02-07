@@ -48,14 +48,12 @@ include($$PWD/../../Projectpage/projectpage.pri)
 
 SOURCES += $$PWD/cparameterscomponent.cpp \
     $$PWD/cknobcontrol.cpp \
-    $$PWD/cjackscomponent.cpp \
     $$PWD/cdesktopcontainer.cpp \
     $$PWD/cdesktopcomponent.cpp \
     $$PWD/../../ObjectComposerXML/qmacsplitter.cpp
 
 HEADERS += $$PWD/cparameterscomponent.h \
     $$PWD/cknobcontrol.h \
-    $$PWD/cjackscomponent.h \
     $$PWD/cdesktopcontainer.h \
     $$PWD/cdesktopcomponent.h \
     $$PWD/../../ObjectComposerXML/qmacsplitter.h
@@ -65,18 +63,15 @@ FORMS += \
     $$PWD/cdesktopcontainer.ui \
     $$PWD/cdesktopcomponent.ui
 
-FORMS += \
-    $$PWD/crackcontainer.ui
+FORMS +=
 
 HEADERS += \
     $$PWD/cparameterscontainer.h \
-    $$PWD/cconnectionhelper.h \
-    $$PWD/crackcontainer.h
+    $$PWD/cconnectionhelper.h
 
 SOURCES += \
     $$PWD/cparameterscontainer.cpp \
-    $$PWD/cconnectionhelper.cpp \
-    $$PWD/crackcontainer.cpp
+    $$PWD/cconnectionhelper.cpp
 
 }
 
@@ -94,3 +89,9 @@ DISTFILES += \
     $$PWD/../../SynthPanel/Sky Aluminium Tile.bmp \
     $$PWD/../../SynthPanel/Stainless Aluminium Tile.bmp \
     $$PWD/../../SynthPanel/Brushed Aluminium Tile.bmp
+
+HEADERS += \
+    $$PWD/cjacksdevice.h
+
+SOURCES += \
+    $$PWD/cjacksdevice.cpp

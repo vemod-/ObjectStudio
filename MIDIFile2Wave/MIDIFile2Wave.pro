@@ -22,6 +22,7 @@ INCLUDEPATH += ../../LCDLabel
 INCLUDEPATH += ../../QSignalMenu
 INCLUDEPATH += ../RtAudioBuffer
 INCLUDEPATH += ../../SynthPanel
+INCLUDEPATH += ../SoftSynthsWidgets
 
 include(../RtAudioBuffer/UIMap.pri)
 

@@ -13,7 +13,7 @@ CAutomationLane::CAutomationLane(QWidget *parent) :
     zoomer->setMin(1);
     zoomer->setMax(width());
     connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CAutomationLane::setZoom);
-    m_ParameterMenu = new QSignalMenu(this);
+    m_ParameterMenu = new QSignalMenu();
     setFrameStyle(0);
     setStyleSheet("QGraphicsView{background-color: rgba(128, 128, 128, 190);}");
     setScene(&Scene);
@@ -24,7 +24,8 @@ CAutomationLane::CAutomationLane(QWidget *parent) :
     setRenderHint(QPainter::TextAntialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
     setMouseTracking(true);
-    InfoLabel=new QLabel(parent);
+    InfoLabel=new QLabel();
+    InfoLabel->setWindowFlags(Qt::ToolTip);
     InfoLabel->setAutoFillBackground(true);
     InfoLabel->setFrameStyle(QFrame::Box | QFrame::Plain);
     InfoLabel->hide();

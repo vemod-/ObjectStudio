@@ -24,6 +24,7 @@ INCLUDEPATH += ../../EffectLabel\
 INCLUDEPATH += ../PlugInLoader
 INCLUDEPATH += ../Preamp
 INCLUDEPATH += ../EffectRack
+INCLUDEPATH += ../SoftSynthsWidgets
 
 ##include(../../EffectLabel/EffectLabel.pri)
 ##include(../../SynthKnob/QSynthKnob.pri)

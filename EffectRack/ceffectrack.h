@@ -2,7 +2,7 @@
 #define CEFFECTRACK_H
 
 #include "cdevicelist.h"
-#include "crackcontainer.h"
+#include "cparameterscontainer.h"
 #include "qsignalmenu.h"
 //#include <QLabel>
 
@@ -23,22 +23,21 @@ public:
     void closeAutomation(IDevice* /*device*/);
 protected:
     bool event(QEvent* e);
+    //void dragEnterEvent(QDragEnterEvent* e);
+    //void dropEvent(QDropEvent* e);
 public slots:
     void addDevice();
     void removeDevice(IDevice*);
     void PluginMenuClicked(QString);
+    void reorderDevices(int deviceIndex, int move);
 private:
-    CRackContainer* m_Rack;
+    CParametersContainer* m_Rack;
     CDeviceList m_DeviceList;
     QWidget* m_Toolbar;
     QSignalMenu* PluginsPopup;
-    //MouseEvents eventHandler;
-    //QWidget* m_RackWidget;
 private slots:
-    void rackMousePressed(IDevice*, QPoint);
-    void rackDrop(QDropEvent*);
-    void rackDragEnter(QDragEnterEvent*);
-    //void showAutomation(IDevice* d);
+    //void rackMousePressed(IDevice*, QPoint);
+    void rackSizeChanged();
 signals:
     void controlChanged(IDevice*, const CParameter*);
 };

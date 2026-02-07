@@ -5,10 +5,16 @@
 #include <QMenu>
 #include "ctimeline.h"
 
+class CTimeLineEdit;
+
 class CTimeLineMenu : public QMenu {
     Q_OBJECT
 public:
     CTimeLineMenu(CTimeLine* t, QWidget* parent);
+protected:
+    void closeEvent(QCloseEvent* /*e*/);
+private:
+    CTimeLineEdit* m_Edit;
 signals:
     void Changed();
 };

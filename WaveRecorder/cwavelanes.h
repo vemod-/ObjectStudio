@@ -99,6 +99,21 @@ private slots:
     void QuantizeStraight();
     void QuantizeTriplet();
     void Split();
+    QGraphicsProxyWidget* addProxyWidget(QWidget* a) {
+        a->resize(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).size());
+        QGraphicsProxyWidget* w = Scene.addWidget(a);
+        w->setZValue(5);
+        return w;
+    }
+    QList<QWidget*> ProxyWidgets() {
+        QList<QWidget*> l;
+        for (QGraphicsItem* i : Scene.items()) {
+            if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
+                if (i->zValue() > 4) l.append(proxy->widget());
+            }
+        }
+        return l;
+    }
     void Automation();
     void setZoom(double z);
     void UpdateAutomationGeometry();

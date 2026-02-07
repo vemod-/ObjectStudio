@@ -186,7 +186,7 @@ bool CMacroBoxForm::event(QEvent *event)
             m->addAction("Hide UIs",DesktopContainer,&CDesktopContainer::hideUIs);
             m->addAction("Cascade UIs",this,&CMacroBoxForm::cascadeUIs);
 
-            m->popup(mapToGlobal(dynamic_cast<QMouseEvent*>(event)->pos()));
+            m->popup(dynamic_cast<QMouseEvent*>(event)->globalPosition().toPoint());
         }
     }
     return CSoftSynthsForm::event(event);

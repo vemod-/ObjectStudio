@@ -11,6 +11,8 @@
 #include <QApplication>
 #include "ctimeline.h"
 #include "ctimelineedit.h"
+#include <QGraphicsProxyWidget>
+#include "qgraphicsitemlist.h"
 
 namespace Ui {
 class CAutomationLane;
@@ -56,11 +58,7 @@ public:
     void DrawAutomation(bool TopLayer, QPointF delta = QPointF()) {
         if (TopLayer)
         {
-            for (QGraphicsItem* i : std::as_const(m_TopLayer)) {
-                Scene.removeItem(i);
-                delete i;
-            }
-            m_TopLayer.clear();
+            m_TopLayer.erase(&Scene);
         }
         else
         {
@@ -97,10 +95,10 @@ public:
         m_TopLayer.append(DrawLayer(currentParameter(), true, delta));
         verticalScrollBar()->setEnabled(false);
     }
-    QList<QGraphicsItem*> DrawLayer(CParameter* parameter, bool isTopLayer, QPointF delta = QPointF())
+    QGraphicsItemList DrawLayer(CParameter* parameter, bool isTopLayer, QPointF delta = QPointF())
     {
         qDebug() << parameter->Name;
-        QList<QGraphicsItem*> retval;
+        QGraphicsItemList retval;
         CParameterEventList& l = parameter->events;
         QColor noEdit = Qt::red;
         QColor lines = Qt::yellow;
@@ -223,7 +221,7 @@ protected:
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (event->button() == Qt::RightButton) {
             if (p.y() < m_TimeLineHeight) {
-                CTimeLineMenu* d = new CTimeLineMenu(&m_TimeLine,this);
+                CTimeLineMenu* d = new CTimeLineMenu(&m_TimeLine,nullptr);
                 connect(d,&CTimeLineMenu::Changed,this,&CAutomationLane::Paint);
                 d->popup(cursor().pos());
                 QGraphicsView::mousePressEvent(event);
@@ -300,7 +298,8 @@ protected:
         ulong64 t = timeFromX(textPoint.x());
         if (!InfoLabel->isVisible()) InfoLabel->show();
         InfoLabel->setText(v + "\n" + m_TimeLine.timeToText(t));
-        InfoLabel->move(event->pos()+geometry().topLeft()+QPoint(4,4));
+        //InfoLabel->move(event->pos()+geometry().topLeft()+QPoint(4,4));
+        InfoLabel->move(event->globalPosition().toPoint() + QPoint(10,10));
         InfoLabel->adjustSize();
         QGraphicsView::mouseMoveEvent(event);
     }
@@ -365,9 +364,19 @@ protected:
         }
         QGraphicsView::keyPressEvent(e);
     }
-    bool event(QEvent *event) {
-        if (event->type()==QEvent::Leave) InfoLabel->hide();
-        return QGraphicsView::event(event);
+    bool event(QEvent *e)
+    {
+        if (e->type() == QEvent::ShortcutOverride)
+        {
+            auto *ke = static_cast<QKeyEvent*>(e);
+            if (ke->key() == Qt::Key_Backspace)
+            {
+                e->accept();   // stoppar QAction
+                return true;
+            }
+        }
+        if (e->type()==QEvent::Leave) InfoLabel->hide();
+        return QGraphicsView::event(e);
     }
     void resizeEvent(QResizeEvent *event) {
         QGraphicsView::resizeEvent(event);
@@ -378,14 +387,18 @@ protected:
         }
     }
 public slots:
-    void close(IDevice* d = nullptr) {
-        if (d == nullptr) {
+    void close(IDevice* d = nullptr)
+    {
+        delete InfoLabel;
+
+        if (d == nullptr || d == m_Device)
+        {
             m_Device->removeTickerDevice(this);
-            this->deleteLater();
-        }
-        else if (d == m_Device) {
-            m_Device->removeTickerDevice(this);
-            this->deleteLater();
+
+            if (auto proxy = graphicsProxyWidget())
+                proxy->deleteLater();
+            else
+                deleteLater();
         }
     }
 private slots:
@@ -481,7 +494,7 @@ private:
         return -1;
     }
     QGraphicsScene Scene;
-    QList<QGraphicsItem*> m_TopLayer;
+    QGraphicsItemList m_TopLayer;
     QLabel* InfoLabel;
     bool m_MD = false;
     QPoint m_StartPoint;
