@@ -5,7 +5,7 @@
 #include <QMouseEvent>
 #include "idevice.h"
 #include "cdevicelist.h"
-#include "qiphotorubberband.h"
+//#include "qiphotorubberband.h"
 #include <QtWidgets/qlineedit.h>
 #include <QGraphicsProxyWidget>
 #include <qsignalmenu.h>
@@ -127,6 +127,7 @@ public:
     void paint(QGraphicsScene* Scene);
     void setFrontPix(const QDPRPixmap& p);
     bool frontPixSet();
+    QGraphicsToolButton* rotateButton;
 };
 
 class CJackBar : public CJackContainer
@@ -231,7 +232,8 @@ private:
     Ui::CDesktopComponent *ui;
     CDeviceList DeviceList;
     QGraphicsScene Scene;
-    QiPhotoRubberband* Rubberband;
+    //QiPhotoRubberband* Rubberband;
+    QGraphicsIPhotoRubberband* selectRect;
     QGraphicsViewZoomer* zoomer;
     bool MouseDown;
     bool Marked;
@@ -276,8 +278,6 @@ private:
     QPoint StartPoint;
     QPoint MousePos;
     QRect CopyRect;
-    QGraphicsPixmapItem* rotateItem = nullptr;
-
     QRecursiveMutex mutex;
     QWidget* m_MainWindow;
     QWidget* m_ParentWindow;

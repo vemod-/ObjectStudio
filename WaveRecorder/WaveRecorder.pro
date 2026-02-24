@@ -38,6 +38,9 @@ LIBS += -lPitchShifter
 INCLUDEPATH += ../pitchshifter
 INCLUDEPATH += ../pluginloader
 
+LIBS += -framework QtMultimedia
+LIBS += -framework QtMultimediaWidgets
+
 macx {
     contains(DEFINES,MACXSTATICLIBS) {
         LIBS += -L../ -lPluginLoader
@@ -77,6 +80,7 @@ HEADERS += cwaverecorderform.h \
     cwaveeditwidget.h \
     cwavelane.h \
     cwavetrack.h \
+    ##../WaveGenerator/avfaudiorw.h \
     ../../ObjectComposerXML/qmacsplitter.h
 
 DEFINES += WAVERECORDER_LIBRARY

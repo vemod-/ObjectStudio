@@ -17,12 +17,15 @@
 #include "cresourceinitializer.h"
 #include "qgraphicsitemlist.h"
 #include "effectlabel.h"
+#ifdef AVFOUNDATIONLIB
+#include "../WaveGenerator/avfaudiorw.h"
+#endif
 
 #define shadowColor QColor(0,0,0,40)
 #define shadowOffset QPoint(5,5)
 #define zeroPoint QPoint(0,0)
 
-void CJackContainer::paint(QGraphicsScene* Scene)
+void CJackContainer::paint(QGraphicsScene* /*Scene*/)
 {
     static QDPRPixmap freeDeviceJack = QDPRPixmap(jackSize,":/Jack.png").shadowedPixmap(2);
     static QDPRPixmap connectedDeviceJack = QDPRPixmap(jackSize,":/Plug.png").shadowedPixmap(4);
@@ -46,9 +49,9 @@ void CJackContainer::paint(QGraphicsScene* Scene)
     for (JackRect& j : jackRects)
     {
         QPen p(j.jack->JackColor(),jackPen);
-        jackItems.append(Scene->addEllipse(QRect(j.topLeft(),QSize(j.size() - QSize(jackPen,jackPen))),p,QBrush(QColor(0,0,0,80))));
-        QGraphicsPixmapItem* plug = Scene->addPixmap(connectedDeviceJack);
-        QGraphicsPixmapItem* jack = Scene->addPixmap(freeDeviceJack);
+        jackItems.append(ellipseItem(QRect(j.topLeft(),QSize(j.size() - QSize(jackPen,jackPen))),p,QColor(0,0,0,80)));
+        QGraphicsPixmapItem* plug = new QGraphicsPixmapItem(connectedDeviceJack);
+        QGraphicsPixmapItem* jack = new QGraphicsPixmapItem(freeDeviceJack);
         plug->setPos(j.topLeft()-QPoint(1,1));
         jack->setPos(j.topLeft()-QPoint(1,1));
         plug->setVisible(j.jack->isConnected());
@@ -133,13 +136,18 @@ CDeviceComponent::CDeviceComponent(IDevice *Device, const QString &ClassName) : 
     m_DeviceShadowPic = new QGraphicsPixmapItem();
     ContainerItem.setZValue(1);
     ContainerItem.append(m_DevicePic);
-    ContainerItem.append(&jackItems);
     ContainerItem.append(m_DeviceUIPic);
+    ContainerItem.append(&jackItems);
     ContainerItem.append(m_DeviceLabel);
+    rotateButton = new QGraphicsToolButton(QPixmap(":/Rotate.png").scaled(24,24,Qt::KeepAspectRatio,Qt::SmoothTransformation),&ContainerItem);
     init(Device,ClassName);
 }
 
 CDeviceComponent::~CDeviceComponent() {
+    delete m_DeviceLabel;
+    delete m_DeviceUIPic;
+    delete m_DevicePic;
+    delete m_DeviceShadowPic;
 }
 
 void CDeviceComponent::init(IDevice *Device, const QString &ClassName)
@@ -177,7 +185,6 @@ void CDeviceComponent::paint(QGraphicsScene* Scene)
     static QDPRPixmap activeDrawing(deviceTopSize,createDrawing(true));
     static QDPRPixmap inactiveDrawing(deviceTopSize,createDrawing(false));
     ContainerItem.addToScene(Scene);
-    //if (ContainerItem.scene() != Scene) Scene->addItem(&ContainerItem);
     if (m_DeviceShadowPic->scene() != Scene) Scene->addItem(m_DeviceShadowPic);
     m_DeviceUIPic->setVisible(false);
     if (m_Device != nullptr)
@@ -206,13 +213,13 @@ void CDeviceComponent::paint(QGraphicsScene* Scene)
                 m_DevicePic->setPixmap(rackTopPix.shadowedPixmap());
             }
             else if (m_View == FrontView) {
-                m_InJackFactor = 0.02;
-                m_OutJackFactor = 0.5;
+                m_InJackFactor = 0.2;
+                m_OutJackFactor = 0.3;
                 geometry.setSize(deviceBackSize);
                 (m_Active) ? m_DeviceShadowPic->setPixmap(rackFrontPix.activeShadow()) : m_DeviceShadowPic->setPixmap(rackFrontPix.inactiveShadow());
                 m_DevicePic->setPixmap(rackFrontPix.shadowedPixmap());
                 if (!m_frontPix.isNull()) {
-                    QGraphicsPixmapItem* front1 = Scene->addPixmap(m_frontPix);
+                    QGraphicsPixmapItem* front1 = new QGraphicsPixmapItem(m_frontPix);
                     front1->setPos(0,geometry.height() - (deviceResolution / 2.08));
                     front1->setParentItem(m_DevicePic);
                 }
@@ -232,6 +239,7 @@ void CDeviceComponent::paint(QGraphicsScene* Scene)
             m_DeviceUIPic->setPos(QPoint(sz.width(),sz.height()));
             m_DeviceUIPic->setVisible(true);
         }
+        rotateButton->setPos(QPoint(geometry.width(),0) + QPoint(-12,-12));
         QString Caption = m_Device->caption();
         QString FileName;
         if (!m_Device->alias().isEmpty()) {
@@ -295,7 +303,7 @@ void CJackBar::paint(QGraphicsScene* Scene)
     lg.setColorAt(0.5,QColor(0x9f,0x9f,0x9f));
     lg.setColorAt(1,QColor(0x78,0x78,0x78));
     QBrush b(lg);
-    ContainerItem.append(Scene->addRect(0,0,geometry.width(),geometry.height(),Qt::NoPen,b));
+    ContainerItem.append(rectItem(0,0,geometry.width(),geometry.height(),Qt::NoPen,b));
     for (int i = 0; i < jackRects.size(); i++)
     {
         JackRect* JR = &jackRects[i];
@@ -323,9 +331,6 @@ CDesktopComponent::CDesktopComponent(QWidget *parent) :
     setBackgroundBrush(QDPRPixmap(":/paper-texture.jpg"));
     setAlignment(Qt::AlignLeft | Qt::AlignTop);
 
-    setDragMode(NoDrag);
-    Rubberband=new QiPhotoRubberband(this);
-    Rubberband->hide();
     Marked=false;
     m_MD=false;
     Dragging=false;
@@ -347,6 +352,12 @@ CDesktopComponent::CDesktopComponent(QWidget *parent) :
     MainMenu = new CMainMenu(this,m_MainWindow,CPresets::Organization(),CPresets::AppName(),QString(),_DocumentPath,parent);
     MainMenu->actionWizard->setEnabled(false);
     MainMenu->actionWizard->setVisible(false);
+    setDragMode(NoDrag);
+    //Rubberband=new QiPhotoRubberband(this);
+    //Rubberband->hide();
+    selectRect = new QGraphicsIPhotoRubberband(this);
+    selectRect->setPenWidth(1);
+    selectRect->setZValue(4);
 }
 
 CDesktopComponent::~CDesktopComponent()
@@ -584,7 +595,8 @@ void CDesktopComponent::hideRubberband() {
         delete m_LineEdit;
         m_LineEdit = nullptr;
     }
-    if (Rubberband->isVisible()) Rubberband->hide();
+    //if (Rubberband->isVisible()) Rubberband->hide();
+    selectRect->hide();
     MarkList.clear();
     MainMenu->EditMenu->setSelectionStatus(canCopy());
     DrawConnections();
@@ -643,7 +655,11 @@ bool CDesktopComponent::findSuffix(const QString &path, const QString &filter) {
 
 bool CDesktopComponent::initWithFile(const QString &path, QPoint pos) {
     QString ClassName;
+#ifdef AVFOUNDATIONLIB
+    if (CAvFoundationReader::isValid(path)) ClassName = "WaveRecorder";
+#else
     if (findSuffix(path,".wav .mp3 .m4a .mp4 .flac .ogg .au .aif .aiff .aifc .aup")) ClassName = "WaveRecorder";
+#endif
     if (path.endsWith(".mid",Qt::CaseInsensitive)) ClassName = "MIDIFile2Wave";
     if (findSuffix(path,".mus .mxl .musicxml")) ClassName = "ObjectComposer";
     if (!ClassName.isEmpty()) {
@@ -669,12 +685,6 @@ void CDesktopComponent::DrawConnections()
         delete m_LineEdit;
         m_LineEdit = nullptr;
     }
-    if (rotateItem) {
-        Scene.removeItem(rotateItem);
-        delete rotateItem;
-        rotateItem = nullptr;
-    }
-
     QRect MaxRect;
     for (const CDeviceComponent* d : std::as_const(Devices)) MaxRect=MaxRect.united(d->geometry);
     MaxRect=MaxRect.united(QRect((QPoint(0,0)),QGraphicsView::mapToScene(rect().bottomRight()).toPoint()));
@@ -907,7 +917,9 @@ IJack* CDesktopComponent::MouseOverJack(const QPoint &Pos)
 
 int CDesktopComponent::MouseOverRotateButton(const QPoint &Pos) {
     for (int i = 0; i < Devices.size(); i++) {
-        if (QRect(Devices[i]->geometry.topRight() - QPoint(12,12),QSize(24,24)).contains(Pos)) return i;
+        CDeviceComponent* d = Devices[i];
+        //qDebug() << d->geometry.topRight() << d->rotateButton->pos() << d->rotateButton->boundingRect();
+        if (QRectF(d->geometry.topLeft() + d->rotateButton->pos(),d->rotateButton->boundingRect().size()).contains(Pos)) return i;
     }
     return -1;
 }
@@ -983,7 +995,8 @@ void CDesktopComponent::RemoveDeviceNoPaint(IDevice *Device) {
 void CDesktopComponent::mousePressEvent(QMouseEvent *event)
 {
     qDebug() << "mousePress" << event->pos();
-    Rubberband->hide();
+    //Rubberband->hide();
+    selectRect->hide();
     if (m_LineEdit) {
         delete m_LineEdit;
         m_LineEdit = nullptr;
@@ -993,7 +1006,7 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
     Dragging=false;
     DragJack=nullptr;
     MouseDown=true;
-    StartPoint=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    StartPoint = QGraphicsView::mapToScene(event->pos()).toPoint();
     int DI = DeviceIndex(StartPoint);
     int MR = MouseOverRotateButton(StartPoint);
     if (DI == -1) DI = MR;
@@ -1103,12 +1116,13 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             return;
         }
     }
+    QGraphicsView::mousePressEvent(event);
 }
 
 void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
 {
     static QDPRPixmap plugPix = QDPRPixmap(jackSize,":/Plug.png").shadowedPixmap(4);
-    const QPoint Pos = QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const QPoint Pos = QGraphicsView::mapToScene(event->pos()).toPoint();
     if (Pos == MousePos) return;
     MousePos=Pos;
     if (m_MD) //drag device
@@ -1126,31 +1140,31 @@ void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
         //SetConnectCursor(Pos);
         CConnectionHelper::SetConnectCursor(this,MouseOverJack(Pos),DragJack);
         DragList.erase(&Scene);
+        DragList.setPos(0,0);
         //DrawConnections();
         QColor c(DragJack->JackColor());
         c.setAlphaF(CPresets::presets().ConnectionsOpacity);
-        QGraphicsPixmapItem* plug2 = Scene.addPixmap(plugPix);
+        QGraphicsPixmapItem* plug2 = new QGraphicsPixmapItem(plugPix);
         plug2->setPos(DragJackPos);
         //plug2->setZValue(2);
         DragList.append(plug2);
-        QGraphicsPixmapItem* plug1 = Scene.addPixmap(plugPix);
+        QGraphicsPixmapItem* plug1 = new QGraphicsPixmapItem(plugPix);
         plug1->setPos(Pos);
         //plug1->setZValue(2);
         DragList.append(plug1);
         //DragList.setZValue(2);
         DragList.setPos(-jackSize.width() / 2, -jackSize.height() / 2);
+        DragList.setZValue(3);
         if (DragJack->isOutJack())
         {
-            DragList.append(CConnectionHelper::DrawArrow(DragJackPos,Pos,c,&Scene));
+            DragList.append(CConnectionHelper::DrawArrow(DragJackPos,Pos,c,&Scene,3));
             //for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
-            DragList.setZValue(3);
             DragList.append(CConnectionHelper::DrawArrow(DragJackPos+shadowOffset,Pos+shadowOffset,shadowColor,&Scene));
         }
         else
         {
-            DragList.append(CConnectionHelper::DrawArrow(Pos,DragJackPos,c,&Scene));
+            DragList.append(CConnectionHelper::DrawArrow(Pos,DragJackPos,c,&Scene,3));
             //for (QGraphicsItem* i : std::as_const(DragList)) i->setZValue(3);//for (int i=0;i<DragList.size();i++) DragList[i]->setZValue(3);
-            DragList.setZValue(3);
             DragList.append(CConnectionHelper::DrawArrow(Pos+shadowOffset,DragJackPos+shadowOffset,shadowColor,&Scene));
         }
         return;
@@ -1161,35 +1175,20 @@ void CDesktopComponent::mouseMoveEvent(QMouseEvent *event)
     {
         if (DeviceIndex(Pos) == -1)
         {
-            Rubberband->setGeometry(this->rect());
-            Rubberband->setWindowGeometry(mapFromScene(QRect(StartPoint,Pos).normalized()));
-            if (!Rubberband->isVisible()) Rubberband->show();
+            //Rubberband->setGeometry(this->rect());
+            //Rubberband->setWindowGeometry(mapFromScene(QRect(StartPoint,Pos).normalized()));
+            //(if (!Rubberband->isVisible()) Rubberband->show();
+            selectRect->show(QRect(StartPoint,Pos));
         }
     }
-    else {
-        int i = MouseOverRotateButton(Pos);
-        if (i > -1) {
-            if (rotateItem == nullptr) {
-                rotateItem = Scene.addPixmap(QDPRPixmap(QSize(24,24),":/Rotate.png"));
-                rotateItem->setPos(Devices[i]->geometry.topRight() - QPoint(12,12));
-                rotateItem->setZValue(2);
-            }
-        }
-        else {
-            if (rotateItem) {
-                Scene.removeItem(rotateItem);
-                delete rotateItem;
-                rotateItem = nullptr;
-            }
-        }
-    }
+    QGraphicsView::mouseMoveEvent(event);
 }
 
 void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
 {
     qDebug() << "mouseRelease" << event->pos();
     MouseDown=false;
-    const QPoint Pos=QGraphicsView::mapToScene(event->pos().x(),event->pos().y()).toPoint();
+    const QPoint Pos = QGraphicsView::mapToScene(event->pos()).toPoint();
     if (DragBackup) {
         if (Pos != StartPos) MainMenu->UndoMenu->addElement(DragBackup,"Drag");
         delete DragBackup;
@@ -1212,10 +1211,12 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
         }
     }
     ConnectDrop(Pos);
-    if (Rubberband->isVisible())
+    //if (Rubberband->isVisible())
+    if (selectRect->isVisible())
     {
         MarkList.clear();
-        QRect MarkRect(mapToScene(Rubberband->windowGeometry()));
+        //QRect MarkRect(mapToScene(Rubberband->windowGeometry()));
+        QRect MarkRect(selectRect->windowGeometry().toRect());
         for(CDeviceComponent* d : std::as_const(Devices))
         {
             if (d->inside(MarkRect)) MarkList.append(d->device());
@@ -1235,6 +1236,7 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
             MarkMenu->popup(event->globalPosition().toPoint());
         }
     }
+    QGraphicsView::mouseReleaseEvent(event);
 }
 
 void CDesktopComponent::mouseDoubleClickEvent(QMouseEvent *event)
@@ -1302,7 +1304,8 @@ void CDesktopComponent::CopyDoc(QDomLiteElement* xml)
         for (IDevice* d : std::as_const(MarkList))
         {
             QRect r=Devices[DeviceList.indexOfDevice(d)]->geometry;
-            (MarkList.size()>1) ? r.translate(-QGraphicsView::mapToScene(Rubberband->windowGeometry().topLeft()).toPoint()) : r.setTopLeft(zeroPoint);
+            //(MarkList.size()>1) ? r.translate(-QGraphicsView::mapToScene(Rubberband->windowGeometry().topLeft()).toPoint()) : r.setTopLeft(zeroPoint);
+            (MarkList.size()>1) ? r.translate(-(selectRect->windowGeometry().topLeft()).toPoint()) : r.setTopLeft(zeroPoint);
             serializeDevice(d,r,devices);
         }
         for(IDevice* d : std::as_const(MarkList))

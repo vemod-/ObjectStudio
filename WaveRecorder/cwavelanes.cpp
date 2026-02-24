@@ -18,17 +18,19 @@ CWaveLanes::CWaveLanes(QWidget *parent) :
     ui(new Ui::CWaveLanes)
 {
     ui->setupUi(this);
+    videoWindow = new CVideoWindow(this);
+
     zoomer = new QGraphicsViewZoomer(this);
     zoomer->disableMatrix();
     zoomer->setMin(0.0001);
     zoomer->setMax(1);
     zoomer->setZoom(0.001L);
-    connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CWaveLanes::setZoom);
+    connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CWaveLanes::ZoomToCursor);
 
     setScene(&Scene);
     setSceneRect(0,0,1,1);
     setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     Scene.setItemIndexMethod(QGraphicsScene::NoIndex);
     setRenderHint(QPainter::Antialiasing);
@@ -82,6 +84,9 @@ void CWaveLanes::init(const int Index, QWidget* MainWindow)
     QuantizeStraightAction = QuantizeMenu->addAction("Straight",this,&CWaveLanes::QuantizeStraight);
     QuantizeTripletAction = QuantizeMenu->addAction("Triplet",this,&CWaveLanes::QuantizeTriplet);
     MainMenu->EditMenu->addSeparator();
+    VideoWidgetAction=MainMenu->EditMenu->addAction("Video",this,&CWaveLanes::Video);
+    VideoWidgetAction->setCheckable(true);
+    MainMenu->EditMenu->addSeparator();
     AddLaneAction=MainMenu->EditMenu->addAction("Add Lane",this,&CWaveLanes::AddLane);
     RemoveLaneAction=MainMenu->EditMenu->addAction("Remove Lane",this,&CWaveLanes::RemoveLane);
     AutomationAction = MainMenu->EditMenu->addAction("Automation",this,&CWaveLanes::Automation);
@@ -104,7 +109,7 @@ bool CWaveLanes::event(QEvent *event)
         unsetCursor();
         if ((m_OldDragLane > -1) && (m_OldDragTrack > -1))
         {
-            lanes[m_OldDragLane]->paintTrack(m_OldDragTrack,Scene,zoomer->getZoom(),visibleRect(),0);
+            lanes[m_OldDragLane]->paintTrack(m_OldDragTrack,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect(),0);
             m_OldDragLane = -1;
             m_OldDragTrack = -1;
         }
@@ -152,9 +157,21 @@ void CWaveLanes::zoomMax()
 void CWaveLanes::setZoom(double z)
 {
     if (z < 0) z = 1;
-    if (zoomer->getZoom() != z) zoomer->setZoom(z);
+    if (!closeEnough(zoomer->getZoom(),z)) zoomer->setZoom(z);
     paint();
-    horizontalScrollBar()->setValue(qMax(0,m_TimeLine.currentPos()-(visibleRect().width()/2)));
+    //horizontalScrollBar()->setValue(qMax(0,m_TimeLine.currentPos()-(visibleRect().width()/2)));
+    zoomer->scrollXTo(m_TimeLine.currentPos()-(zoomer->visibleRect().width()/2.0));
+    //centerOn(QRectF(viewport()->rect()).center() + QPointF(qMax<double>(0,m_TimeLine.currentPos()-(visibleRect().width()/2.0)),0));
+    UpdateAutomationGeometry();
+}
+
+void CWaveLanes::ZoomToCursor(double z, double o){
+    QPointF p = viewport()->mapFromGlobal(QCursor::pos());
+    ulong64 s = ((zoomer->visibleRect().left() + p.x()) - BorderWidth) / o;
+    paint();
+    //horizontalScrollBar()->setValue(qMax<int>(0,sample2Pos(s - (p.x() / z))));
+    zoomer->scrollXTo(sample2Pos(s - (p.x() / z)));
+    //centerOn(QRectF(viewport()->rect()).center() + QPointF(qMax<double>(0,sample2Pos(s - (p.x() / z))),0));
     UpdateAutomationGeometry();
 }
 
@@ -163,13 +180,13 @@ void CWaveLanes::timerEvent(QTimerEvent *)
     if (!m_TimerID) return;
     m_TimeLine.handleTimer(this);
     if (requestIsPlaying()) {
-        if (!visibleRect().contains(m_TimeLine.currentPos(),1))
+        if (!zoomer->visibleRect().contains(m_TimeLine.currentPos(),1))
         {
             if (m_EditLane > -1) {
-                requestSkip(m_TimeLine.sampleFromX(horizontalScrollBar()->value()));
+                requestSkip(m_TimeLine.sampleFromX(zoomer->scrollValueX()));
             }
             else {
-                horizontalScrollBar()->setValue(m_TimeLine.currentPos());
+                zoomer->scrollXTo(m_TimeLine.currentPos());
             }
         }
     }
@@ -261,9 +278,9 @@ void CWaveLanes::UpdateGeometry() {
 void CWaveLanes::paint()
 {
     QMutexLocker locker(&mutex);
-    //QList<QGraphicsProxyWidget*> l;
     QGraphicsItemList l;
-    for (QGraphicsItem* i : Scene.items()) {
+    const QGraphicsItemList g(Scene.items());
+    for (QGraphicsItem* i : g) {
         if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
             if (i->zValue() > 4) l.append(proxy);
         }
@@ -285,10 +302,10 @@ void CWaveLanes::paint()
     }
     for (int i=0;i<lanes.size();i++)
     {
-        lanes[i]->paint(Scene,zoomer->getZoom(),visibleRect(),i == CurrentLane);
+        lanes[i]->paint(Scene,zoomer->getZoom(),zoomer->visibleRect().toRect(),i == CurrentLane);
     }
     m_TimeLine.setPen(QPen(Qt::black));
-    m_TimeLine.render(&Scene,visibleRect());
+    m_TimeLine.render(&Scene,zoomer->visibleRect().toRect());
     CalcMixFactor();
     if (InfoLabel->isVisible())
     {
@@ -461,7 +478,7 @@ void CWaveLanes::ShowInfoLabel(ulong64 Start, CWaveLane* Lane)
     InfoLabel->hide();
     setFontSizeScr(InfoLabel,11);
     InfoLabel->setText("Sample: "+QString::number(Start)+" \nTime: "+m_TimeLine.timeToText(mSecs,CTimeLine::TimeLineMilliseconds)+" \nBar: " + m_TimeLine.timeToText(mSecs,CTimeLine::TimelineBars));
-    InfoLabel->move(sample2Pos(Start)-visibleRect().left(),Top);//,fm.horizontalAdvance("Sample "+QString::number(Start)+" \n")+4,(fm.height()*3)+4);
+    InfoLabel->move(sample2Pos(Start)-zoomer->visibleRect().left(),Top);//,fm.horizontalAdvance("Sample "+QString::number(Start)+" \n")+4,(fm.height()*3)+4);
     InfoLabel->adjustSize();
     InfoLabel->show();
 }
@@ -505,9 +522,9 @@ void CWaveLanes::EditTrack() {
         MainMenu->UndoMenu->addItem("Edit Track");
         QDialog d(this,Qt::Tool | Qt::WindowTitleHint | Qt::WindowCloseButtonHint | Qt::CustomizeWindowHint);
         d.resize(600,200);
-        auto e=new CWaveEditWidget(&d);
+        auto e = new CWaveEditWidget(&d);
         connect(e,&CWaveEditWidget::Changed,this,&CWaveLanes::UpdateEditTrack);
-        m_EditTrack=lanes[CurrentLane]->tracks[CurrentTrack.first()];
+        m_EditTrack = lanes[CurrentLane]->tracks[CurrentTrack.first()];
         auto l=new QHBoxLayout(&d);
         l->setContentsMargins(0,0,0,0);
         l->setSpacing(0);
@@ -516,6 +533,7 @@ void CWaveLanes::EditTrack() {
         d.setGeometry(QRect(mapToGlobal(this->geometry().topLeft()),this->size()));
         l->addWidget(e);
         e->Init(&m_EditTrack->waveGenerator,m_EditTrack->loopParameters,false);
+        e->ZoomRegion();
         d.exec();
         paint();
     }
@@ -545,6 +563,12 @@ void CWaveLanes::setEditMenu() {
     SplitAction->setEnabled(canCopy());
     AutomationAction->setEnabled(CurrentLane>-1);
     EditTrackAction->setEnabled(canCopy());
+    VideoWidgetAction->setEnabled(canVideo());
+    if ((CurrentLane > -1) && (CurrentLane < lanes.size())) {
+        if (lanes[CurrentLane]->videoWidget) {
+            VideoWidgetAction->setChecked(!lanes[CurrentLane]->videoWidget->isHidden());
+        }
+    }
     EditLaneAction->setEnabled(CurrentLane>-1);
     EffectRackAction->setEnabled(CurrentLane>-1);
     MainMenu->EditMenu->setSelectionStatus(canCopy());
@@ -559,16 +583,11 @@ void CWaveLanes::EffectRack() {
 
 void CWaveLanes::mousePressEvent(QMouseEvent *event)
 {
-    const QPointF scenePos = mapToScene(event->pos());
-    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
-    if (w) {
-        if (w->zValue() > 4) {
-            QGraphicsView::mousePressEvent(event);
-            return;
-        }
+    StartPos = mapToScene(event->pos()).toPoint();
+    if (automationVisible(StartPos)) {
+        QGraphicsView::mousePressEvent(event);
+        return;
     }
-
-    StartPos=mapToScene(event->pos()).toPoint();
     int Lane=MouseOverLane(StartPos);
     int Track=MouseOverTrack(StartPos,Lane);
     if (event->button()==Qt::LeftButton) {
@@ -595,7 +614,7 @@ void CWaveLanes::mousePressEvent(QMouseEvent *event)
         }
         paint();
         if ((CurrentLane > -1) && (Track > -1)) {
-            lanes[CurrentLane]->paintEdges(StartPos,Track,Scene,zoomer->getZoom(),visibleRect());
+            lanes[CurrentLane]->paintEdges(StartPos,Track,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect());
         }
     }
     if ((CurrentLane > -1) && (!CurrentTrack.isEmpty())) ShowInfoLabel(lanes[CurrentLane]->tracks[CurrentTrack.first()]->start,CurrentLane);
@@ -608,33 +627,32 @@ void CWaveLanes::mousePressEvent(QMouseEvent *event)
         long64 s = lanes[CurrentLane]->handleMousePress(StartPos);
         if (s > -1) {
             ShowInfoLabel(s,CurrentLane);
-            lanes[CurrentLane]->drawOutsideWave(Scene,visibleRect());
+            lanes[CurrentLane]->drawOutsideWave(Scene,zoomer->visibleRect().toRect());
             DragBackup = new QDomLiteElement("UndoItem");
             serialize(DragBackup);
+            if (lanes[CurrentLane]->DragTrackEdge == CWaveLane::NoEdge) {
+                MD = true;
+                setCursor(Qt::OpenHandCursor);
+            }
         }
     }
 }
 
 void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
 {
-    const QPointF scenePos = mapToScene(event->pos());
-    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
-    if (w) {
-        if (w->zValue() > 4) {
-            QGraphicsView::mouseMoveEvent(event);
-            return;
-        }
+    QPoint Pos = mapToScene(event->pos()).toPoint();
+    if (automationVisible(Pos)) {
+        QGraphicsView::mouseMoveEvent(event);
+        return;
     }
-
-    QPoint Pos=mapToScene(event->pos()).toPoint();
     if (m_TimeLine.handleMouseMove(Pos,this)) return;
     if (CurrentLane > -1) {
         long64 s = lanes[CurrentLane]->handleMouseMove(Pos,&m_TimeLine);
         if (s > -1)
         {
             paint();
-            lanes[CurrentLane]->drawOutsideWave(Scene,visibleRect());
-            for (const int& i : (const QList<int>)CurrentTrack) lanes[CurrentLane]->paintTrack(i,Scene,zoomer->getZoom(),visibleRect(),-1);
+            lanes[CurrentLane]->drawOutsideWave(Scene,zoomer->visibleRect().toRect());
+            for (const int& i : (const QList<int>)CurrentTrack) lanes[CurrentLane]->paintTrack(i,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect(),-1);
             ShowInfoLabel(s,CurrentLane);
             return;
         }
@@ -646,8 +664,10 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
         ShowInfoLabel(pos2Sample(Pos.x()),LaneIndex);
         if (TrackIndex > -1)
         {
-            if ((TrackIndex != m_OldDragTrack) && (m_OldDragTrack > -1)) lanes[LaneIndex]->paintTrack(m_OldDragTrack,Scene,zoomer->getZoom(),visibleRect(),0);
-            if (lanes[LaneIndex]->paintEdges(Pos,TrackIndex,Scene,zoomer->getZoom(),visibleRect())) {
+            if ((TrackIndex != m_OldDragTrack) && (m_OldDragTrack > -1)) {
+                lanes[LaneIndex]->paintTrack(m_OldDragTrack,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect(),0);
+            }
+            if (lanes[LaneIndex]->paintEdges(Pos,TrackIndex,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect())) {
                 m_OldDragTrack = TrackIndex;
                 m_OldDragLane = LaneIndex;
                 setCursor(Qt::SizeHorCursor);
@@ -659,10 +679,10 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
     {
         InfoLabel->hide();
     }
-    unsetCursor();
+    if (!MD) unsetCursor();
     if ((m_OldDragLane > -1) && (m_OldDragTrack > -1))
     {
-        lanes[m_OldDragLane]->paintTrack(m_OldDragTrack,Scene,zoomer->getZoom(),visibleRect(),0);
+        lanes[m_OldDragLane]->paintTrack(m_OldDragTrack,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect(),0);
         m_OldDragLane = -1;
         m_OldDragTrack = -1;
     }
@@ -670,16 +690,15 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
 
 void CWaveLanes::mouseReleaseEvent(QMouseEvent *event)
 {
-    const QPointF scenePos = mapToScene(event->pos());
-    QGraphicsItem* w = Scene.itemAt(scenePos,transform());
-    if (w) {
-        if (w->zValue() > 4) {
-            QGraphicsView::mouseReleaseEvent(event);
-            return;
-        }
+    QPoint Pos = mapToScene(event->pos()).toPoint();
+    if (automationVisible(Pos)) {
+        QGraphicsView::mouseReleaseEvent(event);
+        return;
     }
-
-    QPoint Pos=mapToScene(event->pos()).toPoint();
+    if (MD) {
+        MD = false;
+        unsetCursor();
+    }
     if (DragBackup) {
         if (Pos != StartPos) MainMenu->UndoMenu->addElement(DragBackup,"Drag");
         delete DragBackup;
@@ -699,7 +718,7 @@ void CWaveLanes::mouseReleaseEvent(QMouseEvent *event)
         paint();
         if (t) {
             int TrackIndex = Lane->tracks.indexOf(t);
-            if (TrackIndex > -1) Lane->paintEdges(Pos,TrackIndex,Scene,zoomer->getZoom(),visibleRect());
+            if (TrackIndex > -1) Lane->paintEdges(Pos,TrackIndex,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect());
         }
     }
 }
@@ -809,6 +828,7 @@ void CWaveLanes::RemoveTrackAt(int Lane, int Track)
                     if (CurrentTrack[i] >= Track) CurrentTrack[i]--;
                     if (CurrentTrack[i] < 0) CurrentTrack.removeAt(i);
                 }
+                lanes[Lane]->destroyVideoWidget();
                 //setEditMenu();
                 paint();
                 const ulong64 samples = requestSamples();
@@ -893,6 +913,7 @@ void CWaveLanes::AddLane()
 void CWaveLanes::AddLaneInternal() {
     QMutexLocker locker(&mutex);
     auto L = new CWaveLane;
+    L->videoWindow = videoWindow;
     deviceList.addDevice(L,lanes.size()+1,m_MainWindow);
     int i = 1;
     QStringList IDList;
@@ -932,7 +953,8 @@ void CWaveLanes::RemoveLane()
 QString CWaveLanes::DropFileName(const QMimeData* d, const QObject* s) {
     qDebug() << d->urls() << d->html() << d->formats();
     if (d->urls().size()) {
-        QString path = d->urls().first().toLocalFile();
+        const auto l = d->urls();
+        QString path = l.first().toLocalFile();
         if (QFileInfo::exists(path)) {
             return path;
         }
@@ -1000,8 +1022,7 @@ bool CWaveLanes::AddFile(QString FN,ulong64 Start) {
     {
         MainMenu->UndoMenu->addItem("Add file");
         Loading=true;
-        L->tracks.append(T);
-        L->sanityCheck(T);
+        L->addFile(T);
         paint();
         Loading=false;
         emit FileAdded(FN);

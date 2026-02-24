@@ -30,6 +30,8 @@ macx {
     }
     contains(DEFINES,AVFOUNDATIONLIB) {
         LIBS += -framework AVFoundation
+        LIBS += -framework CoreMedia
+        LIBS += -framework CoreVideo
     }
 }
 
@@ -53,6 +55,8 @@ ios {
     }
     contains(DEFINES,AVFOUNDATIONLIB) {
         LIBS += -framework AVFoundation
+        LIBS += -framework CoreMedia
+        LIBS += -framework CoreVideo
     }
 }
 

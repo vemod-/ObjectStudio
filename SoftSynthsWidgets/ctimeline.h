@@ -5,7 +5,6 @@
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
 #include <QGraphicsLineItem>
-#include <QGraphicsItemGroup>
 #include "cpresets.h"
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -173,6 +172,9 @@ public:
             const ldouble endtime = ldouble(m_Samples)/presets.SamplesPermSec;
             const double h = double(m_TimeLineHeight) / double(l.size());
             double bottom = h;
+            QPainterPath path;
+            QPainterPath textPath;
+            textPath.setFillRule(Qt::WindingFill);
             if (m_Width > 0) {
                 for (int i = l.size() - 1; i >= 0; i--) {
                     int count = 0;
@@ -181,25 +183,28 @@ public:
                         t = l[i] * count++;
                         const int x = timeToX(t);
                         if (visibleRect.contains(x,2)) {
-                            Scene->addLine(x,0,x,bottom,m_Pen);
+                            //Scene->addLine(x,0,x,bottom,m_Pen);
+                            path.moveTo(x,0);
+                            path.lineTo(x,bottom);
                             if (i == numberRow())
                             {
-                                QGraphicsTextItem* i = Scene->addText(timeToText(t,m_View),f);
-                                i->setDefaultTextColor(c);
-                                i->setPos(x,timelinehalfheight);
+                                //QGraphicsTextItem* i = Scene->addText(timeToText(t,m_View),f);
+                                //i->setDefaultTextColor(c);
+                                //i->setPos(x,timelinehalfheight);
+                                textPath.addText(x,m_TimeLineHeight,f,timeToText(t,m_View));
                             }
                         }
                     }
                     bottom += h;
                 }
             }
-            m_PlayLine = new QGraphicsContainerItem();
-            m_PlayLine->addToScene(Scene);
-            m_PlayLine->append(Scene->addLine(0,0,0,visibleRect.height(),QPen(Qt::yellow)));
-            m_PlayLine->append(Scene->addLine(1,0,1,visibleRect.height(),QPen(QColor(0,0,0,40))));
+            Scene->addPath(path,m_Pen);
+            Scene->addPath(textPath,Qt::NoPen,c);
+            m_PlayLine = new QGraphicsContainerItem(Scene);
+            m_PlayLine->append(lineItem(0,0,0,visibleRect.height(),QPen(Qt::yellow)));
+            m_PlayLine->append(lineItem(1,0,1,visibleRect.height(),QColor(0,0,0,40)));
             m_PlayLine->setVisible(true);
             m_PlayLine->setZValue(1);
-            //Scene->addItem(m_PlayLine);
             m_PlayLine->setPos(sampleToX(m_CurrentSample),0);
         }
     }

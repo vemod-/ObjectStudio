@@ -305,6 +305,7 @@ bool CWaveFile::load(const QString &fileName, const uint SampleRate)
     const QString s = fileName.toLower();
     if (s.endsWith(".wav") || s.endsWith(".wave")) WF=new CWavFile(fileName);
     else if (s.endsWith(".au")) WF=new CAuFile(fileName);
+    else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile(fileName);
 #ifdef FFMPEGLIB
     else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CFFMpegReader(fileName); //WF=new CMiniMP3;//CMP3File;
 #endif
@@ -312,14 +313,15 @@ bool CWaveFile::load(const QString &fileName, const uint SampleRate)
     else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CQAudioDecoderReader(fileName); //WF=new CMiniMP3;//CMP3File;
 #endif
 #ifdef AVFOUNDATIONLIB
-    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CAvFoundationReader(fileName); //WF=new CMiniMP3;//CMP3File;
+    //else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg") || s.endsWith(".mov")) WF = new CAvFoundationReader(fileName); //WF=new CMiniMP3;//CMP3File;
+    else if (CAvFoundationReader::isValid(fileName)) WF = new CAvFoundationReader(fileName);
 #endif
-    else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile(fileName);
     if (WF) {
         if (WF->channels()) {
             WF->createFloatBuffer(data,m_SampleRate);
             frequency=WF->rate();
             qDebug() << "Length" << data.size() << "Channels" << data.channels() << "Frequency" << frequency << "Data" << data.data();
+            if (WF->hasVideo) videoURL.setPath(fileName);
             delete WF;
             return true;
         }
@@ -350,6 +352,7 @@ bool CWaveFile::save(const QString &fileName)
     const QString s = fileName.toLower();
     if (s.endsWith(".wav") || s.endsWith(".wave")) WF=new CWavFile;
     else if (s.endsWith(".au")) WF=new CAuFile;
+    else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile;
 #ifdef FFMPEGLIB
     else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CFFMpegWriter(); //WF=new CMiniMP3;//CMP3File;
 #endif
@@ -357,9 +360,9 @@ bool CWaveFile::save(const QString &fileName)
     //else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CQAudioRecorderWriter(); //WF=new CMiniMP3;//CMP3File;
 #endif
 #ifdef AVFOUNDATIONLIB
-    else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CAvFoundationWriter(); //WF=new CMiniMP3;//CMP3File;
+    //else if (s.endsWith(".mp3") || s.endsWith(".m4a") || s.endsWith(".mp4") || s.endsWith(".flac") || s.endsWith(".ogg")) WF = new CAvFoundationWriter(); //WF=new CMiniMP3;//CMP3File;
+    else WF = new CAvFoundationWriter();
 #endif
-    else if (s.endsWith(".aif") || s.endsWith(".aiff") || s.endsWith(".aifc")) WF=new CAiffFile;
     if (WF)
     {
         bool Result = WF->save(fileName,data,m_SampleRate);

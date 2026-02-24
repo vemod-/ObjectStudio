@@ -123,25 +123,27 @@ public:
         //for (QGraphicsItem* i : l)  i->setZValue(2);
         return l;
     }
-    static QGraphicsItemList DrawShadowText(const QString& text, const QFont& font, const QPoint& pos, QGraphicsScene* Scene, int zValue = 0)
+    static QGraphicsContainerItem* DrawShadowText(const QString& text, const QFont& font, const QPoint& pos, int zValue = 0)
     {
-        QGraphicsItemList items;
-        QGraphicsSimpleTextItem* item = Scene->addSimpleText(text,font);
+        QGraphicsContainerItem* items = new QGraphicsContainerItem;
+        QGraphicsSimpleTextItem* item = new QGraphicsSimpleTextItem(text);
+        item->setFont(font);
         item->setPos(pos);
         item->setBrush(QBrush(QColor(0xdd,0xdd,0xdd)));
         item->setPen(Qt::NoPen);
-        items.append(item);
-        item = Scene->addSimpleText(text,font);
+        items->append(item);
+        item = new QGraphicsSimpleTextItem(text);
+        item->setFont(font);
         item->setPos(pos+QPoint(-1,-1));
         item->setBrush(QColor(0x22,0x22,0x22));
         item->setPen(Qt::NoPen);
-        items.append(item);
-        if (zValue) items.setZValue(zValue);
+        items->append(item);
+        if (zValue) items->setZValue(zValue);
         return items;
     }
-    static QGraphicsItemList DrawShadowTextCenter(const QString& text, const QFont& font, const QPoint& pos, const QSize& size, const Qt::Alignment& alignment, QGraphicsScene* Scene, int zValue = 0)
+    static QGraphicsContainerItem* DrawShadowTextCenter(const QString& text, const QFont& font, const QPoint& pos, const QSize& size, const Qt::Alignment& alignment, int zValue = 0)
     {
-        QGraphicsItemList items;
+        QGraphicsContainerItem* items = new QGraphicsContainerItem;
         DiagramTextItem* item = new DiagramTextItem();
         item->setFont(font);
         item->setBoundingRect(QRect(pos,size));
@@ -149,8 +151,8 @@ public:
         item->setPen(QPen(QColor(QColor(0xdd,0xdd,0xdd)),1));
         item->setText(text);
         item->setAlignment(alignment);
-        Scene->addItem(item);
-        items.append(item);
+        //Scene->addItem(item);
+        items->append(item);
         item = new DiagramTextItem();
         item->setFont(font);
         item->setBoundingRect(QRect(pos+QPoint(-1,-1),size));
@@ -158,9 +160,9 @@ public:
         item->setPen(QPen(QColor(QColor(0x22,0x22,0x22)),1));
         item->setText(text);
         item->setAlignment(alignment);
-        Scene->addItem(item);
-        items.append(item);
-        if (zValue) items.setZValue(zValue);
+        //Scene->addItem(item);
+        items->append(item);
+        if (zValue) items->setZValue(zValue);
         return items;
     }
     static Qt::CursorShape connectCursor(QWidget* w, IJack* J1, IJack* J2)

@@ -2,7 +2,6 @@
 #define CWAVETRACK_H
 
 #include "cwavegenerator.h"
-#include "qcanvas.h"
 #include <QGraphicsScene>
 
 class CWaveTrack
@@ -44,6 +43,7 @@ public:
     long64 waveEnd() {
         return waveStart() + (waveGenerator.size() / loopParameters.Speed);
     }
+    QPixmap videoThumbnail;
 private:
 
 };

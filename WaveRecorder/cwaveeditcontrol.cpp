@@ -13,15 +13,13 @@ CWaveEditControl::CWaveEditControl(QWidget *parent) :
     zoomer->setMin(0.0001);
     zoomer->setMax(1);
     zoomer->setZoom(0.01);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     verticalScrollBar()->setEnabled(false);
 
-    connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CWaveEditControl::setZoom);
-    connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveEditControl::Paint);
+    connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CWaveEditControl::ZoomToCursor);
+    connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveEditControl::scrollbarUpdate);
 
-    //Zoom=0.01;
-    //isMinZoom=false;
     Enabled=false;
     m_Length=0;
     m_Buffer=nullptr;
@@ -34,11 +32,35 @@ CWaveEditControl::CWaveEditControl(QWidget *parent) :
     setRenderHint(QPainter::TextAntialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
     setMouseTracking(true);
-
-    //grabGesture(Qt::PinchGesture);
-    //connect(this,&QViewportCanvas::paintRequested,this,&CWaveEditControl::Paint);
     setStyleSheet("QGraphicsView{background-color: QLinearGradient( x1: 0, y1: 0, x2: 1, y2: 1, stop: 0 #ddd, stop: 1 #999);}");
-
+    m_StartLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_StartLine->setZValue(1);
+    m_EndLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_EndLine->setZValue(1);
+    m_LoopStartLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_LoopStartLine->setZValue(1);
+    m_LoopEndLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_LoopEndLine->setZValue(1);
+    m_AttackLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_AttackLine->setZValue(1);
+    m_SustainLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_SustainLine->setZValue(1);
+    m_ReleaseLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
+    m_ReleaseLine->setZValue(1);
+    m_Point1 = Scene.addEllipse(QRect(),QPen(Qt::red));
+    m_Point1->setZValue(1);
+    m_Point2 = Scene.addEllipse(QRect(),QPen(Qt::red));
+    m_Point2->setZValue(1);
+    //m_SustainLine->setFlag(QGraphicsItem::ItemIsMovable);
+    //m_SustainLine->setFlag(QGraphicsItem::ItemSendsGeometryChanges);
+    //m_SustainLine->setAcceptHoverEvents(true);
+    m_StartLine->setCursor(Qt::SizeHorCursor);
+    m_EndLine->setCursor(Qt::SizeHorCursor);
+    m_LoopStartLine->setCursor(Qt::SizeHorCursor);
+    m_LoopEndLine->setCursor(Qt::SizeHorCursor);
+    m_SustainLine->setCursor(Qt::SizeVerCursor);
+    m_Point1->setCursor(Qt::SizeAllCursor);
+    m_Point2->setCursor(Qt::SizeAllCursor);
 }
 
 CWaveEditControl::~CWaveEditControl()
@@ -48,498 +70,278 @@ CWaveEditControl::~CWaveEditControl()
 
 void CWaveEditControl::Init(CWaveGenerator *WG, CWaveGenerator::LoopParameters LP,bool LoopOn)
 {
-    m_LP=LP;
-    m_WG=WG;
-    m_LoopOn=LoopOn;
-    if (m_Buffer != m_WG->channelPointer(0))
-    {
-        m_Buffer=m_WG->channelPointer(0);
-        m_Length=m_WG->size();
-        ZoomMin();
-    }
-    else
-    {
-        Paint();
-    }
-}
-/*
-bool CWaveEditControl::event(QEvent *event)
-{
-    if (event->type() == QEvent::Gesture)
-        return gestureEvent(dynamic_cast<QGestureEvent*>(event));
-    return QViewportCanvas::event(event);
+    m_LP = LP;
+    m_WG = WG;
+    m_LoopOn = LoopOn;
+    m_Length = m_WG->size();
+    m_Buffer = m_WG->channelPointer(0);
+    ZoomMin();
 }
 
-bool CWaveEditControl::gestureEvent(QGestureEvent *event)
-{
-    if (QGesture *pinch = event->gesture(Qt::PinchGesture))
-        pinchTriggered(dynamic_cast<QPinchGesture *>(pinch));
-    return true;
-}
-
-void CWaveEditControl::pinchTriggered(QPinchGesture *gesture)
-{
-    double MinZoom=double(viewportSize().width())/m_Length;
-    if (MinZoom>1) MinZoom=1;
-    if ((gesture->scaleFactor()<1) && (Zoom*gesture->scaleFactor()<MinZoom)) return;
-    if ((gesture->scaleFactor()>1) && (Zoom*gesture->scaleFactor()>1)) return;
-    QPoint p(mapFromGlobal(QCursor::pos())+viewportPos());
-    ulong64 Start=BufferPos(p.x());
-    Zoom*=gesture->scaleFactor();
-    if (Zoom>1) Zoom=1;
-    double diff = mapFromGlobal(QCursor::pos()).x();
-    setViewportLeft(PicPos(Start)-diff);
-}
-*/
 void CWaveEditControl::Draw(CWaveGenerator::LoopParameters LP)
 {
     m_LP=LP;
-    if (Enabled)
-    {
-        if (visibleRect().height())
-        {
-            Paint();
-        }
+    if (Enabled) {
+        if (zoomer->visibleRect().height() > 0) DrawLines(m_LP,m_LoopOn);
     }
 }
-
+/*
+QRect CWaveEditControl::visibleRect() {
+    return mapToScene(viewport()->rect()).boundingRect().toRect();
+}
+*/
 void CWaveEditControl::Paint()
 {
-    Scene.clear();
-    QRect r = viewport()->rect();
-    r.setWidth(m_Length*zoomer->getZoom());
-    setSceneRect(r);
-
+    if (m_WaveItem) {
+        m_WaveItem->setParentItem(nullptr);
+        delete m_WaveItem;
+    }
+    //QRect r(viewport()->rect());
+    //r.setWidth(m_Length * zoomer->getZoom());
+    setSceneRect(0,0,m_Length * zoomer->getZoom(),viewport()->height());
     zoomer->setMin(ldouble(viewport()->width())/m_Length);
-/*
-    QLinearGradient lg(sceneRect().topLeft(),QPointF(sceneRect().width(),sceneRect().height()));
-    lg.setColorAt(0,"#ddd");
-    lg.setColorAt(1,"#999");
-    setBackgroundBrush(lg);
-*/
-    DrawWave();
-    m_StartLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-    m_EndLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-    m_LoopStartLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-    m_LoopEndLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-    m_AttackLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-    m_SustainLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-    m_ReleaseLine = Scene.addLine(0,0,0,0,QPen(Qt::red));
-
-    m_Point1 = Scene.addEllipse(QRect(),QPen(Qt::red));
-    m_Point2 = Scene.addEllipse(QRect(),QPen(Qt::red));
-
+    m_WaveItem = DrawWave();
+    if (m_WaveItem) Scene.addItem(m_WaveItem);
     DrawLines(m_LP,m_LoopOn);
-
     verticalScrollBar()->setEnabled(false);
     setStyleSheet("QGraphicsView{background-color: QLinearGradient( x1: 0, y1: 0, x2: 1, y2: 1, stop: 0 #ddd, stop: 1 #999);}");
-
 }
 
 void CWaveEditControl::DrawLines(CWaveGenerator::LoopParameters LP, bool LoopOn)
 {
     DrawLine(m_StartLine,LP.Start);
     DrawLine(m_EndLine,LP.End);
-    if (LoopOn)
-    {
+    if (LoopOn) {
         DrawLine(m_LoopStartLine,LP.LoopStart);
         DrawLine(m_LoopEndLine,LP.LoopEnd);
     }
-    else
-    {
-        int Vol=Vol2Pos(LP.Volume);
-        m_AttackLine->setLine(PicPos(LP.Start),Vol2Pos(0),PicPos(LP.Start+LP.FadeIn),Vol);
-        m_SustainLine->setLine(PicPos(LP.Start+LP.FadeIn),Vol,PicPos(LP.End-LP.FadeOut),Vol);
-        m_ReleaseLine->setLine(PicPos(LP.End-LP.FadeOut),Vol,PicPos(LP.End),Vol2Pos(0));
-
-        m_Point1->setRect(QRect(PicPos(LP.Start+LP.FadeIn),Vol,6,6).translated(-3,-3));
-        m_Point2->setRect(QRect(PicPos(LP.End-LP.FadeOut),Vol,6,6).translated(-3,-3));
+    else {
+        const int VolPos = Vol2Pos(LP.Volume);
+        m_AttackLine->setLine(SampleToPos(LP.Start),Vol2Pos(0),SampleToPos(LP.Start+LP.FadeIn),VolPos);
+        m_SustainLine->setLine(SampleToPos(LP.Start+LP.FadeIn),VolPos,SampleToPos(LP.End-LP.FadeOut),VolPos);
+        m_ReleaseLine->setLine(SampleToPos(LP.End-LP.FadeOut),VolPos,SampleToPos(LP.End),Vol2Pos(0));
+        m_Point1->setRect(QRect(SampleToPos(LP.Start+LP.FadeIn),VolPos,6,6).translated(-3,-3));
+        m_Point2->setRect(QRect(SampleToPos(LP.End-LP.FadeOut),VolPos,6,6).translated(-3,-3));
     }
-    //update();
 }
 
 void CWaveEditControl::resizeEvent(QResizeEvent* event)
 {
     QGraphicsView::resizeEvent(event);
-    /*
-    double MinZoom=double(visibleRect().width())/m_Length;
-    if (MinZoom > 1) MinZoom = 1;
-    zoomer->setMin(MinZoom);
-    if (isMinZoom)
-    {
-        ZoomMin();
-    }
-    else
-    {
-*/
-        Paint();
-    //}
+    Paint();
 }
 
 void CWaveEditControl::showEvent(QShowEvent* e) {
     QGraphicsView::showEvent(e);
     Paint();
-    ZoomMin();
+    if (Region) {
+        ZoomRegion();
+    }
+    else {
+        ZoomMin();
+    }
 }
 
-void CWaveEditControl::DrawWave()
+QGraphicsItem* CWaveEditControl::DrawWave()
 {
-    /*
-    double XInc=0.1;
-    double PosInc=XInc/Zoom;
-    if (PosInc < 1.0)
-    {
-        PosInc=1;
-        XInc=PosInc*Zoom;
-    }
-
-    qDebug() << PosInc << XInc << Zoom;
-*/
-    //const int Right=viewPortGeometry().right();
-    //if (canvasRect.size()!=NewSize) setSize(NewSize);
-    //clearGradient();
-    //Scene.clear();
-    //setPen(Qt::black);
-    /*
-    QPen p(Qt::black);
-    if (m_Length)
-    {
-        const CChannelBuffer* Buffer=m_WG->buffer();
-        if (Buffer)
-        {
-
-            for (uint Channel=0;Channel<m_WG->channels();Channel++)
-            {
-                const float YFactor=sceneRect().height()/(2*m_WG->channels());
-                const int HalfHeight=int (YFactor+(YFactor*Channel*2));
-                ldouble X=viewPortGeometry().left();
-                ldouble Pos=BufferPos(X);
-                //moveTo(X,HalfHeight+(Buffer->at(Pos,Channel)*YFactor));
-                while (X<Right)
-                {
-                    //moveTo(X,HalfHeight);
-                    //lineTo(X,HalfHeight+(Buffer->at(Pos,Channel)*YFactor));
-                    Scene.addLine(X,HalfHeight,X,HalfHeight+(Buffer->at(Pos,Channel)*YFactor),p);
-                    Pos+=PosInc;
-                    if (Pos>m_Length) break;
-                    X+=XInc;
-                }
-            }
-*/
-    /*
-            ldouble ZoomValue=1.0/Zoom;
-            QRect r = viewPortGeometry();
-            QPen pen(Qt::black);
-            for (uint Channel=0;Channel<m_WG->channels();Channel++)
-            {
-                float YFactor=sceneRect().height()/(2*m_WG->channels());
-                int HalfHeight=YFactor+(YFactor*Channel*2);
-                ldouble i = ZoomValue*(r.left());
-                //Canvas->moveTo(r.left(),HalfHeight);
-                long zeroCount = 0;
-                long i1;
-                for (i1=r.left();i1<r.right();i1++)
-                {
-                    //if (i>=loopParameters.End) break;
-                    if (i>=Buffer->size()) break;
-                    int Val=Buffer->at(i,Channel)*YFactor;
-                    if (Val==0)
-                    {
-                        zeroCount++;
-                        //Canvas->lineTo(i1,HalfHeight);
-                        //Scene.addLine(i1,HalfHeight,i1,HalfHeight,pen);
-                    }
-                    else
-                    {
-                        if (zeroCount) Scene.addLine(i1-zeroCount,HalfHeight,i1,HalfHeight);
-                        zeroCount = 0;
-                        Scene.addLine(i1,HalfHeight,i1,HalfHeight+Val,pen);
-                        //Canvas->moveTo(i1,HalfHeight-Val);
-                        //Canvas->lineTo(i1,HalfHeight+Val);
-                    }
-                    i=i+ZoomValue;
-                }
-                if (zeroCount) Scene.addLine(i1-zeroCount,HalfHeight,i1-1,HalfHeight);
-            }
-
-        }
-    }
-*/
     CWaveGenerator::LoopParameters LP;
-    LP.End = m_WG->size();
-    m_WG->paint(Scene,sceneRect().toRect(), visibleRect(), zoomer->getZoom(), &LP);
+    LP.End = m_Length;
+    return m_WG->waveFormItem(sceneRect().toRect(), zoomer->visibleRect().toRect(), zoomer->getZoom(), &LP);
 }
 
-void inline CWaveEditControl::DrawLine(QGraphicsLineItem* l, ulong64 Position)
+void inline CWaveEditControl::DrawLine(QGraphicsLineItem* l, ulong64 Sample)
 {
-    if (Position<=m_Length)
-    {
-        //QViewportCanvasLayer* L=canvasLayers[0];
-        //L->setPen(Qt::red);
-        int Pos=PicPos(Position);
-        //L->drawLine(Pos,Vol2Pos(0),Pos,Vol2Pos(100));
+    if (Sample <= m_Length) {
+        const int Pos = SampleToPos(Sample);
         l->setLine(Pos,Vol2Pos(0),Pos,Vol2Pos(100));
     }
 }
 
 void CWaveEditControl::ZoomOut()
 {
-    ulong64 s=BufferPos(visibleRect().left());
-    /*
-    isMinZoom=false;
-    Zoom=Zoom*0.5;
-    if (Zoom<zoomer->min())
-    {
-        Zoom=zoomer->min();
-        isMinZoom=true;
-    }
-*/
-    setZoom(zoomer->getZoom()*0.5);
-    scrollToPos(PicPos(s));
+    setZoom(zoomer->getZoom() * 0.5);
 }
 
 void CWaveEditControl::ZoomIn()
 {
-    ulong64 s=BufferPos(visibleRect().left());
-    /*
-    Zoom=Zoom*2;
-    if (Zoom>1) Zoom=1;
-    isMinZoom=false;
-*/
-    setZoom(zoomer->getZoom()*2);
-    scrollToPos(PicPos(s));
+    setZoom(zoomer->getZoom() * 2);
 }
 
 void CWaveEditControl::ZoomMin()
 {
-    //Zoom=zoomer->min();
-    //isMinZoom=true;
     setZoom(zoomer->min());
-    scrollToPos(0);
 }
 
 void CWaveEditControl::ZoomMax()
 {
-    ulong64 s=BufferPos(visibleRect().left());
-    //Zoom=1;
-    //isMinZoom=false;
     setZoom(1);
-    scrollToPos(PicPos(s));
 }
 
 void CWaveEditControl::setZoom(double z) {
-    double s = double(horizontalScrollBar()->maximum())/horizontalScrollBar()->value();
-    if (z > 1) z = 1;
-    if (z != zoomer->getZoom()) zoomer->setZoom(z);
-    //Zoom = z;
-    Paint();
-    horizontalScrollBar()->setValue(horizontalScrollBar()->maximum()/s);
+    ZoomToPoint(z,viewport()->rect().center());
 }
 
-ulong64 CWaveEditControl::BufferPos(int X)
-{
-    ulong64 Pos=ldouble(X)/zoomer->getZoom();
-    if (Pos>m_Length) return m_Length;
-    return Pos;
+void CWaveEditControl::ZoomToPoint(double z, const QPointF p) {
+    z = std::clamp(z,zoomer->min(),zoomer->max());
+    const ulong64 s = PosToSample(zoomer->visibleRect().left() + p.x());
+    if (!closeEnough(z,zoomer->getZoom())) zoomer->setZoom(z);
+    setSceneRect(0,0,m_Length * zoomer->getZoom(),viewport()->height());
+    scrollToSample(s - PosToSample(p.x()));
 }
 
-int CWaveEditControl::PicPos(ldouble Position)
+void CWaveEditControl::ZoomToCursor(double z, double o) {
+    const QPointF p = viewport()->mapFromGlobal(QCursor::pos());
+    const ulong64 s = (zoomer->visibleRect().left() + p.x()) / o;
+    setSceneRect(0,0,m_Length * z,viewport()->height());
+    scrollToSample(s - PosToSample(p.x()));
+}
+
+void CWaveEditControl::ZoomRegion() {
+    if (m_LP.Start == 0) {
+        if (m_LP.End == m_Length) {
+            ZoomMin();
+            return;
+        }
+    }
+    ldouble visibleSamples = m_LP.End - m_LP.Start;
+    if (visibleSamples <= 0) {
+        ZoomMin();
+        return;
+    }
+    setZoom(viewport()->width() / visibleSamples);
+    scrollToSample(m_LP.Start);
+}
+
+ulong64 CWaveEditControl::PosToSample(double X)
 {
-    return Position*zoomer->getZoom();
+    ulong64 Sample = X / zoomer->getZoom();
+    if (Sample > m_Length) return m_Length;
+    return Sample;
+}
+
+double CWaveEditControl::SampleToPos(ulong64 Sample)
+{
+    return Sample * zoomer->getZoom();
 }
 
 int CWaveEditControl::Vol2Pos(int Vol)
 {
-    float Height=viewport()->height();
-    return Height-(Height*Vol*0.01);
+    float Height = viewport()->height();
+    return Height - (Height * Vol * 0.01);
 }
 
 int CWaveEditControl::Pos2Vol(int Pos)
 {
-    float Height=viewport()->height();
-    int Vol= ((Height-Pos)*100)/Height;
-    if (Vol<0)
-    {
-        Vol=0;
-    }
-    if (Vol>100)
-    {
-        Vol=100;
-    }
-    return Vol;
+    float Height = viewport()->height();
+    return std::clamp<int>(((Height - Pos) * 100.0) / Height,0,100);
 }
 
-void CWaveEditControl::scrollToPos(int Start)
+void CWaveEditControl::scrollToPos(double x)
 {
-    //moveViewport(QPoint(Start,0));
-    horizontalScrollBar()->setValue(Start);
+    qDebug() << "moved by zoom" << x;
+    noScrollbarUpdate = true;
+    //centerOn(QRectF(viewport()->rect()).center() + QPointF(x,0));
+    zoomer->scrollXTo(x);
+    noScrollbarUpdate = false;
+    Paint();
+}
+
+void CWaveEditControl::scrollbarUpdate(int x){
+    if (noScrollbarUpdate) return;
+    qDebug() << "moved by scrollbar signal" << x;
+    Paint();
+}
+
+void CWaveEditControl::scrollToSample(long64 s) {
+    scrollToPos(s * zoomer->getZoom());
 }
 
 void inline CWaveEditControl::MoveWaveLines(QPointF p)
 {
-    ulong64 Pos=BufferPos(p.x());
-    if (Pos>m_Length) Pos=m_Length;
-    if (WaveLines==wlStart)
-    {
-        if (m_LoopOn)
-        {
-            if (Pos>m_LP.LoopStart) Pos=m_LP.LoopStart;
+    ulong64 Pos = PosToSample(p.x());
+    if (Pos > m_Length) Pos = m_Length;
+    if (DragItem == m_StartLine) {
+        if (m_LoopOn) {
+            if (Pos>m_LP.LoopStart) Pos = m_LP.LoopStart;
         }
-        else
-        {
-            if (Pos>m_LP.End-(m_LP.FadeIn+m_LP.FadeOut)) Pos=m_LP.End-(m_LP.FadeIn+m_LP.FadeOut);
+        else {
+            if (Pos > m_LP.End - (m_LP.FadeIn + m_LP.FadeOut)) Pos = m_LP.End - (m_LP.FadeIn + m_LP.FadeOut);
         }
         m_LP.Start=Pos;
     }
-    else if (WaveLines==wlEnd)
-    {
-        if (m_LoopOn)
-        {
-            if (Pos<m_LP.LoopEnd) Pos=m_LP.LoopEnd;
+    else if (DragItem == m_EndLine) {
+        if (m_LoopOn) {
+            if (Pos < m_LP.LoopEnd) Pos = m_LP.LoopEnd;
         }
-        else
-        {
-            if (Pos<m_LP.Start+m_LP.FadeIn+m_LP.FadeOut) Pos=m_LP.Start+m_LP.FadeIn+m_LP.FadeOut;
+        else {
+            if (Pos < m_LP.Start + m_LP.FadeIn + m_LP.FadeOut) Pos = m_LP.Start + m_LP.FadeIn+m_LP.FadeOut;
         }
-        m_LP.End=Pos;
+        m_LP.End = Pos;
     }
-    else if (WaveLines==wlLoopStart)
-    {
-        if (Pos<m_LP.Start) Pos=m_LP.Start;
-        if (Pos>m_LP.LoopEnd) Pos=m_LP.LoopEnd;
-        m_LP.LoopStart=Pos;
+    else if (DragItem == m_LoopStartLine) {
+        if (Pos < m_LP.Start) Pos = m_LP.Start;
+        if (Pos > m_LP.LoopEnd) Pos = m_LP.LoopEnd;
+        m_LP.LoopStart = Pos;
     }
-    else if (WaveLines==wlLoopEnd)
-    {
-        if (Pos<m_LP.LoopStart) Pos=m_LP.LoopStart;
-        if (Pos>m_LP.End) Pos=m_LP.End;
-        m_LP.LoopEnd=Pos;
+    else if (DragItem == m_LoopEndLine) {
+        if (Pos < m_LP.LoopStart) Pos = m_LP.LoopStart;
+        if (Pos > m_LP.End) Pos = m_LP.End;
+        m_LP.LoopEnd = Pos;
     }
-    else if (WaveLines==wlFadeIn)
-    {
-        if (Pos<m_LP.Start) Pos=m_LP.Start;
-        if (Pos>m_LP.End-m_LP.FadeOut) Pos=m_LP.End-m_LP.FadeOut;
-        m_LP.FadeIn=Pos-m_LP.Start;
-        m_LP.Volume=Pos2Vol(p.y());
+    else if (DragItem == m_SustainLine) {
+        m_LP.Volume = Pos2Vol(p.y());
     }
-    else if (WaveLines==wlFadeOut)
-    {
-        if (Pos<m_LP.Start+m_LP.FadeIn) Pos=m_LP.Start+m_LP.FadeIn;
-        if (Pos>m_LP.End) Pos=m_LP.End;
-        m_LP.FadeOut=m_LP.End-Pos;
-        m_LP.Volume=Pos2Vol(p.y());
+    else if (DragItem == m_Point1) {
+        if (Pos < m_LP.Start) Pos = m_LP.Start;
+        if (Pos > m_LP.End - m_LP.FadeOut) Pos = m_LP.End-m_LP.FadeOut;
+        m_LP.FadeIn = Pos - m_LP.Start;
+        m_LP.Volume = Pos2Vol(p.y());
+    }
+    else if (DragItem == m_Point2) {
+        if (Pos < m_LP.Start + m_LP.FadeIn) Pos = m_LP.Start + m_LP.FadeIn;
+        if (Pos > m_LP.End) Pos = m_LP.End;
+        m_LP.FadeOut = m_LP.End - Pos;
+        m_LP.Volume = Pos2Vol(p.y());
     }
     DrawLines(m_LP,m_LoopOn);
     emit ParameterChanged(m_LP);
 }
 
-void CWaveEditControl::mousePressEvent(QMouseEvent* /*event*/)
+void CWaveEditControl::mousePressEvent(QMouseEvent* event)
 {
-    MD=true;
-}
-
-bool inline InsideLine(int X,int LineX)
-{
-    return (X>=LineX-4 && X<=LineX+4);
+    if (Enabled)
+    {
+        MD=true;
+        QPointF Pos = mapToScene(event->pos());
+        QGraphicsItem* item = itemAt(Pos.toPoint());
+        DragItem = nullptr;
+        if (item->zValue() == 1) DragItem = item;
+        qDebug() << item << (item == m_SustainLine);
+    }
+    QGraphicsView::mousePressEvent(event);
 }
 
 void CWaveEditControl::mouseMoveEvent(QMouseEvent *event)
 {
-
-    if (Enabled)
-    {
-        //QPoint Pos(event->pos()+viewportPos());
-        QPointF Pos = mapToScene(event->pos());
-        if (!MD)
-        {
-            if (m_LoopOn)
-            {
-                if (InsideLine(Pos.x(),PicPos(m_LP.Start)))
-                {
-                    setCursor(Qt::SizeHorCursor);
-                    WaveLines=wlStart;
-                }
-                else if (InsideLine(Pos.x(),PicPos(m_LP.End)))
-                {
-                    setCursor(Qt::SizeHorCursor);
-                    WaveLines=wlEnd;
-                }
-                else if (InsideLine(Pos.x(),PicPos(m_LP.LoopStart)))
-                {
-                    setCursor(Qt::SizeHorCursor);
-                    WaveLines=wlLoopStart;
-                }
-                else if (InsideLine(Pos.x(),PicPos(m_LP.LoopEnd)))
-                {
-                    setCursor(Qt::SizeHorCursor);
-                    WaveLines=wlLoopEnd;
-                }
-                else
-                {
-                    setCursor(Qt::ArrowCursor);
-                    WaveLines=wlNone;
-                }
-            }
-            else
-            {
-                if ((InsideLine(Pos.x(),PicPos(m_LP.Start+m_LP.FadeIn))) &&  (InsideLine(Pos.y(),Vol2Pos(m_LP.Volume))))
-                {
-                    setCursor(Qt::SizeAllCursor);
-                    WaveLines=wlFadeIn;
-                }
-                else if ((InsideLine(Pos.x(),PicPos(m_LP.End-m_LP.FadeOut))) &&  (InsideLine(Pos.y(),Vol2Pos(m_LP.Volume))))
-                {
-                    setCursor(Qt::SizeAllCursor);
-                    WaveLines=wlFadeOut;
-                }
-                else if (InsideLine(Pos.x(),PicPos(m_LP.Start)))
-                {
-                    setCursor(Qt::SizeHorCursor);
-                    WaveLines=wlStart;
-                }
-                else if (InsideLine(Pos.x(),PicPos(m_LP.End)))
-                {
-                    setCursor(Qt::SizeHorCursor);
-                    WaveLines=wlEnd;
-                }
-                else
-                {
-                    setCursor(Qt::ArrowCursor);
-                    WaveLines=wlNone;
-                }
-            }
-        }
-        else
-        {
-            if ((WaveLines==wlFadeIn) || (WaveLines==wlFadeOut))
-            {
-                if (Pos != OldPos)
-                {
-                    MoveWaveLines(Pos);
-                    OldPos=Pos;
-                }
-            }
-            else
-            {
-                if (Pos.x() != OldPos.x())
-                {
-                    MoveWaveLines(Pos);
-                    OldPos.setX(Pos.x());
-                }
-            }
+    if (Enabled) {
+        if (MD) {
+            QPointF Pos = mapToScene(event->pos());
+            MoveWaveLines(Pos);
         }
     }
+    QGraphicsView::mouseMoveEvent(event);
 }
-//---------------------------------------------------------------------------
+
 void CWaveEditControl::mouseReleaseEvent(QMouseEvent *event)
 {
-    QPointF Pos = mapToScene(event->pos());
     if (Enabled)
     {
         if (MD)
         {
+            QPointF Pos = mapToScene(event->pos());
             MoveWaveLines(Pos);
         }
     }
     MD=false;
+    QGraphicsView::mouseReleaseEvent(event);
 }

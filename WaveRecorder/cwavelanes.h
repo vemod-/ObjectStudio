@@ -41,9 +41,12 @@ public:
     void play(const bool);
     void pause();
     void skip(const ulong64 samples);
+    /*
     QRect visibleRect() {
-        return QRect(horizontalScrollBar()->value(),verticalScrollBar()->value(),viewport()->width(),viewport()->height());
+        //return QRect(horizontalScrollBar()->value(),verticalScrollBar()->value(),viewport()->width(),viewport()->height());
+        return mapToScene(viewport()->rect()).boundingRect().toRect();
     }
+*/
     int rulerBeats;
     double rulerTempo;
     QList<CWaveLane*> lanes;
@@ -63,6 +66,7 @@ public:
     QAction* EditTrackAction;
     QAction* EditLaneAction;
     QAction* EffectRackAction;
+    QAction* VideoWidgetAction;
 
     CMainMenu* MainMenu;
     void DeleteDoc();
@@ -107,26 +111,44 @@ private slots:
     }
     QList<QWidget*> ProxyWidgets() {
         QList<QWidget*> l;
-        for (QGraphicsItem* i : Scene.items()) {
+        const QGraphicsItemList g(Scene.items());
+        for (QGraphicsItem* i : g) {
             if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
                 if (i->zValue() > 4) l.append(proxy->widget());
             }
         }
         return l;
     }
+    bool automationVisible(const QPointF& scenePos) {
+        QGraphicsItem* w = Scene.itemAt(scenePos,transform());
+        if (w) {
+            if (w->zValue() > 4) return true;
+        }
+        return false;
+    }
     void Automation();
     void setZoom(double z);
+    void ZoomToCursor(double z, double o);
     void UpdateAutomationGeometry();
     void EditTrack();
+    void Video() {
+        if (CurrentLane > -1) lanes[CurrentLane]->toggleVideoWidget();
+    }
     void EditLane();
     void EffectRack();
     bool canCopy() { return (!CurrentTrack.isEmpty()) && (CurrentLane > -1); }
+    bool canVideo() { if (CurrentLane > -1) {
+            if (lanes[CurrentLane]->hasVideo()) return true;
+        }
+        return false;
+    }
 private:
     Ui::CWaveLanes *ui;
     QGraphicsViewZoomer* zoomer;
     CTimeLine m_TimeLine;
     QGraphicsScene Scene;
     CDeviceList deviceList;
+    CVideoWindow* videoWindow;
     float MixFactor;
     void UpdateGeometry();
     int MouseOverLane(QPoint Pos);
@@ -141,6 +163,7 @@ private:
     void ShowInfoLabel(ulong64 Start,CWaveLane* Lane);
     void ShowInfoLabel(ulong64 Start,int Lane);
     QString DropFileName(const QMimeData* d, const QObject* s);
+    bool MD = false;
     QPoint StartPos;
     int CurrentLane;
     QList<int> CurrentTrack;

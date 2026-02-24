@@ -1,6 +1,7 @@
 #include "cwavetrack.h"
 #include <QGraphicsTextItem>
 #include <QGraphicsPathItem>
+#include "avfaudiorw.h"
 
 CWaveTrack::CWaveTrack(const QString &Filename, ulong64 StartPointer)
 {
@@ -8,6 +9,9 @@ CWaveTrack::CWaveTrack(const QString &Filename, ulong64 StartPointer)
     start=StartPointer;
     isValid=waveGenerator.load(Filename);
     loopParameters.reset(waveGenerator.size());
+    if (waveGenerator.hasVideo()) {
+        videoThumbnail = QPixmap::fromImage(CAvFoundationReader::thumbnail(waveGenerator.videoURL.path()));
+    }
 }
 
 void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleRect,int edge)
@@ -18,20 +22,20 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     if (isActive)
     {
         p=QPen(Qt::black);
-        lg.setColorAt(0,"#eee");
-        lg.setColorAt(0.49999,"#bbb");
-        lg.setColorAt(0.5,"#afafaf");
-        lg.setColorAt(1,"#999");
+        lg.setColorAt(0,QColor(0xeeeeee));
+        lg.setColorAt(0.49999,QColor(0xbbbbbb));
+        lg.setColorAt(0.5,QColor(0xafafaf));
+        lg.setColorAt(1,QColor(0x999999));
     }
     else
     {
         p=QPen(Qt::gray);
-        lg.setColorAt(0,"#ddd");
-        lg.setColorAt(0.49999,"#aaa");
-        lg.setColorAt(0.5,"#8f8f8f");
-        lg.setColorAt(1,"#777");
+        lg.setColorAt(0,QColor(0xdddddd));
+        lg.setColorAt(0.49999,QColor(0xaaaaaa));
+        lg.setColorAt(0.5,QColor(0x8f8f8f));
+        lg.setColorAt(1,QColor(0x777777));
     }
-    QPainterPath path(QPoint(0,0));
+    QPainterPath path;
     path.addRoundedRect(geometry,6,6);
     Scene.addPath(path,p,lg);
 
@@ -45,14 +49,18 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     f.setPointSize(9);
     QFontMetrics fm(f);
     QString Caption=QFileInfo(name).baseName();
-    while (fm.horizontalAdvance(Caption)>geometry.width())
+    while (fm.horizontalAdvance(Caption) > geometry.width())
     {
         Caption.chop(1);
+    }
+    if (waveGenerator.hasVideo()) {
+        QGraphicsPixmapItem* pi = Scene.addPixmap(videoThumbnail.scaled(geometry.size() * 0.9,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+        pi->setPos(geometry.topLeft() + QPoint(geometry.height() * 0.05,geometry.height() * 0.05));
     }
     QGraphicsTextItem* t = Scene.addText(Caption,f);
     t->setPos(geometry.topLeft());
 
-    waveGenerator.paint(Scene,geometry,visibleRect,ZoomFactor,&loopParameters);
+    Scene.addItem(waveGenerator.waveFormItem(geometry,visibleRect,ZoomFactor,&loopParameters));
 
     QPen redPen = QPen(Qt::red);
     float volHeight = geometry.height()*loopParameters.Volume*0.01;

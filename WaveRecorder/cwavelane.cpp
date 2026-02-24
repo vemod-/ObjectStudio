@@ -12,23 +12,33 @@ CWaveLane::CWaveLane()
 
 CWaveLane::~CWaveLane()
 {
+    if (videoWidget) delete videoWidget;
     qDeleteAll(tracks);
     qDeleteAll(parameters);
 }
 
 void CWaveLane::play(const bool FromStart)
 {
+    qDebug() << "play 1";
+    createVideoWidget();
+    qDebug() << "play 2";
     if (FromStart) reset();
     //m_Playing = true;
+    qDebug() << "play 3";
     IDevice::play(FromStart);
+    qDebug() << "play 4";
 }
-/*
+
 void CWaveLane::pause()
 {
     //m_Playing = false;
+    qDebug() << "pause 1";
+    if (videoWidget) videoWidget->stopVideo();
+    qDebug() << "pause 2";
     IDevice::pause();
+    qDebug() << "pause 3";
 }
-*/
+
 void CWaveLane::init(const int Index, QWidget* MainWindow)
 {
     m_Name = "WaveLane";
@@ -54,50 +64,72 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
         {
             if (t->start<Counter)
             {
-                PlayingTrack=t;
+                PlayingTrack = t;
             }
             else if (t->start<Counter+ModRate)
             {
-                StartingTrack=t;
+                StartingTrack = t;
             }
         }
     }
-    if ((StartingTrack==nullptr) && (PlayingTrack==nullptr))
+    if ((StartingTrack == nullptr) && (PlayingTrack == nullptr))
     {
         CurrentBuffer.makeNull();
+        if (videoWidget) videoWidget->invokeStop();
     }
-    for (uint i=0;i<ModRate;i++)
+    for (uint i = 0; i < ModRate; i++)
     {
         if (PlayingTrack)
         {
-            if (Counter>=PlayingTrack->start+PlayingTrack->loopParameters.playLength())
+            if (Counter >= PlayingTrack->start + PlayingTrack->loopParameters.playLength())
             {
                 CurrentBuffer.makeNull();
+                if (videoWidget) videoWidget->invokeStop();
             }
             else
             {
-                if (ModulationCounter>=ModRate)
+                if (ModulationCounter >= ModRate)
                 {
-                    PlayingTrack->waveGenerator.skipTo(((Counter-PlayingTrack->start)*PlayingTrack->loopParameters.Speed)+PlayingTrack->loopParameters.Start);
+                    const ulong64 trackPos = ((Counter-PlayingTrack->start)*PlayingTrack->loopParameters.Speed)+PlayingTrack->loopParameters.Start;
+                    if (PlayingTrack->waveGenerator.currentSample() != trackPos) {
+                        PlayingTrack->waveGenerator.skipTo(trackPos);
+                        //if (videoWidget) videoWidget->invokeSetProperties(PlayingTrack,trackPos,true);
+                        if (videoWidget) {
+                            if (!videoWidget->setVideoProperties(PlayingTrack,trackPos)) videoWidget->invokeStop();
+                        }
+                    }
+                    else {
+                        if (videoWidget) videoWidget->invokePlay(PlayingTrack);
+                    }
                     CurrentBuffer.fromRawData(PlayingTrack->waveGenerator.getNextSpeed(PlayingTrack->loopParameters.Speed),PlayingTrack->waveGenerator.channels(),ModRate);
                     pitchShift(PlayingTrack);
-                    ModulationCounter=0;
+                    ModulationCounter = 0;
                     Vol=PlayingTrack->loopParameters.fadeVolume(Counter-(PlayingTrack->start));
                 }
             }
         }
         if (StartingTrack)
         {
-            if (Counter>=StartingTrack->start+StartingTrack->loopParameters.playLength())
+            if (Counter >= StartingTrack->start + StartingTrack->loopParameters.playLength())
             {
                 CurrentBuffer.makeNull();
+                if (videoWidget) videoWidget->invokeStop();
             }
             else
             {
-                if (Counter==StartingTrack->start)
+                if (Counter == StartingTrack->start)
                 {
                     StartingTrack->waveGenerator.reset();
                     StartingTrack->waveGenerator.skipTo(StartingTrack->loopParameters.Start);
+                    if (videoWidget) {
+                        //videoWidget->invokeSetProperties(StartingTrack,StartingTrack->waveGenerator.currentSample(),true);
+                        if (videoWidget->setVideoProperties(StartingTrack,StartingTrack->waveGenerator.currentSample())) {
+                            videoWidget->invokePlay(StartingTrack);
+                        }
+                        else {
+                            videoWidget->invokeStop();
+                        }
+                    }
                     CurrentBuffer.fromRawData(StartingTrack->waveGenerator.getNextSpeed(StartingTrack->loopParameters.Speed),StartingTrack->waveGenerator.channels(),ModRate);
                     pitchShift(StartingTrack);
                     ModulationCounter=0;
@@ -119,6 +151,7 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
         else
         {
             Buffer->zeroAt(i);
+            if (videoWidget) videoWidget->invokeStop();
         }
         ModulationCounter++;
         Counter++;
@@ -138,86 +171,7 @@ void CWaveLane::pitchShift(CWaveTrack* T)
         CurrentBuffer.fromRawData(TempBuffer.data(),T->waveGenerator.channels(),CurrentBuffer.size());
     }
 }
-/*
-void CWaveLane::modifyBuffers(CStereoBuffer* Buffer, const float MixFactor)
-{
-    const ulong64 ModRate=Buffer->size();
-    CWaveTrack* PlayingTrack=nullptr;
-    CWaveTrack* StartingTrack=nullptr;
-    for (CWaveTrack* t : tracks)//for (int i=0;i<tracks.size();i++)
-    {
-        //CWaveTrack* t=tracks.at(i);
-        if (t->loopParameters.playLength()+t->start>Counter)
-        {
-            if (t->start<Counter)
-            {
-                PlayingTrack=t;
-            }
-            else if (t->start<Counter+ModRate)
-            {
-                StartingTrack=t;
-            }
-        }
-    }
-    if ((StartingTrack==nullptr) && (PlayingTrack==nullptr))
-    {
-        CurrentBuffer.makeNull();
-    }
-    for (uint i=0;i<ModRate;i++)
-    {
-        if (PlayingTrack)
-        {
-            if (Counter>=PlayingTrack->start+PlayingTrack->loopParameters.playLength())
-            {
-                CurrentBuffer.makeNull();
-            }
-            else
-            {
-                if (ModulationCounter>=ModRate)
-                {
-                    PlayingTrack->waveGenerator.skipTo(((Counter-PlayingTrack->start)*PlayingTrack->loopParameters.Speed)+PlayingTrack->loopParameters.Start);
-                    CurrentBuffer.fromRawData(PlayingTrack->waveGenerator.getNextSpeed(PlayingTrack->loopParameters.Speed),PlayingTrack->waveGenerator.channels(),ModRate);
-                    pitchShift(PlayingTrack);
-                    ModulationCounter=0;
-                    Vol=PlayingTrack->loopParameters.fadeVolume(Counter-(PlayingTrack->start))*MixFactor;
-                }
-            }
-        }
-        if (StartingTrack)
-        {
-            if (Counter>=StartingTrack->start+StartingTrack->loopParameters.playLength())
-            {
-                CurrentBuffer.makeNull();
-            }
-            else
-            {
-                if (Counter==StartingTrack->start)
-                {
-                    StartingTrack->waveGenerator.reset();
-                    StartingTrack->waveGenerator.skipTo(StartingTrack->loopParameters.Start);
-                    CurrentBuffer.fromRawData(StartingTrack->waveGenerator.getNextSpeed(StartingTrack->loopParameters.Speed),StartingTrack->waveGenerator.channels(),ModRate);
-                    pitchShift(StartingTrack);
-                    ModulationCounter=0;
-                    Vol=StartingTrack->loopParameters.fadeVolume(Counter-(StartingTrack->start))*MixFactor;
-                }
-            }
-        }
-        if (CurrentBuffer.isValid())
-        {
-            if (CurrentBuffer.channels()==1)
-            {
-                Buffer->addAt(i,CurrentBuffer.at(ModulationCounter,0)*Vol);
-            }
-            else
-            {
-                Buffer->addAt(i,CurrentBuffer.at(ModulationCounter,0)*Vol,CurrentBuffer.at(ModulationCounter,1)*Vol);
-            }
-        }
-        ModulationCounter++;
-        Counter++;
-    }
-}
-*/
+
 void CWaveLane::reset()
 {
     Counter=0;
@@ -236,7 +190,6 @@ void CWaveLane::reset()
 void CWaveLane::UpdateGeometry(ldouble ZoomFactor, long CanvasRight)
 {
     m_Zoom = ZoomFactor;
-    //long MaxLen=CanvasRight;
     for (CWaveTrack* T : std::as_const(tracks))
     {
         if (!T->isValid)
@@ -249,15 +202,13 @@ void CWaveLane::UpdateGeometry(ldouble ZoomFactor, long CanvasRight)
             T->geometry=QRect(sample2Pos(T->start),geometry.top()+1,ldouble(T->loopParameters.playLength())*ZoomFactor,geometry.height()-2);
         }
     }
-    //geometry.setRight(MaxLen);
     geometry.setRight(sample2Pos(samples()) + CanvasRight);
 }
 
 void CWaveLane::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleRect, bool Active)
 {
-    QPainterPath path(QPoint(0,0));
+    QPainterPath path;
     path.addRoundedRect(geometry,6,6);
-
     if (Active) {
         Scene.addPath(path,QPen(Qt::darkGray),QBrush(Qt::lightGray));
     }
@@ -265,11 +216,11 @@ void CWaveLane::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleRe
         Scene.addPath(path,QPen(Qt::darkGray),QBrush(Qt::gray));
     }
 
-    for (CWaveTrack* t : std::as_const(tracks))//for (int i=0;i<tracks.size();i++)
+    for (CWaveTrack* t : std::as_const(tracks))
     {
         if (!t->isActive) t->paint(Scene,ZoomFactor,visibleRect,0);
     }
-    for (CWaveTrack* t : std::as_const(tracks))//for (int i=0;i<tracks.size();i++)
+    for (CWaveTrack* t : std::as_const(tracks))
     {
         if (t->isActive) t->paint(Scene,ZoomFactor,visibleRect,0);
     }
@@ -323,6 +274,7 @@ void CWaveLane::removeFile(const QString &Filename)
             delete T;
         }
     }
+    destroyVideoWidget();
 }
 
 CWaveTrack* CWaveLane::unserializeTrack(const QDomLiteElement* xml, ldouble ZoomFactor)
@@ -343,6 +295,7 @@ CWaveTrack* CWaveLane::unserializeTrack(const QDomLiteElement* xml, ldouble Zoom
         }
         WT->loopParameters.unserialize(xml);
         tracks.append(WT);
+        createVideoWidget();
         return WT;
     }
     delete WT;
@@ -369,6 +322,7 @@ void CWaveLane::unserialize(const QDomLiteElement* xml,ldouble ZoomFactor)
     {
         unserializeTrack(xmlTrack,ZoomFactor);
     }
+    createVideoWidget();
     /*
     if (const QDomLiteElement* eff = xml->elementByTag("EffectRack")) {
         m_EffectRack->unserializeDevice(eff);
@@ -410,7 +364,11 @@ ulong64 CWaveLane::samples() const
 
 void CWaveLane::skip(const ulong64 samples)
 {
+    qDebug() << "skip 1";
+    createVideoWidget();
+    qDebug() << "skip 2";
     reset();
+    qDebug() << "skip 3";
     Counter=samples;
     for (CWaveTrack* t : std::as_const(tracks))//for (int i=0;i<tracks.size();i++)
     {
@@ -421,11 +379,16 @@ void CWaveLane::skip(const ulong64 samples)
             {
                 t->waveGenerator.reset();
                 t->waveGenerator.skipTo(((Counter-t->start) * t->loopParameters.Speed) + t->loopParameters.Start);
+                if (videoWidget) {
+                    if (!videoWidget->setVideoProperties(t,t->waveGenerator.currentSample())) videoWidget->stopVideo();
+                }
             }
         }
     }
+    qDebug() << "skip 4";
     //m_Playing = true;
     IDevice::skip(samples);
+    qDebug() << "skip 5";
 }
 
 int CWaveLane::MouseOverTrack(QPoint Pos)
@@ -439,10 +402,10 @@ int CWaveLane::MouseOverTrack(QPoint Pos)
 
 ulong64 CWaveLane::pos2Sample(int Pos) const
 {
-    return ulong64(ldouble(qMax(Pos-geometry.left(),0))/m_Zoom);
+    return long64(ldouble(qMax(Pos-geometry.left(),0))/m_Zoom);
 }
 
-int CWaveLane::sample2Pos(ulong64 sample) const
+int CWaveLane::sample2Pos(long64 sample) const
 {
     return int((ldouble(sample)*m_Zoom)+geometry.left());
 }
@@ -475,7 +438,7 @@ void CWaveLane::drawOutsideWave(QGraphicsScene& Scene, QRect visibleRect) {
     CWaveGenerator::LoopParameters LP = tracks[DragTrack]->loopParameters;
     LP.Start = 0;
     LP.End = tracks[DragTrack]->waveGenerator.size();
-    tracks[DragTrack]->waveGenerator.paint(Scene,waveRect,visibleRect.intersected(dragRect),m_Zoom,&LP);
+    Scene.addItem(tracks[DragTrack]->waveGenerator.waveFormItem(waveRect,visibleRect.intersected(dragRect),m_Zoom,&LP));
 }
 
 long64 CWaveLane::handleMousePress(QPoint p) {
@@ -553,8 +516,8 @@ long64 CWaveLane::handleMouseMove(QPoint p, CTimeLine* timeLine) {
 CWaveTrack* CWaveLane::handleMouseRelease() {
     CWaveTrack* t = nullptr;
     if (DragTrack > -1)  t = tracks[DragTrack];
-    DragTrack=-1;
-    DragTrackEdge=NoEdge;
+    DragTrack = -1;
+    DragTrackEdge = NoEdge;
     DragTracks.clear();
     DragTrackStarts.clear();
     return t;
@@ -608,4 +571,7 @@ void CWaveLane::sanityCheck(CWaveTrack* d) {
                 }
             }
         }
+        destroyVideoWidget();
 }
+
+

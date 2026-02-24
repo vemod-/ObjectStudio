@@ -38,7 +38,7 @@ CParametersContainer::CParametersContainer(QWidget *parent) :
 
 CParametersContainer::~CParametersContainer()
 {
-    Scene.clear();
+    //Scene.clear();
 }
 
 void CParametersContainer::Init(CDeviceList *l) {
@@ -87,8 +87,8 @@ void CParametersContainer::removeDevice(IDevice* Device)
     if (i > -1)
     {
         delete parameterDevices.takeAt(i);
-        drawParameters();
         delete devices.takeAt(i);
+        drawParameters();
         DrawConnections();
     }
     adjustSizes();
@@ -103,9 +103,9 @@ void CParametersContainer::moveDevice(int index, int move)
     if (newIndex == index) return;
     CParametersComponent* temp = parameterDevices.takeAt(index);
     parameterDevices.insert(newIndex, temp);
-    drawParameters();
     CJacksDevice* t = devices.takeAt(index);
     devices.insert(newIndex, t);
+    drawParameters();
     DrawConnections();
 }
 
@@ -160,7 +160,8 @@ QGraphicsProxyWidget *CParametersContainer::addProxyWidget(QWidget *a) {
 
 QList<QWidget *> CParametersContainer::ProxyWidgets() const {
     QList<QWidget*> l;
-    for (QGraphicsItem* i : Scene.items()) {
+    const QGraphicsItemList g(Scene.items());
+    for (QGraphicsItem* i : g) {
         if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
             if (i->zValue() > 4) l.append(proxy->widget());
         }
@@ -220,12 +221,12 @@ void CParametersContainer::clear()
         parameterDevices.removeOne(p);
         delete p;
     }
-    drawParameters();
     for (CJacksDevice* d : std::as_const(devices))
     {
         devices.removeOne(d);
         delete d;
     }
+    drawParameters();
     DrawConnections();
     adjustSizes();
 }
@@ -376,35 +377,6 @@ void CParametersContainer::setZoom(double /*zoom*/) {
     adjustSizes();
 }
 
-QGraphicsItemList CParametersContainer::DrawConnection(QPoint p1, QPoint p2, const QColor& color, const qreal linewidth)
-{
-    QGraphicsItemList l;
-    QPainterPath p;
-    QRect r(p1,p2);
-    r=r.normalized();
-    int adjust = 60 - r.width();
-    if (adjust < 0) adjust=0;
-    r.adjust(adjust,(r.height()/5)+50,-adjust,(r.height()/5)+100);
-    if (p1.x() > p2.x()) std::swap(p1,p2);
-    p.moveTo(p1);
-    if (p1.y() < p2.y())
-    {
-        p.cubicTo(r.bottomLeft(),p2+((r.bottomRight()-p2)/2),p2);
-    }
-    else
-    {
-        p.cubicTo(p1+((r.bottomLeft()-p1)/2),r.bottomRight(),p2);
-    }
-    l.append(Scene.addPath(p.translated(5,5),QPen(QColor(0,0,0,40),linewidth,Qt::SolidLine,Qt::RoundCap)));
-    QColor c(color);
-    c.setAlphaF(CPresets::presets().ConnectionsOpacity);
-    l.append(Scene.addPath(p,QPen(c,linewidth,Qt::SolidLine,Qt::RoundCap)));
-    for (QGraphicsItem* i : l) {
-        i->setZValue(2);
-    }
-    return l;
-}
-
 void CParametersContainer::adjustSizes(){
     if (deviceCount()) {
         setMaximumHeight(unitHeight() * deviceCount());
@@ -466,8 +438,7 @@ void CParametersContainer::mouseMoveEvent(QMouseEvent* event)
     {
         CConnectionHelper::SetConnectCursor(this,m_DL->jack(MouseOverJack(scenePos)),DragJack);
         DragList.erase(&Scene);
-        QColor c(DragJack->JackColor());
-        c.setAlphaF(CPresets::presets().ConnectionsOpacity);
+        DragList.setPos(0,0);
         QGraphicsPixmapItem* plug2 = Scene.addPixmap(plugPix);
         plug2->setPos(DragJackPos);
         DragList.append(plug2);
@@ -476,6 +447,8 @@ void CParametersContainer::mouseMoveEvent(QMouseEvent* event)
         DragList.append(plug1);
         DragList.setPos(-rackJackSize.width() / 2, -rackJackSize.height() / 2);
         DragList.setZValue(2);
+        QColor c(DragJack->JackColor());
+        c.setAlphaF(CPresets::presets().ConnectionsOpacity);
         if (DragJack->isOutJack())
         {
             DragList.append(CConnectionHelper::DrawCord(DragJackPos,scenePos,c,&Scene));
@@ -508,8 +481,7 @@ void CParametersContainer::mouseReleaseEvent(QMouseEvent *event){
         QApplication::restoreOverrideCursor();
         IJack* HoverJack = m_DL->jack(MouseOverJack(scenePos));
         if (HoverJack) m_DL->connect(HoverJack->jackID(),DragJack->jackID());
-        updateConnections();
-        emit connectionsChanged();
+        DrawChangedConnections();
     }
 }
 
@@ -527,8 +499,7 @@ void CParametersContainer::mouseDoubleClickEvent(QMouseEvent *event) {
     {
         m_DL->disconnectJack(J->jackID());
         setToolTip(J->captionX());
-        updateConnections();
-        emit connectionsChanged();
+        DrawChangedConnections();
         return;
     }
 }

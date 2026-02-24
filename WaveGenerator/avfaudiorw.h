@@ -3,9 +3,20 @@
 
 #include "iwavefile.h"
 #include "avfoundation_wrapper.h"
+#include <QImage>
 
 class CAvFoundationReader : public IWaveFile {
 public:
+    static QImage thumbnail(QString path) {
+        std::vector<uint8_t> outRGBA;
+        int width = 0;
+        int height = 0;
+        avf_extract_thumbnail(path.toStdString().c_str(),0,outRGBA,width,height);
+        return QImage(outRGBA.data(), width, height, QImage::Format_RGBA8888);
+    }
+    static bool isValid(QString path) {
+        return avf_is_valid(path.toStdString().c_str());
+    }
     CAvFoundationReader(QString path) : IWaveFile(path) {
         double rate = 0;
         int chans = 0;
@@ -13,8 +24,8 @@ public:
             m_Channels = chans;
             m_Frequency = rate;
         }
+        hasVideo = avf_has_video(path.toStdString().c_str());
     }
-
     void createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplerate) override {
         const ldouble RateFactor = ldouble(m_Frequency) / Samplerate;
         const auto Length = ulong64(ldouble(data[0].size()) / RateFactor);
@@ -27,7 +38,6 @@ public:
             }
         }
     }
-
 private:
     std::vector<std::vector<float>> data;
 };

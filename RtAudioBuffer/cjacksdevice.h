@@ -37,7 +37,7 @@ public:
     QGraphicsContainerItem PlugImages;
     QGraphicsContainerItem JackItems;
 private:
-    int m_Index = 0;
+    int m_Index = -1;
     IDevice* m_Device = nullptr;
     QList<CJackRect> JackRects;
     int m_Left = 0;

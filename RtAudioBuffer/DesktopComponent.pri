@@ -15,6 +15,12 @@ INCLUDEPATH += $$PWD
 INCLUDEPATH += $$PWD/../PluginLoader
 INCLUDEPATH += $$PWD/../../QDomLite
 
+contains(DEFINES,AVFOUNDATIONLIB) {
+    LIBS += -framework AVFoundation
+    LIBS += -framework CoreMedia
+    LIBS += -framework CoreVideo
+}
+
 ##LIBS += -lSoftSynthsWidgets
 INCLUDEPATH += $$PWD/../SoftSynthsClasses
 INCLUDEPATH += $$PWD/../../QSignalMenu \
@@ -95,3 +101,11 @@ HEADERS += \
 
 SOURCES += \
     $$PWD/cjacksdevice.cpp
+
+contains(DEFINES,AVFOUNDATIONLIB) {
+    HEADERS += \
+        $$PWD/../WaveGenerator/avfaudiorw.h \
+        $$PWD/../WaveGenerator/avfoundation_wrapper.h
+
+    OBJECTIVE_SOURCES += $$PWD/../WaveGenerator/avfoundation_wrapper.mm
+}

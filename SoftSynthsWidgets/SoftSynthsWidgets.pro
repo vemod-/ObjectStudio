@@ -92,5 +92,6 @@ SOURCES += \
     #ctimeline.cpp \
     cresourceinitializer.cpp \
     ctimelineedit.cpp \
-    ctimelineslider.cpp
+    ctimelineslider.cpp \
+    qgraphicsitemlist.cpp
 

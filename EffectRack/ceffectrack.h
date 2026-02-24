@@ -11,7 +11,7 @@ class CEffectRackForm : public CSoftSynthsForm, public IHost
     Q_OBJECT
 public:
     explicit CEffectRackForm(IDevice* Device, QWidget *parent = 0);
-    ~CEffectRackForm(){}
+    ~CEffectRackForm();
     COutJack* insideOut;
     CInJack* insideIn;
     void updateConnections();

@@ -47,6 +47,13 @@ CEffectRackForm::CEffectRackForm(IDevice* Device,QWidget* Parent) :
     connect(m_Rack,&CParametersContainer::deviceRemoved,this,&CEffectRackForm::removeDevice);
 }
 
+CEffectRackForm::~CEffectRackForm(){
+    m_Rack->clear();
+    m_DeviceList.removeJack(insideIn);
+    m_DeviceList.removeJack(insideOut);
+    m_DeviceList.clear();
+}
+
 void CEffectRackForm::rackSizeChanged(){
     setMaximumHeight(m_Toolbar->height() + m_Rack->maximumHeight());
     setMinimumHeight(m_Toolbar->height() + m_Rack->minimumHeight());
@@ -107,7 +114,7 @@ void CEffectRackForm::PluginMenuClicked(QString AddInName)
     QMutexLocker locker(&mutex);
     const int MenuIndex=CAddIns::indexOf(AddInName);
     if (MenuIndex<0) return;
-    IDevice* D=m_DeviceList.createDevice(instancefn(MenuIndex),m_DeviceList.findFreeIndex(AddInName),parentWidget());
+    IDevice* D = m_DeviceList.createDevice(instancefn(MenuIndex),m_DeviceList.findFreeIndex(AddInName),parentWidget());
     m_Rack->addDevice(D);
     updateConnections();
 }
@@ -269,6 +276,7 @@ void CEffectRackForm::dropEvent(QDropEvent *e) {
 */
 CEffectRack::CEffectRack()
 {
+    delete m_Form;
 }
 
 void CEffectRack::init(const int Index, QWidget* MainWindow)

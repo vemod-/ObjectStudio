@@ -116,6 +116,7 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     Device->addTickerDevice(ui->WaveLanes);
     ui->ScrollBar->setVisible(false);
     ui->NavigationLayout->replaceWidget(ui->ScrollBar,ui->WaveLanes->horizontalScrollBar());
+    ui->WaveLanes->horizontalScrollBar()->setVisible(true);
 
     auto s = new QMacSplitter(ui->BaseWidget);
     ui->BaseWidget->layout()->addWidget(s);

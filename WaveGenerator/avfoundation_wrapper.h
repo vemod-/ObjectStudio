@@ -2,10 +2,9 @@
 #define AVFOUNDATION_WRAPPER_H
 
 #include <vector>
-#include <string>
 
 #ifdef __cplusplus
-extern "C" {
+//extern "C" {
 #endif
 
 bool avf_read_audio(const char* path,
@@ -16,9 +15,17 @@ bool avf_read_audio(const char* path,
 bool avf_write_audio(const char* path,
                      const std::vector<std::vector<float>> &inData,
                      double sampleRate);
+bool avf_has_video(const char* path);
+bool avf_is_valid(const char* path);
+bool avf_extract_thumbnail(const char* path,
+                           double seconds,
+                           std::vector<uint8_t>& outRGBA,
+                           int& width,
+                           int& height);
+
 
 #ifdef __cplusplus
-}
+//}
 #endif
 
 #endif // AVFOUNDATION_WRAPPER_H

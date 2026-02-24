@@ -69,7 +69,6 @@ private:
     bool hasAutomation(const QPoint& p);
     QGraphicsItemList DrawThisConnections();
     QGraphicsItemList DrawDeviceConnections(IDevice* device, QList<IDevice*>& paintedContainers);
-    QGraphicsItemList DrawConnection(QPoint p1, QPoint p2, const QColor& color, const qreal linewidth = 5.0);
     QGraphicsItemList DragList;
     bool Dragging;
     IJack* DragJack;

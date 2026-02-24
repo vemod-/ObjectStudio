@@ -4,7 +4,108 @@
 #include "cwavefile.h"
 #include "qdomlite.h"
 #include <QGraphicsScene>
+#include <QtGui/qpainterpath.h>
 #include "cpresets.h"
+#include <QGraphicsPathItem>
+#include <QPainter>
+
+#include <vector>
+#include <cmath>
+#include <algorithm>
+
+class MinMaxPyramid
+{
+public:
+    struct MinMax {
+        float min = 0.f;
+        float max = 0.f;
+    };
+    using Level = std::vector<MinMax>;
+public:
+    MinMaxPyramid() = default;
+    template<typename SampleProvider>
+    void build(SampleProvider&& sampleAt, size_t sampleCount, size_t channelCount) {
+        m_channels = channelCount;
+        m_levels.clear();
+        if (sampleCount == 0 || channelCount == 0) return;
+        buildLevel0(sampleAt, sampleCount);
+        buildHigherLevels();
+    }
+    size_t levelCount() const { return m_levels.size(); }
+    size_t channels()   const { return m_channels; }
+    const Level& level(size_t level, size_t channel) const { return m_levels[level][channel]; }
+    size_t levelForSamplesPerPixel(double samplesPerPixel) const {
+        if (samplesPerPixel <= 1.0) return 0;
+        size_t level = (size_t)std::floor(std::log2(samplesPerPixel));
+        return std::min(level, m_levels.size() - 1);
+    }
+    const MinMax& value(size_t level, size_t channel, size_t index) const { return m_levels[level][channel][index]; }
+    size_t levelSize(size_t level) const { return m_levels[level][0].size(); }
+    size_t blockSize(size_t level) const { return size_t(1) << level; }
+private:
+    std::vector<std::vector<Level>> m_levels;
+    size_t m_channels = 0;
+private:
+    template<typename SampleProvider>
+    void buildLevel0(SampleProvider& sampleAt, size_t sampleCount) {
+        m_levels.resize(1);
+        m_levels[0].resize(m_channels);
+        for (size_t ch = 0; ch < m_channels; ++ch) {
+            auto& lvl = m_levels[0][ch];
+            lvl.resize(sampleCount);
+            for (size_t i = 0; i < sampleCount; ++i) {
+                float v = sampleAt(i, ch);
+                lvl[i] = { v, v };
+            }
+        }
+    }
+    void buildHigherLevels() {
+        size_t prevSize = m_levels[0][0].size();
+        while (prevSize > 1) {
+            const size_t newSize = prevSize / 2;
+            if (newSize == 0) break;
+            const size_t newLevelIndex = m_levels.size();
+            m_levels.emplace_back();
+            m_levels.back().resize(m_channels);
+            for (size_t ch = 0; ch < m_channels; ++ch) {
+                const auto& prev = m_levels[newLevelIndex - 1][ch];
+                auto& cur        = m_levels[newLevelIndex][ch];
+                cur.resize(newSize);
+                for (size_t i = 0; i < newSize; ++i) {
+                    const auto& a = prev[i * 2];
+                    const auto& b = prev[i * 2 + 1];
+                    cur[i].min = std::min(a.min, b.min);
+                    cur[i].max = std::max(a.max, b.max);
+                }
+            }
+            prevSize = newSize;
+        }
+    }
+};
+
+class WaveformItem : public QGraphicsItem
+{
+public:
+    WaveformItem(const QVector<QLineF> lines, const QRect r, QGraphicsItem* parent = nullptr)
+        : QGraphicsItem(parent) {
+        m_lines = lines;
+        m_bounds = r;
+        setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+    }
+
+    QRectF boundingRect() const override { return m_bounds; }
+    void paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) override {
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, false);
+        painter->setRenderHint(QPainter::SmoothPixmapTransform, false);
+        painter->setPen(Qt::black);
+        painter->drawLines(m_lines);
+        painter->restore();
+    }
+private:
+    QVector<QLineF> m_lines;
+    QRectF m_bounds;
+};
 
 class CWaveGenerator : protected IPresetRef
 {
@@ -29,7 +130,7 @@ public:
         int XFade;
         LoopTypeEnum LoopType;
         uint origRate;
-        double Speed;
+        double Speed = 1;
         double PitchShift;
         void reset(ulong64 len=0)
         {
@@ -131,72 +232,119 @@ public:
         return (!WF) ? nullptr : &WF->data;
     }
     void skipTo(const ulong64 Ptr);
+    ulong64 currentSample() {
+        return m_Pointer;
+    }
     inline uint channels() const { return m_Audio.channels(); }
     inline uint origRate() const { return WF->frequency; }
-    void paint(QGraphicsScene& Scene, QRect waveRect, QRect visibleRect, double zoom, LoopParameters* LP) {
-        paint(Scene,this,waveRect,visibleRect,zoom,LP);
-    }
-    static void paint(QGraphicsScene& Scene, CWaveGenerator* WG, QRect waveRect, QRect visibleRect, double zoom, CWaveGenerator::LoopParameters*LP) {
-        if (!waveRect.intersects(visibleRect)) return;
+    QGraphicsItem* waveFormItem(QRect waveRect, QRect visibleRect, double zoom, LoopParameters* LP) {
+        if (!waveRect.intersects(visibleRect)) return nullptr;
         QRect r = waveRect.intersected(visibleRect);
+        r.setTop(waveRect.top());
+        r.setHeight(waveRect.height());
         QPen p(Qt::black);
-        if (WG->size())
+        if (size())
         {
             ulong64 Start = 0;
-            ulong64 End = WG->size();
-            ldouble ZoomValue = 1.0 / zoom;
+            ulong64 End = size();
+            double ZoomValue = 1.0 / zoom;
             if (LP) {
                 Start = LP->Start;
                 End = LP->End;
                 ZoomValue *= LP->Speed;
             }
-            const CChannelBuffer* Buffer = WG->buffer();
-            if (Buffer)
-            {
-                for (uint channel = 0; channel < WG->channels(); channel++)
-                {
-                    float YFactor = waveRect.height() / (2*WG->channels());
-                    int HalfHeight = waveRect.top() + (YFactor + (YFactor * channel * 2));
-                    ldouble sample = Start;
-                    if (r.left()  > waveRect.left()) sample += ZoomValue * (r.left() - waveRect.left());
-                    long zeroCount = 0;
-                    long64 lastSample = sample;
-                    int x = r.left();
-                    do {
-                        if (sample>=End) break;
-                        float max = 0, min = 0;
-                        for (long64 s = lastSample; s < sample; s++) {
-                            float v = Buffer->at(s,channel);
-                            if (v > 0) {
-                                if (v > max) max = v;
-                            }
-                            else {
-                                if (v < min) min = v;
-                            }
-                        }
-                        lastSample = sample;
-                        int iMax = max * YFactor;
-                        int iMin = min * YFactor;
-                        if ((iMax == 0) && (iMin == 0))
-                        {
-                            zeroCount++;
-                        }
-                        else
-                        {
-                            if (zeroCount) Scene.addLine(x - zeroCount, HalfHeight, x, HalfHeight, p);
-                            zeroCount = 0;
-                            Scene.addLine(x, HalfHeight - iMax, x, HalfHeight - iMin, p);
-                        }
-                        sample += ZoomValue;
-                        x++;
-                    } while (x < r.right());
-                    if (zeroCount) Scene.addLine(x - zeroCount, HalfHeight, x - 1, HalfHeight, p);
+            if (r.left() > waveRect.left()) Start += ZoomValue * (r.left() - waveRect.left());
+            if ((Start == oldStart) && (End == oldEnd) && closeEnough(ZoomValue,oldZoom)) {
+                if (r == oldRect) {
+                    return new WaveformItem(lines,r);
                 }
-
+                if (r.size() == oldRect.size()) {
+                    WaveformItem* i = new WaveformItem(lines,oldRect);
+                    i->setPos(r.topLeft() - oldRect.topLeft());
+                    return i;
+                }
             }
+            oldStart = Start;
+            oldEnd = End;
+            oldZoom = ZoomValue;
+            oldRect = r;
+            fillLines(Start,ZoomValue,r);
         }
+        return new WaveformItem(lines,r);
+    }
+    QUrl videoURL;
+    bool hasVideo() {
+        return (!videoURL.isEmpty());
     }
 private:
+    void fillLines(const ulong64 Start, const double ZoomValue, const QRect& r) {
+        lines.clear();
+        lines.reserve(r.width() * channels());
+        double samplesPerPixel = ZoomValue;
+        const size_t level = pyramid.levelForSamplesPerPixel(samplesPerPixel);
+        const size_t blockSize = pyramid.blockSize(level);
+        for (uint channel = 0; channel < channels(); channel++)
+        {
+            const MinMaxPyramid::Level& lvl = pyramid.level(level, channel);
+            const float YFactor = r.height() / (2 * channels());
+            const int HalfHeight = (YFactor + (YFactor * channel * 2)) + r.top();
+            //ldouble sample = Start;
+            //long zeroCount = 0;
+            //long64 lastSample = sample;
+            int pixel = 0;
+            for (int x = r.left(); x < r.right(); x++) {
+                const size_t sampleIndex = Start + (pixel++ * samplesPerPixel);
+                const size_t idx = sampleIndex / blockSize;
+                if (idx < lvl.size()) {
+                    const MinMaxPyramid::MinMax& mm = lvl[idx];
+                    lines.emplace_back(QLineF(x, HalfHeight - (std::max(0.0f, mm.max) * YFactor), x, HalfHeight - (std::min(0.0f, mm.min) * YFactor)));
+                }
+                /*
+                if (sample >= End) break;
+                float max = 0;
+                float min = 0;
+                for (long64 s = lastSample; s < sample; s++) {
+                    float v = Buffer->at(s, channel);
+                    if (v > 0)
+                        max = std::max(max, v);
+                    else
+                        min = std::min(min, v);
+                }
+                lastSample = sample;
+                const int iMax = max * YFactor;
+                const int iMin = min * YFactor;
+                if (iMax | iMin) {
+                    if (zeroCount) {
+                        lines.emplace_back(QLineF(x - zeroCount, HalfHeight,x, HalfHeight));
+                        //path.moveTo(x - zeroCount, HalfHeight);
+                        //path.lineTo(x, HalfHeight);
+                        zeroCount = 0;
+                    }
+                    lines.emplace_back(QLineF(x, HalfHeight - iMax,x, HalfHeight - iMin));
+                    //path.moveTo(x, HalfHeight - iMax);
+                    //path.lineTo(x, HalfHeight - iMin);
+                }
+                else {
+                    zeroCount++;
+                }
+                sample += ZoomValue;
+*/
+            }
+            /*
+            if (zeroCount) {
+                lines.emplace_back(QLineF(x - zeroCount, HalfHeight,x - 1, HalfHeight));
+                //path.moveTo(x - zeroCount, HalfHeight);
+                //path.lineTo(x - 1, HalfHeight);
+            }
+*/
+        }
+    }
+    MinMaxPyramid pyramid;
+    QVector<QLineF> lines;
+    double oldZoom = 0;
+    ulong64 oldStart = 0;
+    ulong64 oldEnd = 0;
+    QRect oldRect = QRect();
     void finishBuffer(const uint fromPtr);
     uint m_BufferSize;
     ldouble m_Pointer;

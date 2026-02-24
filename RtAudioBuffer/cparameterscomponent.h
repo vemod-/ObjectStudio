@@ -23,7 +23,6 @@ public:
     bool swallowMousePress(QMouseEvent *event, QGraphicsItem* item);
     bool itemIsKnob(QGraphicsItem* item);
 private:
-    QGraphicsScene* m_Scene;
     QList<CKnobControl*> Dials;
     QList<CParameter*> Parameters;
     IDevice* m_Device;
@@ -40,6 +39,7 @@ private:
     QGraphicsContainerItem m_FrameList;
     QMenu* parametersMenu();
     QRecursiveMutex mutex;
+    QGraphicsProxyWidget* createProxyItem(QWidget* w);
     /*
     int calcY(int y) {
         return (m_Index * rackUnitHeight) + y;

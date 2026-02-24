@@ -24,16 +24,19 @@ class CAutomationLane : public QGraphicsView, ITicker
 public:
     explicit CAutomationLane(QWidget *parent = nullptr);
     ~CAutomationLane();
+    /*
     QRect visibleRect() {
-        QRect r(horizontalScrollBar()->value(),verticalScrollBar()->value(),viewport()->width(),viewport()->height());
-        return r;
+        return mapToScene(viewport()->rect()).boundingRect().toRect();
+        //QRect r(horizontalScrollBar()->value(),verticalScrollBar()->value(),viewport()->width(),viewport()->height());
+        //return r;
     }
+*/
     void fill(IDevice* d, int i, CDeviceList* dl, bool timelineVisible = true) {
         m_TimeLineVisible = timelineVisible;
         if (!timelineVisible) {
             m_TimeLineHeight = 0;
-            zoomer->setMax(zoomer->getZoom());
-            zoomer->setMin(zoomer->getZoom());
+            //zoomer->setMax(zoomer->getZoom());
+            //zoomer->setMin(zoomer->getZoom());
         }
         m_TimeLine.setHeight(m_TimeLineHeight);
         m_Device = d;
@@ -65,7 +68,7 @@ public:
             Scene.clear();
             m_TopLayer.clear();
             QRectF r = viewport()->rect();
-            r.setWidth(double(r.width())*zoomer->getZoom());
+            //r.setWidth(double(r.width())*zoomer->getZoom());
             setSceneRect(r);
             if (deviceValid())
             {
@@ -76,7 +79,8 @@ public:
                 i->setPos(0,m_TimeLineHeight);
             }
             m_TimeLine.setSamples(m_Device->requestSamples());
-            m_TimeLine.render(&Scene,visibleRect());
+            //m_TimeLine.render(&Scene,zoomer->visibleRect().toRect());
+            m_TimeLine.render(&Scene,mapToScene(viewport()->rect()).boundingRect().toRect());
         }
         if (!deviceValid()) return;
         if (m_Marking)
@@ -95,10 +99,10 @@ public:
         m_TopLayer.append(DrawLayer(currentParameter(), true, delta));
         verticalScrollBar()->setEnabled(false);
     }
-    QGraphicsItemList DrawLayer(CParameter* parameter, bool isTopLayer, QPointF delta = QPointF())
+    QGraphicsContainerItem* DrawLayer(CParameter* parameter, bool isTopLayer, QPointF delta = QPointF())
     {
         qDebug() << parameter->Name;
-        QGraphicsItemList retval;
+        QGraphicsContainerItem* retval = new QGraphicsContainerItem(&Scene);
         CParameterEventList& l = parameter->events;
         QColor noEdit = Qt::red;
         QColor lines = Qt::yellow;
@@ -112,7 +116,7 @@ public:
         if (l.empty())
         {
             QPoint p(translateEvent(m_TimeLine.milliSeconds(),parameter->Value,parameter));
-            retval.append(Scene.addLine(0,p.y(),p.x(),p.y(),QPen(noEdit)));
+            retval->append(lineItem(0,p.y(),p.x(),p.y(),QPen(noEdit)));
             qDebug() << p;
         }
         else
@@ -132,11 +136,11 @@ public:
                         p += delta;
                     }
                     QRectF r(p-QPointF(2,2),p+QPointF(2,2));
-                    retval.append(Scene.addEllipse(r,QPen(c)));
-                    if (oldPoint != QPointF()) retval.append(Scene.addLine(oldPoint.x(),oldPoint.y(),p.x(),p.y(),QPen(lc)));
+                    retval->append(ellipseItem(r,QPen(c),Qt::NoBrush));
+                    if (oldPoint != QPointF()) retval->append(lineItem(oldPoint.x(),oldPoint.y(),p.x(),p.y(),QPen(lc)));
                     oldPoint = p;
                 }
-                retval.append(Scene.addLine(oldPoint.x(),oldPoint.y(),sceneRect().width(),oldPoint.y(),QPen(lines)));
+                retval->append(lineItem(oldPoint.x(),oldPoint.y(),sceneRect().width(),oldPoint.y(),QPen(lines)));
             }
             else
             {
@@ -149,13 +153,13 @@ public:
                         p += delta;
                     }
                     //qDebug() << p << e.time << e.value;
-                    if (oldPoint != QPointF()) retval.append(Scene.addLine(oldPoint.x(),oldPoint.y(),p.x(),oldPoint.y(),QPen(lines)));
+                    if (oldPoint != QPointF()) retval->append(lineItem(oldPoint.x(),oldPoint.y(),p.x(),oldPoint.y(),QPen(lines)));
                     oldPoint = p;
                 }
-                retval.append(Scene.addLine(oldPoint.x(),oldPoint.y(),sceneRect().width(),oldPoint.y(),QPen(lines)));
+                retval->append(lineItem(oldPoint.x(),oldPoint.y(),sceneRect().width(),oldPoint.y(),QPen(lines)));
             }
         }
-        return retval;
+         return retval;
     }
     inline QString deviceId() {
         if (m_Device) return m_Device->deviceID();
@@ -276,7 +280,8 @@ protected:
             {
                 if (p != m_Orig)
                 {
-                    m_Marked = QRectF(m_Orig.x(),0,delta.x(),visibleRect().height()).normalized();
+                    //m_Marked = QRectF(m_Orig.x(),0,delta.x(),zoomer->visibleRect().height()).normalized();
+                    m_Marked = QRectF(m_Orig.x(),0,delta.x(),mapToScene(viewport()->rect()).boundingRect().height()).normalized();
                     m_Marking = true;
                     DrawAutomation(true);
                 }
@@ -312,7 +317,8 @@ protected:
         if (m_Marking)
         {
             m_Selected.clear();
-            m_Marked = QRectF(m_Orig.x(),0,delta.x(),visibleRect().height()).normalized();
+            //m_Marked = QRectF(m_Orig.x(),0,delta.x(),zoomer->visibleRect().height()).normalized();
+            m_Marked = QRectF(m_Orig.x(),0,delta.x(),mapToScene(viewport()->rect()).boundingRect().height()).normalized();
             CParameterEventList& l = currentParameter()->events;
             for (uint i = 0; i < l.size(); i++) {
                 const CParameterEvent& e = l[i];
@@ -376,6 +382,7 @@ protected:
             }
         }
         if (e->type()==QEvent::Leave) InfoLabel->hide();
+        if (e->type()==QEvent::Wheel) e->ignore();
         return QGraphicsView::event(e);
     }
     void resizeEvent(QResizeEvent *event) {
@@ -402,12 +409,18 @@ public slots:
         }
     }
 private slots:
-    void setZoom(double zoom) {
-        double s = double(horizontalScrollBar()->maximum())/horizontalScrollBar()->value();
+    /*
+    void setZoom(double zoom, double oldZoom) {
+        QPoint p(mapFromGlobal(QCursor::pos()));
+        //double s = zoomer->maxScrollX()/zoomer->scrollValueX();
+        double s = (zoomer->visibleRect().left() + p.x()) * oldZoom;
         m_TimeLine.setZoom(zoom);
         Paint();
-        horizontalScrollBar()->setValue(horizontalScrollBar()->maximum()/s);
+        zoomer->scrollXTo((s - (p.x() * zoom)) / zoom);
+        //zoomer->scrollXTo(zoomer->maxScrollX()/s);
+        //horizontalScrollBar()->setValue(horizontalScrollBar()->maximum()/s);
     }
+*/
     void selectParameter(int i) {
         if (i < 0) {
             close();
@@ -502,7 +515,7 @@ private:
     bool m_Marking = false;
     QRectF m_Marked;
     QPointF m_Orig;
-    QGraphicsViewZoomer* zoomer;
+    //QGraphicsViewZoomer* zoomer;
     QSignalMenu* m_ParameterMenu;
     CDeviceList* m_DL;
     int m_TimerID;

@@ -64,7 +64,7 @@ private:
     }
     void inline drawLED(const int y,QCanvasLayer* L)
     {
-        L->drawRectangle(m_Left,y*2,m_Width,1);
+        L->drawRectangle(m_Left, y * 2, m_Width, 1);
     }
     static const int Border=4;
     static const int HalfBorder=2;

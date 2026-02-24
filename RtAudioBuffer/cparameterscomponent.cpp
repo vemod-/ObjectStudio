@@ -13,15 +13,14 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     static QDPRPixmap rackRightPix(QSize(rackUnitHeight,rackUnitHeight),":/RackRight.png",Qt::KeepAspectRatio);
     static QDPRPixmap screwPix(QSize(10,10),":/screwhead.png");
     m_Device = nullptr;
-    m_Scene = s;
-    m_FrameList.addToScene(m_Scene);
-    m_GroupList.addToScene(m_Scene);
-    m_ProxyDials.addToScene(m_Scene);
+    m_FrameList.addToScene(s);
+    m_GroupList.addToScene(s);
+    m_ProxyDials.addToScene(s);
     //m_Scene->addItem(&m_FrameList);
     //m_Scene->addItem(&m_GroupList);
     //m_Scene->addItem(&m_ProxyDials);
-    m_FrameList.append(m_Scene->addPixmap(rackLeftPix));
-    QGraphicsPixmapItem* i =  m_Scene->addPixmap(rackRightPix);
+    m_FrameList.append(new QGraphicsPixmapItem(rackLeftPix));
+    QGraphicsPixmapItem* i = new QGraphicsPixmapItem(rackRightPix);
     i->setPos(rackLeftWidth + rackFrontWidth,0);
     m_FrameList.append(i);
     m_NameLabel = new EffectLabel();
@@ -42,23 +41,29 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     m_NameLabel->setShadowColor(QColor(255,255,255,200));
     m_NameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     QRect r(rackLeftWidth - 4, 0, rackFrontWidth + 5, rackUnitHeight);
-    m_FrameList.append(m_Scene->addRect(r,Qt::NoPen,QDPRPixmap(":/Brushed Aluminium Tile.bmp")));
-    QGraphicsPixmapItem* s1 = m_Scene->addPixmap(screwPix);
+    QGraphicsItem* ri = rectItem(r,Qt::NoPen,QDPRPixmap(":/Brushed Aluminium Tile.bmp"));
+    m_FrameList.append(ri);
+    QGraphicsPixmapItem* s1 = new QGraphicsPixmapItem(screwPix);
     s1->setPos(rackLeftWidth, 4);
     m_FrameList.append(s1);
-    QGraphicsPixmapItem* s2 = m_Scene->addPixmap(screwPix);
+    QGraphicsPixmapItem* s2 = new QGraphicsPixmapItem(screwPix);
     s2->setPos(rackLeftWidth, 98);
     m_FrameList.append(s2);
-    QGraphicsPixmapItem* s3 = m_Scene->addPixmap(screwPix);
+    QGraphicsPixmapItem* s3 = new QGraphicsPixmapItem(screwPix);
     s3->setPos(rackLeftWidth + rackFrontWidth - 14 ,4);
     m_FrameList.append(s3);
-    QGraphicsPixmapItem* s4 = m_Scene->addPixmap(screwPix);
+    QGraphicsPixmapItem* s4 = new QGraphicsPixmapItem(screwPix);
     s4->setPos(rackLeftWidth + rackFrontWidth - 14, 98);
     m_FrameList.append(s4);
-    m_FrameList.append(m_Scene->addLine(QLine(r.bottomLeft(),r.bottomRight()),QPen(Qt::darkGray)));
-    m_FrameList.append(m_Scene->addLine(QLine(r.topRight(),r.bottomRight()),QPen(Qt::darkGray)));
-    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.topRight()),QPen(Qt::white)));
-    m_FrameList.append(m_Scene->addLine(QLine(r.topLeft(),r.bottomLeft()),QPen(Qt::white)));
+    QGraphicsItem* l1 = lineItem(QLine(r.bottomLeft(),r.bottomRight()),QPen(Qt::darkGray));
+    QGraphicsItem* l2 = lineItem(QLine(r.topRight(),r.bottomRight()),QPen(Qt::darkGray));
+    QGraphicsItem* l3 = lineItem(QLine(r.topLeft(),r.topRight()),QPen(Qt::white));
+    QGraphicsItem* l4 = lineItem(QLine(r.topLeft(),r.bottomLeft()),QPen(Qt::white));
+
+    m_FrameList.append(l1);
+    m_FrameList.append(l2);
+    m_FrameList.append(l3);
+    m_FrameList.append(l4);
 
     QFont f(m_NameLabel->font());
     f.setPointSize(15);
@@ -67,16 +72,16 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     f.setPointSize(9);
     m_PresetLabel->setFont(f);
     m_IDLabel->setFont(f);
-    QGraphicsProxyWidget* p = m_Scene->addWidget(m_PresetLabel);
+    QGraphicsProxyWidget* p = createProxyItem(m_PresetLabel);
     p->setPos(rackLeftWidth + 12, 96);
     m_FrameList.append(p);
-    QGraphicsProxyWidget* p1 = m_Scene->addWidget(m_IDLabel);
+    QGraphicsProxyWidget* p1 = createProxyItem(m_IDLabel);
     p1->setPos(rackLeftWidth + 12, 80);
     m_FrameList.append(p1);
-    m_ProxyNameLabel = m_Scene->addWidget(m_NameLabel);
+    m_ProxyNameLabel = createProxyItem(m_NameLabel);
     m_ProxyNameLabel->setPos(rackLeftWidth + 12, 0);
     m_FrameList.append(m_ProxyNameLabel);
-    m_ProxyUILabel = m_Scene->addWidget(m_UILabel);
+    m_ProxyUILabel = createProxyItem(m_UILabel);
     m_ProxyUILabel->setPos(rackLeftWidth + 136, 12);
     m_FrameList.append(m_ProxyUILabel);
 }
@@ -104,7 +109,7 @@ void CParametersComponent::init(IDevice* Device)
         {
             Parameters.append(Device->parameter(i));
             auto d = new CKnobControl();
-            QGraphicsProxyWidget* w = m_Scene->addWidget(d);
+            QGraphicsProxyWidget* w = createProxyItem(d);
             m_ProxyDials.append(w);
             w->setPos(i * 75, 8);
             //w->setZValue(1);
@@ -130,13 +135,15 @@ void CParametersComponent::init(IDevice* Device)
                 QRectF r = r1.united(r2);
                 QPainterPath path;
                 path.addRoundedRect(r, 5, 5);
-                m_GroupList.append(m_Scene->addPath(path,QColor(0,0,0,40),c));
+                m_GroupList.append(pathItem(path,QColor(0,0,0,40),c));
                 if (!g->Name.isEmpty())
                 {
-                    QGraphicsSimpleTextItem* t = m_Scene->addSimpleText(g->Name,f);
+                    QGraphicsSimpleTextItem* t = new QGraphicsSimpleTextItem(g->Name);
+                    t->setFont(f);
                     t->setBrush(QColor(255,255,255,200));
                     t->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2) - 1, r.top() - 2);
-                    QGraphicsSimpleTextItem* s = m_Scene->addSimpleText(g->Name,f);
+                    QGraphicsSimpleTextItem* s = new QGraphicsSimpleTextItem(g->Name);
+                    s->setFont(f);
                     s->setBrush(QColor(0,0,0,200));
                     s->setPos(r.center().x() - (fm.boundingRect(g->Name).width() / 2), r.top() - 1);
                     m_GroupList.append(t);
@@ -252,4 +259,10 @@ QMenu* CParametersComponent::parametersMenu()
     connect(m,&CParametersMenu::parametersChanged,this,&CParametersComponent::parametersChanged);
     connect(m,&CParametersMenu::updateControls,this,&CParametersComponent::updateControls);
     return m;
+}
+
+QGraphicsProxyWidget *CParametersComponent::createProxyItem(QWidget *w) {
+    QGraphicsProxyWidget* p = new QGraphicsProxyWidget;
+    p->setWidget(w);
+    return p;
 }

@@ -26,6 +26,7 @@ public:
         return false;
     }
     virtual void createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplerate);
+    bool hasVideo = false;
 protected:
     struct chunk
     {

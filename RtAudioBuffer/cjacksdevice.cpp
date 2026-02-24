@@ -21,17 +21,19 @@ void CJacksDevice::paint(QGraphicsScene* scene, int index)
 {
     static QDPRPixmap freeDeviceJack = QDPRPixmap(rackJackSize,":/Jack.png").shadowedPixmap(4);
     static QDPRPixmap connectedDeviceJack = QDPRPixmap(rackJackSize,":/Plug.png").shadowedPixmap(10);
-    //if (JackItems.scene() != scene) scene->addItem(&JackItems);
-    //if (PlugImages.scene() != scene) scene->addItem(&PlugImages);
     JackItems.addToScene(scene);
     PlugImages.addToScene(scene);
+    JackItems.setPos(0,calcTop(0,index));
+    PlugImages.setPos(0,calcTop(0,index));
     if (!JackRects.isEmpty()) {
-        if (m_Device->jackCount() == JackRects.size()) {
-            bool match = true;
-            for (int i = 0; i < m_Device->jackCount(); i++) {
-                if (m_Device->jack(i) != JackRects[i].jack) match = false;
+        if (index == m_Index) {
+            if (m_Device->jackCount() == JackRects.size()) {
+                bool match = true;
+                for (int i = 0; i < m_Device->jackCount(); i++) {
+                    if (m_Device->jack(i) != JackRects[i].jack) match = false;
+                }
+                if (match) return;
             }
-            if (match) return;
         }
     }
     JackRects.clear();
@@ -49,16 +51,18 @@ void CJacksDevice::paint(QGraphicsScene* scene, int index)
         f.setPointSizeF(9.5);
         if (r.jack->isInJack())
         {
-            r.moveTopLeft(QPoint(calcLeft(InIndex),calcTop(34,index)));
+            r.moveTopLeft(QPoint(calcLeft(InIndex),34));
             JackRects.append(r);
-            JackItems.append(CConnectionHelper::DrawShadowTextCenter(txt,f,r.topLeft() + QPoint(-18,-36),QSize(56,34), Qt::AlignHCenter | Qt::AlignBottom, scene));
+            JackRects.last().translate(0,calcTop(0,index));
+            JackItems.append(CConnectionHelper::DrawShadowTextCenter(txt,f,r.topLeft() + QPoint(-18,-36),QSize(56,34), Qt::AlignHCenter | Qt::AlignBottom));
             InIndex--;
         }
         else
         {
-            r.moveTopLeft(QPoint(calcLeft(OutIndex),calcTop(60,index)));
+            r.moveTopLeft(QPoint(calcLeft(OutIndex),60));
             JackRects.append(r);
-            JackItems.append(CConnectionHelper::DrawShadowTextCenter(txt,f,r.bottomLeft() + QPoint(-18,0),QSize(56,34),Qt::AlignHCenter | Qt::AlignTop,scene));
+            JackRects.last().translate(0,calcTop(0,index));
+            JackItems.append(CConnectionHelper::DrawShadowTextCenter(txt,f,r.bottomLeft() + QPoint(-18,0),QSize(56,34),Qt::AlignHCenter | Qt::AlignTop));
             OutIndex--;
         }
         QRectF sr(scene->sceneRect());
@@ -66,11 +70,11 @@ void CJacksDevice::paint(QGraphicsScene* scene, int index)
         scene->setSceneRect(sr);
         QColor c(r.jack->JackColor());
         c.setAlpha(95);
-        JackItems.append(scene->addEllipse(QRect(r.topLeft(),r.size() - QSize(3,3)),QPen(c,3),Qt::NoBrush));
-        QGraphicsPixmapItem* px = scene->addPixmap(freeDeviceJack);
+        JackItems.append(ellipseItem(QRect(r.topLeft(),r.size() - QSize(3,3)),QPen(c,3),Qt::NoBrush));
+        QGraphicsPixmapItem* px = new QGraphicsPixmapItem(freeDeviceJack);
         px->setPos(r.topLeft() - QPoint(1,1));
         JackItems.append(px);
-        QGraphicsPixmapItem* px1 = scene->addPixmap(connectedDeviceJack);
+        QGraphicsPixmapItem* px1 = new QGraphicsPixmapItem(connectedDeviceJack);
         px1->setPos(r.topLeft() - QPoint(1,1));
         px1->setVisible(false);
         PlugImages.append(px1);

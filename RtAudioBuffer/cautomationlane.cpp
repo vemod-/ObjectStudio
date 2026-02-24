@@ -8,11 +8,13 @@ CAutomationLane::CAutomationLane(QWidget *parent) :
     ui->setupUi(this);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    /*
     zoomer = new QGraphicsViewZoomer(this);
     zoomer->disableMatrix();
     zoomer->setMin(1);
     zoomer->setMax(width());
-    connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CAutomationLane::setZoom);
+*/
+    //connect(zoomer,&QGraphicsViewZoomer::ZoomChanged,this,&CAutomationLane::setZoom);
     m_ParameterMenu = new QSignalMenu();
     setFrameStyle(0);
     setStyleSheet("QGraphicsView{background-color: rgba(128, 128, 128, 190);}");

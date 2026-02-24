@@ -109,6 +109,8 @@ CObjectComposerForm::~CObjectComposerForm()
     m_Document->MainMenu->CleanDoc();
     m_Document->CloseDoc();
     //delete m_DocLoader;
+    m_Document->MIDI2wav->DeviceList.removeJack(insideIn);
+    delete insideIn;
     delete ui;
 }
 

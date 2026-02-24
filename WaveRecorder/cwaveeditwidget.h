@@ -16,6 +16,7 @@ public:
     explicit CWaveEditWidget(QWidget *parent = 0);
     ~CWaveEditWidget();
     void Init(CWaveGenerator* WG,CWaveGenerator::LoopParameters LP,bool LoopOn, bool Enabled=true);
+    void ZoomRegion();
 private slots:
     void UpdateGraph();
     void UpdateControls(CWaveGenerator::LoopParameters LP);

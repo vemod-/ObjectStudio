@@ -44,6 +44,12 @@ bool CWaveGenerator::load(const QString& path, uint SampleRate, uint BufferSize)
     m_Audio.initZero(BufferSize,WF->data.channels());
     m_Size=WF->data.size();
     LP.End=m_Size;
+    pyramid.build(
+        [&](size_t s, size_t ch) { return WF->data.at(s, ch); },
+        WF->data.size(),
+        WF->data.channels()
+        );
+    videoURL = WF->videoURL;
     return true;
 }
 

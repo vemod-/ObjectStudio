@@ -8,7 +8,6 @@ CObjectComposer::CObjectComposer()
 
 CObjectComposer::~CObjectComposer()
 {
-    delete FORMFUNC(CObjectComposerForm)->insideIn;
     delete m_Form;
     m_Form = nullptr;
 }

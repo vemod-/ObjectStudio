@@ -9,7 +9,17 @@
 
 namespace WaveFile
 {
-const QString WaveFilter("Sound Files (*.wav;*.wave;*.au;*.mp3;*.m4a;*.mp4;*.flac;*.ogg;*.aif;*.aiff;*.aifc)");
+//const QString WaveFilter("Sound Files (*.wav;*.wave;*.au;*.mp3;*.m4a;*.mp4;*.flac;*.ogg;*.aif;*.aiff;*.aifc)");
+const QString WaveFilter(
+    "Audio Files ("
+    "*.wav *.wave *.aif *.aiff *.aifc *.au *.caf "
+    "*.mp3 *.m4a *.aac *.alac *.flac *.ogg"
+    ");;"
+    "Video Files ("
+    "*.mp4 *.m4v *.mov *.3gp *.3g2 *.mpeg *.mpg *.ts *.m2ts *.mts"
+    ");;"
+    "All Media (*.*)"
+    );
 }
 
 #pragma pack(push,1)
@@ -142,6 +152,7 @@ public:
     CChannelBuffer data;
     uint frequency;
     bool save(const QString &fileName);
+    QUrl videoURL;
 private:
     uint m_SampleRate;
     QRecursiveMutex mutex;

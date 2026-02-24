@@ -27,6 +27,7 @@ CWaveEditWidget::CWaveEditWidget(QWidget *parent) :
     connect(ui->WaveEdit,&CWaveEditControl::ParameterChanged,this,&CWaveEditWidget::UpdateControls);
 
     ui->zoomLayout->replaceWidget(ui->ScrollBar,ui->WaveEdit->horizontalScrollBar());
+    ui->WaveEdit->horizontalScrollBar()->setVisible(true);
 }
 
 CWaveEditWidget::~CWaveEditWidget()
@@ -89,6 +90,10 @@ void CWaveEditWidget::Init(CWaveGenerator *WG, CWaveGenerator::LoopParameters LP
     }
     ui->WaveEdit->Init(WG,LP,LoopOn);
     for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(false);
+}
+
+void CWaveEditWidget::ZoomRegion() {
+    ui->WaveEdit->Region = true;
 }
 /*
 void CWaveEditWidget::SetScrollMax()

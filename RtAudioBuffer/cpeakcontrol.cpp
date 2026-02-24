@@ -87,50 +87,42 @@ CPeakControl::~CPeakControl()
 void CPeakControl::setValue(const float Value)
 {
     QCanvasLayer* L=canvasLayers[0];
-    if (Value > m_Value)
-    {
-        m_Value=Value;
-        m_Max=fmaxf(m_Value,m_Max);
-        m_MaxY=val2y(m_Max);
+    if (Value > m_Value) {
+        m_Value = Value;
+        m_Max = fmaxf(m_Value,m_Max);
+        m_MaxY = val2y(m_Max);
     }
-    else
-    {
-        m_Value = (m_Value>0.00005f) ? qMin<float>(m_Value*0.96f,2) : 0;
+    else {
+        m_Value = (m_Value > 0.00005f) ? qMin<float>(m_Value * 0.96f,2) : 0;
     }
-    const int y=val2y(m_Value);
-    if (y==m_OldY) return;
+    const int y = val2y(m_Value);
+    if (y == m_OldY) return;
 
     L->setPen(QPen(Qt::NoPen));
-    LEDColors lc=LEDBlack;
-    if (m_OldY>y)
-    {
-        for (int i=m_OldY;i>=y;i--)
-        {
+    LEDColors lc = LEDBlack;
+    if (m_OldY > y) {
+        for (int i = m_OldY; i >= y; i--) {
             const LEDColors currentLC = LEDColor(i);
-            if (lc != currentLC)
-            {
-                lc=currentLC;
+            if (lc != currentLC) {
+                lc = currentLC;
                 drawColorLED(i,L);
             }
-            else
-            {
+            else {
                 drawLED(i,L);
             }
         }
-        repaint(m_Left,y*2,m_Width,((m_OldY-y)*2)+1);
+        update(m_Left, y * 2, m_Width, ((m_OldY - y) * 2) + 1);
     }
-    else if (m_MaxY<y)
+    else if (m_MaxY < y)
     {
         L->setBrush(lgBlack);
-        if (m_MaxY==m_OldY)
-        {
-            for (int i=m_OldY+1;i<=y;i++) drawLED(i,L);
+        if (m_MaxY == m_OldY) {
+            for (int i = m_OldY + 1; i <= y; i++) drawLED(i,L);
         }
-        else
-        {
-            for (int i=m_OldY;i<=y;i++) drawLED(i,L);
+        else {
+            for (int i = m_OldY; i <= y; i++) drawLED(i,L);
         }
-        repaint(m_Left,m_OldY*2,m_Width,((y-m_OldY)*2)+1);
+        update(m_Left, m_OldY * 2, m_Width,((y - m_OldY) * 2) + 1);
     }
     m_OldY=y;
 }

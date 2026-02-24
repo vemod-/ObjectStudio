@@ -64,8 +64,8 @@ void CADSRControl::Paint()
 
 void CADSRControl::Draw(CADSR::ADSRParams ADSRParams)
 {
-    ADSR.AP=ADSRParams;
-    ulong64 i=ADSRControl::ADSR_MinWidth*5;
+    ADSR.AP = ADSRParams;
+    ulong64 i = ADSRControl::ADSR_MinWidth*5;
     if (ADSR.AP.Delay > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Delay-ADSRControl::ADSR_MinWidth);
     if (ADSR.AP.Attack > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Attack-ADSRControl::ADSR_MinWidth);
     if (ADSR.AP.Hold > ADSRControl::ADSR_MinWidth) i += (ADSR.AP.Hold-ADSRControl::ADSR_MinWidth);
