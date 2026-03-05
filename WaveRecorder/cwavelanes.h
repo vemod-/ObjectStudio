@@ -90,12 +90,13 @@ public slots:
     }
     void exportVideo(const QString& filename) {
         if (!videoWindow) return;
-        QSize outputSize(1280,720);
+        QRect outputRect(QPoint(0,0),videoWindow->outputSize());
+        QRect inputRect(QPoint(0,0),videoWindow->inputSize());
         QFile(filename).remove();
 
         CChannelBuffer audio = IDevice::render(-1);
 
-        VideoExporter exporter(filename, outputSize, 30, CPresets::presets().SampleRate, 2);
+        VideoExporter exporter(filename, outputRect.size(), 30, CPresets::presets().SampleRate, 2);
 
         ulong64 mSec = 0;
         for (CWaveLane* l : std::as_const(lanes)) {
@@ -104,7 +105,7 @@ public slots:
         }
         ulong64 totalFrames = 30 * mSec / 1000.0;
 
-        QImage img(outputSize, QImage::Format_ARGB32);
+        QImage img(outputRect.size(), QImage::Format_ARGB32);
 
         QGraphicsScene* exportScene;
         videoWindow->setUpdatesEnabled(false);
@@ -140,9 +141,11 @@ public slots:
             //qDebug() << t;
             exportProgress.setValue(f);
             getExportFrame(t);
+            qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+
             img.fill(Qt::black);
             QPainter p(&img);
-            exportScene->render(&p);
+            exportScene->render(&p,outputRect,inputRect,Qt::KeepAspectRatio);
             exporter.addFrame(img,f);
             frameBuffer.copy(audio,sample);
             std::vector<float>b = frameBuffer.toInterleaved();
@@ -270,11 +273,6 @@ private slots:
         for (auto* l : std::as_const(lanes)) {
             if (!l->videoItem) continue;
             pendingFrames++;
-            /*
-            if (t > 56.7) {
-                qDebug() << "Break here";
-            }
-*/
             l->setExportTime(t);
             qDebug() << "exportFrame" << pendingFrames;
         }

@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QString>
 #include <QSize>
+#include <QUrl>
 
 bool avf_read_audio(const char* path,
                     std::vector<std::vector<float>> &outData,
@@ -32,6 +33,19 @@ bool avf_extract_fullframe(const char* path,
 double avf_lastVideoFrameTime(const char* path);
 
 double avf_video_track_duration(const char* path);
+
+class ImageExtractor {
+public:
+    ImageExtractor();
+    ~ImageExtractor();
+    void init(const QUrl& URL, const QSize& FrameSize);
+    QImage getImage(double time);
+    QUrl url;
+    QSize frameSize;
+private:
+    struct Impl;
+    Impl* d;
+};
 
 class VideoExporter
 {

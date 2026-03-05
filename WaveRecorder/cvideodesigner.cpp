@@ -114,8 +114,8 @@ void CVideoItem::setThumbnail(const QPixmap& pix)
 {
     prepareGeometryChange();
     thumbnail = pix;
-    m_frameSize = pix.size();
-    m_rect = QRect(QPoint(0,0),pix.size());
+    m_frameSize = pix.size() / pix.devicePixelRatio();
+    m_rect = QRect(QPoint(0,0),m_frameSize);
     m_sourceRect = m_rect;
     update();
 }

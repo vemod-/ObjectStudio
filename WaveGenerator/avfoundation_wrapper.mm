@@ -615,3 +615,88 @@ VideoExporter::~VideoExporter()
 {
     delete d;
 }
+
+struct ImageExtractor::Impl
+{
+    AVAssetImageGenerator* generator = nil;
+};
+
+ImageExtractor::ImageExtractor(){
+    d = new Impl;
+}
+
+ImageExtractor::~ImageExtractor(){
+    if (d->generator)
+        d->generator = nil;
+    delete d;
+}
+
+void ImageExtractor::init(const QUrl& URL, const QSize& FrameSize){
+
+        url = URL;
+        frameSize = FrameSize;
+        NSString* nsPath = [NSString stringWithUTF8String:URL.path().toStdString().c_str()];
+        if (!nsPath) return;
+        NSURL* Url = [NSURL fileURLWithPath:nsPath];
+
+        AVAsset* asset = [AVAsset assetWithURL:Url];
+        if (!asset)
+            return;
+
+        d->generator =
+            [[AVAssetImageGenerator alloc] initWithAsset:asset];
+
+        d->generator.appliesPreferredTrackTransform = YES;
+
+        d->generator.maximumSize =
+            CGSizeMake(frameSize.width(), frameSize.height());
+
+        d->generator.requestedTimeToleranceBefore = kCMTimeZero;
+        d->generator.requestedTimeToleranceAfter  = kCMTimeZero;
+}
+
+QImage ImageExtractor::getImage(double time)
+{
+    @autoreleasepool
+    {
+        CMTime frametime = CMTimeMakeWithSeconds(time, 600);
+
+        NSError* error = nil;
+        CGImageRef image =
+            [d->generator copyCGImageAtTime:frametime
+                                  actualTime:nil
+                                       error:&error];
+
+        if (!image)
+            return QImage();
+
+        QImage img(frameSize, QImage::Format_RGBA8888);
+
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+
+        CGContextRef context = CGBitmapContextCreate(
+            img.bits(),
+            frameSize.width(),
+            frameSize.height(),
+            8,
+            img.bytesPerLine(),
+            colorSpace,
+            kCGImageAlphaPremultipliedLast |
+            kCGBitmapByteOrder32Big
+        );
+
+        CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
+
+        CGContextDrawImage(
+            context,
+            CGRectMake(0, 0, frameSize.width(), frameSize.height()),
+            image
+        );
+
+        CGContextRelease(context);
+        CGColorSpaceRelease(colorSpace);
+        CGImageRelease(image);
+
+        return img;
+    }
+}

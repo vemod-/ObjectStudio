@@ -6,6 +6,7 @@
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimedia/QVideoSink>
 #include <QtMultimedia/QVideoFrame>
+#include <QtMultimedia/QMediaMetaData>
 
 class CWaveTrack
 {
@@ -61,6 +62,7 @@ public:
                          [&](const QVideoFrame &frame) {
                              if (!frame.isValid()) return;
                              tempPixmap = QPixmap::fromImage(frame.toImage());
+                             qDebug() << tempPixmap.size();
                              player.stop();
                              loop.quit();
                          });

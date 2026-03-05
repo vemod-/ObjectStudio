@@ -21,8 +21,7 @@
 #include "idevice.h"
 #include <QProgressBar>
 #include <QPushButton>
-#include "avfoundation_wrapper.h"
-//#include "avfaudiorw.h"
+#include "avfaudiorw.h"
 
 class CVideoItem : public QGraphicsObject
 {
@@ -97,8 +96,10 @@ public:
     }
     bool setVideoExportProperties(CWaveTrack* t, long64 mSec) {
         if (t->waveGenerator.hasVideo()) {
+            /*
             if (m_ExportPlayer->source() != t->waveGenerator.videoURL) {
                 m_ExportPlayer->setSource(t->waveGenerator.videoURL);
+                m_ExportPlayer->setPlaybackRate(1000.0);
                 m_ExportPlayer->pause();
                 m_ExportPlayer->setPosition(mSec);
                 qDebug() << "setPosition" << mSec;
@@ -111,11 +112,16 @@ public:
                     return true;
                 }
             }
-                /*
-            m_currentImage = CAvFoundationReader::fullframe(t->waveGenerator.videoURL.path(),mSec / 1000.0);
-            m_frameReady = true;
-            m_frameGeneration = m_exportGeneration;
 */
+            if (imgExtract.url != t->waveGenerator.videoURL) {
+                imgExtract.init(t->waveGenerator.videoURL,m_frameSize);
+            }
+            if (mSec <= t->videoLength) {
+                m_currentImage = imgExtract.getImage(mSec / 1000.0);
+                m_frameGeneration = m_exportGeneration;
+                emit frameReady();
+                return true;
+            }
         }
         qDebug() << "send empty frame" << mSec;
         setVideoExportEmptyFrame();
@@ -123,13 +129,7 @@ public:
     }
     bool setVideoExportEmptyFrame() {
         m_exportGeneration++;
-        QMetaObject::invokeMethod(
-            this,
-            [this]() {
-                emit frameReady();
-            },
-            Qt::QueuedConnection
-            );
+        emit frameReady();
         return true;
     }
     /*
@@ -207,7 +207,6 @@ public:
     }
     void play() {
         m_Playing = true;
-        renderRect = realRect();
         m_currentFrame = {};
         //setEnabled(false);
     }
@@ -273,10 +272,10 @@ private slots:
 signals:
     void frameReady();
 private:
+    ImageExtractor imgExtract;
     uint64_t m_exportGeneration = 0;
     uint64_t m_frameGeneration = 0;
     bool m_ExportMode = false;
-    int resolution = 720;
     std::atomic_bool m_Enabled{true};
     std::atomic_bool m_Playing{false};
     QPixmap thumbnail;
@@ -304,13 +303,6 @@ private:
     qreal m_handleSize = 8.0;
     QRect m_rect = QRect(0, 0, 320, 240);
     QRect m_sourceRect = QRect(0,0,320,240);
-    QRect renderRect;
-    QRect realRect() {
-        qreal zoom = 720.0 / resolution;
-        QRect r(m_rect.topLeft() / zoom,m_rect.size() / zoom);
-        r.translate(QPointF((pos() / zoom)-pos()).toPoint());
-        return r;
-    }
     void pinchTriggered(QPinchGesture *gesture)
     {
         if (m_Playing) return;
@@ -495,9 +487,18 @@ public:
         designer->setFixedSize(canvasSize(currentAspect));
         adjustSize();
     }
-    QSize canvasSize(Aspect aspect)
+    QSize outputSize() {
+        switch (currentResolution) {
+        case Resolution::R480: return canvasSize(currentAspect,480);
+        case Resolution::R720: return canvasSize(currentAspect,720);
+        case Resolution::R1080: return canvasSize(currentAspect,1080);
+        }
+    }
+    QSize inputSize() {
+        return canvasSize(currentAspect);
+    }
+    QSize canvasSize(Aspect aspect, int h = 720)
     {
-        int h = 720;
         QSize s;
 
         switch (aspect)
@@ -533,6 +534,9 @@ public:
     }
     void setScene(QGraphicsScene* s) {
         designer->setScene(s);
+    }
+    qreal sceneDevicePixelRatio() {
+        return designer->devicePixelRatio();
     }
 protected:
     void closeEvent(QCloseEvent* e) {
