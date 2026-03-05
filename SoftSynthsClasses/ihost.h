@@ -40,6 +40,13 @@ public:
 class IMainPlayer
 {
 public:
+    enum BufferStates
+    {
+        Ready=0,
+        Working=1,
+        Stopped=2,
+        Starting=3
+    };
     virtual void skip(const ulong64 /*samples*/){}
     virtual void play(const bool /*FromStart*/){}
     virtual void pause(){}
@@ -50,6 +57,8 @@ public:
     virtual ulong64 currentSample() const { return 0; }
     virtual ulong currentMilliSecond() const { return 0; }
     virtual void renderWaveFile(const QString /*path*/) {}
+    virtual void setBufferState(BufferStates /*s*/){}
+    virtual BufferStates bufferState(){ return Ready; }
 };
 
 class IDeviceParent

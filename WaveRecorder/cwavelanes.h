@@ -16,6 +16,7 @@
 #include "ctimeline.h"
 //#include "ceditmenu.h"
 #include "cprojectapp.h"
+#include "avfoundation_wrapper.h"
 
 namespace Ui {
     class CWaveLanes;
@@ -53,6 +54,7 @@ public:
     QList<IDevice*> effects;
     CStereoMixer* m_Mixer;
     CMixerWidget* m_MixerWidget;
+    CVideoDialog* videoWindow = nullptr;
     QAction* QuantizeStraightAction;
     QAction* QuantizeTripletAction;
     QAction* AddLaneAction;
@@ -67,6 +69,7 @@ public:
     QAction* EditLaneAction;
     QAction* EffectRackAction;
     QAction* VideoWidgetAction;
+    QAction* VideoTrackAction;
 
     CMainMenu* MainMenu;
     void DeleteDoc();
@@ -81,6 +84,99 @@ public slots:
     void zoomMin();
     void zoomMax();
     void setEditMenu();
+    void exportWave(const QString &filename) {
+        QFile(filename).remove();
+        IDevice::exportWave(filename);
+    }
+    void exportVideo(const QString& filename) {
+        if (!videoWindow) return;
+        QSize outputSize(1280,720);
+        QFile(filename).remove();
+
+        CChannelBuffer audio = IDevice::render(-1);
+
+        VideoExporter exporter(filename, outputSize, 30, CPresets::presets().SampleRate, 2);
+
+        ulong64 mSec = 0;
+        for (CWaveLane* l : std::as_const(lanes)) {
+            ulong64 ms = l->milliSeconds();
+            if (ms > mSec) mSec = ms;
+        }
+        ulong64 totalFrames = 30 * mSec / 1000.0;
+
+        QImage img(outputSize, QImage::Format_ARGB32);
+
+        QGraphicsScene* exportScene;
+        videoWindow->setUpdatesEnabled(false);
+        exportScene = videoWindow->scene();
+        videoWindow->setScene(nullptr);
+        exportScene->setItemIndexMethod(QGraphicsScene::NoIndex);
+        exportScene->blockSignals(true);
+
+        abortExport = false;
+        CVideoProgressWindow exportProgress;
+        exportProgress.setMax(totalFrames);
+        exportProgress.setVisible(true);
+        connect(&exportProgress,&CVideoProgressWindow::abort,
+                this,
+                [this]()
+                {
+                    abortExport = true;
+                });
+
+        setExportMode(true);
+
+        for (CWaveLane* l : std::as_const(lanes)) {
+            if (l->videoItem) {
+                connect(l->videoItem,&CVideoItem::frameReady,this,&CWaveLanes::frameReady);
+            }
+        }
+
+        CChannelBuffer frameBuffer(CPresets::presets().SampleRate / 30,2);
+        ulong64 sample = 0;
+        for (ulong64 f = 0; f < totalFrames; ++f)
+        {
+            double t = f / 30.0;
+            //qDebug() << t;
+            exportProgress.setValue(f);
+            getExportFrame(t);
+            img.fill(Qt::black);
+            QPainter p(&img);
+            exportScene->render(&p);
+            exporter.addFrame(img,f);
+            frameBuffer.copy(audio,sample);
+            std::vector<float>b = frameBuffer.toInterleaved();
+            sample += frameBuffer.size();
+            exporter.addAudio(b.data());
+            if (abortExport) break;
+        }
+
+        QEventLoop loop;
+        exporter.finish([&](){
+            loop.quit();
+        });
+        loop.exec();
+        exportProgress.setVisible(false);
+
+        setExportMode(false);
+
+        for (CWaveLane* l : std::as_const(lanes)) {
+            if (l->videoItem) disconnect(l->videoItem,&CVideoItem::frameReady,this,&CWaveLanes::frameReady);
+        }
+
+        exportScene->setItemIndexMethod(QGraphicsScene::BspTreeIndex);
+        exportScene->blockSignals(false);
+        videoWindow->setScene(exportScene);
+        videoWindow->setUpdatesEnabled(true);
+        for (CWaveLane* l : std::as_const(lanes)) {
+            if (l->videoItem) l->videoItem->update();
+        }
+        if (abortExport) {
+            QFile(filename).remove();
+            abortExport = false;
+        }
+
+    }
 protected:
     bool event(QEvent* event);
     void resizeEvent(QResizeEvent *event);
@@ -131,8 +227,18 @@ private slots:
     void ZoomToCursor(double z, double o);
     void UpdateAutomationGeometry();
     void EditTrack();
-    void Video() {
-        if (CurrentLane > -1) lanes[CurrentLane]->toggleVideoWidget();
+    void ToggleLaneVideo() {
+        if (CurrentLane > -1) {
+            lanes[CurrentLane]->videoVisible = !lanes[CurrentLane]->videoVisible;
+            if (!m_Playing) lanes[CurrentLane]->videoItem->setVisible(lanes[CurrentLane]->videoVisible);
+        }
+    }
+    void ToggleTrackVideo() {
+        if (CurrentLane > -1) {
+            for (int t : std::as_const(CurrentTrack)) {
+                lanes[CurrentLane]->tracks[t]->videoVisible = !lanes[CurrentLane]->tracks[t]->videoVisible;
+            }
+        }
     }
     void EditLane();
     void EffectRack();
@@ -142,13 +248,54 @@ private slots:
         }
         return false;
     }
+    bool trackCanVideo() {
+        if (CurrentLane > -1 ) {
+            if (!CurrentTrack.isEmpty()) {
+                if (lanes[CurrentLane]->tracks[CurrentTrack.first()]->waveGenerator.hasVideo()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    void setExportMode(bool m)
+    {
+        for (CWaveLane* l : std::as_const(lanes)) {
+            if (l->videoItem) l->setExportMode(m);
+        }
+    }
+    void getExportFrame(double t)
+    {
+        pendingFrames = 0;
+        for (auto* l : std::as_const(lanes)) {
+            if (!l->videoItem) continue;
+            pendingFrames++;
+            /*
+            if (t > 56.7) {
+                qDebug() << "Break here";
+            }
+*/
+            l->setExportTime(t);
+            qDebug() << "exportFrame" << pendingFrames;
+        }
+        if (pendingFrames == 0) return;
+        m_loop.exec();   // väntar på ALLA
+    }
+    void frameReady() {
+        qDebug() << "frameReady" << pendingFrames;
+        if (--pendingFrames == 0) {
+            m_loop.quit();
+        }
+    }
 private:
     Ui::CWaveLanes *ui;
     QGraphicsViewZoomer* zoomer;
     CTimeLine m_TimeLine;
     QGraphicsScene Scene;
     CDeviceList deviceList;
-    CVideoWindow* videoWindow;
+    QEventLoop m_loop;
+    std::atomic<int> pendingFrames = 0;
+    std::atomic<bool> abortExport = false;
     float MixFactor;
     void UpdateGeometry();
     int MouseOverLane(QPoint Pos);

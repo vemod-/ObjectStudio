@@ -86,7 +86,9 @@ public:
         if (m_Ticker) return m_Ticker->milliSeconds();
         return 0;    }
         */
+    IMainPlayer::BufferStates BufferState = IMainPlayer::Stopped;
 private:
+    /*
     enum BufferStates
     {
         Ready=0,
@@ -94,8 +96,8 @@ private:
         Stopped=2,
         Starting=3
     };
+*/
     enum JackNames { jnIn,jnMIDIIn,jnOut,jnMIDIOut };
-    BufferStates BufferState;
 
 #ifdef __MINIAUDIO__
     ma_device* miniAudio;

@@ -18,7 +18,7 @@ CWaveLanes::CWaveLanes(QWidget *parent) :
     ui(new Ui::CWaveLanes)
 {
     ui->setupUi(this);
-    videoWindow = new CVideoWindow(this);
+    videoWindow = new CVideoDialog(this);
 
     zoomer = new QGraphicsViewZoomer(this);
     zoomer->disableMatrix();
@@ -61,6 +61,14 @@ CWaveLanes::~CWaveLanes()
 {
     if (m_TimerID) killTimer(m_TimerID);
     m_TimerID=0;
+    for (CWaveLane* L : std::as_const(lanes)) {
+        if (L->hasVideo()) {
+            if (videoWindow) videoWindow->removeVideo(L->videoItem);
+        }
+        deviceList.deleteDevice(L);
+    }
+    if (videoWindow) delete videoWindow;
+    lanes.clear();
     if (m_Mixer != nullptr) {
         m_Mixer->removerEffectRacksFromDeviceList(&deviceList);
         deviceList.deleteDevice(m_Mixer);
@@ -84,8 +92,10 @@ void CWaveLanes::init(const int Index, QWidget* MainWindow)
     QuantizeStraightAction = QuantizeMenu->addAction("Straight",this,&CWaveLanes::QuantizeStraight);
     QuantizeTripletAction = QuantizeMenu->addAction("Triplet",this,&CWaveLanes::QuantizeTriplet);
     MainMenu->EditMenu->addSeparator();
-    VideoWidgetAction=MainMenu->EditMenu->addAction("Video",this,&CWaveLanes::Video);
+    VideoWidgetAction=MainMenu->EditMenu->addAction("Lane Video",this,&CWaveLanes::ToggleLaneVideo);
     VideoWidgetAction->setCheckable(true);
+    VideoTrackAction=MainMenu->EditMenu->addAction("Track Video",this,&CWaveLanes::ToggleTrackVideo);
+    VideoTrackAction->setCheckable(true);
     MainMenu->EditMenu->addSeparator();
     AddLaneAction=MainMenu->EditMenu->addAction("Add Lane",this,&CWaveLanes::AddLane);
     RemoveLaneAction=MainMenu->EditMenu->addAction("Remove Lane",this,&CWaveLanes::RemoveLane);
@@ -360,6 +370,7 @@ void CWaveLanes::serialize(QDomLiteElement* xml) const
     QString s;
     for (const int& i : CurrentTrack) s.append(QString::number(i)+"&");
     xml->setAttribute("CurrentTrack",s);
+    if (videoWindow) videoWindow->serialize(xml);
 }
 
 void CWaveLanes::unserialize(const QDomLiteElement* xml)
@@ -374,7 +385,10 @@ void CWaveLanes::unserialize(const QDomLiteElement* xml)
         m_Mixer=nullptr;
         while (!m_MixerWidget->channels.empty()) m_MixerWidget->removeChannel();
     }
-    for (CWaveLane* L : std::as_const(lanes)) deviceList.deleteDevice(L);
+    for (CWaveLane* L : std::as_const(lanes)) {
+        if (L->hasVideo()) videoWindow->removeVideo(L->videoItem);
+        deviceList.deleteDevice(L);
+    }
     lanes.clear();
     for (CDeviceContainer* d : std::as_const(Effects)) d->ClearDevice();
     if (xml)
@@ -403,6 +417,7 @@ void CWaveLanes::unserialize(const QDomLiteElement* xml)
         QStringList l = xml->attribute("CurrentTrack","").split("&",Qt::SkipEmptyParts);
         CurrentTrack.clear();
         for (const QString& s : std::as_const(l)) CurrentTrack.append(s.toInt());
+        if (videoWindow) videoWindow->unserialize(xml);
     }
     if (lanes.isEmpty()) AddLaneInternal();
     paint();
@@ -565,8 +580,14 @@ void CWaveLanes::setEditMenu() {
     EditTrackAction->setEnabled(canCopy());
     VideoWidgetAction->setEnabled(canVideo());
     if ((CurrentLane > -1) && (CurrentLane < lanes.size())) {
-        if (lanes[CurrentLane]->videoWidget) {
-            VideoWidgetAction->setChecked(!lanes[CurrentLane]->videoWidget->isHidden());
+        if (lanes[CurrentLane]->videoItem) {
+            VideoWidgetAction->setChecked(lanes[CurrentLane]->videoItem->isVisible());
+        }
+    }
+    VideoTrackAction->setEnabled(trackCanVideo());
+    if ((CurrentLane > -1) && (CurrentLane < lanes.size())) {
+        if (!CurrentTrack.isEmpty()) {
+            VideoTrackAction->setChecked(lanes[CurrentLane]->tracks[CurrentTrack.first()]->videoVisible);
         }
     }
     EditLaneAction->setEnabled(CurrentLane>-1);
@@ -913,7 +934,7 @@ void CWaveLanes::AddLane()
 void CWaveLanes::AddLaneInternal() {
     QMutexLocker locker(&mutex);
     auto L = new CWaveLane;
-    L->videoWindow = videoWindow;
+    L->videoDialog = videoWindow;
     deviceList.addDevice(L,lanes.size()+1,m_MainWindow);
     int i = 1;
     QStringList IDList;
@@ -935,6 +956,9 @@ void CWaveLanes::RemoveLane()
         if (CurrentLane>-1)
         {
             MainMenu->UndoMenu->addItem("Delete Lane");
+            if (lanes[CurrentLane]->hasVideo()) {
+                videoWindow->removeVideo(lanes[CurrentLane]->videoItem);
+            }
             deviceList.deleteDevice(lanes[CurrentLane]);
             lanes.removeAt(CurrentLane);
             CurrentLane=-1;

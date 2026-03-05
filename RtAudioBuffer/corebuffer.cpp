@@ -36,9 +36,9 @@ void CCoreMainBuffers::AudioErrorCallback(RtAudioErrorType type, const std::stri
 
 void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint BufferSize)
 {
-    if (BufferState==Ready)
+    if (BufferState==IMainPlayer::Ready)
     {
-        BufferState = BufferStates(BufferState | Working);
+        BufferState = IMainPlayer::BufferStates(BufferState | IMainPlayer::Working);
         float* outBufferPointer=static_cast<float*>(OutBuffer);
         float* inBufferPointer=static_cast<float*>(InBuffer);
         for (uint i=0; i<BufferSize; i++)
@@ -70,11 +70,11 @@ void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint
 #endif
             OutChannelBuffer->interleaveAt(TickCount++,outBufferPointer,outputVol);
         }
-        BufferState = BufferStates(BufferState & (!Working));
+        BufferState = IMainPlayer::BufferStates(BufferState & (!IMainPlayer::Working));
     }
-    else if (BufferState==Starting)
+    else if (BufferState==IMainPlayer::Starting)
     {
-        if (m_Startcounter>presets.SampleRate) BufferState=Ready;
+        if (m_Startcounter>presets.SampleRate) BufferState = IMainPlayer::Ready;
         m_Startcounter+=BufferSize/2;
     }
 }
@@ -88,7 +88,7 @@ CCoreMainBuffers::CCoreMainBuffers()
     PeakL=0;
     PeakR=0;
 
-    BufferState=Stopped;
+    //mainPlayer()->setBufferState(IMainPlayer::Stopped);
 
     outputVol=1;
     m_Recording=false;
@@ -212,7 +212,7 @@ CCoreMainBuffers::~CCoreMainBuffers()
 
 void CCoreMainBuffers::wait()
 {
-    while (BufferState != Ready){}
+    while (BufferState != IMainPlayer::Ready){}
 }
 
 void CCoreMainBuffers::startRecording()
@@ -240,13 +240,15 @@ bool CCoreMainBuffers::saveRecording(const QString &fileName)
 
 void CCoreMainBuffers::render(const QString &fileName)
 {
+    IDevice::exportWave(fileName,jnOut);
+    /*
     QMutexLocker locker(&mutex);
     const BufferStates s = BufferState;
     BufferState = Working;
     CWaveFile f;
     CSampleCounter mSec;
     mSec.reset();
-    f.startRecording(OutChannelBuffer->channels(),presets.SampleRate);
+    f.startRecording(CStereoBuffer::channels(),presets.SampleRate);
     const ulong64 samples = IDevice::samples();//m_TickerDevice->milliSeconds();
     const ulong64 maxSamples = samples + (presets.SampleRate* 60);
     IDevice::play(true);//m_TickerDevice->play(true);
@@ -255,7 +257,7 @@ void CCoreMainBuffers::render(const QString &fileName)
         mSec.skipBuffer();
         //if (m_TickerDevice) m_TickerDevice->tick(); //Tick All Devices!!!
         IDevice::tick();
-        const CStereoBuffer* b=FetchAStereo(jnOut);
+        const CStereoBuffer* b = FetchAStereo(jnOut);
         f.pushBuffer(b->data(),b->size());
     }
     //m_TickerDevice->pause();
@@ -265,7 +267,7 @@ void CCoreMainBuffers::render(const QString &fileName)
         mSec.skipBuffer();
         //if (m_TickerDevice) m_TickerDevice->tick(); //Tick All Devices!!!
         IDevice::tick();
-        const CStereoBuffer* b=FetchAStereo(jnOut);
+        const CStereoBuffer* b = FetchAStereo(jnOut);
         f.pushBuffer(b->data(),b->size());
         float l = 0;
         float r = 0;
@@ -274,7 +276,7 @@ void CCoreMainBuffers::render(const QString &fileName)
     }
     f.finishRecording();
     f.save(fileName);
-    BufferState = s;
+*/
 }
 
 void CCoreMainBuffers::getPeak(float &L, float &R)
@@ -394,7 +396,7 @@ void CCoreMainBuffers::createBuffer()
     m_MidiIn.ignoreTypes( true, true, true );
 #endif
     m_Startcounter=0;
-    BufferState=Starting;
+    BufferState = IMainPlayer::Starting;
 }
 
 void CCoreMainBuffers::panic()
@@ -418,7 +420,7 @@ void CCoreMainBuffers::finish()
     qDebug() << "CCoreMainBuffers finish";
     wait();
     QMutexLocker locker(&mutex);
-    BufferState=Stopped;
+    BufferState = IMainPlayer::Stopped;
 #ifdef __MINIAUDIO__
     if (miniAudio->state.value == ma_device_state_started) ma_device_stop(miniAudio);
     ma_device_uninit(miniAudio);

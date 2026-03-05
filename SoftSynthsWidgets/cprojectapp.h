@@ -101,7 +101,8 @@ public:
         if (!FileName.isEmpty()) d.selectFile(FileName);
         if (d.exec()!=QDialog::Accepted) return;
         if (!d.selectedFiles().empty()) {
-            QString fn=d.selectedFiles().first();
+            const auto selected = d.selectedFiles();
+            const QString fn = selected.first();
             if (!fn.isEmpty()) {
                 if (QFileInfo::exists(fn)) {
                     CSpinLabel l(m_MainWindow);

@@ -10,7 +10,8 @@ CWaveTrack::CWaveTrack(const QString &Filename, ulong64 StartPointer)
     isValid=waveGenerator.load(Filename);
     loopParameters.reset(waveGenerator.size());
     if (waveGenerator.hasVideo()) {
-        videoThumbnail = QPixmap::fromImage(CAvFoundationReader::thumbnail(waveGenerator.videoURL.path()));
+        videoThumbnail = getThumbnail(Filename);
+        videoLength = avf_video_track_duration(Filename.toStdString().c_str()) * 1000;
     }
 }
 

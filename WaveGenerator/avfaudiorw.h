@@ -17,6 +17,19 @@ public:
     static bool isValid(QString path) {
         return avf_is_valid(path.toStdString().c_str());
     }
+    static QSize naturalSize(QString path) {
+        int width;
+        int height;
+        if (avf_naturalsize(path.toStdString().c_str(),width,height)) return QSize(width,height);
+        return QSize();
+    }
+    static QImage fullframe(QString path, double seconds = 0) {
+        std::vector<uint8_t> outRGBA;
+        int width = 0;
+        int height = 0;
+        avf_extract_fullframe(path.toStdString().c_str(),seconds,outRGBA,width,height);
+        return QImage(outRGBA.data(), width, height, QImage::Format_RGBA8888);
+    }
     CAvFoundationReader(QString path) : IWaveFile(path) {
         double rate = 0;
         int chans = 0;

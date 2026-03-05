@@ -9,6 +9,8 @@
 #include "qdomlite.h"
 #include "cfileparameter.h"
 #include "ijack.h"
+#include "../WaveGenerator/cwavefile.h"
+#include "cmseccounter.h"
 
 int nativeAlert(QWidget *parent, QString messageText, QString informativeText, QStringList buttons);
 
@@ -454,6 +456,100 @@ public:
                 m_OutJacks.append(static_cast<COutJack*>(j));
             }
         }
+    }
+    void exportWave(const QString &fileName, int procIndex = -1) {
+        CChannelBuffer buffer = render(procIndex);
+        CWaveFile f;
+        f.startRecording(buffer.channels(),presets.SampleRate);
+        //f.pushBuffer(buffer.data(),buffer.size());
+        f.data.fromRawData(buffer.data(),buffer.channels(),buffer.size());
+        f.finishRecording();
+        f.save(fileName);
+    }
+    CChannelBuffer render(int procIndex = -1)
+    {
+        const IMainPlayer::BufferStates s = mainPlayer()->bufferState();
+        mainPlayer()->setBufferState(IMainPlayer::Working);
+        QMutexLocker locker(&mutex);
+        int channels = 2;
+        IJack::Directions direction = IJackBase::Out;
+        if (procIndex > -1) {
+            const IJack* j = jack(procIndex);
+            direction = j->direction;
+            if (!(j->attachMode & IJack::Stereo)) channels = 1;
+        }
+        else {
+            procIndex = 0;
+        }
+        CChannelBuffer buffer;
+        buffer.init(0,channels);
+        CSampleCounter mSec;
+        mSec.reset();
+        const ulong64 sampl = samples();
+        const ulong64 maxSamples = sampl + (presets.SampleRate* 60);
+        play(true);
+        while (mSec.currentSample() < sampl)
+        {
+            mSec.skipBuffer();
+            tick();
+            if (channels == 2) {
+                CStereoBuffer* b;
+                if (direction == IJack::Out) {
+                    b = dynamic_cast<CStereoBuffer*>(getNextA(procIndex));
+                }
+                else {
+                    b = FetchAStereo(procIndex);
+                }
+                buffer.append(b->data(),b->size(),0xFFFFFF);
+            }
+            else {
+                CMonoBuffer* b;
+                if (direction == IJack::Out) {
+                    b = dynamic_cast<CMonoBuffer*>(getNextA(procIndex));
+                }
+                else {
+                    b = FetchAMono(procIndex);
+                }
+                buffer.append(b->data(),b->size(),0xFFFFFF);
+            }
+        }
+        pause();
+        while (mSec.currentSample() < maxSamples)
+        {
+            mSec.skipBuffer();
+            tick();
+            if (channels == 2) {
+                CStereoBuffer* b;
+                if (direction == IJack::Out) {
+                    b = dynamic_cast<CStereoBuffer*>(getNextA(procIndex));
+                }
+                else {
+                    b = FetchAStereo(procIndex);
+                }
+                buffer.append(b->data(),b->size(),0xFFFFFF);
+                float l = 0;
+                float r = 0;
+                dynamic_cast<CStereoBuffer*>(b)->peakStereoBuffer(&l,&r);
+                if (l+r < 0.000001) break;
+            }
+            else {
+                CMonoBuffer* b;
+                if (direction == IJack::Out) {
+                    b = dynamic_cast<CMonoBuffer*>(getNextA(procIndex));
+                }
+                else {
+                    b = FetchAMono(procIndex);
+                }
+                buffer.append(b->data(),b->size(),0xFFFFFF);
+                float l = 0;
+                dynamic_cast<CMonoBuffer*>(b)->peakBuffer(&l);
+                if (l < 0.000001) break;
+            }
+        }
+        buffer.squeeze();
+        buffer.normalize();
+        mainPlayer()->setBufferState(s);
+        return buffer;
     }
 protected:
     QRecursiveMutex mutex;

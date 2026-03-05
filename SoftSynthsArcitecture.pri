@@ -92,4 +92,8 @@ ios {
     LIBS += -framework UIKit
 }
 
+contains(DEFINES,AVFOUNDATIONLIB) {
+    QT += openglwidgets
+}
+
 message("End of SoftSynthsArcitecture.pri")

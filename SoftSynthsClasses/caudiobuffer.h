@@ -309,7 +309,7 @@ public:
         m_DataR[p] += *i++;
     }
     inline float* dataR() const { return m_DataR; }
-    inline int channels() const { return 2; }
+    inline static int channels() { return 2; }
     inline void fromRawData(void* d)
     {
         deleteData();

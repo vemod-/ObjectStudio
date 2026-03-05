@@ -11,7 +11,7 @@ class CWaveDocument : public IFileDocument {
 public:
     CWaveDocument(CWaveLanes* Document, QString Organization, QString AppName, QString DocumentPath, QWidget* parent = nullptr)
         : m_MainWindow((CSoftSynthsForm*)parent), m_Document(Document), m_DocumentPath(DocumentPath) {
-        MainMenu = new CMainMenu(this,m_MainWindow,Organization,AppName,"XML files (*.xml *.aup)",DocumentPath,parent);
+        MainMenu = new CMainMenu(this,m_MainWindow,Organization,AppName,"XML files (*.zip *.xml *.aup)",DocumentPath,parent);
         m_Document->MainMenu = MainMenu;
 
         MainMenu->actionWizard->setEnabled(false);

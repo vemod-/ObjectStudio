@@ -58,8 +58,6 @@
             </array>
             <key>LSTypeIsPackage</key>
             <false/>
-            <key>NSDocumentClass</key>
-            <string>CLgSongDocument</string>
         </dict>
         <dict>
             <key>CFBundleTypeExtensions</key>

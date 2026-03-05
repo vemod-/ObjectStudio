@@ -52,6 +52,13 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     m_Document->MainMenu->FileMenu->addAction("&Import...",this,&CWaveRecorderForm::Import);
     m_Document->MainMenu->FileMenu->addAction("&Remove..",this,&CWaveRecorderForm::Remove);
 
+    //QMenu* viewMenu = m_Document->MainMenu->addMenu("View");
+    videoWindowAction = m_Document->MainMenu->FileMenu->addAction("Video Window");
+    connect(videoWindowAction,&QAction::triggered,this,&CWaveRecorderForm::ShowVideoWindow);
+
+    ExportVideoAction = m_Document->MainMenu->FileMenu->addAction("Export Video");
+    connect(ExportVideoAction,&QAction::triggered,this,&CWaveRecorderForm::exportVideo);
+
     ui->FileList->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->FileList->setDragEnabled(true);
     ui->FileList->setDragDropMode(QListWidget::DragOnly);
@@ -143,7 +150,6 @@ CWaveRecorderForm::~CWaveRecorderForm()
     m_TimerID=0;
     m_Document->MainMenu->CleanDoc();
     m_Document->CloseDoc();
-
     delete ui;
 }
 
@@ -175,6 +181,10 @@ void CWaveRecorderForm::SetMonitor(bool v) {
 void CWaveRecorderForm::SetMonitorLevel(int v) {
     auto w = DEVICEFUNC(CWaveRecorder);
     w->m_MonitorLevel = v*0.01;
+}
+
+void CWaveRecorderForm::ShowVideoWindow() {
+    if (ui->WaveLanes->videoWindow) ui->WaveLanes->videoWindow->show();
 }
 
 void CWaveRecorderForm::RecordFromStart(bool v) {
@@ -243,6 +253,11 @@ void CWaveRecorderForm::initWithFile(const QString& path) {
     else {
         ui->WaveLanes->AddFile(path,0);
     }
+}
+
+void CWaveRecorderForm::exportVideo() {
+    QString filename = "/Users/thomasallin/Desktop/out";
+    ui->WaveLanes->exportVideo(filename + ".mov");
 }
 
 void CWaveRecorderForm::Import()

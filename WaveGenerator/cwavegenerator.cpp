@@ -80,7 +80,7 @@ float* CWaveGenerator::getNext()
     if (len < m_BufferSize) finishBuffer(len);
     if (len==0) return nullptr;
     m_Audio.copy(WF->data,ulong64(m_Pointer),len);
-    m_Pointer+=len;
+    m_Pointer += len;
     return m_Audio.data();
 }
 
@@ -96,7 +96,7 @@ float* CWaveGenerator::getNextSpeed(const double Speed)
             break;
         }
         m_Audio.setX(i,WF->data,ulong64(m_Pointer));
-        m_Pointer+=ldouble(Speed);
+        m_Pointer += ldouble(Speed);
     }
     return m_Audio.data();
 }
@@ -289,8 +289,8 @@ float* CWaveGenerator::getNextFreq(const double Frequency)
 
 void CWaveGenerator::reset()
 {
-    m_Pointer=0;
-    m_Finished=false;
+    m_Pointer = 0;
+    m_Finished = false;
     m_SampleState=ssStarting;
     AlternateDirection=1;
     XFadeFactor = (LP.XFade) ? XFadeFactor=(1.f/LP.XFade)*0.5f : 0;
@@ -311,7 +311,7 @@ void CWaveGenerator::release()
 
 void CWaveGenerator::skipTo(const ulong64 Ptr)
 {
-    m_Pointer=Ptr;
+    m_Pointer = Ptr;
 }
 
 

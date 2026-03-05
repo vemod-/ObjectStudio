@@ -12,7 +12,7 @@ CWaveLane::CWaveLane()
 
 CWaveLane::~CWaveLane()
 {
-    if (videoWidget) delete videoWidget;
+    if (videoItem) delete videoItem;
     qDeleteAll(tracks);
     qDeleteAll(parameters);
 }
@@ -21,8 +21,14 @@ void CWaveLane::play(const bool FromStart)
 {
     qDebug() << "play 1";
     createVideoWidget();
+    if (videoItem) {
+        videoItem->play();
+        videoItem->setVisible(false);
+    }
     qDebug() << "play 2";
-    if (FromStart) reset();
+    if (FromStart) {
+        reset();
+    }
     //m_Playing = true;
     qDebug() << "play 3";
     IDevice::play(FromStart);
@@ -33,7 +39,10 @@ void CWaveLane::pause()
 {
     //m_Playing = false;
     qDebug() << "pause 1";
-    if (videoWidget) videoWidget->stopVideo();
+    if (videoItem) {
+        videoItem->stop();
+        videoItem->setVisible(videoVisible);
+    }
     qDebug() << "pause 2";
     IDevice::pause();
     qDebug() << "pause 3";
@@ -51,7 +60,10 @@ void CWaveLane::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
 {
-    if (!m_Playing) return nullptr;
+    if (!m_Playing){
+        if (videoItem) videoItem->setVisible(videoVisible);
+        return nullptr;
+    }
     CStereoBuffer* Buffer = StereoBuffer(ProcIndex);
     Buffer->zeroBuffer();
     const ulong64 ModRate=Buffer->size();
@@ -59,23 +71,33 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
     CWaveTrack* StartingTrack=nullptr;
     for (CWaveTrack* t : std::as_const(tracks))//for (int i=0;i<tracks.size();i++)
     {
-        //CWaveTrack* t=tracks.at(i);
         if (t->loopParameters.playLength()+t->start>Counter)
         {
             if (t->start<Counter)
             {
                 PlayingTrack = t;
+                if (videoItem) {
+                    //videoWidget->setEnabled(true);
+                    videoItem->setVisible(trackVisible(t));
+                }
             }
             else if (t->start<Counter+ModRate)
             {
                 StartingTrack = t;
+                if (videoItem) {
+                    //videoWidget->setEnabled(true);
+                    videoItem->setVisible(trackVisible(t));
+                }
             }
         }
     }
     if ((StartingTrack == nullptr) && (PlayingTrack == nullptr))
     {
         CurrentBuffer.makeNull();
-        if (videoWidget) videoWidget->invokeStop();
+        if (videoItem) {
+            //videoWidget->setEnabled(false);
+            videoItem->setVisible(false);
+        }
     }
     for (uint i = 0; i < ModRate; i++)
     {
@@ -84,22 +106,22 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
             if (Counter >= PlayingTrack->start + PlayingTrack->loopParameters.playLength())
             {
                 CurrentBuffer.makeNull();
-                if (videoWidget) videoWidget->invokeStop();
+                if (videoItem) {
+                    if (!StartingTrack) {
+                        videoItem->invokePause();
+                    }
+                }
             }
             else
             {
                 if (ModulationCounter >= ModRate)
                 {
-                    const ulong64 trackPos = ((Counter-PlayingTrack->start)*PlayingTrack->loopParameters.Speed)+PlayingTrack->loopParameters.Start;
+                    const ulong64 trackPos = ((Counter - PlayingTrack->start) * PlayingTrack->loopParameters.Speed) + PlayingTrack->loopParameters.Start;
                     if (PlayingTrack->waveGenerator.currentSample() != trackPos) {
                         PlayingTrack->waveGenerator.skipTo(trackPos);
-                        //if (videoWidget) videoWidget->invokeSetProperties(PlayingTrack,trackPos,true);
-                        if (videoWidget) {
-                            if (!videoWidget->setVideoProperties(PlayingTrack,trackPos)) videoWidget->invokeStop();
+                        if (videoItem) {
+                            videoItem->invokeVideoProperties(PlayingTrack,trackPos);
                         }
-                    }
-                    else {
-                        if (videoWidget) videoWidget->invokePlay(PlayingTrack);
                     }
                     CurrentBuffer.fromRawData(PlayingTrack->waveGenerator.getNextSpeed(PlayingTrack->loopParameters.Speed),PlayingTrack->waveGenerator.channels(),ModRate);
                     pitchShift(PlayingTrack);
@@ -113,7 +135,7 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
             if (Counter >= StartingTrack->start + StartingTrack->loopParameters.playLength())
             {
                 CurrentBuffer.makeNull();
-                if (videoWidget) videoWidget->invokeStop();
+                if (videoItem) videoItem->invokePause();
             }
             else
             {
@@ -121,14 +143,9 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
                 {
                     StartingTrack->waveGenerator.reset();
                     StartingTrack->waveGenerator.skipTo(StartingTrack->loopParameters.Start);
-                    if (videoWidget) {
-                        //videoWidget->invokeSetProperties(StartingTrack,StartingTrack->waveGenerator.currentSample(),true);
-                        if (videoWidget->setVideoProperties(StartingTrack,StartingTrack->waveGenerator.currentSample())) {
-                            videoWidget->invokePlay(StartingTrack);
-                        }
-                        else {
-                            videoWidget->invokeStop();
-                        }
+                    if (videoItem) {
+                        videoItem->invokeVideoProperties(StartingTrack,StartingTrack->loopParameters.Start);
+                        videoItem->setVisible(trackVisible(StartingTrack));
                     }
                     CurrentBuffer.fromRawData(StartingTrack->waveGenerator.getNextSpeed(StartingTrack->loopParameters.Speed),StartingTrack->waveGenerator.channels(),ModRate);
                     pitchShift(StartingTrack);
@@ -151,7 +168,6 @@ CAudioBuffer* CWaveLane::getNextA(const int ProcIndex)
         else
         {
             Buffer->zeroAt(i);
-            if (videoWidget) videoWidget->invokeStop();
         }
         ModulationCounter++;
         Counter++;
@@ -294,6 +310,7 @@ CWaveTrack* CWaveLane::unserializeTrack(const QDomLiteElement* xml, ldouble Zoom
             WT->start *= rateFactor;
         }
         WT->loopParameters.unserialize(xml);
+        WT->videoVisible = xml->attributeValueBool("VideoVisible",true);
         tracks.append(WT);
         createVideoWidget();
         return WT;
@@ -313,6 +330,7 @@ void CWaveLane::serializeTrack(QDomLiteElement* xml, const CWaveTrack* WT) const
     xml->setAttribute("Path",WT->name);
     xml->setAttribute("StartPoint",WT->start);
     WT->loopParameters.serialize(xml);
+    xml->setAttribute("VideoVisible",WT->videoVisible);
 }
 
 void CWaveLane::unserialize(const QDomLiteElement* xml,ldouble ZoomFactor)
@@ -323,6 +341,8 @@ void CWaveLane::unserialize(const QDomLiteElement* xml,ldouble ZoomFactor)
         unserializeTrack(xmlTrack,ZoomFactor);
     }
     createVideoWidget();
+    videoVisible = xml->attributeValueBool("VideoVisible",true);
+    if (videoItem) videoItem->unserialize(xml);
     /*
     if (const QDomLiteElement* eff = xml->elementByTag("EffectRack")) {
         m_EffectRack->unserializeDevice(eff);
@@ -337,13 +357,15 @@ void CWaveLane::serialize(QDomLiteElement* xml) const
     {
         serializeTrack(xml->appendChild("Track"),WT);
     }
+    xml->setAttribute("VideoVisible",videoVisible);
+    if (videoItem) videoItem->serialize(xml);
     //m_EffectRack->serializeDevice(xml->appendChild("EffectRack"));
 }
 
 ulong CWaveLane::milliSeconds() const
 {
     ulong retval=0;
-    for (const CWaveTrack* t : tracks)//for (int i=0;i<tracks.size();i++)
+    for (const CWaveTrack* t : tracks)
     {
         retval=qMax<ulong>(t->loopParameters.playLength() + t->start,retval);
     }
@@ -354,12 +376,11 @@ ulong CWaveLane::milliSeconds() const
 ulong64 CWaveLane::samples() const
 {
     ulong64 retval=0;
-    for (const CWaveTrack* t : tracks)//for (int i=0;i<tracks.size();i++)
+    for (const CWaveTrack* t : tracks)
     {
         retval=qMax<ulong>(t->loopParameters.playLength() + t->start,retval);
     }
     return qMax<ulong64>(retval, IDevice::samples());
-    //return ldouble(retval)/presets.SamplesPermSec;
 }
 
 void CWaveLane::skip(const ulong64 samples)
@@ -370,25 +391,54 @@ void CWaveLane::skip(const ulong64 samples)
     reset();
     qDebug() << "skip 3";
     Counter=samples;
+    if (videoItem) videoItem->setVisible(videoVisible);
     for (CWaveTrack* t : std::as_const(tracks))//for (int i=0;i<tracks.size();i++)
     {
-        //CWaveTrack* t=tracks.at(i);
-        if (t->loopParameters.playLength() + t->start>Counter)
+        if (t->loopParameters.playLength() + t->start > Counter)
         {
-            if (t->start < Counter)
+            if (t->start <= Counter)
             {
                 t->waveGenerator.reset();
-                t->waveGenerator.skipTo(((Counter-t->start) * t->loopParameters.Speed) + t->loopParameters.Start);
-                if (videoWidget) {
-                    if (!videoWidget->setVideoProperties(t,t->waveGenerator.currentSample())) videoWidget->stopVideo();
+                t->waveGenerator.skipTo(((Counter - t->start) * t->loopParameters.Speed) + t->loopParameters.Start);
+                if (videoItem) {
+                    videoItem->setVideoProperties(t,t->waveGenerator.currentSample());
+                    videoItem->setVisible(trackVisible(t));
                 }
             }
         }
     }
     qDebug() << "skip 4";
-    //m_Playing = true;
     IDevice::skip(samples);
     qDebug() << "skip 5";
+}
+
+bool CWaveLane::setVideoExportTime(const ulong64 mSec) {
+    createVideoWidget();
+    reset();
+    ulong64 samples = CPresets::mSecsToSamples(mSec);
+    Counter = samples;
+    bool gotFrame = false;
+    for (CWaveTrack* t : std::as_const(tracks))
+    {
+        if (t->loopParameters.playLength() + t->start > Counter)
+        {
+            if (t->start <= Counter)
+            {
+                if (videoItem) {
+                    videoItem->setVideoExportProperties(t,CPresets::samplesTomSecs(((Counter - t->start) * t->loopParameters.Speed) + t->loopParameters.Start));
+                    gotFrame = true;
+                    qDebug() << "gotFrame";
+                }
+            }
+        }
+    }
+    if (videoItem) {
+        if (!gotFrame) {
+            videoItem->setVideoExportEmptyFrame();
+            qDebug() << "Empty frame";
+        }
+    }
+    return gotFrame;
 }
 
 int CWaveLane::MouseOverTrack(QPoint Pos)

@@ -6,6 +6,7 @@
 class CAupLoader {
 public:
     CAupLoader(CWaveLanes* lanes, const QString& path) {
+        m_Lane = nullptr;
         m_Lanes = lanes;
         const QDomLiteDocument doc(path);
         const QString projname = doc.documentElement->attribute("projname");

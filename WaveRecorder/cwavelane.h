@@ -8,183 +8,7 @@
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimediaWidgets/QVideoWidget>
 #include <unistd.h>
-
-class CVideoWindow : public QWidget {
-    Q_OBJECT
-public:
-    CVideoWindow(QWidget* parent = nullptr) : QWidget(parent) {
-        setWindowFlags(Qt::WindowStaysOnTopHint | Qt::Tool | Qt::CustomizeWindowHint | Qt::WindowCloseButtonHint);
-        //setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-        QPalette p(palette());
-        p.setBrush(QPalette::Window,Qt::black);
-        setPalette(p);
-        m_Layout = new QGridLayout(this);
-        m_Layout->setSpacing(0);
-        m_Layout->setContentsMargins(0,0,0,0);
-        setLayout(m_Layout);
-        relayout();
-    }
-    void relayout()
-    {
-        const QList<QVideoWidget*> visibleVids = visibleVideos();
-        int N = visibleVids.size();
-
-        while (auto* i = m_Layout->takeAt(0)) delete i;
-
-        if (N == 0) {
-            hide();
-            return;
-        }
-
-        int cols = std::ceil(std::sqrt(N));
-        //int rows = std::ceil(double(N) / cols);
-
-        for (int i = 0; i < N; ++i)
-            m_Layout->addWidget(visibleVids[i], i / cols, i % cols);
-
-        setVisible(!visibleVids.isEmpty());
-        //adjustSize();     // ← viktigt
-    }
-    void addVideo(QVideoWidget* v) {
-        if (m_Videos.contains(v)) return;
-        m_Videos.append(v);
-        relayout();
-    }
-    void removeVideo(QVideoWidget* v) {
-        if (!m_Videos.contains(v)) return;
-        m_Videos.removeOne(v);
-        relayout();
-    }
-    void toggleVideo(QVideoWidget* v) {
-        //v->setVisible(!v->isVisible());
-        v->setHidden(!v->isHidden());
-        relayout();
-    }
-    QSize sizeHint() const override
-    {
-        return QSize(640,480);
-        /*
-        int N = m_Videos.size();
-        if (N == 0)
-            return QSize(320, 240);   // fallback
-
-        int cols = std::ceil(std::sqrt(N));
-        int rows = std::ceil(double(N) / cols);
-
-        // Ta sizeHint från en video (de brukar vara lika)
-        QSize videoSize = m_Videos.first()->sizeHint();
-        if (videoSize.isEmpty()) videoSize = QSize(320, 240);
-
-        return QSize(videoSize.width() * cols,
-                     videoSize.height() * rows);
-*/
-    }
-protected:
-    void showEvent(QShowEvent* e) override {
-        QWidget::showEvent(e);
-        relayout();
-    }
-private:
-    QList<QVideoWidget*> visibleVideos() {
-        QList<QVideoWidget*> l;
-        for (QVideoWidget* v : std::as_const(m_Videos)) {
-            if (!v->isHidden()) l.append(v);
-        }
-        return l;
-    }
-    QGridLayout* m_Layout;
-    QList<QVideoWidget*> m_Videos;
-};
-
-class CVideoWidget : public QVideoWidget {
-    Q_OBJECT
-public:
-    CVideoWidget(QWidget* parent = nullptr) : QVideoWidget(parent) {
-        mediaplayer = new QMediaPlayer(this);
-        mediaplayer->setVideoOutput(this);
-        mediaplayer->setAudioOutput(nullptr);
-        mediaplayer->setActiveAudioTrack(-1);
-        setVisible(true);
-    }
-public slots:
-    /*
-    void invokeSetProperties(CWaveTrack* t, ulong64 sample, bool play = false) {
-        if (m_State == QMediaPlayer::PlayingState) play = false;
-        QMetaObject::invokeMethod(
-            this,
-            [this, t, sample, play]() {
-                setVideoProperties(t,sample);
-                if (play) playVideo(t);
-            },
-            Qt::QueuedConnection
-            );
-    }
-*/
-    void invokePlay(CWaveTrack* t) {
-        if (isHidden()) return;
-        if (m_State == QMediaPlayer::PlayingState) return;
-        QMetaObject::invokeMethod(
-            this,
-            [this, t]() {
-                playVideo(t);
-            },
-            Qt::QueuedConnection
-            );
-    }
-    void invokeStop() {
-        if (isHidden()) return;
-        if (m_State != QMediaPlayer::PlayingState) return;
-        QMetaObject::invokeMethod(
-            this,
-            [this]() {
-                stopVideo();
-            },
-            Qt::QueuedConnection
-            );
-    }
-    bool setVideoProperties(CWaveTrack* t, ulong64 sample) {
-        if (isHidden()) return false;
-        if (t->waveGenerator.hasVideo()) {
-            qDebug() << mediaplayer->source() << t->waveGenerator.videoURL;
-            if (mediaplayer->source() != t->waveGenerator.videoURL) {
-                mediaplayer->setSource(t->waveGenerator.videoURL);
-            }
-            const long64 mSec = CPresets::samplesTomSecs(sample);
-            if (std::llabs(mediaplayer->position() - mSec) > 5)
-                mediaplayer->setPosition(mSec);
-            if (!closeEnough(mediaplayer->playbackRate(),t->loopParameters.Speed)) {
-                mediaplayer->setPlaybackRate(t->loopParameters.Speed);
-            }
-            return true;
-        }
-        return false;
-    }
-    void playVideo(CWaveTrack* t) {
-        if (isHidden()) return;
-        if (t->waveGenerator.hasVideo()) {
-            if (mediaplayer->source() == t->waveGenerator.videoURL) {
-                if (m_State != QMediaPlayer::PlayingState) {
-                    mediaplayer->play();
-                    m_State = QMediaPlayer::PlayingState;
-                }
-            }
-        }
-        else {
-            stopVideo();
-        }
-    }
-    void stopVideo() {
-        if (isHidden()) return;
-        //if (mediaplayer->isPlaying())
-        if (m_State == QMediaPlayer::PlayingState) {
-            mediaplayer->pause();
-            m_State = QMediaPlayer::PausedState;
-        }
-    }
-private:
-    QMediaPlayer::PlaybackState m_State = QMediaPlayer::StoppedState;
-    QMediaPlayer* mediaplayer;
-};
+#include "cvideodesigner.h"
 
 class CWaveLane : public IDevice
 {
@@ -226,6 +50,7 @@ public:
     ulong milliSeconds() const;
     ulong64 samples() const;
     void skip(const ulong64 samples);
+    bool setVideoExportTime(const ulong64 mSec);
     int MouseOverTrack(QPoint Pos);
     void drawOutsideWave(QGraphicsScene& Scene, QRect visibleRect);
     long64 handleMousePress(QPoint p);
@@ -235,6 +60,7 @@ public:
     ulong64 pos2Sample(int Pos) const;
     int sample2Pos(long64 sample) const;
     QList<CParameterWrapper*> parameters;
+    bool videoVisible = true;
     bool hasVideo() {
         for (CWaveTrack* t : std::as_const(tracks)) {
             if (t->waveGenerator.hasVideo()) return true;
@@ -247,53 +73,64 @@ public:
         }
         return QPixmap();
     }
+    bool trackVisible(CWaveTrack* t) {
+        return (t->videoVisible & videoVisible);
+    }
     /*
     void showVideoWidget() {
         if (hasVideo()) {
-            if (videoWidget) {
-                videoWidget->setVisible(true);
+            if (videoItem) {
+                videoItem->setVisible(true);
             }
         }
     }
     void hideVideoWidget() {
         if (hasVideo()) {
-            if (videoWidget) {
-                videoWidget->setVisible(false);
+            if (videoItem) {
+                videoItem->setVisible(false);
+            }
+        }
+    }
+    void toggleVideoWidget() {
+        if (hasVideo()) {
+            if (videoItem) {
+                videoDialog->toggleVideo(videoItem);
             }
         }
     }
 */
-    void toggleVideoWidget() {
-        if (hasVideo()) {
-            if (videoWidget) {
-                videoWindow->toggleVideo(videoWidget);
-            }
-        }
-    }
     void createVideoWidget() {
         if (hasVideo()) {
-            if (!videoWidget) {
-                videoWidget = new CVideoWidget();
-                videoWidget->setWindowTitle("Lane " + QString::number(m_Index));
-                videoWindow->addVideo(videoWidget);
+            if (!videoItem) {
+                QPixmap pix = videoThumbnail();
+                videoItem = new CVideoItem(pix.scaled(pix.size() / pix.devicePixelRatio(),Qt::KeepAspectRatio,Qt::SmoothTransformation));
+                videoItem->name = "Lane " + QString::number(m_Index);
+                videoDialog->addVideo(videoItem);
             }
         }
     }
     void destroyVideoWidget() {
         if (!hasVideo()) {
-            if (videoWidget) {
-                videoWindow->removeVideo(videoWidget);
-                delete videoWidget;
-                videoWidget = nullptr;
+            if (videoItem) {
+                videoDialog->removeVideo(videoItem);
+                videoItem->deleteLater();
+                videoItem = nullptr;
             }
         }
+    }
+    bool setExportTime(double sec)
+    {
+        return setVideoExportTime(sec * 1000.0);
+    }
+    void setExportMode(bool m) {
+        if (videoItem) videoItem->setExportMode(m);
     }
     //CEffectRack* m_EffectRack;
     QList<int> DragTracks;
     QString ID;
     TrackEdges DragTrackEdge;
-    CVideoWidget* videoWidget = nullptr;
-    CVideoWindow* videoWindow;
+    CVideoItem* videoItem = nullptr;
+    CVideoDialog* videoDialog;
 private:
     ulong64 Counter;
     uint ModulationCounter;

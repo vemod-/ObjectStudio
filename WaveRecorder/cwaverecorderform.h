@@ -45,7 +45,11 @@ private slots:
     void CheckList();
     void SetMonitor(bool v);
     void SetMonitorLevel(int v);
+    void ShowVideoWindow();
+    void exportVideo();
 private:
+    QAction* videoWindowAction;
+    QAction* ExportVideoAction;
     Ui::CWaveRecorderForm *ui;
     //QMenu* Popup;
     //QMenu *menuFile;

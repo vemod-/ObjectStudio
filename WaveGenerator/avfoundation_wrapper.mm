@@ -1,5 +1,7 @@
 #import <AVFoundation/AVFoundation.h>
+#include <deque>
 #import "avfoundation_wrapper.h"
+#include <QDebug>
 
 bool avf_read_audio(const char* path,
                     std::vector<std::vector<float>> &outData,
@@ -170,4 +172,446 @@ bool avf_extract_thumbnail(const char* path,
 
         return true;
     }
+}
+
+bool avf_naturalsize(const char* path,
+                           int& width,
+                           int& height)
+{
+    @autoreleasepool {
+        NSString *filePath = [NSString stringWithUTF8String:path];
+        if (!filePath) return false;
+
+        NSURL *url = [NSURL fileURLWithPath:filePath];
+        AVAsset* asset = [AVAsset assetWithURL:url];
+        NSArray* tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+
+        if (tracks.count > 0) {
+            AVAssetTrack* track = tracks[0];
+            //CGSize size = track.naturalSize;
+            CGAffineTransform txf = track.preferredTransform;
+            CGSize size = CGSizeApplyAffineTransform(track.naturalSize, txf);
+            size.width  = fabs(size.width);
+            size.height = fabs(size.height);
+            width = size.width;
+            height = size.height;
+            return true;
+        }
+        return false;
+    }
+}
+
+bool avf_extract_fullframe(const char* path,
+                           double seconds,
+                           std::vector<unsigned char>& rgba,
+                           int& width,
+                           int& height)
+{
+    @autoreleasepool
+    {
+        NSString* nsPath = [NSString stringWithUTF8String:path];
+        if (!nsPath) return false;
+        NSURL* url = [NSURL fileURLWithPath:nsPath];
+
+        AVAsset* asset = [AVAsset assetWithURL:url];
+        if (!asset)
+            return false;
+
+        AVAssetImageGenerator* generator =
+            [[AVAssetImageGenerator alloc] initWithAsset:asset];
+
+        generator.appliesPreferredTrackTransform = YES;
+
+        generator.maximumSize = CGSizeZero;
+
+        CMTime time = CMTimeMakeWithSeconds(seconds, 600);
+
+        NSError* error = nil;
+        CGImageRef image =
+            [generator copyCGImageAtTime:time
+                              actualTime:nil
+                                   error:&error];
+
+        if (!image)
+            return false;
+
+        width  = (int)CGImageGetWidth(image);
+        height = (int)CGImageGetHeight(image);
+
+        rgba.resize(width * height * 4);
+
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+
+        CGContextRef context = CGBitmapContextCreate(
+            rgba.data(),
+            width,
+            height,
+            8,
+            width * 4,
+            colorSpace,
+            kCGImageAlphaPremultipliedLast |
+            kCGBitmapByteOrder32Big
+        );
+
+        CGContextDrawImage(context,
+                           CGRectMake(0, 0, width, height),
+                           image);
+
+        CGContextRelease(context);
+        CGImageRelease(image);
+        CGColorSpaceRelease(colorSpace);
+
+        return true;
+    }
+}
+
+double avf_lastVideoFrameTime(const char* path)
+{
+    NSString* nsPath = [NSString stringWithUTF8String:path];
+    if (!nsPath) return 0;
+    NSURL* url = [NSURL fileURLWithPath:nsPath];
+
+    AVAsset* asset = [AVAsset assetWithURL:url];
+
+    AVAssetTrack* track =
+        [[asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
+
+    NSError* error = nil;
+
+    AVAssetReader* reader =
+        [[AVAssetReader alloc] initWithAsset:asset error:&error];
+
+    NSDictionary* settings =
+    @{
+        (id)kCVPixelBufferPixelFormatTypeKey:
+        @(kCVPixelFormatType_32BGRA)
+    };
+
+    AVAssetReaderTrackOutput* output =
+        [[AVAssetReaderTrackOutput alloc]
+            initWithTrack:track
+            outputSettings:settings];
+
+    [reader addOutput:output];
+    [reader startReading];
+
+    CMSampleBufferRef sample = nil;
+    CMTime last = kCMTimeZero;
+
+    while ((sample = [output copyNextSampleBuffer]))
+    {
+        last = CMSampleBufferGetPresentationTimeStamp(sample);
+        CFRelease(sample);
+    }
+
+    return CMTimeGetSeconds(last);
+}
+
+double avf_video_track_duration(const char *path) {
+    NSString* nsPath = [NSString stringWithUTF8String:path];
+    if (!nsPath) return 0;
+    NSURL* url = [NSURL fileURLWithPath:nsPath];
+
+    AVAsset* asset = [AVAsset assetWithURL:url];
+
+    NSArray* tracks =
+        [asset tracksWithMediaType:AVMediaTypeVideo];
+
+    AVAssetTrack* videoTrack = tracks.firstObject;
+
+    CMTime videoDuration = videoTrack.timeRange.duration;
+
+    return CMTimeGetSeconds(videoDuration);
+}
+
+static CVPixelBufferRef
+imageToBuffer(const QImage& img, QSize size)
+{
+    CVPixelBufferRef buffer;
+
+    CVPixelBufferCreate(
+        kCFAllocatorDefault,
+        size.width(),
+        size.height(),
+        kCVPixelFormatType_32BGRA,
+        NULL,
+        &buffer);
+
+    CVPixelBufferLockBaseAddress(buffer, 0);
+
+    uchar* dst =
+        (uchar*)CVPixelBufferGetBaseAddress(buffer);
+
+    size_t dstBPR =
+        CVPixelBufferGetBytesPerRow(buffer);
+
+    QImage converted =
+        img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+
+    const uchar* src = converted.constBits();
+    int srcBPR = converted.bytesPerLine();
+
+    for (int y = 0; y < converted.height(); ++y)
+    {
+        memcpy(dst + y * dstBPR,
+               src + y * srcBPR,
+               srcBPR);
+    }
+
+    CVPixelBufferUnlockBaseAddress(buffer, 0);
+
+    return buffer;
+}
+
+struct VideoExporter::Impl
+{
+    AVAssetWriter* writer = nil;
+    AVAssetWriterInput* videoInput = nil;
+    AVAssetWriterInput* audioInput = nil;
+    AVAssetWriterInputPixelBufferAdaptor* adaptor = nil;
+
+    QSize size;
+    int fps;
+    int sampleRate;
+    int channels;
+    CMAudioFormatDescriptionRef formatDesc;
+    uint64_t audioSampleCursor = 0;
+    quint64 frameIndex = 0;
+    dispatch_queue_t videoQueue;
+    dispatch_queue_t audioQueue;
+
+    std::deque<QImage> videoFrames;
+    std::deque<std::vector<float>> audioBlocks;
+};
+
+VideoExporter::VideoExporter(
+        const QString& file,
+        QSize size,
+        int fps, int sampleRate, int channels)
+{
+    d = new Impl;
+    d->size = size;
+    d->fps = fps;
+    d->sampleRate = sampleRate;
+    d->channels = channels;
+
+    d->videoQueue = dispatch_queue_create("video.queue", DISPATCH_QUEUE_SERIAL);
+    d->audioQueue = dispatch_queue_create("audio.queue", DISPATCH_QUEUE_SERIAL);
+
+    NSURL* url = [NSURL fileURLWithPath:file.toNSString()];
+
+    NSError* err = nil;
+
+    d->writer = [[AVAssetWriter alloc]
+            initWithURL:url
+            fileType:AVFileTypeQuickTimeMovie
+            error:&err];
+
+    NSDictionary* settings = @{
+        AVVideoCodecKey: AVVideoCodecTypeH264,
+        AVVideoWidthKey: @(size.width()),
+        AVVideoHeightKey: @(size.height())
+    };
+
+    d->videoInput = [AVAssetWriterInput
+            assetWriterInputWithMediaType:AVMediaTypeVideo
+            outputSettings:settings];
+
+    d->videoInput.expectsMediaDataInRealTime = NO;
+
+    NSDictionary* attrs = @{
+        (id)kCVPixelBufferPixelFormatTypeKey:
+            @(kCVPixelFormatType_32BGRA),
+        (id)kCVPixelBufferWidthKey:
+            @(size.width()),
+        (id)kCVPixelBufferHeightKey:
+            @(size.height())
+    };
+
+    d->adaptor = [[AVAssetWriterInputPixelBufferAdaptor alloc]
+            initWithAssetWriterInput:d->videoInput
+            sourcePixelBufferAttributes:attrs];
+
+    [d->writer addInput:d->videoInput];
+
+    AudioChannelLayout acl = {};
+    acl.mChannelLayoutTag = kAudioChannelLayoutTag_Stereo;
+
+    AudioStreamBasicDescription asbd = {};
+    asbd.mSampleRate       = d->sampleRate;
+    asbd.mFormatID         = kAudioFormatLinearPCM;
+    asbd.mFormatFlags      = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked;
+    asbd.mFramesPerPacket  = 1;
+    asbd.mChannelsPerFrame = d->channels;
+    asbd.mBitsPerChannel   = 32;
+    asbd.mBytesPerFrame    = d->channels * sizeof(float);
+    asbd.mBytesPerPacket   = asbd.mBytesPerFrame;
+
+    CMAudioFormatDescriptionCreate(
+        kCFAllocatorDefault,
+        &asbd,
+        0,
+        NULL,
+        0,
+        NULL,
+        NULL,
+        &d->formatDesc);
+
+    NSDictionary* audioSettings = @{
+        AVFormatIDKey: @(kAudioFormatLinearPCM),
+
+        AVSampleRateKey: @(d->sampleRate),
+        AVNumberOfChannelsKey: @(d->channels),
+
+        AVLinearPCMBitDepthKey: @(32),
+        AVLinearPCMIsFloatKey: @YES,
+        AVLinearPCMIsBigEndianKey: @NO,
+        AVLinearPCMIsNonInterleaved: @NO
+    };
+
+    d->audioInput = [[AVAssetWriterInput alloc]
+         initWithMediaType:AVMediaTypeAudio
+         outputSettings:audioSettings];
+
+    if ([d->writer canAddInput:d->audioInput]) {
+        [d->writer addInput:d->audioInput];
+    } else {
+        NSLog(@"cannot add audio input");
+    }
+
+    [d->writer startWriting];
+    [d->writer startSessionAtSourceTime:kCMTimeZero];
+
+    [d->videoInput requestMediaDataWhenReadyOnQueue:d->videoQueue usingBlock:^{
+        while (d->videoInput.readyForMoreMediaData) {
+            if (d->videoFrames.empty()) break;
+            QImage img = d->videoFrames.front();
+            d->videoFrames.pop_front();
+
+            CVPixelBufferRef buffer = imageToBuffer(img, d->size);
+
+            CMTime time = CMTimeMake(d->frameIndex++, d->fps);
+
+            [d->adaptor appendPixelBuffer:buffer withPresentationTime:time];
+
+            CVPixelBufferRelease(buffer);
+        }
+    }];
+
+    [d->audioInput requestMediaDataWhenReadyOnQueue:d->audioQueue usingBlock:^{
+        while (d->audioInput.readyForMoreMediaData) {
+            if (d->audioBlocks.empty()) break;
+            auto block = d->audioBlocks.front();
+            d->audioBlocks.pop_front();
+
+            writeAudioBlock(block.data(), block.size()/d->channels);
+        }
+    }];
+
+    NSLog(@"video ready %d", d->videoInput.readyForMoreMediaData);
+    NSLog(@"audio ready %d", d->audioInput.readyForMoreMediaData);
+}
+
+bool VideoExporter::addFrame(const QImage& img, quint64)
+{
+    d->videoFrames.push_back(img);
+    return true;
+}
+
+bool VideoExporter::addAudio(float* b)
+{
+    int samples = d->sampleRate / d->fps;
+    int total = samples * d->channels;
+
+    std::vector<float> block(b, b + total);
+    d->audioBlocks.push_back(std::move(block));
+
+    return true;
+}
+
+bool VideoExporter::writeAudioBlock(float* b, int frames)
+{
+    if (d->writer.status == AVAssetWriterStatusFailed) {
+        NSLog(@"writer failed: %@", d->writer.error);
+        return false;
+    }
+    CMTime pts = CMTimeMake(d->audioSampleCursor, d->sampleRate);
+
+    d->audioSampleCursor += frames;
+
+    size_t dataSize = frames * d->channels * sizeof(float);
+
+    CMBlockBufferRef blockBuffer = nullptr;
+    CMSampleBufferRef sampleBuffer;
+
+    CMBlockBufferCreateWithMemoryBlock(
+        kCFAllocatorDefault,
+        NULL,
+        dataSize,
+        kCFAllocatorDefault,
+        NULL,
+        0,
+        dataSize,
+        0,
+        &blockBuffer);
+
+    CMBlockBufferReplaceDataBytes(
+        b,
+        blockBuffer,
+        0,
+        dataSize);
+
+    CMTime duration = CMTimeMake(frames, d->sampleRate);
+
+    CMSampleTimingInfo timing;
+    timing.presentationTimeStamp = pts;
+    timing.duration = duration;
+    timing.decodeTimeStamp = kCMTimeInvalid;
+
+    //qDebug() << frames << pts.value << duration.value << dataSize << d->channels << d->sampleRate;
+
+    CMSampleBufferCreate(
+        kCFAllocatorDefault,
+        blockBuffer,
+        true,
+        NULL,
+        NULL,
+        d->formatDesc,
+        frames,
+        1,
+        &timing,
+        0,
+        NULL,
+        &sampleBuffer);
+
+    if (!d->audioInput.readyForMoreMediaData) {
+        CFRelease(sampleBuffer);
+        CFRelease(blockBuffer);
+        return true; // prova igen nästa frame
+    }
+
+    bool ok = [d->audioInput appendSampleBuffer:sampleBuffer];
+
+    CFRelease(sampleBuffer);
+    CFRelease(blockBuffer);
+    if (!ok) NSLog(@"appendSampleBuffer failed: %@", d->writer.error);
+    return ok;
+}
+
+void VideoExporter::finish(std::function<void()> done)
+{
+    [d->videoInput markAsFinished];
+    [d->audioInput markAsFinished];
+
+    [d->writer finishWritingWithCompletionHandler:^{
+        done();
+    }];
+    CFRelease(d->formatDesc);
+    NSLog(@"status: %ld", d->writer.status);
+    NSLog(@"error: %@", d->writer.error);
+}
+
+VideoExporter::~VideoExporter()
+{
+    delete d;
 }

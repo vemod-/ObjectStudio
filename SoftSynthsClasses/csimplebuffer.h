@@ -289,7 +289,7 @@ public:
     inline float at(const ulong64 p,const uint c) const { return *(channelPointer(c)+p); }
     inline short shortAt(const ulong64 p,const uint c) const { return short(*(channelPointer(c)+p)*SHRT_MAX); }
     inline int intAt(const ulong64 p,const uint c) const { return int(*(channelPointer(c)+p)*INT_MAX); }
-    inline const std::vector<short> toShortInterleaved() const
+    inline std::vector<short> toShortInterleaved() const
     {
         std::vector<short> b(dataSize());
         short* t=b.data();
@@ -298,12 +298,21 @@ public:
         }
         return b;
     }
-    inline const std::vector<int> toIntInterleaved() const
+    inline std::vector<int> toIntInterleaved() const
     {
         std::vector<int> b(dataSize());
         int* t=b.data();
         for (ulong64 i=0;i<size();i++) {
             for (uint c=0;c<channels();c++) *t++=qToBigEndian<int>(intAt(i,c));
+        }
+        return b;
+    }
+    inline std::vector<float> toInterleaved() const
+    {
+        std::vector<float> b(dataSize());
+        float* t=b.data();
+        for (ulong64 i=0;i<size();i++) {
+            for (uint c=0;c<channels();c++) *t++=at(i,c);
         }
         return b;
     }

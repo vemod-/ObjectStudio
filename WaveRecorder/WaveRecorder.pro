@@ -65,6 +65,7 @@ ios {
 }
 
 SOURCES += cwaverecorderform.cpp \
+    cvideodesigner.cpp \
     cwavelanes.cpp \
     cwaveeditcontrol.cpp \
     cwaveeditwidget.cpp \
@@ -74,6 +75,7 @@ SOURCES += cwaverecorderform.cpp \
 
 HEADERS += cwaverecorderform.h \
     cauploader.h \
+    cvideodesigner.h \
     cwavedocument.h \
     cwavelanes.h \
     cwaveeditcontrol.h \

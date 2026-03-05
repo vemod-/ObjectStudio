@@ -32,6 +32,12 @@ public:
     ulong64 currentSample() const;
     ulong currentMilliSecond() const;
     void renderWaveFile(const QString path);
+    void setBufferState(BufferStates s) {
+        MainBuffers.BufferState = s;
+    }
+    BufferStates bufferState() {
+        return MainBuffers.BufferState;
+    }
 public slots:
     void Play();
     void Continue();
