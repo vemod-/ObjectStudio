@@ -21,24 +21,29 @@ public:
         Scene.clear();
         m_TimeLine.render(&Scene);
     }
-    void tick() {}
-    void play(const bool /*FromStart*/) {
+    void tick() override {}
+    void play(const bool /*FromStart*/) override {
         m_TimerID = startTimer(40);
     }
-    void pause() {
+    void pause() override {
         if (m_TimerID) killTimer(m_TimerID);
         m_TimerID = 0;
     }
-    void skip(const ulong64 samples) {
+    void skip(const ulong64 samples) override {
         m_TimeLine.skip(samples);
     }
 protected:
-    void resizeEvent(QResizeEvent*);
-    void timerEvent(QTimerEvent*);
-    void mouseDoubleClickEvent(QMouseEvent*);
-    void mousePressEvent(QMouseEvent*);
-    void mouseMoveEvent(QMouseEvent*);
-    void mouseReleaseEvent(QMouseEvent*);
+    void resizeEvent(QResizeEvent*) override;
+    void timerEvent(QTimerEvent*) override;
+    void mouseDoubleClickEvent(QMouseEvent*) override;
+    void mousePressEvent(QMouseEvent*) override;
+    void mouseMoveEvent(QMouseEvent*) override;
+    void mouseReleaseEvent(QMouseEvent*) override;
+    void drawForeground(QPainter *painter, const QRectF &rect) override
+    {
+        Q_UNUSED(rect);
+        m_TimeLine.drawPlayLine(painter);
+    }
 private:
     QGraphicsScene Scene;
     CTimeLine m_TimeLine;

@@ -47,8 +47,10 @@ private slots:
     void SetMonitorLevel(int v);
     void ShowVideoWindow();
     void exportVideo();
+    void exportAudio();
 private:
     QAction* videoWindowAction;
+    QAction* ExportWaveAction;
     QAction* ExportVideoAction;
     Ui::CWaveRecorderForm *ui;
     //QMenu* Popup;

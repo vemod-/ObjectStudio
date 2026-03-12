@@ -139,7 +139,7 @@ public:
             if (!m_Playing) return;
             if (m_NextTime <= m_Counter.currentmSec()) {
                 if (const CParameterEvent* e = &m_PlayList.at(m_NextEvent)) {
-                //qDebug() << "Parameter" << e.id << e.value << e.time << m_NextTime << m_Counter.currentmSec();
+                qDebug() << "Parameter" << e->id << e->value << e->time << m_NextTime << m_Counter.currentmSec();
                     if (CParameter* p = m_Parameters[e->id]) p->setValue(e->value);
                 }
                 m_NextEvent++;

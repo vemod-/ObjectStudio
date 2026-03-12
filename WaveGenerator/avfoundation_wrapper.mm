@@ -3,15 +3,13 @@
 #import "avfoundation_wrapper.h"
 #include <QDebug>
 
-bool avf_read_audio(const char* path,
+bool avf_read_audio(const QString& path,
                     std::vector<std::vector<float>> &outData,
                     double &outSampleRate,
                     int &outChannels)
 {
     @autoreleasepool {
-        NSString *filePath = [NSString stringWithUTF8String:path];
-        if (filePath == nil) return false;
-        NSURL *url = [NSURL fileURLWithPath:filePath];
+        NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
         AVAudioFile *file = [[AVAudioFile alloc] initForReading:url error:nil];
         if (!file) return false;
 
@@ -40,14 +38,12 @@ bool avf_read_audio(const char* path,
     }
 }
 
-bool avf_write_audio(const char* path,
+bool avf_write_audio(const QString& path,
                      const std::vector<std::vector<float>> &inData,
                      double sampleRate)
 {
     @autoreleasepool {
-        NSString *filePath = [NSString stringWithUTF8String:path];
-        if (filePath == nil) return false;
-        NSURL *url = [NSURL fileURLWithPath:filePath];
+        NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
 
         int channels = (int)inData.size();
         int frames = (int)inData[0].size();
@@ -80,145 +76,36 @@ bool avf_write_audio(const char* path,
     }
 }
 
-bool avf_has_video(const char *path) {
+bool avf_has_video(const QString& path) {
         @autoreleasepool {
-            NSString *filePath = [NSString stringWithUTF8String:path];
-            if (filePath == nil) return false;
-            NSURL *url = [NSURL fileURLWithPath:filePath];
+            NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
             AVAsset *asset = [AVAsset assetWithURL:url];
             return [[asset tracksWithMediaType:AVMediaTypeVideo] count] > 0;
         }
 }
 
-bool avf_is_valid(const char *path){
+bool avf_is_valid(const QString& path){
         @autoreleasepool {
-            NSString *filePath = [NSString stringWithUTF8String:path];
-            if (filePath == nil) return false;
-            NSURL *url = [NSURL fileURLWithPath:filePath];
+            NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
             AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
             NSArray *audioTracks = [asset tracksWithMediaType:AVMediaTypeAudio];
             return ([audioTracks count] > 0);
         }
 }
 
-bool avf_extract_thumbnail(const char* path,
-                           double seconds,
-                           std::vector<uint8_t>& outRGBA,
-                           int& width,
-                           int& height)
+QImage avf_extract_fullframe(const QString& path,
+                           double seconds)
 {
-    @autoreleasepool {
-
-        NSString *filePath = [NSString stringWithUTF8String:path];
-        if (!filePath) return false;
-
-        NSURL *url = [NSURL fileURLWithPath:filePath];
-        AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
-        if (!asset) return false;
-
-        NSArray *videoTracks =
-            [asset tracksWithMediaType:AVMediaTypeVideo];
-        if (videoTracks.count == 0)
-            return false;
-
-        AVAssetTrack *track = videoTracks.firstObject;
-
-        // Korrekt upplösning med transform (portrait videos mm)
-        CGSize naturalSize = track.naturalSize;
-        CGAffineTransform t = track.preferredTransform;
-        CGSize transformed =
-            CGSizeApplyAffineTransform(naturalSize, t);
-
-        width  = std::abs(transformed.width);
-        height = std::abs(transformed.height);
-
-        AVAssetImageGenerator *generator =
-            [[AVAssetImageGenerator alloc] initWithAsset:asset];
-
-        generator.appliesPreferredTrackTransform = YES;
-
-        CMTime time = CMTimeMakeWithSeconds(seconds, 600);
-
-        NSError *error = nil;
-        CGImageRef image =
-            [generator copyCGImageAtTime:time
-                              actualTime:NULL
-                                   error:&error];
-
-        if (!image)
-            return false;
-
-        outRGBA.resize(width * height * 4);
-
-        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-
-        CGContextRef ctx = CGBitmapContextCreate(
-            outRGBA.data(),
-            width,
-            height,
-            8,
-            width * 4,
-            colorSpace,
-            kCGImageAlphaPremultipliedLast
-        );
-
-        CGContextDrawImage(ctx,
-                           CGRectMake(0,0,width,height),
-                           image);
-
-        CGContextRelease(ctx);
-        CGColorSpaceRelease(colorSpace);
-        CGImageRelease(image);
-
-        return true;
-    }
-}
-
-bool avf_naturalsize(const char* path,
-                           int& width,
-                           int& height)
-{
-    @autoreleasepool {
-        NSString *filePath = [NSString stringWithUTF8String:path];
-        if (!filePath) return false;
-
-        NSURL *url = [NSURL fileURLWithPath:filePath];
-        AVAsset* asset = [AVAsset assetWithURL:url];
-        NSArray* tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
-
-        if (tracks.count > 0) {
-            AVAssetTrack* track = tracks[0];
-            //CGSize size = track.naturalSize;
-            CGAffineTransform txf = track.preferredTransform;
-            CGSize size = CGSizeApplyAffineTransform(track.naturalSize, txf);
-            size.width  = fabs(size.width);
-            size.height = fabs(size.height);
-            width = size.width;
-            height = size.height;
-            return true;
-        }
-        return false;
-    }
-}
-
-bool avf_extract_fullframe(const char* path,
-                           double seconds,
-                           std::vector<unsigned char>& rgba,
-                           int& width,
-                           int& height)
-{
+    std::vector<uint8_t> rgba;
+    int width = 0;
+    int height = 0;
     @autoreleasepool
     {
-        NSString* nsPath = [NSString stringWithUTF8String:path];
-        if (!nsPath) return false;
-        NSURL* url = [NSURL fileURLWithPath:nsPath];
-
+        NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
         AVAsset* asset = [AVAsset assetWithURL:url];
-        if (!asset)
-            return false;
+        if (!asset) return QImage();
 
-        AVAssetImageGenerator* generator =
-            [[AVAssetImageGenerator alloc] initWithAsset:asset];
+        AVAssetImageGenerator* generator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
 
         generator.appliesPreferredTrackTransform = YES;
 
@@ -227,13 +114,9 @@ bool avf_extract_fullframe(const char* path,
         CMTime time = CMTimeMakeWithSeconds(seconds, 600);
 
         NSError* error = nil;
-        CGImageRef image =
-            [generator copyCGImageAtTime:time
-                              actualTime:nil
-                                   error:&error];
+        CGImageRef image = [generator copyCGImageAtTime:time actualTime:nil error:&error];
 
-        if (!image)
-            return false;
+        if (!image) return QImage();
 
         width  = (int)CGImageGetWidth(image);
         height = (int)CGImageGetHeight(image);
@@ -254,68 +137,22 @@ bool avf_extract_fullframe(const char* path,
         );
 
         CGContextDrawImage(context,
-                           CGRectMake(0, 0, width, height),
+                           CGRect{{0,0},QSize(width,height).toCGSize()},
                            image);
 
         CGContextRelease(context);
         CGImageRelease(image);
         CGColorSpaceRelease(colorSpace);
 
-        return true;
     }
+    return QImage(rgba.data(), width, height, QImage::Format_RGBA8888).copy();
 }
 
-double avf_lastVideoFrameTime(const char* path)
-{
-    NSString* nsPath = [NSString stringWithUTF8String:path];
-    if (!nsPath) return 0;
-    NSURL* url = [NSURL fileURLWithPath:nsPath];
-
+double avf_video_track_duration(const QString& path) {
+    NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
     AVAsset* asset = [AVAsset assetWithURL:url];
 
-    AVAssetTrack* track =
-        [[asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
-
-    NSError* error = nil;
-
-    AVAssetReader* reader =
-        [[AVAssetReader alloc] initWithAsset:asset error:&error];
-
-    NSDictionary* settings =
-    @{
-        (id)kCVPixelBufferPixelFormatTypeKey:
-        @(kCVPixelFormatType_32BGRA)
-    };
-
-    AVAssetReaderTrackOutput* output =
-        [[AVAssetReaderTrackOutput alloc]
-            initWithTrack:track
-            outputSettings:settings];
-
-    [reader addOutput:output];
-    [reader startReading];
-
-    CMSampleBufferRef sample = nil;
-    CMTime last = kCMTimeZero;
-
-    while ((sample = [output copyNextSampleBuffer]))
-    {
-        last = CMSampleBufferGetPresentationTimeStamp(sample);
-        CFRelease(sample);
-    }
-
-    return CMTimeGetSeconds(last);
-}
-
-double avf_video_track_duration(const char *path) {
-    NSString* nsPath = [NSString stringWithUTF8String:path];
-    if (!nsPath) return 0;
-    NSURL* url = [NSURL fileURLWithPath:nsPath];
-
-    AVAsset* asset = [AVAsset assetWithURL:url];
-
-    NSArray* tracks =
-        [asset tracksWithMediaType:AVMediaTypeVideo];
+    NSArray* tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
 
     AVAssetTrack* videoTrack = tracks.firstObject;
 
@@ -324,43 +161,39 @@ double avf_video_track_duration(const char *path) {
     return CMTimeGetSeconds(videoDuration);
 }
 
-static CVPixelBufferRef
-imageToBuffer(const QImage& img, QSize size)
+QSize avf_displaySize(const QString& path)
 {
-    CVPixelBufferRef buffer;
+    NSURL *url = [NSURL fileURLWithPath:path.toNSString()];
+    AVAsset* asset = [AVAsset assetWithURL:url];
+    AVAssetTrack* track = [[asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
+    if (!track) return QSize();
+    CGSize size = track.naturalSize;
+    return QSize(size.width, size.height);
+}
 
-    CVPixelBufferCreate(
-        kCFAllocatorDefault,
-        size.width(),
-        size.height(),
-        kCVPixelFormatType_32BGRA,
-        NULL,
-        &buffer);
-
+static void
+imageToBuffer(const QImage& img, CVPixelBufferRef buffer)
+{
     CVPixelBufferLockBaseAddress(buffer, 0);
 
-    uchar* dst =
-        (uchar*)CVPixelBufferGetBaseAddress(buffer);
+    uchar* dst = (uchar*)CVPixelBufferGetBaseAddress(buffer);
 
-    size_t dstBPR =
-        CVPixelBufferGetBytesPerRow(buffer);
+    //size_t dstBPR = CVPixelBufferGetBytesPerRow(buffer);
 
-    QImage converted =
-        img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    //QImage converted = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
 
-    const uchar* src = converted.constBits();
-    int srcBPR = converted.bytesPerLine();
-
+    //const uchar* src = converted.constBits();
+    //int srcBPR = converted.bytesPerLine();
+/*
     for (int y = 0; y < converted.height(); ++y)
     {
         memcpy(dst + y * dstBPR,
                src + y * srcBPR,
                srcBPR);
     }
-
+*/
+    memcpy(dst,img.constBits(),img.bytesPerLine() * img.height());
     CVPixelBufferUnlockBaseAddress(buffer, 0);
-
-    return buffer;
 }
 
 struct VideoExporter::Impl
@@ -476,7 +309,7 @@ VideoExporter::VideoExporter(
     if ([d->writer canAddInput:d->audioInput]) {
         [d->writer addInput:d->audioInput];
     } else {
-        NSLog(@"cannot add audio input");
+        qDebug() << "cannot add audio input";
     }
 
     [d->writer startWriting];
@@ -485,18 +318,32 @@ VideoExporter::VideoExporter(
     [d->videoInput requestMediaDataWhenReadyOnQueue:d->videoQueue usingBlock:^{
         while (d->videoInput.readyForMoreMediaData) {
             if (d->videoFrames.empty()) break;
-            QImage img = d->videoFrames.front();
+            const QImage img = d->videoFrames.front();
             d->videoFrames.pop_front();
 
-            CVPixelBufferRef buffer = imageToBuffer(img, d->size);
+            CVPixelBufferRef buffer;
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                size.width(),
+                size.height(),
+                kCVPixelFormatType_32BGRA,
+                NULL,
+                &buffer);
 
-            CMTime time = CMTimeMake(d->frameIndex++, d->fps);
+            //imageToBuffer(img, buffer);
+            CVPixelBufferLockBaseAddress(buffer, 0);
+            uchar* dst = (uchar*)CVPixelBufferGetBaseAddress(buffer);
+            memcpy(dst,img.constBits(),img.bytesPerLine() * img.height());
+            CVPixelBufferUnlockBaseAddress(buffer, 0);
 
+            const CMTime time = CMTimeMake(d->frameIndex++, d->fps);
             [d->adaptor appendPixelBuffer:buffer withPresentationTime:time];
 
             CVPixelBufferRelease(buffer);
+
         }
     }];
+
 
     [d->audioInput requestMediaDataWhenReadyOnQueue:d->audioQueue usingBlock:^{
         while (d->audioInput.readyForMoreMediaData) {
@@ -507,9 +354,8 @@ VideoExporter::VideoExporter(
             writeAudioBlock(block.data(), block.size()/d->channels);
         }
     }];
-
-    NSLog(@"video ready %d", d->videoInput.readyForMoreMediaData);
-    NSLog(@"audio ready %d", d->audioInput.readyForMoreMediaData);
+    //qDebug() << "video ready %d" << d->videoInput.readyForMoreMediaData;
+    //qDebug() << "audio ready %d" << d->audioInput.readyForMoreMediaData;
 }
 
 bool VideoExporter::addFrame(const QImage& img, quint64)
@@ -520,8 +366,8 @@ bool VideoExporter::addFrame(const QImage& img, quint64)
 
 bool VideoExporter::addAudio(float* b)
 {
-    int samples = d->sampleRate / d->fps;
-    int total = samples * d->channels;
+    const int samples = d->sampleRate / d->fps;
+    const int total = samples * d->channels;
 
     std::vector<float> block(b, b + total);
     d->audioBlocks.push_back(std::move(block));
@@ -532,14 +378,14 @@ bool VideoExporter::addAudio(float* b)
 bool VideoExporter::writeAudioBlock(float* b, int frames)
 {
     if (d->writer.status == AVAssetWriterStatusFailed) {
-        NSLog(@"writer failed: %@", d->writer.error);
+        //qDebug() << "writer failed: %@" << d->writer.error;
         return false;
     }
-    CMTime pts = CMTimeMake(d->audioSampleCursor, d->sampleRate);
+    const CMTime pts = CMTimeMake(d->audioSampleCursor, d->sampleRate);
 
     d->audioSampleCursor += frames;
 
-    size_t dataSize = frames * d->channels * sizeof(float);
+    const size_t dataSize = frames * d->channels * sizeof(float);
 
     CMBlockBufferRef blockBuffer = nullptr;
     CMSampleBufferRef sampleBuffer;
@@ -561,7 +407,7 @@ bool VideoExporter::writeAudioBlock(float* b, int frames)
         0,
         dataSize);
 
-    CMTime duration = CMTimeMake(frames, d->sampleRate);
+    const CMTime duration = CMTimeMake(frames, d->sampleRate);
 
     CMSampleTimingInfo timing;
     timing.presentationTimeStamp = pts;
@@ -590,11 +436,11 @@ bool VideoExporter::writeAudioBlock(float* b, int frames)
         return true; // prova igen nästa frame
     }
 
-    bool ok = [d->audioInput appendSampleBuffer:sampleBuffer];
+    const bool ok = [d->audioInput appendSampleBuffer:sampleBuffer];
 
     CFRelease(sampleBuffer);
     CFRelease(blockBuffer);
-    if (!ok) NSLog(@"appendSampleBuffer failed: %@", d->writer.error);
+    //if (!ok) qDebug() << "appendSampleBuffer failed: %@" << d->writer.error;
     return ok;
 }
 
@@ -607,8 +453,8 @@ void VideoExporter::finish(std::function<void()> done)
         done();
     }];
     CFRelease(d->formatDesc);
-    NSLog(@"status: %ld", d->writer.status);
-    NSLog(@"error: %@", d->writer.error);
+    //qDebug() << "status: %ld" << d->writer.status;
+    //qDebug() << "error: %@" << d->writer.error;
 }
 
 VideoExporter::~VideoExporter()
@@ -619,40 +465,61 @@ VideoExporter::~VideoExporter()
 struct ImageExtractor::Impl
 {
     AVAssetImageGenerator* generator = nil;
+    CGColorSpaceRef colorSpace = nullptr;
+    CGRect rect;
+    QImage img;
+    CGContextRef context = nullptr;
 };
 
 ImageExtractor::ImageExtractor(){
     d = new Impl;
 }
 
-ImageExtractor::~ImageExtractor(){
-    if (d->generator)
-        d->generator = nil;
+ImageExtractor::~ImageExtractor()
+{
+    if (d->colorSpace) CGColorSpaceRelease(d->colorSpace);
+    if (d->context) CGContextRelease(d->context);
+    d->generator = nil;
     delete d;
 }
 
-void ImageExtractor::init(const QUrl& URL, const QSize& FrameSize){
+void ImageExtractor::setSource(const QUrl& url, const QSize& s){
 
-        url = URL;
-        frameSize = FrameSize;
-        NSString* nsPath = [NSString stringWithUTF8String:URL.path().toStdString().c_str()];
+        videoUrl = url;
+        frameSize = s;
+        NSString* nsPath = url.path().toNSString();
         if (!nsPath) return;
-        NSURL* Url = [NSURL fileURLWithPath:nsPath];
+        NSURL* nsurl = [NSURL fileURLWithPath:nsPath];
+        AVAsset* asset = [AVAsset assetWithURL:nsurl];
+        if (!asset) return;
 
-        AVAsset* asset = [AVAsset assetWithURL:Url];
-        if (!asset)
-            return;
-
-        d->generator =
-            [[AVAssetImageGenerator alloc] initWithAsset:asset];
+        d->generator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
 
         d->generator.appliesPreferredTrackTransform = YES;
 
-        d->generator.maximumSize =
-            CGSizeMake(frameSize.width(), frameSize.height());
+        d->generator.maximumSize = frameSize.toCGSize();
 
         d->generator.requestedTimeToleranceBefore = kCMTimeZero;
         d->generator.requestedTimeToleranceAfter  = kCMTimeZero;
+
+        if (d->colorSpace) CGColorSpaceRelease(d->colorSpace);
+        d->colorSpace = CGColorSpaceCreateDeviceRGB();
+        d->rect = { {0,0}, {frameSize.toCGSize()} };
+        d->img = QImage(frameSize, QImage::Format_RGBA8888_Premultiplied);
+
+        if (d->context) CGContextRelease(d->context);
+        d->context = CGBitmapContextCreate(
+            d->img.bits(),
+            frameSize.width(),
+            frameSize.height(),
+            8,
+            d->img.bytesPerLine(),
+            d->colorSpace,
+            kCGImageAlphaPremultipliedLast |
+            kCGBitmapByteOrder32Big
+        );
+
+        CGContextSetInterpolationQuality(d->context, kCGInterpolationHigh);
 }
 
 QImage ImageExtractor::getImage(double time)
@@ -660,43 +527,301 @@ QImage ImageExtractor::getImage(double time)
     @autoreleasepool
     {
         CMTime frametime = CMTimeMakeWithSeconds(time, 600);
-
         NSError* error = nil;
-        CGImageRef image =
-            [d->generator copyCGImageAtTime:frametime
-                                  actualTime:nil
-                                       error:&error];
-
-        if (!image)
-            return QImage();
-
-        QImage img(frameSize, QImage::Format_RGBA8888);
-
-        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-
-        CGContextRef context = CGBitmapContextCreate(
-            img.bits(),
-            frameSize.width(),
-            frameSize.height(),
-            8,
-            img.bytesPerLine(),
-            colorSpace,
-            kCGImageAlphaPremultipliedLast |
-            kCGBitmapByteOrder32Big
-        );
-
-        CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
-
-        CGContextDrawImage(
-            context,
-            CGRectMake(0, 0, frameSize.width(), frameSize.height()),
-            image
-        );
-
-        CGContextRelease(context);
-        CGColorSpaceRelease(colorSpace);
+        const CGImageRef image = [d->generator copyCGImageAtTime:frametime actualTime:nil error:&error];
+        if (!image) return QImage();
+        CGContextDrawImage(d->context, d->rect, image);
         CGImageRelease(image);
-
-        return img;
+        return d->img;
     }
 }
+
+struct AVFVideoPlayer::Impl
+{
+    AVPlayer* player = nil;
+    AVPlayerItemVideoOutput* output = nil;
+    CGSize frameSize;
+    QImage img;
+};
+
+AVFVideoPlayer::AVFVideoPlayer()
+{
+    d = new Impl;
+}
+
+AVFVideoPlayer::~AVFVideoPlayer()
+{
+    if (d->player)
+    {
+        AVPlayerItem* item = [d->player currentItem];
+        if (item && d->output) [item removeOutput:d->output];
+        d->player = nil;
+        d->output = nil;
+    }
+    delete d;
+}
+
+void AVFVideoPlayer::setSource(const QUrl& url)
+{
+    Url = QUrl();
+    if (d->player)
+    {
+        AVPlayerItem* item = [d->player currentItem];
+        if (item && d->output) [item removeOutput:d->output];
+        d->player = nil;
+        d->output = nil;
+    }
+
+    NSString* nsPath = url.path().toNSString();
+    if (!nsPath) return;
+    NSURL* nsurl = [NSURL fileURLWithPath:nsPath];
+    Url = url;
+    pause();
+
+    AVAsset* asset = [AVAsset assetWithURL:nsurl];
+
+    AVMutableComposition* composition = [AVMutableComposition composition];
+
+    AVAssetTrack* videoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
+
+    d->frameSize = videoTrack.naturalSize;
+
+    d->img = QImage(d->frameSize.width,d->frameSize.height,QImage::QImage::Format_ARGB32);
+
+    AVMutableCompositionTrack* compTrack =
+        [composition addMutableTrackWithMediaType:AVMediaTypeVideo
+                                  preferredTrackID:kCMPersistentTrackID_Invalid];
+
+    [compTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, asset.duration)
+                       ofTrack:videoTrack
+                        atTime:kCMTimeZero
+                         error:nil];
+
+    AVPlayerItem* item = [AVPlayerItem playerItemWithAsset:composition];
+
+    item.preferredForwardBufferDuration = 0;
+
+    NSDictionary* attrs =
+    @{
+        (id)kCVPixelBufferPixelFormatTypeKey:
+            @(kCVPixelFormatType_32BGRA),
+
+        (id)kCVPixelBufferWidthKey:
+            @(d->frameSize.width),
+
+        (id)kCVPixelBufferHeightKey:
+            @(d->frameSize.height)
+    };
+
+    d->output = [[AVPlayerItemVideoOutput alloc]
+            initWithPixelBufferAttributes:attrs];
+
+    [item addOutput:d->output];
+
+    d->player = [AVPlayer playerWithPlayerItem:item];
+    d->player.actionAtItemEnd = AVPlayerActionAtItemEndPause;
+    d->player.automaticallyWaitsToMinimizeStalling = NO;
+
+}
+
+void AVFVideoPlayer::play()
+{
+    if (!d->player) return;
+    [d->player play];
+    playing = true;
+}
+
+void AVFVideoPlayer::pause()
+{
+    if (d->player) [d->player pause];
+    playing = false;
+}
+
+QImage AVFVideoPlayer::currentFrame()
+{
+    if (!playing) return QImage();
+    if (!d->player) return QImage();
+    CMTime time = [d->player currentTime];
+
+    if (![d->output hasNewPixelBufferForItemTime:time]) return QImage();
+
+    CVPixelBufferRef buffer = [d->output copyPixelBufferForItemTime:time itemTimeForDisplay:nil];
+
+    if (!buffer) return QImage();
+
+    CVPixelBufferLockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+
+    const uchar* pixels = (uchar*)CVPixelBufferGetBaseAddress(buffer);
+
+    const int stride = (int)CVPixelBufferGetBytesPerRow(buffer);
+
+    QImage img(
+        pixels,
+        d->frameSize.width,
+        d->frameSize.height,
+        stride,
+        QImage::Format_ARGB32
+    );
+
+    QImage copy = img.copy();
+
+    CVPixelBufferUnlockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+    CVPixelBufferRelease(buffer);
+
+    return copy;
+}
+
+/*
+QImage AVFVideoPlayer::currentFrame()
+{
+    if (!playing) return QImage();
+    if (!d->player) return QImage();
+
+    CMTime time = [d->player currentTime];
+
+    if (![d->output hasNewPixelBufferForItemTime:time]) return QImage();
+
+    CVPixelBufferRef buffer = [d->output copyPixelBufferForItemTime:time
+                         itemTimeForDisplay:nil];
+
+    if (!buffer) return QImage();
+
+    CVPixelBufferLockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+
+    const int width  = (int)CVPixelBufferGetWidth(buffer);
+    const int height = (int)CVPixelBufferGetHeight(buffer);
+    const int stride = (int)CVPixelBufferGetBytesPerRow(buffer);
+
+    const uchar* src = (uchar*)CVPixelBufferGetBaseAddress(buffer);
+
+    //for (int y = 0; y < height; ++y) memcpy(d->img.scanLine(y), src + y * stride, width * 4);
+    if (stride == width * 4)
+    {
+        memcpy(d->img.bits(), src, width * height * 4);
+    }
+    else
+    {
+        for (int y = 0; y < height; ++y)
+            memcpy(d->img.scanLine(y), src + y * stride, width * 4);
+    }
+    CVPixelBufferUnlockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+    CVPixelBufferRelease(buffer);
+
+    return d->img;
+}
+*/
+/*
+QImage AVFVideoPlayer::currentFrame()
+{
+    if (!playing) return QImage();
+    if (!d->player) return QImage();
+
+    CMTime time = [d->player currentTime];
+
+    if (![d->output hasNewPixelBufferForItemTime:time])
+        return QImage();
+
+    CVPixelBufferRef buffer =
+        [d->output copyPixelBufferForItemTime:time
+                         itemTimeForDisplay:nil];
+
+    if (!buffer)
+        return QImage();
+
+    CVPixelBufferLockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+
+    int srcW = (int)CVPixelBufferGetWidth(buffer);
+    int srcH = (int)CVPixelBufferGetHeight(buffer);
+    int stride = (int)CVPixelBufferGetBytesPerRow(buffer);
+
+    uchar* src =
+        (uchar*)CVPixelBufferGetBaseAddress(buffer);
+
+    //QImage img(d->frameSize.width, d->frameSize.height, QImage::Format_ARGB32);
+
+    if (!d->needsResize) {
+        for (int y = 0; y < d->frameSize.height; ++y)
+            memcpy(d->img.scanLine(y), src + y * stride, d->frameSize.width * 4);
+    }
+    else {
+        CGDataProviderRef provider =
+            CGDataProviderCreateWithData(
+                NULL,
+                src,
+                stride * srcH,
+                NULL
+            );
+
+        CGImageRef cg =
+            CGImageCreate(
+                srcW,
+                srcH,
+                8,
+                32,
+                stride,
+                d->colorSpace,
+                kCGImageAlphaPremultipliedFirst |
+                kCGBitmapByteOrder32Little,
+                provider,
+                NULL,
+                false,
+                kCGRenderingIntentDefault
+            );
+
+        CGContextSetInterpolationQuality(d->context, kCGInterpolationHigh);
+
+        CGContextDrawImage(
+            d->context,
+            CGRectMake(0,0,d->frameSize.width,d->frameSize.height),
+            cg
+        );
+
+        CGImageRelease(cg);
+        CGDataProviderRelease(provider);
+    }
+    CVPixelBufferUnlockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+    CVPixelBufferRelease(buffer);
+
+    return d->img;
+}
+*/
+void AVFVideoPlayer::setPosition(double seconds)
+{
+    if (!d->player) return;
+
+    AVPlayerItem* item = [d->player currentItem];
+
+    [item cancelPendingSeeks];
+
+    CMTime time = CMTimeMakeWithSeconds(seconds, 600);
+
+    [d->player seekToTime:time
+        toleranceBefore:kCMTimeZero
+         toleranceAfter:kCMTimeZero];
+}
+
+double AVFVideoPlayer::position() const
+{
+    if (!d->player) return 0;
+    CMTime time = [d->player currentTime];
+    return CMTimeGetSeconds(time);
+}
+
+double AVFVideoPlayer::duration() const
+{
+    if (!d->player) return 0;
+    AVPlayerItem* item = [d->player currentItem];
+    return CMTimeGetSeconds(item.duration);
+}
+
+void AVFVideoPlayer::setPlaybackRate(double rate)
+    {
+        if (!d->player) return;
+        d->player.rate = rate;
+    }
+
+double AVFVideoPlayer::playbackRate() const
+    {
+        if (!d->player) return 0.0;
+        return d->player.rate;
+    }

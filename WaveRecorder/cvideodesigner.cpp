@@ -10,27 +10,23 @@ CVideoItem::CVideoItem(QGraphicsItem* parent)
     setCacheMode(QGraphicsItem::NoCache);
     setOpacity(1);
 
-    m_player = new QMediaPlayer(this);
-    m_player->setAudioOutput(nullptr);   // aldrig ljud
-    m_sink = new QVideoSink(this);
-    m_player->setVideoSink(m_sink);
-    connect(m_sink, &QVideoSink::videoFrameChanged, this, &CVideoItem::onVideoFrameChanged);
+    frameTimer.setInterval(40); // 25 fps ~60 fps
 
+    connect(&frameTimer,&QTimer::timeout,this,[this]{
+        if (!m_Playing) return;
+        if (!isVisible()) return;
+        if (!m_Enabled) return;
+        m_currentPlaybackImage = m_AVFPlayer.currentFrame();
+        if (!m_currentPlaybackImage.isNull()) update();
+    });
     grabGesture(Qt::PinchGesture);
     setAcceptedMouseButtons(Qt::AllButtons);
     setAcceptTouchEvents(true);
 }
 
 CVideoItem::~CVideoItem() {
-    m_player->stop();
-    m_currentFrame = {};
-    m_player->deleteLater();
-    m_sink->deleteLater();
-    if (m_ExportPlayer) {
-        m_ExportPlayer->stop();
-        m_ExportPlayer->deleteLater();
-        m_ExportSink->deleteLater();
-    }
+    frameTimer.stop();
+    m_Playing = false;
 }
 
 QRectF CVideoItem::boundingRect() const
@@ -47,39 +43,32 @@ void CVideoItem::paint(QPainter* p,
 {
     if (m_ExportMode) {
         if (m_frameGeneration != m_exportGeneration){
-            qDebug() << "paint empty Frame";
             return;
         }
         p->setRenderHint(QPainter::SmoothPixmapTransform, true);
         p->setRenderHint(QPainter::Antialiasing, true);
-        p->drawImage(m_rect, m_currentImage, m_sourceRect);
-        qDebug() << "paint frame";
+        p->drawImage(renderRect, m_exportImage, m_sourceRect);
         return;
     }
     if (!m_Enabled) return;
     if (!isVisible()) return;
-    p->setRenderHint(QPainter::SmoothPixmapTransform, false);
-    p->setRenderHint(QPainter::Antialiasing, false);
     if (!m_Playing) {
-        p->drawPixmap(m_rect,thumbnail,m_sourceRect);
-        p->setPen(Qt::NoPen);
-        p->setBrush(QColor(0,0,0,60));
-        p->drawRect(m_rect);
-    }
-    else {
-        if (!m_currentFrame.isValid()) return;
-        const auto fmt = QVideoFrameFormat::imageFormatFromPixelFormat(m_currentFrame.pixelFormat());
-        if (fmt != QImage::Format_Invalid) {
-            p->drawImage(m_rect,QImage(
-                                 m_currentFrame.bits(0),
-                                 m_currentFrame.width(),
-                                 m_currentFrame.height(),
-                                 m_currentFrame.bytesPerLine(0),
-                                 fmt),m_sourceRect);
+        p->setRenderHint(QPainter::SmoothPixmapTransform, true);
+        p->setRenderHint(QPainter::Antialiasing, true);
+        if (!m_stillImage.isNull()) {
+            p->drawImage(m_rect,m_stillImage,m_sourceRect);
         }
         else {
-            p->drawImage(m_rect,m_currentFrame.toImage(),m_sourceRect);
+            p->drawImage(m_rect,thumbnail,m_sourceRect);
+            p->setPen(Qt::NoPen);
+            p->setBrush(QColor(0,0,0,60));
+            p->drawRect(m_rect);
         }
+    }
+    else {
+        if (m_currentPlaybackImage.isNull()) return;
+        p->drawImage(m_rect,m_currentPlaybackImage,m_sourceRect);
+        return;
     }
     if (isSelected())
     {
@@ -90,7 +79,8 @@ void CVideoItem::paint(QPainter* p,
     if (!m_Playing) {
         if (m_MD) {
             QRect r = m_sourceRect;
-            if ((qApp->queryKeyboardModifiers() == Qt::NoModifier) || (m_activeHandle != NoHandle)) r = QRectF(pos() + m_rect.topLeft(),m_rect.size()).toRect();
+            Qt::KeyboardModifiers kb = qApp->queryKeyboardModifiers();
+            if ((kb == Qt::NoModifier) || (m_activeHandle != NoHandle)) r = QRectF(pos() + m_rect.topLeft(),m_rect.size()).toRect();
             const QString posString = QString::number(r.left()) + "," + QString::number(r.top());
             const QString sizeString = QString::number(r.width()) + "," + QString::number(r.height());
             p->setBrush(Qt::black);
@@ -98,6 +88,18 @@ void CVideoItem::paint(QPainter* p,
             p->setFont(QFont("",12));
             p->drawText(m_rect.topLeft() + QPoint(10,17),posString);
             p->drawText(m_rect.bottomRight() - QPoint(60,2),sizeString);
+            if (kb & Qt::ShiftModifier) {
+                p->setPen(QPen(Qt::yellow,1,Qt::DashLine));
+                qreal scaleX = (qreal)m_frameSize.width() / m_rect.width();
+                qreal scaleY = (qreal)m_frameSize.height() / m_rect.height();
+                QRect scaledSource = QRect(QPoint(0,0),m_frameSize);
+                if (qAbs(m_sourceRect.center().x() - scaledSource.center().x()) < scaleX) {
+                    p->drawLine(m_rect.center().x(),m_rect.top(),m_rect.center().x(),m_rect.bottom());
+                }
+                if (qAbs(m_sourceRect.center().y() - scaledSource.center().y()) < scaleY) {
+                    p->drawLine(m_rect.left(),m_rect.center().y(),m_rect.right(),m_rect.center().y());
+                }
+            }
         }
         else {
             if (!name.isEmpty()) {
@@ -110,51 +112,14 @@ void CVideoItem::paint(QPainter* p,
     }
 }
 
-void CVideoItem::setThumbnail(const QPixmap& pix)
+void CVideoItem::setThumbnail(const QImage& pix)
 {
     prepareGeometryChange();
     thumbnail = pix;
     m_frameSize = pix.size() / pix.devicePixelRatio();
+    if (m_frameSize.isEmpty()) m_frameSize = QSize(320,240);
     m_rect = QRect(QPoint(0,0),m_frameSize);
     m_sourceRect = m_rect;
-    update();
-}
-
-void CVideoItem::onExportFrameChanged(const QVideoFrame& frame) {
-    qDebug() << "onExportFrame";
-    QVideoFrame f(frame);
-    if (f.map(QVideoFrame::ReadOnly)) {
-        auto fmt =
-            QVideoFrameFormat::imageFormatFromPixelFormat(
-                f.pixelFormat());
-
-        if (fmt != QImage::Format_Invalid) {
-            m_currentImage = QImage(
-                                 f.bits(0),
-                                 f.width(),
-                                 f.height(),
-                                 f.bytesPerLine(0),
-                                 fmt
-                                 ).copy();   // ← KRITISK
-        }
-        else {
-            m_currentImage = f.toImage();
-        }
-        f.unmap();
-    }
-    emit frameReady();
-}
-
-void CVideoItem::onVideoFrameChanged(const QVideoFrame& frame)
-{
-    if (!m_Enabled) return;
-    if (!m_Playing) return;
-    if (!isVisible()) return;
-    if (m_MD) return;
-    const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (now - m_LastFrameChange < 16) return;
-    m_LastFrameChange = now;
-    m_currentFrame = frame;
     update();
 }
 
@@ -253,7 +218,6 @@ void CVideoItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* e)
     update();
     QGraphicsObject::mouseReleaseEvent(e);
 }
-
 
 CVideoDesigner::CVideoDesigner(QWidget* parent)
     : QGraphicsView(parent)

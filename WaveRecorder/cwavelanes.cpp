@@ -61,6 +61,7 @@ CWaveLanes::~CWaveLanes()
 {
     if (m_TimerID) killTimer(m_TimerID);
     m_TimerID=0;
+    deleteAutomation();
     for (CWaveLane* L : std::as_const(lanes)) {
         if (L->hasVideo()) {
             if (videoWindow) videoWindow->removeVideo(L->videoItem);
@@ -85,24 +86,24 @@ void CWaveLanes::init(const int Index, QWidget* MainWindow)
     IDevice::addTickerDevice(&deviceList);
 
     MainMenu->EditMenu->addSeparator();
-
     SplitAction = MainMenu->EditMenu->addAction("Split",this,&CWaveLanes::Split);
     EditTrackAction = MainMenu->EditMenu->addAction("Edit Track",this,&CWaveLanes::EditTrack);
     QMenu* QuantizeMenu = MainMenu->EditMenu->addMenu("Quantize");
     QuantizeStraightAction = QuantizeMenu->addAction("Straight",this,&CWaveLanes::QuantizeStraight);
     QuantizeTripletAction = QuantizeMenu->addAction("Triplet",this,&CWaveLanes::QuantizeTriplet);
     MainMenu->EditMenu->addSeparator();
-    VideoWidgetAction=MainMenu->EditMenu->addAction("Lane Video",this,&CWaveLanes::ToggleLaneVideo);
-    VideoWidgetAction->setCheckable(true);
-    VideoTrackAction=MainMenu->EditMenu->addAction("Track Video",this,&CWaveLanes::ToggleTrackVideo);
+    VideoTrackAction=MainMenu->EditMenu->addAction("Track Video Visible",this,&CWaveLanes::ToggleTrackVideo);
     VideoTrackAction->setCheckable(true);
     MainMenu->EditMenu->addSeparator();
     AddLaneAction=MainMenu->EditMenu->addAction("Add Lane",this,&CWaveLanes::AddLane);
     RemoveLaneAction=MainMenu->EditMenu->addAction("Remove Lane",this,&CWaveLanes::RemoveLane);
-    AutomationAction = MainMenu->EditMenu->addAction("Automation",this,&CWaveLanes::Automation);
+    AutomationAction = MainMenu->EditMenu->addAction("Show Automation",this,&CWaveLanes::Automation);
     EditLaneAction = MainMenu->EditMenu->addAction("Edit Lane",this,&CWaveLanes::EditLane);
     EditLaneAction->setCheckable(true);
-    EffectRackAction = MainMenu->EditMenu->addAction("EffectRack",this,&CWaveLanes::EffectRack);
+    EffectRackAction = MainMenu->EditMenu->addAction("Show EffectRack",this,&CWaveLanes::EffectRack);
+    MainMenu->EditMenu->addSeparator();
+    VideoWidgetAction=MainMenu->EditMenu->addAction("Lane Video Visible",this,&CWaveLanes::ToggleLaneVideo);
+    VideoWidgetAction->setCheckable(true);
     for (int i=Effects.size();i<3;i++)
     {
         Effects.append(dynamic_cast<CDeviceContainer*>(deviceList.addDevice(new CDeviceContainer("Effect"),i+1,m_MainWindow)));
@@ -169,9 +170,7 @@ void CWaveLanes::setZoom(double z)
     if (z < 0) z = 1;
     if (!closeEnough(zoomer->getZoom(),z)) zoomer->setZoom(z);
     paint();
-    //horizontalScrollBar()->setValue(qMax(0,m_TimeLine.currentPos()-(visibleRect().width()/2)));
     zoomer->scrollXTo(m_TimeLine.currentPos()-(zoomer->visibleRect().width()/2.0));
-    //centerOn(QRectF(viewport()->rect()).center() + QPointF(qMax<double>(0,m_TimeLine.currentPos()-(visibleRect().width()/2.0)),0));
     UpdateAutomationGeometry();
 }
 
@@ -179,9 +178,7 @@ void CWaveLanes::ZoomToCursor(double z, double o){
     QPointF p = viewport()->mapFromGlobal(QCursor::pos());
     ulong64 s = ((zoomer->visibleRect().left() + p.x()) - BorderWidth) / o;
     paint();
-    //horizontalScrollBar()->setValue(qMax<int>(0,sample2Pos(s - (p.x() / z))));
     zoomer->scrollXTo(sample2Pos(s - (p.x() / z)));
-    //centerOn(QRectF(viewport()->rect()).center() + QPointF(qMax<double>(0,sample2Pos(s - (p.x() / z))),0));
     UpdateAutomationGeometry();
 }
 
@@ -205,7 +202,7 @@ void CWaveLanes::timerEvent(QTimerEvent *)
 CAudioBuffer* CWaveLanes::getNextA(const int ProcIndex)
 {
     if (m_Mixer != nullptr) return m_Mixer->getNextA(ProcIndex+CStereoMixer::jnOut);
-    return nullptr;//&m_NullBufferStereo;
+    return nullptr;
 }
 
 void CWaveLanes::play(const bool FromStart)
@@ -371,6 +368,16 @@ void CWaveLanes::serialize(QDomLiteElement* xml) const
     for (const int& i : CurrentTrack) s.append(QString::number(i)+"&");
     xml->setAttribute("CurrentTrack",s);
     if (videoWindow) videoWindow->serialize(xml);
+    /*
+    QDomLiteElement* Lanes = xml->appendChild("AutomationLanes");
+    for (QWidget* a : ProxyWidgets()) {
+        CAutomationLane* w = static_cast<CAutomationLane*>(a);
+        if (QDomLiteElement* l = Lanes->appendChild("AutomationLane")) {
+            qDebug() << "serialize automation lane" << w->deviceId();
+            w->serialize(l);
+        }
+    }
+*/
 }
 
 void CWaveLanes::unserialize(const QDomLiteElement* xml)
@@ -378,6 +385,7 @@ void CWaveLanes::unserialize(const QDomLiteElement* xml)
     QMutexLocker locker(&mutex);
     requestPause();
     Loading=true;
+    deleteAutomation();
     if (m_Mixer)
     {
         m_Mixer->removerEffectRacksFromDeviceList(&deviceList);
@@ -418,9 +426,23 @@ void CWaveLanes::unserialize(const QDomLiteElement* xml)
         CurrentTrack.clear();
         for (const QString& s : std::as_const(l)) CurrentTrack.append(s.toInt());
         if (videoWindow) videoWindow->unserialize(xml);
+        /*
+        if (QDomLiteElement* Lanes = xml->elementByTag("AutomationLanes")) {
+            for (const QDomLiteElement* e : (const QDomLiteElementList)Lanes->elementsByTag("AutomationLane")) {
+                if (IDevice* d = deviceList.device(e->attribute("DeviceID"))) {
+                    qDebug() << "unserialize automation lane" << d->deviceID();
+                    CAutomationLane* a = new CAutomationLane();
+                    a->fill(d,0,&deviceList,false);
+                    QGraphicsProxyWidget* w = addProxyWidget(a);
+                    w->setPos(static_cast<CWaveLane*>(d)->geometry.adjusted(0,0,-50,0).topLeft());
+                }
+            }
+        }
+*/
     }
     if (lanes.isEmpty()) AddLaneInternal();
     paint();
+    setEditMenu();
     Loading=false;
 }
 
@@ -551,6 +573,7 @@ void CWaveLanes::EditTrack() {
         e->ZoomRegion();
         d.exec();
         paint();
+        setEditMenu();
     }
 }
 
@@ -581,7 +604,7 @@ void CWaveLanes::setEditMenu() {
     VideoWidgetAction->setEnabled(canVideo());
     if ((CurrentLane > -1) && (CurrentLane < lanes.size())) {
         if (lanes[CurrentLane]->videoItem) {
-            VideoWidgetAction->setChecked(lanes[CurrentLane]->videoItem->isVisible());
+            VideoWidgetAction->setChecked(lanes[CurrentLane]->videoVisible);
         }
     }
     VideoTrackAction->setEnabled(trackCanVideo());
@@ -784,6 +807,7 @@ void CWaveLanes::PasteDoc(const QDomLiteElement* xml)
                     }
                 }
                 paint();
+                setEditMenu();
             }
         }
 }
@@ -810,23 +834,27 @@ void CWaveLanes::Automation() {
         a->fill(lanes[CurrentLane],0,&deviceList,false);
         QGraphicsProxyWidget* w = addProxyWidget(a);
         w->setPos(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).topLeft());
-        //a->setGeometry(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0));
-        //a->updateGeometry();
-        //a->show();
     }
 }
 
 void CWaveLanes::UpdateAutomationGeometry() {
     for (QWidget* a : ProxyWidgets()) {
-        CAutomationLane* w = static_cast<CAutomationLane*>(a);
-        w->resize(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).size());
+        if (CAutomationLane* w = static_cast<CAutomationLane*>(a)) {
+            w->resize(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).size());
+        }
     }
+}
 
-
-    //for (CAutomationLane* a : (const QList<CAutomationLane*>)findChildren<CAutomationLane*>()) {
-        //a->setGeometry(lanes[CurrentLane]->geometry.adjusted(0,0,-50,0).translated(-horizontalScrollBar()->value(),0));
-        //a->updateGeometry();
-    //}
+void CWaveLanes::deleteAutomation() {
+    const QGraphicsItemList g(Scene.items());
+    for (QGraphicsItem* i : g) {
+        if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
+            if (i->zValue() > 4) {
+                Scene.removeItem(i);
+                proxy->widget()->deleteLater();
+            }
+        }
+    }
 }
 
 
@@ -834,6 +862,7 @@ void CWaveLanes::DeleteDoc()
 {
     MainMenu->UndoMenu->addItem("Delete Track");
     for (const int& i : (const QList<int>)CurrentTrack) RemoveTrackAt(CurrentLane, i);
+    setEditMenu();
 }
 
 void CWaveLanes::RemoveTrackAt(int Lane, int Track)
@@ -929,6 +958,7 @@ void CWaveLanes::AddLane()
     MainMenu->UndoMenu->addItem("Add Lane");
     AddLaneInternal();
     paint();
+    setEditMenu();
 }
 
 void CWaveLanes::AddLaneInternal() {
@@ -956,6 +986,7 @@ void CWaveLanes::RemoveLane()
         if (CurrentLane>-1)
         {
             MainMenu->UndoMenu->addItem("Delete Lane");
+            deleteAutomation();
             if (lanes[CurrentLane]->hasVideo()) {
                 videoWindow->removeVideo(lanes[CurrentLane]->videoItem);
             }
@@ -970,6 +1001,7 @@ void CWaveLanes::RemoveLane()
                     requestSkip(samples);
             }
             paint();
+            setEditMenu();
         }
     }
 }
@@ -1050,6 +1082,7 @@ bool CWaveLanes::AddFile(QString FN,ulong64 Start) {
         paint();
         Loading=false;
         emit FileAdded(FN);
+        setEditMenu();
         return true;
     }
     delete T;

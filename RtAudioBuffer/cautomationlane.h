@@ -165,14 +165,14 @@ public:
         if (m_Device) return m_Device->deviceID();
         return QString();
     }
-    void play(const bool /*FromStart*/) {
+    void play(const bool /*FromStart*/) override {
         m_TimerID = startTimer(50);
     }
-    void pause() {
+    void pause() override {
         if (m_TimerID) killTimer(m_TimerID);
         m_TimerID = 0;
     }
-    void skip(const ulong64 samples) {
+    void skip(const ulong64 samples) override {
         m_TimeLine.skip(samples);
     }
     void serialize(QDomLiteElement* xml) const {
@@ -180,16 +180,21 @@ public:
         xml->setAttribute("ParameterIndex",m_ParameterIndex);
     }
 protected:
-    void timerEvent(QTimerEvent* /*e*/) {
+    void drawForeground(QPainter *painter, const QRectF &rect) override
+    {
+        Q_UNUSED(rect);
+        m_TimeLine.drawPlayLine(painter);
+    }
+    void timerEvent(QTimerEvent* /*e*/) override {
         if (!m_TimerID) return;
         m_TimeLine.handleTimer(m_Device);
     }
-    void showEvent(QShowEvent* e) {
+    void showEvent(QShowEvent* e) override {
         QGraphicsView::showEvent(e);
         m_TimeLine.setCurrentSample(m_Device->requestCurrentSample());
         Paint();
     }
-    void mouseDoubleClickEvent(QMouseEvent *event)
+    void mouseDoubleClickEvent(QMouseEvent *event) override
     {
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (m_TimeLine.handleDoubleClick(p,m_Device)) return;
@@ -221,7 +226,7 @@ protected:
         DrawAutomation(true);
         QGraphicsView::mouseDoubleClickEvent(event);
     }
-    void mousePressEvent(QMouseEvent *event) {
+    void mousePressEvent(QMouseEvent *event) override {
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (event->button() == Qt::RightButton) {
             if (p.y() < m_TimeLineHeight) {
@@ -267,7 +272,7 @@ protected:
         }
         QGraphicsView::mousePressEvent(event);
     }
-    void mouseMoveEvent(QMouseEvent *event) {
+    void mouseMoveEvent(QMouseEvent *event) override {
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (m_TimeLine.handleMouseMove(p, m_Device)) return;
         if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
@@ -301,14 +306,14 @@ protected:
         }
         QString v = currentParameter()->valueText(valueFromY(textPoint.y(),currentParameter()));
         ulong64 t = timeFromX(textPoint.x());
-        if (!InfoLabel->isVisible()) InfoLabel->show();
-        InfoLabel->setText(v + "\n" + m_TimeLine.timeToText(t));
+        if (!InfoLabel.isVisible()) InfoLabel.show();
+        InfoLabel.setText(v + "\n" + m_TimeLine.timeToText(t));
         //InfoLabel->move(event->pos()+geometry().topLeft()+QPoint(4,4));
-        InfoLabel->move(event->globalPosition().toPoint() + QPoint(10,10));
-        InfoLabel->adjustSize();
+        InfoLabel.move(event->globalPosition().toPoint() + QPoint(10,10));
+        InfoLabel.adjustSize();
         QGraphicsView::mouseMoveEvent(event);
     }
-    void mouseReleaseEvent(QMouseEvent *event) {
+    void mouseReleaseEvent(QMouseEvent *event) override {
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (m_TimeLine.handleMouseRelease(p, m_Device)) return;
         if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
@@ -356,7 +361,7 @@ protected:
         m_Marking = false;
         QGraphicsView::mouseReleaseEvent(event);
     }
-    void keyPressEvent(QKeyEvent* e)
+    void keyPressEvent(QKeyEvent* e) override
     {
         if (e->key() == Qt::Key_Backspace) {
             if (m_Selected.size())
@@ -370,7 +375,7 @@ protected:
         }
         QGraphicsView::keyPressEvent(e);
     }
-    bool event(QEvent *e)
+    bool event(QEvent *e) override
     {
         if (e->type() == QEvent::ShortcutOverride)
         {
@@ -381,11 +386,11 @@ protected:
                 return true;
             }
         }
-        if (e->type()==QEvent::Leave) InfoLabel->hide();
+        if (e->type()==QEvent::Leave) InfoLabel.hide();
         if (e->type()==QEvent::Wheel) e->ignore();
         return QGraphicsView::event(e);
     }
-    void resizeEvent(QResizeEvent *event) {
+    void resizeEvent(QResizeEvent *event) override {
         QGraphicsView::resizeEvent(event);
         if (m_Device)
         {
@@ -396,7 +401,9 @@ protected:
 public slots:
     void close(IDevice* d = nullptr)
     {
-        delete InfoLabel;
+        //if (InfoLabel) delete InfoLabel;
+        //InfoLabel = nullptr;
+        InfoLabel.hide();
 
         if (d == nullptr || d == m_Device)
         {
@@ -508,7 +515,7 @@ private:
     }
     QGraphicsScene Scene;
     QGraphicsItemList m_TopLayer;
-    QLabel* InfoLabel;
+    QLabel InfoLabel;
     bool m_MD = false;
     QPoint m_StartPoint;
     QList<uint> m_Selected;

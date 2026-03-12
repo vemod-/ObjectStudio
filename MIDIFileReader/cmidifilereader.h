@@ -147,7 +147,7 @@ public:
     void setTempoAdjust(const double t) {
         if (closeEnough(t, m_TempoAdjust)) return;
         m_TempoAdjust = t;
-        getTicks();
+        //getTicks();
     }
     inline ulong noteCount(const int Track) const { return tracks.at(Track)->noteCount; }
     inline void reset() { for (CMIDIFileTrack* t : std::as_const(tracks)) t->reset(); }

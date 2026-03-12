@@ -5,8 +5,8 @@
 #include "smbpitchshifter.h"
 #include <QGraphicsScene>
 #include "ctimeline.h"
-#include <QtMultimedia/QMediaPlayer>
-#include <QtMultimediaWidgets/QVideoWidget>
+//#include <QtMultimedia/QMediaPlayer>
+//#include <QtMultimediaWidgets/QVideoWidget>
 #include <unistd.h>
 #include "cvideodesigner.h"
 
@@ -59,51 +59,27 @@ public:
     void sanityCheck(CWaveTrack* d);
     ulong64 pos2Sample(int Pos) const;
     int sample2Pos(long64 sample) const;
-    QList<CParameterWrapper*> parameters;
     bool videoVisible = true;
+    QList<CParameterWrapper*> parameters;
     bool hasVideo() {
         for (CWaveTrack* t : std::as_const(tracks)) {
             if (t->waveGenerator.hasVideo()) return true;
         }
         return false;
     }
-    QPixmap videoThumbnail() {
+    QImage videoThumbnail() {
         for (CWaveTrack* t : std::as_const(tracks)) {
             if (t->waveGenerator.hasVideo()) return t->videoThumbnail;
         }
-        return QPixmap();
+        return QImage();
     }
     bool trackVisible(CWaveTrack* t) {
         return (t->videoVisible & videoVisible);
     }
-    /*
-    void showVideoWidget() {
-        if (hasVideo()) {
-            if (videoItem) {
-                videoItem->setVisible(true);
-            }
-        }
-    }
-    void hideVideoWidget() {
-        if (hasVideo()) {
-            if (videoItem) {
-                videoItem->setVisible(false);
-            }
-        }
-    }
-    void toggleVideoWidget() {
-        if (hasVideo()) {
-            if (videoItem) {
-                videoDialog->toggleVideo(videoItem);
-            }
-        }
-    }
-*/
     void createVideoWidget() {
         if (hasVideo()) {
             if (!videoItem) {
-                QPixmap pix = videoThumbnail();
-                videoItem = new CVideoItem(pix.scaled(pix.size() / pix.devicePixelRatio(),Qt::KeepAspectRatio,Qt::SmoothTransformation));
+                videoItem = new CVideoItem(videoThumbnail());
                 videoItem->name = "Lane " + QString::number(m_Index);
                 videoDialog->addVideo(videoItem);
             }

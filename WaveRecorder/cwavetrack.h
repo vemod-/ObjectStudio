@@ -3,10 +3,8 @@
 
 #include "cwavegenerator.h"
 #include <QGraphicsScene>
-#include <QtMultimedia/QMediaPlayer>
-#include <QtMultimedia/QVideoSink>
-#include <QtMultimedia/QVideoFrame>
-#include <QtMultimedia/QMediaMetaData>
+#include "avfoundation_wrapper.h"
+#include "avfaudiorw.h"
 
 class CWaveTrack
 {
@@ -47,38 +45,12 @@ public:
     long64 waveEnd() {
         return waveStart() + (waveGenerator.size() / loopParameters.Speed);
     }
-    QPixmap videoThumbnail;
+    QImage videoThumbnail;
     long64 videoLength = 0;
     bool videoVisible = true;
-    QPixmap getThumbnail(QString path) {
-        QMediaPlayer player;
-        QVideoSink sink;
-        player.setVideoSink(&sink);
-        player.setSource(path);
-        QEventLoop loop;
-        QPixmap tempPixmap;
-        QObject::connect(&sink, &QVideoSink::videoFrameChanged,
-                         &loop,
-                         [&](const QVideoFrame &frame) {
-                             if (!frame.isValid()) return;
-                             tempPixmap = QPixmap::fromImage(frame.toImage());
-                             qDebug() << tempPixmap.size();
-                             player.stop();
-                             loop.quit();
-                         });
-        // Timeout
-        QTimer::singleShot(2000, &loop, [&]()
-                           {
-                               if (tempPixmap.isNull())
-                               {
-                                   //qWarning() << "Thumbnail timeout!";
-                                   player.stop();
-                                   loop.quit();
-                               }
-                           });
-        player.play();
-        loop.exec();
-        return tempPixmap;
+    QImage getThumbnail(QString path) {
+        QSize s = avf_displaySize(path);
+        return avf_extract_fullframe(path).scaled(s,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
     }
 private:
 

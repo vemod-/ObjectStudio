@@ -26,6 +26,7 @@ int CChannelVol::vol()
 
 void CChannelVol::setVol(int v)
 {
+    m_Ch->Level=v*0.01f;
     ui->VolLabel->setText(percent2dBText(v));
     ui->VolSlider->setValue(v);
 }

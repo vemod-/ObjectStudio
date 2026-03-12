@@ -11,7 +11,7 @@ CWaveTrack::CWaveTrack(const QString &Filename, ulong64 StartPointer)
     loopParameters.reset(waveGenerator.size());
     if (waveGenerator.hasVideo()) {
         videoThumbnail = getThumbnail(Filename);
-        videoLength = avf_video_track_duration(Filename.toStdString().c_str()) * 1000;
+        videoLength = avf_video_track_duration(Filename) * 1000;
     }
 }
 
@@ -55,7 +55,7 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
         Caption.chop(1);
     }
     if (waveGenerator.hasVideo()) {
-        QGraphicsPixmapItem* pi = Scene.addPixmap(videoThumbnail.scaled(geometry.size() * 0.9,Qt::KeepAspectRatio,Qt::SmoothTransformation));
+        QGraphicsPixmapItem* pi = Scene.addPixmap(QPixmap::fromImage(videoThumbnail.scaled(geometry.size() * 0.9,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
         pi->setPos(geometry.topLeft() + QPoint(geometry.height() * 0.05,geometry.height() * 0.05));
     }
     QGraphicsTextItem* t = Scene.addText(Caption,f);

@@ -470,7 +470,7 @@ public:
     {
         const IMainPlayer::BufferStates s = mainPlayer()->bufferState();
         mainPlayer()->setBufferState(IMainPlayer::Working);
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         int channels = 2;
         IJack::Directions direction = IJackBase::Out;
         if (procIndex > -1) {

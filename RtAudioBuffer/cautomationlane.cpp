@@ -26,11 +26,11 @@ CAutomationLane::CAutomationLane(QWidget *parent) :
     setRenderHint(QPainter::TextAntialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
     setMouseTracking(true);
-    InfoLabel=new QLabel();
-    InfoLabel->setWindowFlags(Qt::ToolTip);
-    InfoLabel->setAutoFillBackground(true);
-    InfoLabel->setFrameStyle(QFrame::Box | QFrame::Plain);
-    InfoLabel->hide();
+    //InfoLabel=new QLabel();
+    InfoLabel.setWindowFlags(Qt::ToolTip);
+    InfoLabel.setAutoFillBackground(true);
+    InfoLabel.setFrameStyle(QFrame::Box | QFrame::Plain);
+    InfoLabel.hide();
     connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CAutomationLane::Paint);
 }
 

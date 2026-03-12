@@ -8,13 +8,10 @@
 #include "cmixerwidget.h"
 #include "cwavelane.h"
 #include "cdevicecontainer.h"
-//#include <QGesture>
-//#include <QGraphicsView>
 #include <QGraphicsLineItem>
 #include <QScrollBar>
 #include "qgraphicsviewzoomer.h"
 #include "ctimeline.h"
-//#include "ceditmenu.h"
 #include "cprojectapp.h"
 #include "avfoundation_wrapper.h"
 
@@ -28,7 +25,7 @@ class CWaveLanes : public QGraphicsView, public IDevice//, public IEditDocument
 public:
     explicit CWaveLanes(QWidget *parent = nullptr);
     ~CWaveLanes();
-    void init(const int Index, QWidget* MainWindow);
+    void init(const int Index, QWidget* MainWindow) override;
     void reset();
     void stop();
     bool fileInUse(const QString& Filename);
@@ -38,16 +35,10 @@ public:
     void updateMixer();
     void serialize(QDomLiteElement* xml) const;
     void unserialize(const QDomLiteElement* xml);
-    CAudioBuffer* getNextA(const int ProcIndex);
-    void play(const bool);
-    void pause();
-    void skip(const ulong64 samples);
-    /*
-    QRect visibleRect() {
-        //return QRect(horizontalScrollBar()->value(),verticalScrollBar()->value(),viewport()->width(),viewport()->height());
-        return mapToScene(viewport()->rect()).boundingRect().toRect();
-    }
-*/
+    CAudioBuffer* getNextA(const int ProcIndex) override;
+    void play(const bool) override;
+    void pause() override;
+    void skip(const ulong64 samples) override;
     int rulerBeats;
     double rulerTempo;
     QList<CWaveLane*> lanes;
@@ -84,36 +75,40 @@ public slots:
     void zoomMin();
     void zoomMax();
     void setEditMenu();
-    void exportWave(const QString &filename) {
-        QFile(filename).remove();
+    void exportAudio(const QString &filename) {
+        //QFile(filename).remove();
         IDevice::exportWave(filename);
     }
     void exportVideo(const QString& filename) {
         if (!videoWindow) return;
-        QRect outputRect(QPoint(0,0),videoWindow->outputSize());
-        QRect inputRect(QPoint(0,0),videoWindow->inputSize());
+        const QSize outputSize(videoWindow->outputSize());
+        const qreal frameRate = 30;
         QFile(filename).remove();
 
-        CChannelBuffer audio = IDevice::render(-1);
+        QGraphicsScene* tempScene = videoWindow->scene();
+        videoWindow->setScene(nullptr);
+        CChannelBuffer audio = IDevice::render();
 
-        VideoExporter exporter(filename, outputRect.size(), 30, CPresets::presets().SampleRate, 2);
+        VideoExporter exporter(filename, outputSize, frameRate, CPresets::presets().SampleRate, 2);
 
         ulong64 mSec = 0;
         for (CWaveLane* l : std::as_const(lanes)) {
             ulong64 ms = l->milliSeconds();
             if (ms > mSec) mSec = ms;
         }
-        ulong64 totalFrames = 30 * mSec / 1000.0;
+        ulong64 totalFrames = frameRate * mSec / 1000.0;
 
-        QImage img(outputRect.size(), QImage::Format_ARGB32);
-
-        QGraphicsScene* exportScene;
-        videoWindow->setUpdatesEnabled(false);
-        exportScene = videoWindow->scene();
-        videoWindow->setScene(nullptr);
-        exportScene->setItemIndexMethod(QGraphicsScene::NoIndex);
-        exportScene->blockSignals(true);
-
+        //QImage img(outputSize, QImage::Format_ARGB32);
+        QImage img(outputSize, QImage::Format_ARGB32_Premultiplied);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        for (CWaveLane* l : std::as_const(lanes)) {
+            if (l->videoItem) {
+                l->videoItem->setRenderRect(videoWindow->resolution());
+                l->videoItem->setVisible(l->videoVisible);
+            }
+        }
         abortExport = false;
         CVideoProgressWindow exportProgress;
         exportProgress.setMax(totalFrames);
@@ -127,25 +122,21 @@ public slots:
 
         setExportMode(true);
 
-        for (CWaveLane* l : std::as_const(lanes)) {
-            if (l->videoItem) {
-                connect(l->videoItem,&CVideoItem::frameReady,this,&CWaveLanes::frameReady);
-            }
-        }
-
-        CChannelBuffer frameBuffer(CPresets::presets().SampleRate / 30,2);
+        CChannelBuffer frameBuffer(CPresets::presets().SampleRate / frameRate,2);
         ulong64 sample = 0;
         for (ulong64 f = 0; f < totalFrames; ++f)
         {
-            double t = f / 30.0;
-            //qDebug() << t;
+            double t = f / frameRate;
             exportProgress.setValue(f);
             getExportFrame(t);
             qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
 
             img.fill(Qt::black);
-            QPainter p(&img);
-            exportScene->render(&p,outputRect,inputRect,Qt::KeepAspectRatio);
+            for (CWaveLane* l : std::as_const(lanes)) {
+                if (l->videoItem) {
+                    if (l->videoItem->isVisible()) l->videoItem->paint(&p,nullptr,nullptr);
+                }
+            }
             exporter.addFrame(img,f);
             frameBuffer.copy(audio,sample);
             std::vector<float>b = frameBuffer.toInterleaved();
@@ -163,34 +154,28 @@ public slots:
 
         setExportMode(false);
 
-        for (CWaveLane* l : std::as_const(lanes)) {
-            if (l->videoItem) disconnect(l->videoItem,&CVideoItem::frameReady,this,&CWaveLanes::frameReady);
-        }
-
-        exportScene->setItemIndexMethod(QGraphicsScene::BspTreeIndex);
-        exportScene->blockSignals(false);
-        videoWindow->setScene(exportScene);
-        videoWindow->setUpdatesEnabled(true);
-        for (CWaveLane* l : std::as_const(lanes)) {
-            if (l->videoItem) l->videoItem->update();
-        }
         if (abortExport) {
             QFile(filename).remove();
             abortExport = false;
         }
-
+        videoWindow->setScene(tempScene);
     }
 protected:
-    bool event(QEvent* event);
-    void resizeEvent(QResizeEvent *event);
-    void mousePressEvent(QMouseEvent *event);
-    void mouseMoveEvent(QMouseEvent *event);
-    void mouseReleaseEvent(QMouseEvent *event);
-    void dragEnterEvent(QDragEnterEvent *e);
-    void dragMoveEvent(QDragMoveEvent* e);
-    void dropEvent(QDropEvent *e);
-    void timerEvent(QTimerEvent *);
-    void mouseDoubleClickEvent(QMouseEvent *event);
+    bool event(QEvent* event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *e) override;
+    void dragMoveEvent(QDragMoveEvent* e) override;
+    void dropEvent(QDropEvent *e) override;
+    void timerEvent(QTimerEvent *) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void drawForeground(QPainter *painter, const QRectF &rect) override
+    {
+        Q_UNUSED(rect);
+        m_TimeLine.drawPlayLine(painter);
+    }
 signals:
     void FileAdded(QString path);
     void FileRemoved(QString path);
@@ -208,7 +193,7 @@ private slots:
         w->setZValue(5);
         return w;
     }
-    QList<QWidget*> ProxyWidgets() {
+    QList<QWidget*> ProxyWidgets() const {
         QList<QWidget*> l;
         const QGraphicsItemList g(Scene.items());
         for (QGraphicsItem* i : g) {
@@ -229,19 +214,29 @@ private slots:
     void setZoom(double z);
     void ZoomToCursor(double z, double o);
     void UpdateAutomationGeometry();
+    void deleteAutomation();
     void EditTrack();
+    void updateVideoWindow(int Lane = -1) {
+        if (m_Playing) return;
+        if (Lane == -1) Lane = CurrentLane;
+        if (Lane > -1) lanes[CurrentLane]->skip(requestCurrentSample());
+    }
     void ToggleLaneVideo() {
         if (CurrentLane > -1) {
             lanes[CurrentLane]->videoVisible = !lanes[CurrentLane]->videoVisible;
-            if (!m_Playing) lanes[CurrentLane]->videoItem->setVisible(lanes[CurrentLane]->videoVisible);
+            updateVideoWindow();
+            //lanes[CurrentLane]->videoItem->setVisible(lanes[CurrentLane]->videoVisible);
         }
+        setEditMenu();
     }
     void ToggleTrackVideo() {
         if (CurrentLane > -1) {
             for (int t : std::as_const(CurrentTrack)) {
                 lanes[CurrentLane]->tracks[t]->videoVisible = !lanes[CurrentLane]->tracks[t]->videoVisible;
             }
+            updateVideoWindow();
         }
+        setEditMenu();
     }
     void EditLane();
     void EffectRack();
@@ -261,28 +256,14 @@ private slots:
         }
         return false;
     }
-    void setExportMode(bool m)
-    {
+    void setExportMode(bool m) {
         for (CWaveLane* l : std::as_const(lanes)) {
             if (l->videoItem) l->setExportMode(m);
         }
     }
-    void getExportFrame(double t)
-    {
-        pendingFrames = 0;
-        for (auto* l : std::as_const(lanes)) {
-            if (!l->videoItem) continue;
-            pendingFrames++;
-            l->setExportTime(t);
-            qDebug() << "exportFrame" << pendingFrames;
-        }
-        if (pendingFrames == 0) return;
-        m_loop.exec();   // väntar på ALLA
-    }
-    void frameReady() {
-        qDebug() << "frameReady" << pendingFrames;
-        if (--pendingFrames == 0) {
-            m_loop.quit();
+    void getExportFrame(double t) {
+        for (CWaveLane* l : std::as_const(lanes)) {
+            if (l->videoItem) l->setExportTime(t);
         }
     }
 private:

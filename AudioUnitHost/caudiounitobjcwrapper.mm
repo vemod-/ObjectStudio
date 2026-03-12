@@ -26,13 +26,13 @@
         AUParameter *param = parameters[i];
 
        // Skapa en UILabel för parameter-namnet
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, (30 * i) + 20, 270, 20)];
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRect{20, (30 * i) + 20, 270, 20}];
         label.text = param.displayName;
         label.font = [UIFont systemFontOfSize:14];
         label.textColor = [UIColor whiteColor];
 
         // Skapa UISlider
-        UISlider *slider = [[UISlider alloc] initWithFrame:CGRectMake(310, (30 * i) + 20, 270, 20)];
+        UISlider *slider = [[UISlider alloc] initWithFrame:CGRect{310, (30 * i) + 20, 270, 20}];
         slider.value = param.value;
         slider.tag = i;
 

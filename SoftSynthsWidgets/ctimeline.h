@@ -160,6 +160,7 @@ public:
         return ret;
     }
     void render(QGraphicsScene* Scene, QRect visibleRect = QRect()) {
+        if (!m_Scene) m_Scene = Scene;
         if (visibleRect == QRect()) {
             visibleRect.setWidth(m_Width + m_Offset);
             visibleRect.setHeight(m_TimeLineHeight);
@@ -200,25 +201,40 @@ public:
             }
             Scene->addPath(path,m_Pen);
             Scene->addPath(textPath,Qt::NoPen,c);
-            m_PlayLine = new QGraphicsContainerItem(Scene);
+            m_playline = QLine(sampleToX(m_CurrentSample),0,sampleToX(m_CurrentSample),visibleRect.height());
+            /*
+            m_PlayLine = new QGraphicsContainerItem();
             m_PlayLine->append(lineItem(0,0,0,visibleRect.height(),QPen(Qt::yellow)));
             m_PlayLine->append(lineItem(1,0,1,visibleRect.height(),QColor(0,0,0,40)));
             m_PlayLine->setVisible(true);
             m_PlayLine->setZValue(1);
             m_PlayLine->setPos(sampleToX(m_CurrentSample),0);
+*/
         }
+    }
+    void drawPlayLine(QPainter* painter) {
+        painter->setPen(Qt::yellow);
+        painter->drawLine(m_playline);
+        painter->setPen(QColor(0,0,0,40));
+        painter->drawLine(m_playline.translated(1,0));
     }
     void handleTimer(IDevice* d) {
         if (m_TimeLineHeight > 0) {
             if (d->requestIsPlaying()) {
                 ulong64 s = d->requestCurrentSample();
-                int p = sampleToX(s);
+                const int p = sampleToX(s);
                 if (p != currentPos()) {
                     m_CurrentSample = s;
-                    m_PlayLine->setPos(p,0);
+                    movePlayLine(p);
                 }
             }
         }
+    }
+    void movePlayLine(int p) {
+        const int x = m_playline.x1();
+        m_playline = QLine(p,0,p,m_playline.y2());
+        const QRect r = QRect(x,0,p - x,m_playline.y2()).normalized().adjusted(-1,0,2,0);
+        if (m_Scene) m_Scene->invalidate(r,QGraphicsScene::ForegroundLayer);
     }
     bool handleDoubleClick(QPointF p, IDevice* d) {
         if (p.y() < m_TimeLineHeight) {
@@ -267,7 +283,10 @@ public:
         int p = sampleToX(samples);
         if (samples != m_CurrentSample) {
             m_CurrentSample = samples;
-            if (m_TimeLineHeight > 0) m_PlayLine->setPos(p,0);
+            if (m_TimeLineHeight > 0) {
+                //m_PlayLine->setPos(p,0);
+                movePlayLine(p);
+            }
         }
     }
     void serialize(QDomLiteElement* xml) const {
@@ -288,8 +307,10 @@ public:
         }
     }
 private:
+    QGraphicsScene* m_Scene = nullptr;
     QPen m_Pen = QPen(Qt::white);
-    QGraphicsContainerItem* m_PlayLine;
+    //QGraphicsContainerItem* m_PlayLine;
+    QLine m_playline;
     int m_Width=100;
     int m_Offset = 0;
     double m_Zoom=1;

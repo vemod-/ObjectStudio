@@ -16,7 +16,7 @@ CSF2ChannelWidget::CSF2ChannelWidget(QWidget *parent) :
     ui->Name->setTextColor(QColor(0,0,0,200));
     connect(ui->SF2,&QLCDLabel::rightClicked,this,&CSF2ChannelWidget::loadDialog);
     connect(ui->ChannelEffects,&CChannelEffects::soloTriggered,this,&CSF2ChannelWidget::soloTriggered);
-    connect(ui->ChannelVol,&CChannelVol::volChanged,this,&CSF2ChannelWidget::setVolume);
+    //connect(ui->ChannelVol,&CChannelVol::volChanged,this,&CSF2ChannelWidget::setVolume);
     instrumentMenu=new QSignalMenu(this);
     showUIAction = instrumentMenu->addAction("Show UI","Show UI");
     connect(ui->SF2,&QLCDLabel::leftClicked,showUIAction,&QAction::trigger);
@@ -38,6 +38,7 @@ CSF2ChannelWidget::~CSF2ChannelWidget()
 void CSF2ChannelWidget::init(CStereoMixerChannel *ch, const QString& Name, CDeviceContainer *SF2, short MIDIChannel)
 {
     m_Ch = ch;
+    ui->ChannelVol->init(m_Ch);
     ui->ChannelEffects->init(m_Ch);
     ui->ChannelEQ->init(m_Ch);
     ui->ChannelGain->init(m_Ch);
@@ -59,11 +60,6 @@ void CSF2ChannelWidget::init(CStereoMixerChannel *ch, const QString& Name, CDevi
         ui->NameFrame->setVisible(true);
         ui->Sender->setVisible(false);
     }
-}
-
-void CSF2ChannelWidget::setVolume(int Vol)
-{
-    m_Ch->Level=Vol*0.01f;
 }
 
 void CSF2ChannelWidget::load(const QString& filename)

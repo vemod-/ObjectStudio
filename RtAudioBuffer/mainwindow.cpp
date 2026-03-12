@@ -286,7 +286,8 @@ void MainWindow::exportWav()
     QString fileName=QFileDialog::getSaveFileName(this,"Export Wave File",QStandardPaths::writableLocation(QStandardPaths::MusicLocation),WaveFile::WaveFilter);
     if (!fileName.isEmpty())
     {
-        CConcurrentDialog::run(&MainBuffers,&CCoreMainBuffers::render,fileName);
+        //CConcurrentDialog::run(&MainBuffers,&CCoreMainBuffers::render,fileName);
+        MainBuffers.render(fileName);
     }
 }
 

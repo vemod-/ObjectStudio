@@ -55,6 +55,8 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     //QMenu* viewMenu = m_Document->MainMenu->addMenu("View");
     videoWindowAction = m_Document->MainMenu->FileMenu->addAction("Video Window");
     connect(videoWindowAction,&QAction::triggered,this,&CWaveRecorderForm::ShowVideoWindow);
+    ExportWaveAction = m_Document->MainMenu->FileMenu->addAction("Export Wave");
+    connect(ExportWaveAction,&QAction::triggered,this,&CWaveRecorderForm::exportAudio);
 
     ExportVideoAction = m_Document->MainMenu->FileMenu->addAction("Export Video");
     connect(ExportVideoAction,&QAction::triggered,this,&CWaveRecorderForm::exportVideo);
@@ -64,7 +66,7 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     ui->FileList->setDragDropMode(QListWidget::DragOnly);
     ui->RecordTree->setDragEnabled(true);
     ui->RecordTree->setDragDropMode(QListWidget::DragOnly);
-    m_RecordPath =QStandardPaths::locate(QStandardPaths::MusicLocation, QString(), QStandardPaths::LocateDirectory)+"/WaveRecorder/Recorded Files";
+    m_RecordPath = QStandardPaths::locate(QStandardPaths::MusicLocation, QString(), QStandardPaths::LocateDirectory)+"/WaveRecorder/Recorded Files";
     auto recordfilemodel = new QFileSystemModel(this);
     recordfilemodel->setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
     recordfilemodel->setNameFilterDisables(false);
@@ -256,8 +258,20 @@ void CWaveRecorderForm::initWithFile(const QString& path) {
 }
 
 void CWaveRecorderForm::exportVideo() {
-    QString filename = "/Users/thomasallin/Desktop/out";
-    ui->WaveLanes->exportVideo(filename + ".mov");
+    //QString filename = "/Users/thomasallin/Desktop/out";
+    //CConcurrentDialog::run(ui->WaveLanes,&CWaveLanes::exportVideo,filename + ".mov");
+    QString f = m_Document->MainMenu->exportDialog("Export Video",".mov","Movie Files (*.mov)");
+    if (!f.isEmpty()) {
+        ui->WaveLanes->exportVideo(f);
+    }
+}
+
+void CWaveRecorderForm::exportAudio(){
+    QString f = m_Document->MainMenu->exportDialog("Export Audio",".wav","Wave Files (*.wav)");
+    if (!f.isEmpty()) {
+        ui->WaveLanes->exportAudio(f);
+        //CConcurrentDialog::run(ui->WaveLanes,&CWaveLanes::exportAudio,f);
+    }
 }
 
 void CWaveRecorderForm::Import()

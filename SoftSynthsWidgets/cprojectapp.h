@@ -155,6 +155,28 @@ public:
         }
         return !UndoMenu->isDirty();
     }
+    QString exportDialog(const QString& title, const QString& suffix, const QString& filter, const QString& altFilename = QString()) {
+        QFileDialog d(m_MainWindow,Qt::Sheet);
+        d.setWindowTitle(title);
+        d.setNameFilter(filter);
+        d.setAcceptMode(QFileDialog::AcceptSave);
+        d.setFileMode(QFileDialog::AnyFile);
+        if (FileName.isEmpty()) {
+            d.selectFile("Untitled" + suffix);
+        }
+        else {
+            if (altFilename.isEmpty()) {
+                d.selectFile(FileName.replace("." + QFileInfo(FileName).completeSuffix(),suffix,Qt::CaseInsensitive));
+            }
+            else {
+                d.selectFile(altFilename);
+            }
+        }
+        if (d.exec() != QDialog::Accepted) return QString();
+        const QStringList l = d.selectedFiles();
+        if (l.size()) return l.first();
+        return QString();
+    }
     void NewDoc() { m_Document->NewDoc(); }
     void OpenDoc(QString path) { m_Document->OpenDoc(path); }
     void WizardDoc() { m_Document->WizardDoc(); }

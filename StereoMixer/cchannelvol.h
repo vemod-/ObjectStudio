@@ -3,6 +3,7 @@
 
 #include <QFrame>
 #include <QDomLite>
+#include "cstereomixer.h"
 
 namespace Ui {
 class CChannelVol;
@@ -15,6 +16,9 @@ class CChannelVol : public QFrame
 public:
     explicit CChannelVol(QWidget *parent = nullptr);
     ~CChannelVol();
+    void init(CStereoMixerChannel* ch) {
+        m_Ch = ch;
+    }
     int vol();
 
     void unserialize(const QDomLiteElement* xml);
@@ -29,6 +33,7 @@ protected:
     void showEvent(QShowEvent* e);
 private:
     Ui::CChannelVol *ui;
+    CStereoMixerChannel* m_Ch;
 };
 
 #endif // CCHANNELVOL_H

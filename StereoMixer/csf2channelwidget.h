@@ -51,7 +51,6 @@ private:
     QSignalMenu* transposeMenu;
     QString m_Name;
 private slots:
-    void setVolume(int Vol);
     void loadDialog();
     void selectProgram(int program);
     void togglePatchChange();
@@ -60,6 +59,8 @@ private slots:
     void selectInstrument(QString instrument);
 signals:
     void soloTriggered(bool v);
+    void volChanged(int vol);
+    void panChanged(int pan);
 };
 
 #endif // CCHANNELWIDGET_H

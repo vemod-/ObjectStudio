@@ -51,7 +51,7 @@ inline const QRectF NSRectToQRect(_RECT r) {
 
 inline _RECT QRectToNSRect(const QRectF& r) {
 #ifdef Q_OS_IOS
-    return CGRectMake(r.left(),r.top(),r.width(),r.height());
+    return r.toCGRect();
 #else
     return NSMakeRect(r.left(),r.top(),r.width(),r.height());
 #endif
@@ -340,7 +340,7 @@ QImage CGImageToQImage(CGImageRef cgImage)
     const qreal devicePixelRatio = image.devicePixelRatio();
     CGContextScaleCTM(context, devicePixelRatio, devicePixelRatio);
 
-    CGRect rect = CGRectMake(0, 0, width, height);
+    CGRect rect = {{0, 0}, QSize(width, height).toCGSize()};
     CGContextDrawImage(context, rect, cgImage);
 
     CFRelease(colorSpace);
@@ -438,9 +438,9 @@ void CMacWindow::checkGeometry() {
         if (size() != sizeHint()) {
             updateGeometry();
 #ifdef Q_OS_IOS
-            if (_VIEW* v = NSVIEW(viewId())) v.frame.origin = CGPointMake(0,0);
+            if (_VIEW* v = NSVIEW(viewId())) v.frame.origin = CGPoint{0,0};
 #else
-            if (_VIEW* v = NSVIEW(viewId())) [v setFrameOrigin:CGPointMake(0,0)];
+            if (_VIEW* v = NSVIEW(viewId())) [v setFrameOrigin:CGPoint{0,0}];
 #endif
         }
     }

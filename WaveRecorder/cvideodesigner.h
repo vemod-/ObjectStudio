@@ -3,12 +3,8 @@
 
 #include <QGraphicsView>
 #include <QGraphicsScene>
-#include <QtMultimedia/QMediaPlayer>
 #include <QMap>
 #include <QGraphicsObject>
-#include <QtMultimedia/QVideoSink>
-#include <QtMultimedia/QVideoFrame>
-#include <QtMultimedia/QMediaMetaData>
 #include <QImage>
 #include "cwavetrack.h"
 #include <QPinchGesture>
@@ -21,14 +17,16 @@
 #include "idevice.h"
 #include <QProgressBar>
 #include <QPushButton>
-#include "avfaudiorw.h"
+#include "avfoundation_wrapper.h"
+
+#define defaultResolution 720
 
 class CVideoItem : public QGraphicsObject
 {
     Q_OBJECT
 public:
     explicit CVideoItem(QGraphicsItem* parent = nullptr);
-    CVideoItem(const QPixmap& pix) : CVideoItem() {
+    CVideoItem(const QImage& pix) : CVideoItem() {
         setThumbnail(pix);
     }
     ~CVideoItem();
@@ -37,13 +35,13 @@ public:
     void paint(QPainter* painter,
                const QStyleOptionGraphicsItem*,
                QWidget*) override;
-    void setThumbnail(const QPixmap& pix);
-    void invokeVideoProperties(CWaveTrack* t, ulong64 sample) {
+    void setThumbnail(const QImage& pix);
+    void invokeVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
         if (t->waveGenerator.hasVideo() & t->videoVisible) {
             QMetaObject::invokeMethod(
                 this,
                 [this, t, sample]() {
-                    setVideoProperties(t,sample);
+                    setVideoPlayProperties(t,sample);
                 },
                 Qt::QueuedConnection
                 );
@@ -55,39 +53,34 @@ public:
             [this]() {
                 bool o = enabled();
                 setEnabled(false);
-                m_player->pause();
-                m_currentFrame = {};
+                m_AVFPlayer.pause();
                 update();
                 setEnabled(o);
             },
             Qt::QueuedConnection
             );
     }
-    bool setVideoProperties(CWaveTrack* t, ulong64 sample) {
+    bool setVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
         if (t->waveGenerator.hasVideo()) {
+            const long64 mSec = CPresets::samplesTomSecs(sample);
+            if (mSec > t->videoLength) {
+                frameTimer.stop();
+                m_AVFPlayer.pause();
+                return false;
+            }
             bool o = enabled();
             setEnabled(false);
-            if (m_player->source() != t->waveGenerator.videoURL) {
-                qDebug() << m_player->source() << t->waveGenerator.videoURL;
-                m_player->setSource(t->waveGenerator.videoURL);
-                m_currentFrame = {};
+            if (m_AVFPlayer.Url != t->waveGenerator.videoURL) {
+                m_AVFPlayer.setSource(t->waveGenerator.videoURL);
             }
-            const long64 mSec = CPresets::samplesTomSecs(sample);
-            if (mSec > t->videoLength) m_currentFrame = {};
-            if (std::llabs(m_player->position() - mSec) > 5) {
-                qDebug() << "Set Position" << mSec << sample;
-                m_player->setPosition(mSec);
+            if (qAbs<long64>((m_AVFPlayer.position() * 1000) - mSec) > 10) {
+                m_AVFPlayer.setPosition(mSec / 1000.0);
             }
-            if (!closeEnough(m_player->playbackRate(),t->loopParameters.Speed)) {
-                qDebug() << "Set rate" << t->loopParameters.Speed;
-                m_player->setPlaybackRate(t->loopParameters.Speed);
+            if (!closeEnough(m_AVFPlayer.playbackRate(),t->loopParameters.Speed)) {
+                m_AVFPlayer.setPlaybackRate(t->loopParameters.Speed);
             }
             if (m_Playing) {
-                if (m_player->playbackState() != QMediaPlayer::PlayingState) {
-                    m_player->play();
-                    m_currentFrame = {};
-                    qDebug() << "start video play";
-                }
+                if (!m_AVFPlayer.playing) m_AVFPlayer.play();
             }
             setEnabled(o);
             return true;
@@ -96,130 +89,66 @@ public:
     }
     bool setVideoExportProperties(CWaveTrack* t, long64 mSec) {
         if (t->waveGenerator.hasVideo()) {
-            /*
-            if (m_ExportPlayer->source() != t->waveGenerator.videoURL) {
-                m_ExportPlayer->setSource(t->waveGenerator.videoURL);
-                m_ExportPlayer->setPlaybackRate(1000.0);
-                m_ExportPlayer->pause();
-                m_ExportPlayer->setPosition(mSec);
-                qDebug() << "setPosition" << mSec;
-                return true;
+            if (imgExtract.videoUrl != t->waveGenerator.videoURL) {
+                imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
             }
             if (mSec <= t->videoLength) {
-                if (m_ExportPlayer->position() != mSec) {
-                    m_ExportPlayer->setPosition(mSec);
-                    qDebug() << "setPosition" << mSec;
-                    return true;
-                }
-            }
-*/
-            if (imgExtract.url != t->waveGenerator.videoURL) {
-                imgExtract.init(t->waveGenerator.videoURL,m_frameSize);
-            }
-            if (mSec <= t->videoLength) {
-                m_currentImage = imgExtract.getImage(mSec / 1000.0);
+                m_exportImage = imgExtract.getImage(mSec / 1000.0);
                 m_frameGeneration = m_exportGeneration;
-                emit frameReady();
                 return true;
             }
         }
-        qDebug() << "send empty frame" << mSec;
         setVideoExportEmptyFrame();
         return false;
     }
     bool setVideoExportEmptyFrame() {
         m_exportGeneration++;
-        emit frameReady();
         return true;
     }
-    /*
-    void waitForFrame()
-    {
-        QElapsedTimer t;
-        t.start();
-        while (!m_frameReady && t.elapsed() < 5000)
-        {
-            qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
-            if (m_frameReady) break;
-            QThread::msleep(50);
-        }
-        if (!m_frameReady) {
-            qDebug() << "Missed frame";
-        }
-    }
-*/
-    /*
-    bool waitForFrame(int timeoutMs = 5000)
-    {
-        if (m_frameReady)
-            return true;
-
-        QEventLoop loop;
-        QTimer timeout;
-
-        timeout.setSingleShot(true);
-
-        connect(this, &CVideoItem::frameReady,
-                &loop, &QEventLoop::quit);
-
-        connect(&timeout, &QTimer::timeout,
-                &loop, &QEventLoop::quit);
-
-        timeout.start(timeoutMs);
-
-        m_waitingForFrame = true;
-        loop.exec(QEventLoop::ExcludeUserInputEvents);
-        m_waitingForFrame = false;
-
-        bool ok = m_frameReady;
-        m_frameReady = false;
-
-        return ok;
-    }
-*/
     void setExportMode(bool m) {
         m_ExportMode = m;
         if (m) {
             m_exportGeneration = 0;
             m_frameGeneration = 0;
-            if (m_ExportPlayer == nullptr) {
-                m_ExportPlayer = new QMediaPlayer(this);
-                m_ExportSink = new QVideoSink(this);
-                m_ExportPlayer->setAudioOutput(nullptr);   // aldrig ljud
-                m_ExportPlayer->setVideoSink(m_ExportSink);
-                connect(m_ExportSink, &QVideoSink::videoFrameChanged, this, &CVideoItem::onExportFrameChanged);
-            }
-            setFlags(GraphicsItemFlags());
-            ungrabGesture(Qt::PinchGesture);
-            setAcceptedMouseButtons(Qt::NoButton);
-            setAcceptTouchEvents(false);
         }
         else {
-            if (m_ExportPlayer) {
-                m_ExportPlayer->setSource(QUrl());
-            }
-            setFlags(ItemIsMovable | ItemIsSelectable | ItemUsesExtendedStyleOption);
-            setCacheMode(QGraphicsItem::NoCache);
-            grabGesture(Qt::PinchGesture);
-            setAcceptedMouseButtons(Qt::AllButtons);
-            setAcceptTouchEvents(true);
         }
+    }
+    bool setVideoStillProperties(CWaveTrack* t, long64 mSec) {
+        if (m_Playing) return false;
+        if (t->waveGenerator.hasVideo()) {
+            if (imgExtract.videoUrl != t->waveGenerator.videoURL) {
+                imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
+            }
+            if (mSec <= t->videoLength) {
+                m_stillImage = imgExtract.getImage(mSec / 1000.0).copy();
+                update();
+                return true;
+            }
+        }
+        m_stillImage = QImage();
+        update();
+        return false;
+    }
+    bool setVideoStillEmptyFrame() {
+        if (m_Playing) return false;
+        m_stillImage = QImage();
+        update();
+        return true;
     }
     void play() {
         m_Playing = true;
-        m_currentFrame = {};
-        //setEnabled(false);
+        frameTimer.start();
     }
     void stop() {
-        m_player->pause();
+        //m_player.pause();
+        frameTimer.stop();
+        m_AVFPlayer.pause();
         m_Playing = false;
-        m_currentFrame = {};
-        //setEnabled(false);
         update();
     }
     void setEnabled(bool v) {
         m_Enabled = v;
-        if (m_sink->signalsBlocked() == v)  m_sink->blockSignals(!v);
         if (!v) update();
     }
     bool enabled() {
@@ -240,6 +169,15 @@ public:
         QDomLite::setPointFAttribute(v,"Pos",pos());
     }
     QString name;
+    void setRenderRect(qreal newHeight) {
+        qreal zoom = defaultResolution / newHeight;
+        QRectF r(m_rect.topLeft() / zoom,m_rect.size() / zoom);
+        r.translate(pos() / zoom);
+        renderRect = r.toRect();
+    }
+    QRect rect() {
+        return m_rect.translated(pos().toPoint());
+    }
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* e) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent* e) override;
@@ -266,26 +204,20 @@ protected:
         if (event->type() == QEvent::Gesture) return gestureEvent(static_cast<QGestureEvent *>(event));
         return QGraphicsObject::sceneEvent(event);
     }
-private slots:
-    void onVideoFrameChanged(const QVideoFrame& frame);
-    void onExportFrameChanged(const QVideoFrame& frame);
-signals:
-    void frameReady();
 private:
+    QTimer frameTimer;
+    QRect renderRect;
     ImageExtractor imgExtract;
     uint64_t m_exportGeneration = 0;
     uint64_t m_frameGeneration = 0;
     bool m_ExportMode = false;
     std::atomic_bool m_Enabled{true};
     std::atomic_bool m_Playing{false};
-    QPixmap thumbnail;
-    QMediaPlayer* m_player;
-    QVideoSink*   m_sink;
-    QMediaPlayer* m_ExportPlayer = nullptr;
-    QVideoSink* m_ExportSink;
-    QVideoFrame m_currentFrame;
-    QImage m_currentImage;
-    qint64 m_LastFrameChange = 0;
+    QImage thumbnail;
+    AVFVideoPlayer m_AVFPlayer;
+    QImage m_currentPlaybackImage;
+    QImage m_exportImage;
+    QImage m_stillImage;
     QSize m_frameSize { 320, 240 };
 
     enum Handle {
@@ -368,6 +300,26 @@ private:
     }
 };
 
+class Guides
+{
+public:
+    Guides(QRect rect) {
+        left    = rect.left();
+        right   = rect.right();
+        hcenter = rect.center().x();
+
+        top     = rect.top();
+        bottom  = rect.bottom();
+        vcenter = rect.center().y();
+    }
+    int left;
+    int right;
+    int hcenter;
+    int top;
+    int bottom;
+    int vcenter;
+};
+
 class CVideoDesigner : public QGraphicsView
 {
     Q_OBJECT
@@ -393,9 +345,93 @@ public:
     }
 protected:
     void resizeEvent(QResizeEvent* e) override;
-
+    void mousePressEvent(QMouseEvent *event) override {
+        m_MD = true;
+        QGraphicsView::mousePressEvent(event);
+        drawGuideLines();
+    }
+    void mouseMoveEvent(QMouseEvent *event) override {
+        QGraphicsView::mouseMoveEvent(event);
+        drawGuideLines();
+    }
+    void mouseReleaseEvent(QMouseEvent *event) override {
+        guides.clear();
+        viewport()->update();
+        m_MD = false;
+        QGraphicsView::mouseReleaseEvent(event);
+    }
+    void drawForeground(QPainter *painter, const QRectF &/*rect*/) override {
+        painter->setPen(QPen(Qt::yellow,1,Qt::DashLine));
+        for (auto &l : guides)
+            painter->drawLine(l);
+    }
 private:
+    bool m_MD = false;
     QGraphicsScene m_scene;
+    QList<QLine>guides;
+    void drawVerticalGuide(int x)
+    {
+        guides.append(QLine(x, 0, x, 720));
+    }
+
+    void drawHorizontalGuide(int y)
+    {
+        guides.append(QLine(0, y, 1280, y));
+    }
+    void drawGuideLines() {
+        guides.clear();
+        if (m_MD) {
+            const double snapTol = 1.0;
+            QGraphicsItem* item = m_scene.mouseGrabberItem();
+            if (auto movingItem = dynamic_cast<CVideoItem*>(item)) {
+                for (CVideoItem* other : videoItems())
+                {
+                    if (other == movingItem)
+                        continue;
+
+                    Guides a(movingItem->rect());
+                    Guides b(other->rect());
+                    if (qAbs(a.left - b.left) < snapTol)
+                        drawVerticalGuide(b.left);
+
+                    if (qAbs(a.right - b.right) < snapTol)
+                        drawVerticalGuide(b.right);
+
+                    if (qAbs(a.hcenter - b.hcenter) < snapTol)
+                        drawVerticalGuide(b.hcenter);
+
+                    if (qAbs(a.top - b.top) < snapTol)
+                        drawHorizontalGuide(b.top);
+
+                    if (qAbs(a.bottom - b.bottom) < snapTol)
+                        drawHorizontalGuide(b.bottom);
+
+                    if (qAbs(a.vcenter - b.vcenter) < snapTol)
+                        drawHorizontalGuide(b.vcenter);
+
+                    if (qAbs(a.right - b.left) < snapTol)
+                        drawVerticalGuide(b.left);
+
+                    if (qAbs(a.left - b.right) < snapTol)
+                        drawVerticalGuide(b.right);
+
+                    QRect sceneRect = QRect(0,0,1280,720);
+
+                    int cx = sceneRect.center().x();
+                    int cy = sceneRect.center().y();
+
+                    if (qAbs(a.hcenter - cx) < snapTol)
+                        drawVerticalGuide(cx);
+
+                    if (qAbs(a.vcenter - cy) < snapTol)
+                        drawHorizontalGuide(cy);
+
+                    scene()->invalidate(QRectF(),QGraphicsScene::ForegroundLayer);
+                }
+            }
+
+        }
+    }
 };
 
 class CVideoDialog : public QDialog {
@@ -488,16 +524,19 @@ public:
         adjustSize();
     }
     QSize outputSize() {
+        return canvasSize(currentAspect,resolution());
+    }
+    int resolution() {
         switch (currentResolution) {
-        case Resolution::R480: return canvasSize(currentAspect,480);
-        case Resolution::R720: return canvasSize(currentAspect,720);
-        case Resolution::R1080: return canvasSize(currentAspect,1080);
+        case Resolution::R480: return 480;
+        case Resolution::R720: return 720;
+        case Resolution::R1080: return 1080;
         }
     }
     QSize inputSize() {
         return canvasSize(currentAspect);
     }
-    QSize canvasSize(Aspect aspect, int h = 720)
+    QSize canvasSize(Aspect aspect, int h = defaultResolution)
     {
         QSize s;
 

@@ -37,11 +37,11 @@ public:
     inline CTickCounter() { reset(); }
     inline void reset(const int ticksPQ=240)
     {
-        m_CurrentTick=0;
-        m_CurrentmSec=0;
-        m_mSecSampleCount=0;
-        m_TickSampleCount=0;
-        m_TempoAdjust=1;
+        m_CurrentTick = 0;
+        m_CurrentmSec = 0;
+        m_mSecSampleCount = 0;
+        m_TickSampleCount = 0;
+        m_TempoAdjust = 1;
         setTempo(500000,ticksPQ);
     }
     inline void addMilliSecond() { addSamples(presets.SamplesPermSec); }
@@ -55,7 +55,7 @@ public:
     inline void skipTicks(const ulong ticks)
     {
         eatmSec(ticks * m_SamplesPerTick);
-        m_CurrentTick+=ticks;
+        m_CurrentTick += ticks;
     }
     inline void skipBuffer() {
         skipSamples(presets.ModulationRate);
@@ -80,14 +80,32 @@ public:
         m_TempoAdjust = tempoAdjust;
         setTempo(m_uSPQ,m_TicksPQ);
     }
-    double tempoAdjust() const { return m_TempoAdjust; }
-    inline void setTempo(const double uSPQ, const double ticksPQ=240)
+/*
+    inline void setTempoAdjust(const double tempoAdjust)
     {
-        m_uSPQ=uSPQ;
-        m_TicksPQ=ticksPQ;
-        double uSPerTick=(uSPQ / m_TempoAdjust)/ticksPQ;
-        m_SamplesPerTick=uSPerTick / presets.uSPerSample;
-        m_mSecsPerTick=uSPerTick * 0.001;
+        if (closeEnough(tempoAdjust, m_TempoAdjust)) return;
+
+        const double oldSamplesPerTick = m_SamplesPerTick;
+        const double oldmSecsPerTick = m_mSecsPerTick;
+
+        m_TempoAdjust = tempoAdjust;
+        setTempo(m_uSPQ, m_TicksPQ);
+
+        double phase = m_TickSampleCount / oldSamplesPerTick;
+        m_TickSampleCount = phase * m_SamplesPerTick;
+        phase = m_mSecSampleCount / oldmSecsPerTick;
+        m_mSecSampleCount = phase * m_mSecsPerTick;
+
+    }
+    */
+    double tempoAdjust() const { return m_TempoAdjust; }
+    inline void setTempo(const double uSPQ, const double ticksPQ = 240)
+    {
+        m_uSPQ = uSPQ;
+        m_TicksPQ = ticksPQ;
+        double uSPerTick = (uSPQ / m_TempoAdjust) / ticksPQ;
+        m_SamplesPerTick = uSPerTick / presets.uSPerSample;
+        m_mSecsPerTick = uSPerTick * 0.001;
     }
     inline bool moreTicks() const { return (m_TickSampleCount >= m_SamplesPerTick); }
 private:

@@ -8,7 +8,7 @@
 const QString qt_mac_MacRomanToQString(const char* source)
 {
     CFStringRef temp = CFStringCreateWithCString(kCFAllocatorDefault, source, kCFStringEncodingMacRoman);
-    QString retval=qt_mac_CFStringToQString(temp);
+    QString retval=QString::fromCFString(temp);
     CFRelease(temp);
     return retval;
 }

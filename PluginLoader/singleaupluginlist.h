@@ -64,7 +64,7 @@ public:
         QList<CAComponent> l=getInstance()->value(type);
         for (int i = 0; i < l.size(); ++i)
         {
-            RetVal << qt_mac_NSStringToQString(l.at(i).GetAUName());
+            RetVal << QString::fromCFString(l.at(i).GetAUName());
         }
         return RetVal;
     }
