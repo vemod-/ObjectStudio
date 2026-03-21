@@ -48,9 +48,11 @@ private slots:
     void ShowVideoWindow();
     void exportVideo();
     void exportAudio();
+    void exportLaneAudio();
 private:
     QAction* videoWindowAction;
     QAction* ExportWaveAction;
+    QAction* ExportLaneAudioAction;
     QAction* ExportVideoAction;
     Ui::CWaveRecorderForm *ui;
     //QMenu* Popup;

@@ -101,8 +101,7 @@ public:
         if (!FileName.isEmpty()) d.selectFile(FileName);
         if (d.exec()!=QDialog::Accepted) return;
         if (!d.selectedFiles().empty()) {
-            const auto selected = d.selectedFiles();
-            const QString fn = selected.first();
+            const QString fn = d.selectedFiles().constFirst();
             if (!fn.isEmpty()) {
                 if (QFileInfo::exists(fn)) {
                     CSpinLabel l(m_MainWindow);
@@ -173,8 +172,7 @@ public:
             }
         }
         if (d.exec() != QDialog::Accepted) return QString();
-        const QStringList l = d.selectedFiles();
-        if (l.size()) return l.first();
+        if (!d.selectedFiles().isEmpty()) return d.selectedFiles().constFirst();
         return QString();
     }
     void NewDoc() { m_Document->NewDoc(); }

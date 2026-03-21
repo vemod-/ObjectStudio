@@ -318,8 +318,8 @@ void CMIDIFile2Wave::center()
 {
     //m_Form->setFixedSize(mixerWidget->sizeHint());
     mixerWidget->adjustSize();
-    QSize s = QApplication::screens().first()->size();
-    m_Form->move(QRect(0,0, s.width(),s.height()).center()-m_Form->rect().center());
+    QRect r = QApplication::screens().constFirst()->availableGeometry();
+    m_Form->move(r.center()-m_Form->rect().center());
 }
 
 void CMIDIFile2Wave::setTitle(const QString& t)

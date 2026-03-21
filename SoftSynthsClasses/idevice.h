@@ -458,15 +458,16 @@ public:
         }
     }
     void exportWave(const QString &fileName, int procIndex = -1) {
-        CChannelBuffer buffer = render(procIndex);
+        CChannelBuffer* buffer = render(procIndex);
         CWaveFile f;
-        f.startRecording(buffer.channels(),presets.SampleRate);
+        f.startRecording(buffer->channels(),presets.SampleRate);
         //f.pushBuffer(buffer.data(),buffer.size());
-        f.data.fromRawData(buffer.data(),buffer.channels(),buffer.size());
+        f.data.fromRawData(buffer->data(),buffer->channels(),buffer->size());
         f.finishRecording();
         f.save(fileName);
+        delete buffer;
     }
-    CChannelBuffer render(int procIndex = -1)
+    CChannelBuffer* render(int procIndex = -1)
     {
         const IMainPlayer::BufferStates s = mainPlayer()->bufferState();
         mainPlayer()->setBufferState(IMainPlayer::Working);
@@ -481,8 +482,7 @@ public:
         else {
             procIndex = 0;
         }
-        CChannelBuffer buffer;
-        buffer.init(0,channels);
+        CChannelBuffer* buffer = new CChannelBuffer((ulong64)0,channels);
         CSampleCounter mSec;
         mSec.reset();
         const ulong64 sampl = samples();
@@ -500,7 +500,7 @@ public:
                 else {
                     b = FetchAStereo(procIndex);
                 }
-                buffer.append(b->data(),b->size(),0xFFFFFF);
+                buffer->append(b->data(),b->size(),0xFFFFFF);
             }
             else {
                 CMonoBuffer* b;
@@ -510,7 +510,7 @@ public:
                 else {
                     b = FetchAMono(procIndex);
                 }
-                buffer.append(b->data(),b->size(),0xFFFFFF);
+                buffer->append(b->data(),b->size(),0xFFFFFF);
             }
         }
         pause();
@@ -526,7 +526,7 @@ public:
                 else {
                     b = FetchAStereo(procIndex);
                 }
-                buffer.append(b->data(),b->size(),0xFFFFFF);
+                buffer->append(b->data(),b->size(),0xFFFFFF);
                 float l = 0;
                 float r = 0;
                 dynamic_cast<CStereoBuffer*>(b)->peakStereoBuffer(&l,&r);
@@ -540,14 +540,14 @@ public:
                 else {
                     b = FetchAMono(procIndex);
                 }
-                buffer.append(b->data(),b->size(),0xFFFFFF);
+                buffer->append(b->data(),b->size(),0xFFFFFF);
                 float l = 0;
                 dynamic_cast<CMonoBuffer*>(b)->peakBuffer(&l);
                 if (l < 0.000001) break;
             }
         }
-        buffer.squeeze();
-        buffer.normalize();
+        buffer->squeeze();
+        buffer->normalize();
         mainPlayer()->setBufferState(s);
         return buffer;
     }

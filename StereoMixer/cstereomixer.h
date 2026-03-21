@@ -38,7 +38,7 @@ public:
     {jnOut,jnSend};
     int jnIn;
     int jnReturn;
-    CStereoMixer(const uint channelCount=12, const uint sendCount=3);
+    CStereoMixer(const uint channelCount = 12, const uint sendCount = 3);
     ~CStereoMixer();
     void init(const int Index, QWidget* MainWindow);
     void addEffectRacksToDeviceList(CDeviceList* dl, QWidget* mainWindow);

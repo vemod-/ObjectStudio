@@ -127,6 +127,9 @@ public:
         ulong64 FadeIn;
         ulong64 FadeOut;
         int Volume;
+        ulong64 VideoFadeIn;
+        ulong64 VideoFadeOut;
+        int VideoOpacity;
         int XFade;
         LoopTypeEnum LoopType;
         uint origRate;
@@ -145,6 +148,9 @@ public:
             FadeOut=0;
             XFade=0;
             Volume=100;
+            VideoFadeIn=0;
+            VideoFadeOut=0;
+            VideoOpacity=100;
             Speed = 1;
             PitchShift = 0;
             origRate=CPresets::presets().SampleRate;
@@ -161,6 +167,8 @@ public:
             LoopEnd*=rateFactor;
             FadeIn*=rateFactor;
             FadeOut*=rateFactor;
+            VideoFadeIn*=rateFactor;
+            VideoFadeOut*=rateFactor;
             origRate=CPresets::presets().SampleRate;
         }
         void unserialize(const QDomLiteElement* xml,ulong64 end=0)
@@ -173,6 +181,9 @@ public:
             LoopEnd=xml->attributeValueULongLong("LoopEnd",end);
             FadeIn=xml->attributeValueULongLong("FadeIn",0);
             FadeOut=xml->attributeValueULongLong("FadeOut",0);
+            VideoFadeIn=xml->attributeValueULongLong("VideoFadeIn",0);
+            VideoFadeOut=xml->attributeValueULongLong("VideoFadeOut",0);
+            VideoOpacity=xml->attributeValueInt("VideoOpacity",100);
             MIDIKey=xml->attributeValueInt("MIDINote",60);
             MIDICents=xml->attributeValueInt("Tune",0);
             LoopType=CWaveGenerator::LoopTypeEnum(xml->attributeValueInt("LoopType",0));
@@ -191,6 +202,9 @@ public:
             xml->setAttribute("LoopEnd",LoopEnd);
             xml->setAttribute("FadeIn",FadeIn);
             xml->setAttribute("FadeOut",FadeOut);
+            xml->setAttribute("VideoFadeIn",VideoFadeIn);
+            xml->setAttribute("VideoFadeOut",VideoFadeOut);
+            xml->setAttribute("VideoOpacity",VideoOpacity);
             xml->setAttribute("MIDINote",MIDIKey);
             xml->setAttribute("Tune",MIDICents);
             xml->setAttribute("LoopType",int(LoopType));
@@ -212,6 +226,20 @@ public:
                 Vol*=(playLength()-Counter)/(FadeOut/Speed);
             }
             return lin2expf(Vol);
+        }
+        inline float fadeOpacity(ldouble Counter, int round = 0) const
+        {
+            float Opacity = VideoOpacity * 0.01f;
+            if (Counter < VideoFadeIn / Speed)
+            {
+                Opacity *= Counter / (VideoFadeIn / Speed);
+            }
+            if (Counter > playLength() - (VideoFadeOut / Speed))
+            {
+                Opacity *= (playLength() - Counter) / (VideoFadeOut / Speed);
+            }
+            if (round) return std::round(Opacity * round) / round;
+            return Opacity;
         }
     };
     CWaveGenerator();

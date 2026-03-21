@@ -6,8 +6,9 @@
 #include <QDebug>
 #include <CoreFoundation/CoreFoundation.h>
 #include <Foundation/Foundation.h>
+#include <QUrl>
 
-CFURLRef pathToCFURLRef(const QString& path)
+CFURLRef createCFURLRef(const QString& path)
 {
     CFStringRef bundlePath = path.toCFString(); //CFStringCreateWithCString(kCFAllocatorDefault, path.toUtf8().constData(), kCFStringEncodingUTF8 );
     CFURLRef bundleURL = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, bundlePath, kCFURLPOSIXPathStyle, true);
@@ -15,9 +16,10 @@ CFURLRef pathToCFURLRef(const QString& path)
     return bundleURL;
 }
 
-CFBundleRef pathToCFBundleRef(const QString& path)
+CFBundleRef createCFBundleRef(const QString& path)
 {
-    CFURLRef bundleURL=pathToCFURLRef(path);
+    //CFURLRef bundleURL=createCFURLRef(path);
+    CFURLRef bundleURL = QUrl(path).toCFURL();
     CFBundleRef bundle = CFBundleCreate(kCFAllocatorDefault, bundleURL);
     CFRelease(bundleURL);
     return bundle;
@@ -41,7 +43,8 @@ void* functionPointerInBundle(const QString& functionName, CFBundleRef bundle)
 
 CFArrayRef bundleArchitechtures(const QString& path)
 {
-    CFURLRef bundleURL=pathToCFURLRef(path);
+    //CFURLRef bundleURL=createCFURLRef(path);
+    CFURLRef bundleURL = QUrl(path).toCFURL();
     CFArrayRef archArrayRef = CFBundleCopyExecutableArchitecturesForURL(bundleURL);
     CFRelease(bundleURL);
     return archArrayRef;

@@ -11,29 +11,21 @@
 class CCaffeine
 {
 public:
-    CCaffeine() {
-        qDebug() << "caffeine construct";
-        enable();
-    }
-    ~CCaffeine(){
-        disable();
-    }
-    void setReason(const QString& reason)
-    {
-#ifdef Q_OS_MACOS
-        IOPMAssertionSetProperty(assertionID, CFSTR("Name"), reason.toCFString());
-#elif defined(Q_OS_IOS)
-        m_reason = reason;
-#endif
-    }
+    CCaffeine();
+    ~CCaffeine();
+
+    void setReason(const QString& reason);
     void enable();
     void disable();
+
 private:
+
 #ifdef Q_OS_MACOS
-    IOPMAssertionID assertionID;
+    IOPMAssertionID assertionID = kIOPMNullAssertionID;
+    QString m_reason = "Caffeine";
 #elif defined(Q_OS_IOS)
     QString m_reason;
 #endif
 };
 
-#endif // CCAFFEINE_H
+#endif

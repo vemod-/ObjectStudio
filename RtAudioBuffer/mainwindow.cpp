@@ -201,8 +201,7 @@ void MainWindow::dropEvent(QDropEvent *e) {
     const QMimeData* d = e->mimeData();
     qDebug() << d->urls() << d->html() << d->formats();
     if (d->urls().size()) {
-        const auto urls = d->urls();
-        QString path = urls.first().toLocalFile();
+        QString path = d->urls().constFirst().toLocalFile();
         if (QFileInfo::exists(path)) {
             if (dropfile(path,Pos)) e->acceptProposedAction();
         }

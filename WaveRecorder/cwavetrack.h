@@ -4,7 +4,6 @@
 #include "cwavegenerator.h"
 #include <QGraphicsScene>
 #include "avfoundation_wrapper.h"
-#include "avfaudiorw.h"
 
 class CWaveTrack
 {
@@ -18,6 +17,9 @@ public:
     ulong64 start;
     bool isValid;
     bool isActive;
+    bool hasOpacity() {
+        return (loopParameters.VideoOpacity < 1 || loopParameters.VideoFadeIn > 0 || loopParameters.VideoFadeOut > 0);
+    }
     long64 length() const {
         return loopParameters.playLength();
     }

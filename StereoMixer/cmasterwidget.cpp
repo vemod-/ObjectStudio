@@ -164,7 +164,12 @@ void CMasterWidget::checkEffects()
 
 void CMasterWidget::setSoloChannel(int channel)
 {
-    m_Mx->SoloChannel=channel;
+    m_Mx->SoloChannel = channel;
+}
+
+int CMasterWidget::soloChannel() const {
+    if (!m_Mx) return -1;
+    return m_Mx->SoloChannel;
 }
 
 void CMasterWidget::serialize(QDomLiteElement* xml) const
@@ -172,6 +177,7 @@ void CMasterWidget::serialize(QDomLiteElement* xml) const
     xml->setAttribute("Lock",ui->MasterVol->lock());
     xml->setAttribute("Volume Left",ui->MasterVol->leftVol());
     xml->setAttribute("Volume Right",ui->MasterVol->rightVol());
+    xml->setAttribute("SoloChannel",soloChannel());
     for (int i=0;i<dials.size();i++) xml->setAttribute("Effect "+QString::number(i+1),dials[i]->value());
 }
 
@@ -181,6 +187,7 @@ void CMasterWidget::unserialize(const QDomLiteElement* xml)
     ui->MasterVol->setLock(xml->attributeValueBool("Lock"));
     ui->MasterVol->setLeftVol(xml->attributeValueInt("Volume Left"));
     ui->MasterVol->setRightVol(xml->attributeValueInt("Volume Right"));
+    setSoloChannel(xml->attributeValueInt("SoloChannel",-1));
     for (int i=0;i<dials.size();i++)
     {
         dials[i]->setValue(xml->attributeValueInt("Effect "+QString::number(i+1),100));

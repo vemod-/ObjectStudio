@@ -88,7 +88,7 @@ bool CVSTHostClass::loadFile(const QString& Filename)
         return false;
     }
 #endif
-    const CFBundleRef TempBundle= pathToCFBundleRef(Filename);
+    const CFBundleRef TempBundle= createCFBundleRef(Filename);
 
     if (TempBundle == nullptr)
     {

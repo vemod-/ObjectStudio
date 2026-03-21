@@ -1,80 +1,89 @@
 #include "cpeakcontrol.h"
 #include "ui_cpeakcontrol.h"
-//#include <math.h>
 
 CPeakControl::CPeakControl(QWidget *parent) :
     QCanvas(parent,1),
     ui(new Ui::CPeakControl)
 {
     ui->setupUi(this);
-    m_MaxValue=150;
-    m_Value=0;
-    m_Margin=Border;
-    m_HalfMargin=HalfBorder;
+    m_MaxValue = 150;
+    m_Value = 0;
+    m_Margin = Border;
     updateSize();
 }
 
 void CPeakControl::reset()
 {
-    m_Max=0;
-    m_MaxY=val2y(m_Max);
-    m_Value=0;
-    m_OldY=m_HalfHeight+m_HalfMargin;
+    m_Max = 0;
+    m_MaxY = val2y(m_Max);
+    m_Value = 0;
+    m_OldY = val2y(0);
 
     QLinearGradient gradient;
     gradient.setStart(0,0);
     gradient.setFinalStop(0,height());
     gradient.setColorAt(0, QColor(60,60,60));
     gradient.setColorAt(0.8, Qt::black);
-    setPen(QPen(Qt::NoPen));
-    setBrush(gradient);
-    drawRectangle(rect());
+    fillRect(rect(),gradient);
+    for (int i = val2y(1.5); i <= val2y(0); i++) drawPixmap(QPoint(m_Left, scaleY(i)),pixBlack);
     setPen(Qt::darkGray);
     setBrush(QBrush(Qt::NoBrush));
-    drawRectangle(HalfBorder,m_Margin-HalfBorder,width()-Border-1,height()-m_Margin-m_Margin+Border);
+    drawRectangle(HalfBorder,m_Margin - HalfBorder,width() - Border - 1,height() - (m_Margin * 2) + Border);
+    m_OverlayPix = QPixmap(size());
+    QPainter p(&m_OverlayPix);
+    p.fillRect(rect(),gradient);
+    for (int i = val2y(1.5); i <= val2y(0); i++) p.drawPixmap(QPoint(m_Left, scaleY(i)),y2colPix(i));
     canvasLayers[0]->clearTransparent();
-    QCanvasLayer* L=canvasLayers[0];
-    L->setBrush(lgBlack);
-    L->setPen(QPen(Qt::NoPen));
-    for (int i=val2y(1.5);i<=val2y(0);i++) drawLED(i,L);
     update();
 }
 
 void CPeakControl::updateSize()
 {
-    m_HalfHeight=(height()/2)-m_Margin;
-    m_Left=Border;
-    m_Right=width()-Border;
-    m_Width=m_Right-m_Left;
-    //const double f=100.0/m_MaxValue;
-    m_Zero=(m_HalfHeight*100)/m_MaxValue;
-    m_YellowBreak=val2y(1.f);
-    m_RedBreak=val2y(1.12f);
+    m_LEDHeight = qMax(3,(height() - (m_Margin * 2)) / 150);
+    m_ScaleHeight = qRound((height() - (m_Margin * 2)) / (double)m_LEDHeight);
+    m_Left = Border;
+    m_Width = width() - (Border * 2);
+    m_Zero = (m_ScaleHeight * 100.0) / m_MaxValue;
+    m_YellowBreak = val2y(1.f);
+    m_RedBreak = val2y(1.12f);
 
-    lgBlack.setStart(m_Left,0);
+    QLinearGradient lgBlack;
+    QLinearGradient lgRed;
+    QLinearGradient lgYellow;
+    QLinearGradient lgGreen;
+
+    lgBlack.setStart(0,0);
     lgBlack.setFinalStop(m_Width,0);
     lgBlack.setColorAt(0,QColor(0x66,0x66,0x66));
     lgBlack.setColorAt(0.5,QColor(0x33,0x33,0x33));
     lgBlack.setColorAt(0.9,QColor(0x22,0x22,0x22));
     lgBlack.setColorAt(1,Qt::black);
 
-    lgYellow.setStart(m_Left,0);
+    pixBlack = LEDPix(lgBlack);
+
+    lgYellow.setStart(0,0);
     lgYellow.setFinalStop(m_Width,0);
     lgYellow.setColorAt(0,Qt::white);
     lgYellow.setColorAt(0.3,Qt::yellow);
     lgYellow.setColorAt(1,Qt::darkYellow);
 
-    lgRed.setStart(m_Left,0);
+    pixYellow = LEDPix(lgYellow);
+
+    lgRed.setStart(0,0);
     lgRed.setFinalStop(m_Width,0);
     lgRed.setColorAt(0,Qt::white);
     lgRed.setColorAt(0.3,Qt::red);
     lgRed.setColorAt(1,Qt::darkRed);
 
-    lgGreen.setStart(m_Left,0);
+    pixRed = LEDPix(lgRed);
+
+    lgGreen.setStart(0,0);
     lgGreen.setFinalStop(m_Width,0);
     lgGreen.setColorAt(0,Qt::white);
     lgGreen.setColorAt(0.3,Qt::green);
     lgGreen.setColorAt(1,Qt::darkGreen);
+
+    pixGreen = LEDPix(lgGreen);
 
     reset();
 }
@@ -86,7 +95,7 @@ CPeakControl::~CPeakControl()
 
 void CPeakControl::setValue(const float Value)
 {
-    QCanvasLayer* L=canvasLayers[0];
+    QCanvasLayer* L = canvasLayers[0];
     if (Value > m_Value) {
         m_Value = Value;
         m_Max = fmaxf(m_Value,m_Max);
@@ -97,32 +106,20 @@ void CPeakControl::setValue(const float Value)
     }
     const int y = val2y(m_Value);
     if (y == m_OldY) return;
-
-    L->setPen(QPen(Qt::NoPen));
-    LEDColors lc = LEDBlack;
     if (m_OldY > y) {
-        for (int i = m_OldY; i >= y; i--) {
-            const LEDColors currentLC = LEDColor(i);
-            if (lc != currentLC) {
-                lc = currentLC;
-                drawColorLED(i,L);
-            }
-            else {
-                drawLED(i,L);
-            }
-        }
-        update(m_Left, y * 2, m_Width, ((m_OldY - y) * 2) + 1);
+        const int top = scaleY(y);
+        const int bottom = scaleY(m_OldY);
+        QRect r(m_Left,top,m_Width,(bottom - top) + m_LEDHeight);
+        L->drawPixmap(r.topLeft(),m_OverlayPix,r);
+        update(r);
     }
     else if (m_MaxY < y)
     {
-        L->setBrush(lgBlack);
-        if (m_MaxY == m_OldY) {
-            for (int i = m_OldY + 1; i <= y; i++) drawLED(i,L);
-        }
-        else {
-            for (int i = m_OldY; i <= y; i++) drawLED(i,L);
-        }
-        update(m_Left, m_OldY * 2, m_Width,((y - m_OldY) * 2) + 1);
+        int top = scaleY(qMax(m_OldY,m_MaxY + 1));
+        const int bottom = scaleY(y);
+        QRect r(QRect(m_Left,top,m_Width,(bottom - top) + m_LEDHeight));
+        L->eraseTransparent(r);
+        update(r);
     }
     m_OldY=y;
 }
@@ -135,17 +132,12 @@ void CPeakControl::resizeEvent(QResizeEvent *event)
 
 void CPeakControl::setMargin(int margin)
 {
-    const int hm=margin/2;
-    if (hm != m_HalfMargin)
-    {
-        m_HalfMargin=hm;
-        m_Margin=hm*2;
-        updateSize();
-    }
+    m_Margin = margin;
+    updateSize();
 }
 
 void CPeakControl::setMax(int max)
 {
-    m_MaxValue=max;
+    m_MaxValue = max;
     updateSize();
 }

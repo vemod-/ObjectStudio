@@ -71,7 +71,7 @@ public:
 #endif
         if (!filename().isEmpty()) d.selectFile(filename());
         if (d.exec()!=QDialog::Accepted) return QString();
-        return d.selectedFiles().first();
+        return d.selectedFiles().constFirst();
     }
     virtual void unserialize(const QDomLiteElement* xml) {
         if (!xml) return;

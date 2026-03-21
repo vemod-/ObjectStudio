@@ -42,9 +42,9 @@ public:
     ~ImageExtractor();
     void setSource(const QUrl& url, const QSize& s);
     QImage getImage(double time);
-    QUrl videoUrl;
-    QSize frameSize;
+    QUrl Url() { return m_Url; }
 private:
+    QUrl m_Url;
     struct Impl;
     Impl* d;
 };
@@ -83,9 +83,11 @@ public:
     void setPlaybackRate(double rate);
     double playbackRate() const;
     QImage currentFrame();
-    QUrl Url;
-    bool playing = false;
+    QUrl Url(){ return m_Url; }
+    bool isPlaying(){ return m_Playing; }
 private:
+    QUrl m_Url;
+    bool m_Playing = false;
     struct Impl;
     Impl* d;
 };

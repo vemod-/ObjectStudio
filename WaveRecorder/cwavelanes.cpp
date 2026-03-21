@@ -924,7 +924,12 @@ void CWaveLanes::updateMixer()
         {
             CSF2ChannelWidget* ch = m_MixerWidget->channels[i];
             ch->init(m_Mixer->channels[i],"Lane " + QString::number(i+1));
-            if (QDomLiteElement* e = channelXML.elementByTag(lanes[i]->ID)) ch->unserialize(e);
+            if (QDomLiteElement* e = channelXML.elementByTag(lanes[i]->ID)) {
+                ch->unserialize(e);
+                if (e->attributeValueBool("Solo")) {
+                    m_Mixer->SoloChannel = i;
+                }
+            }
             ch->ID = lanes[i]->ID;
             ch->setVisible(true);
             lanes[i]->parameters[0]->connectToWidget(ch->volSlider,&CChannelVol::volChanged,&CChannelVol::setVol);
@@ -1008,12 +1013,9 @@ void CWaveLanes::RemoveLane()
 
 QString CWaveLanes::DropFileName(const QMimeData* d, const QObject* s) {
     qDebug() << d->urls() << d->html() << d->formats();
-    if (d->urls().size()) {
-        const auto l = d->urls();
-        QString path = l.first().toLocalFile();
-        if (QFileInfo::exists(path)) {
-            return path;
-        }
+    if (!d->urls().isEmpty()) {
+        QString path = d->urls().constFirst().toLocalFile();
+        if (QFileInfo::exists(path)) return path;
     }
     QString sender = s->metaObject()->className();
     if (!sender.compare("QListWidget")) {

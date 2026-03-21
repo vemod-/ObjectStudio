@@ -32,7 +32,7 @@ void CSamplerForm::loadSfz()
     if (d.exec())
     {
         QMutexLocker locker(&mutex);
-        const QString p=d.selectedFiles().first();
+        const QString p = d.selectedFiles().first();
         if (!p.isEmpty()) ConvertSfz(p);
     }
 }

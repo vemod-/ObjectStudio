@@ -184,7 +184,7 @@ public:
     }
     virtual ~CStereoBuffer();
     inline void zeroLeftBuffer() { zeroFloatBuffer(m_Data,m_Size); }
-    inline void zeroRightBuffer() { zeroFloatBuffer(m_DataR,m_Size); }
+    inline void zeroRightBuffer() { if (m_DataR) zeroFloatBuffer(m_DataR,m_Size); }
     inline float* writeStereoBuffer(const float* b, const float factorL = 1, const float factorR = 1) {
         if (!b) return nullptr;
         writeLeftBuffer(b,factorL);

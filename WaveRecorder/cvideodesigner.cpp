@@ -13,8 +13,9 @@ CVideoItem::CVideoItem(QGraphicsItem* parent)
     frameTimer.setInterval(40); // 25 fps ~60 fps
 
     connect(&frameTimer,&QTimer::timeout,this,[this]{
+        if (!m_AVFPlayer.isPlaying()) return;
         if (!m_Playing) return;
-        if (!isVisible()) return;
+        //if (!isVisible()) return;
         if (!m_Enabled) return;
         m_currentPlaybackImage = m_AVFPlayer.currentFrame();
         if (!m_currentPlaybackImage.isNull()) update();
@@ -47,31 +48,37 @@ void CVideoItem::paint(QPainter* p,
         }
         p->setRenderHint(QPainter::SmoothPixmapTransform, true);
         p->setRenderHint(QPainter::Antialiasing, true);
+        p->setOpacity(m_opacity);
         p->drawImage(renderRect, m_exportImage, m_sourceRect);
         return;
     }
     if (!m_Enabled) return;
-    if (!isVisible()) return;
+    //if (!isVisible()) return;
     if (!m_Playing) {
         p->setRenderHint(QPainter::SmoothPixmapTransform, true);
         p->setRenderHint(QPainter::Antialiasing, true);
         if (!m_stillImage.isNull()) {
+            p->setOpacity(m_opacity);
             p->drawImage(m_rect,m_stillImage,m_sourceRect);
         }
         else {
+            p->setOpacity(0.6);
             p->drawImage(m_rect,thumbnail,m_sourceRect);
-            p->setPen(Qt::NoPen);
-            p->setBrush(QColor(0,0,0,60));
-            p->drawRect(m_rect);
+            p->setOpacity(1.0);
+            //p->setPen(Qt::NoPen);
+            //p->setBrush(QColor(0,0,0,60));
+            //p->drawRect(m_rect);
         }
     }
     else {
-        if (m_currentPlaybackImage.isNull()) return;
+        //if (m_currentPlaybackImage.isNull()) return;
+        p->setOpacity(m_opacity);
         p->drawImage(m_rect,m_currentPlaybackImage,m_sourceRect);
         return;
     }
     if (isSelected())
     {
+        p->setBrush(Qt::NoBrush);
         p->setPen(QPen(Qt::yellow, 2));
         p->drawRect(m_rect);
         drawHandles(p);
@@ -144,44 +151,42 @@ void CVideoItem::mousePressEvent(QGraphicsSceneMouseEvent* e)
 void CVideoItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e)
 {
     if (m_Playing) return;
-    QPointF delta = e->pos() - m_pressPos;
-    qreal scaleX = m_pressSourceRect.width()  / m_rect.width();
-    qreal scaleY = m_pressSourceRect.height() / m_rect.height();
-
-    QPointF scaledDelta(delta.x()*scaleX, delta.y()*scaleY);
-
-    if (m_activeHandle != NoHandle) {
-        prepareGeometryChange();
-        QPoint p = e->pos().toPoint();
-        switch (m_activeHandle)
-        {
-        case TopLeft:
-            m_rect.setTopLeft(p);
-            break;
-        case TopRight:
-            m_rect.setTopRight(p);
-            break;
-        case BottomLeft:
-            m_rect.setBottomLeft(p);
-            break;
-        case BottomRight:
-            m_rect.setBottomRight(p);
-            break;
-        default:
-            break;
-        }
-        if (e->modifiers() & Qt::ShiftModifier)
-        {
-            // Aspect ratio lock
-            qreal ratio = (qreal)m_frameSize.width() /
-                          m_frameSize.height();
-
-            m_rect.setHeight((qreal)m_rect.width() / ratio);
-        }
-        update();
-        return;
-    }
     if (m_MD) {
+        QPointF delta = e->pos() - m_pressPos;
+        qreal scaleX = m_pressSourceRect.width()  / m_rect.width();
+        qreal scaleY = m_pressSourceRect.height() / m_rect.height();
+        QPointF scaledDelta(delta.x()*scaleX, delta.y()*scaleY);
+
+        if (m_activeHandle != NoHandle) {
+            prepareGeometryChange();
+            QPoint p = e->pos().toPoint();
+            switch (m_activeHandle)
+            {
+            case TopLeft:
+                m_rect.setTopLeft(p);
+                break;
+            case TopRight:
+                m_rect.setTopRight(p);
+                break;
+            case BottomLeft:
+                m_rect.setBottomLeft(p);
+                break;
+            case BottomRight:
+                m_rect.setBottomRight(p);
+                break;
+            default:
+                break;
+            }
+            if (e->modifiers() & Qt::ShiftModifier)
+            {
+                // Aspect ratio lock
+                qreal ratio = (qreal)m_frameSize.width() / m_frameSize.height();
+
+                m_rect.setHeight((qreal)m_rect.width() / ratio);
+            }
+            update();
+            return;
+        }
         if (e->modifiers() & Qt::ControlModifier)
         {
             QRectF r = m_pressSourceRect;

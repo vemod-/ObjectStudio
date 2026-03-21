@@ -30,12 +30,15 @@ public:
     void resetPeak();
     void unserialize(const QDomLiteElement* xml);
     void serialize(QDomLiteElement* xml) const;
+    int soloChannel() {
+        return master->soloChannel();
+    }
 public slots:
     void start();
     void stop();
+    void setSoloChannel(int channel);
 private slots:
     void peak();
-    void setSoloChannel(int channel);
 private:
     Ui::CMixerWidget *ui;
     QTimer peakTimer;

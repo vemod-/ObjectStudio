@@ -52,7 +52,12 @@ protected:
     void dragMoveEvent(QDragMoveEvent* e);
     void dragLeaveEvent(QDragLeaveEvent* e);
     void dropEvent(QDropEvent *e);
-    //void resizeEvent(QResizeEvent* event);
+    void resizeEvent(QResizeEvent* event) {
+        QWidget::resizeEvent(event);
+        for (QWidget* a : ProxyWidgets()) {
+            a->resize(constantWidth(),a->height());
+        }
+    }
 private:
     QList<CParametersComponent*> parameterDevices;
     QGraphicsScene Scene;

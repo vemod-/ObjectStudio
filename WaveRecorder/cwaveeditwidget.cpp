@@ -12,6 +12,9 @@ CWaveEditWidget::CWaveEditWidget(QWidget *parent) :
     connect(ui->FadeInSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->FadeOutSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->VolSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
+    connect(ui->VideoFadeInSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
+    connect(ui->VideoFadeOutSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
+    connect(ui->VideoOpacitySpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->SpeedSpin,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->PitchSpin,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->StretchCheck,&QAbstractButton::toggled,this,&CWaveEditWidget::UpdateStretch);
@@ -40,6 +43,7 @@ void CWaveEditWidget::Init(CWaveGenerator *WG, CWaveGenerator::LoopParameters LP
     m_WG=WG;
     m_LoopOn=LoopOn;
     ui->WaveEdit->Enabled=Enabled;
+    ui->VideoWidget->setVisible(WG->hasVideo());
     for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->setEnabled(Enabled);
     if (!Enabled) return;
     if (LP.End>WG->size())
@@ -66,6 +70,11 @@ void CWaveEditWidget::Init(CWaveGenerator *WG, CWaveGenerator::LoopParameters LP
     ui->EndSpin->setMaximum(WG->size());
     ui->FadeInSpin->setMaximum(WG->size());
     ui->FadeOutSpin->setMaximum(WG->size());
+    if (m_WG->hasVideo()) {
+        ui->VideoFadeInSpin->setMaximum(WG->size());
+        ui->VideoFadeOutSpin->setMaximum(WG->size());
+        ui->VideoOpacitySpin->setValue(LP.VideoOpacity);
+    }
     ui->StartSpin->setValue(LP.Start);
     ui->EndSpin->setValue(LP.End);
     if (LoopOn)
@@ -85,6 +94,10 @@ void CWaveEditWidget::Init(CWaveGenerator *WG, CWaveGenerator::LoopParameters LP
     {
         ui->FadeInSpin->setValue(LP.FadeIn);
         ui->FadeOutSpin->setValue(LP.FadeOut);
+        if (m_WG->hasVideo()) {
+            ui->VideoFadeInSpin->setValue(LP.VideoFadeIn);
+            ui->VideoFadeOutSpin->setValue(LP.VideoFadeOut);
+        }
         ui->VolSpin->setVisible(true);
         ui->VolLabel->setText("Volume");
     }
@@ -117,6 +130,7 @@ void CWaveEditWidget::UpdateGraph()
 {
     CWaveGenerator::LoopParameters LP=m_WG->LP;
     LP.Volume=ui->VolSpin->value();
+    if (m_WG->hasVideo()) LP.VideoOpacity=ui->VideoOpacitySpin->value();
     LP.PitchShift=ui->PitchSpin->value();
     LP.Speed=ui->SpeedSpin->value()*0.01;
     if (ui->StretchCheck->isChecked())
@@ -141,6 +155,12 @@ void CWaveEditWidget::UpdateGraph()
         LP.FadeIn=ui->FadeInSpin->value();
         ui->FadeOutSpin->setMaximum((ui->EndSpin->value()-ui->StartSpin->value())-ui->FadeInSpin->value());
         LP.FadeOut=ui->FadeOutSpin->value();
+        if (m_WG->hasVideo()) {
+            ui->VideoFadeInSpin->setMaximum((ui->EndSpin->value()-ui->StartSpin->value())-ui->VideoFadeOutSpin->value());
+            LP.VideoFadeIn=ui->VideoFadeInSpin->value();
+            ui->VideoFadeOutSpin->setMaximum((ui->EndSpin->value()-ui->StartSpin->value())-ui->VideoFadeInSpin->value());
+            LP.VideoFadeOut=ui->VideoFadeOutSpin->value();
+        }
     }
     ui->WaveEdit->Draw(LP);
     emit Changed(LP);
@@ -150,6 +170,7 @@ void CWaveEditWidget::UpdateControls(CWaveGenerator::LoopParameters LP)
 {
     for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(true);
     ui->VolSpin->setValue(LP.Volume);
+    if (m_WG->hasVideo()) ui->VideoOpacitySpin->setValue(LP.VideoOpacity);
     //ui->SpeedSpin->setValue(LP.Speed*100.0);
     //ui->PitchSpin->setValue(LP.PitchShift);
     ui->StartSpin->setValue(LP.Start);
@@ -163,6 +184,10 @@ void CWaveEditWidget::UpdateControls(CWaveGenerator::LoopParameters LP)
     {
         ui->FadeInSpin->setValue(LP.FadeIn);
         ui->FadeOutSpin->setValue(LP.FadeOut);
+        if (m_WG->hasVideo()) {
+            ui->VideoFadeInSpin->setValue(LP.VideoFadeIn);
+            ui->VideoFadeOutSpin->setValue(LP.VideoFadeOut);
+        }
     }
     for(QWidget* w : (const QList<QWidget*>)findChildren<QWidget*>()) w->blockSignals(false);
     emit Changed(LP);

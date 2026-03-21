@@ -47,6 +47,17 @@ public:
                 );
         }
     }
+    void invokeVideoPlaySync(CWaveTrack* t, ulong64 sample) {
+        if (t->waveGenerator.hasVideo() & t->videoVisible) {
+            QMetaObject::invokeMethod(
+                this,
+                [this, t, sample]() {
+                    setVideoPlaySync(t,sample);
+                },
+                Qt::QueuedConnection
+                );
+        }
+    }
     void invokePause() {
         QMetaObject::invokeMethod(
             this,
@@ -70,18 +81,41 @@ public:
             }
             bool o = enabled();
             setEnabled(false);
-            if (m_AVFPlayer.Url != t->waveGenerator.videoURL) {
+            if (m_AVFPlayer.Url() != t->waveGenerator.videoURL) {
                 m_AVFPlayer.setSource(t->waveGenerator.videoURL);
             }
-            if (qAbs<long64>((m_AVFPlayer.position() * 1000) - mSec) > 10) {
+            if (qAbs<long64>((m_AVFPlayer.position() * 1000) - mSec) > 40) {
                 m_AVFPlayer.setPosition(mSec / 1000.0);
             }
             if (!closeEnough(m_AVFPlayer.playbackRate(),t->loopParameters.Speed)) {
                 m_AVFPlayer.setPlaybackRate(t->loopParameters.Speed);
             }
             if (m_Playing) {
-                if (!m_AVFPlayer.playing) m_AVFPlayer.play();
+                if (!m_AVFPlayer.isPlaying()) m_AVFPlayer.play();
             }
+            setEnabled(o);
+            return true;
+        }
+        return false;
+    }
+    bool setVideoPlaySync(CWaveTrack* t, ulong64 sample) {
+        if (t->waveGenerator.hasVideo()) {
+            const long64 mSec = CPresets::samplesTomSecs(sample);
+            if (mSec > t->videoLength) {
+                frameTimer.stop();
+                m_AVFPlayer.pause();
+                return false;
+            }
+            bool o = enabled();
+            setEnabled(false);
+            if (qAbs<long64>((m_AVFPlayer.position() * 1000) - mSec) > 40) {
+                m_AVFPlayer.setPosition(mSec / 1000.0);
+            }
+            /*
+            if (m_Playing) {
+                if (!m_AVFPlayer.isPlaying()) m_AVFPlayer.play();
+            }
+*/
             setEnabled(o);
             return true;
         }
@@ -89,7 +123,7 @@ public:
     }
     bool setVideoExportProperties(CWaveTrack* t, long64 mSec) {
         if (t->waveGenerator.hasVideo()) {
-            if (imgExtract.videoUrl != t->waveGenerator.videoURL) {
+            if (imgExtract.Url() != t->waveGenerator.videoURL) {
                 imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
             }
             if (mSec <= t->videoLength) {
@@ -117,7 +151,7 @@ public:
     bool setVideoStillProperties(CWaveTrack* t, long64 mSec) {
         if (m_Playing) return false;
         if (t->waveGenerator.hasVideo()) {
-            if (imgExtract.videoUrl != t->waveGenerator.videoURL) {
+            if (imgExtract.Url() != t->waveGenerator.videoURL) {
                 imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
             }
             if (mSec <= t->videoLength) {
@@ -141,7 +175,6 @@ public:
         frameTimer.start();
     }
     void stop() {
-        //m_player.pause();
         frameTimer.stop();
         m_AVFPlayer.pause();
         m_Playing = false;
@@ -149,10 +182,13 @@ public:
     }
     void setEnabled(bool v) {
         m_Enabled = v;
-        if (!v) update();
+        //if (!v) update();
     }
     bool enabled() {
         return m_Enabled;
+    }
+    void setRenderOpacity(qreal op) {
+        m_opacity = op;
     }
     void unserialize(const QDomLiteElement* xml) {
         if (!xml) return;
@@ -219,6 +255,7 @@ private:
     QImage m_exportImage;
     QImage m_stillImage;
     QSize m_frameSize { 320, 240 };
+    qreal m_opacity = 1;
 
     enum Handle {
         NoHandle,
@@ -264,7 +301,7 @@ private:
     void drawHandles(QPainter* p)
     {
         p->setBrush(Qt::white);
-        p->setPen(Qt::black);
+        p->setPen(Qt::yellow);
 
         QRect r = m_rect;
 

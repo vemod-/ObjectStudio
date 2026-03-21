@@ -55,8 +55,11 @@ CWaveRecorderForm::CWaveRecorderForm(IDevice* Device, QWidget *parent) :
     //QMenu* viewMenu = m_Document->MainMenu->addMenu("View");
     videoWindowAction = m_Document->MainMenu->FileMenu->addAction("Video Window");
     connect(videoWindowAction,&QAction::triggered,this,&CWaveRecorderForm::ShowVideoWindow);
-    ExportWaveAction = m_Document->MainMenu->FileMenu->addAction("Export Wave");
+    ExportWaveAction = m_Document->MainMenu->FileMenu->addAction("Export Audio");
     connect(ExportWaveAction,&QAction::triggered,this,&CWaveRecorderForm::exportAudio);
+
+    ExportLaneAudioAction = m_Document->MainMenu->FileMenu->addAction("Export Lane Audio");
+    connect(ExportLaneAudioAction,&QAction::triggered,this,&CWaveRecorderForm::exportLaneAudio);
 
     ExportVideoAction = m_Document->MainMenu->FileMenu->addAction("Export Video");
     connect(ExportVideoAction,&QAction::triggered,this,&CWaveRecorderForm::exportVideo);
@@ -272,6 +275,15 @@ void CWaveRecorderForm::exportAudio(){
         ui->WaveLanes->exportAudio(f);
         //CConcurrentDialog::run(ui->WaveLanes,&CWaveLanes::exportAudio,f);
     }
+}
+
+void CWaveRecorderForm::exportLaneAudio() {
+    QDateTime now = QDateTime::currentDateTime();
+    QDir dir(m_RecordPath);
+    if (!dir.exists()) dir.mkpath(dir.absolutePath());
+    QString path = m_RecordPath + "/" + now.toString("yyMMdd HH-mm-ss") + ".wav";
+    ui->WaveLanes->exportLaneAudio(path);
+    addFile(path);
 }
 
 void CWaveRecorderForm::Import()

@@ -110,6 +110,7 @@ public:
 private:
     ulong64 Counter;
     uint ModulationCounter;
+    int syncCounter;
     CChannelBuffer CurrentBuffer;
     CStereoBuffer TempBuffer;
     float Vol;

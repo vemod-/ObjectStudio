@@ -1,7 +1,6 @@
 #include "cwavetrack.h"
 #include <QGraphicsTextItem>
 #include <QGraphicsPathItem>
-#include "avfaudiorw.h"
 
 CWaveTrack::CWaveTrack(const QString &Filename, ulong64 StartPointer)
 {
@@ -63,11 +62,24 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
 
     Scene.addItem(waveGenerator.waveFormItem(geometry,visibleRect,ZoomFactor,&loopParameters));
 
-    QPen redPen = QPen(Qt::red);
-    float volHeight = geometry.height()*loopParameters.Volume*0.01;
-    qreal fadeInWidth = loopParameters.FadeIn*ZoomFactor/loopParameters.Speed;
-    qreal fadeOutWidth = loopParameters.FadeOut*ZoomFactor/loopParameters.Speed;
-    Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
-    Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
-    Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+    if (loopParameters.Volume < 100 || loopParameters.FadeIn > 0 || loopParameters.FadeOut > 0) {
+        QPen redPen = QPen(Qt::yellow);
+        float volHeight = geometry.height()*loopParameters.Volume*0.01;
+        qreal fadeInWidth = loopParameters.FadeIn*ZoomFactor/loopParameters.Speed;
+        qreal fadeOutWidth = loopParameters.FadeOut*ZoomFactor/loopParameters.Speed;
+        Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
+        Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
+        Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+    }
+    if (waveGenerator.hasVideo()) {
+        if (hasOpacity()) {
+            QPen redPen = QPen(Qt::blue);
+            float volHeight = geometry.height()*loopParameters.VideoOpacity*0.01;
+            qreal fadeInWidth = loopParameters.VideoFadeIn*ZoomFactor/loopParameters.Speed;
+            qreal fadeOutWidth = loopParameters.VideoFadeOut*ZoomFactor/loopParameters.Speed;
+            Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
+            Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
+            Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+        }
+    }
 }

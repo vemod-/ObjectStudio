@@ -60,7 +60,7 @@ private:
                 if ((filename.endsWith(".vst",Qt::CaseInsensitive)) || (filename.endsWith(".vst3",Qt::CaseInsensitive)))
                 {
                     qDebug() << iterator.fileName() << "ends with vst";
-                    const CFBundleRef TempBundle = pathToCFBundleRef(filename);
+                    const CFBundleRef TempBundle = createCFBundleRef(filename);
                     qDebug() << iterator.fileName() << "path to bundle" << TempBundle;
                     try {
                         if ((functionPointerInBundle("VSTPluginMain",TempBundle)) || (functionPointerInBundle("main_macho",TempBundle))  || (functionPointerInBundle("main",TempBundle))  || (functionPointerInBundle("main_plugin",TempBundle)))

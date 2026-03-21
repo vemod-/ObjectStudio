@@ -483,10 +483,9 @@ ImageExtractor::~ImageExtractor()
     delete d;
 }
 
-void ImageExtractor::setSource(const QUrl& url, const QSize& s){
+void ImageExtractor::setSource(const QUrl& url, const QSize& frameSize){
 
-        videoUrl = url;
-        frameSize = s;
+        m_Url = url;
         NSString* nsPath = url.path().toNSString();
         if (!nsPath) return;
         NSURL* nsurl = [NSURL fileURLWithPath:nsPath];
@@ -563,7 +562,7 @@ AVFVideoPlayer::~AVFVideoPlayer()
 
 void AVFVideoPlayer::setSource(const QUrl& url)
 {
-    Url = QUrl();
+    m_Url = QUrl();
     if (d->player)
     {
         AVPlayerItem* item = [d->player currentItem];
@@ -575,7 +574,7 @@ void AVFVideoPlayer::setSource(const QUrl& url)
     NSString* nsPath = url.path().toNSString();
     if (!nsPath) return;
     NSURL* nsurl = [NSURL fileURLWithPath:nsPath];
-    Url = url;
+    m_Url = url;
     pause();
 
     AVAsset* asset = [AVAsset assetWithURL:nsurl];
@@ -628,18 +627,18 @@ void AVFVideoPlayer::play()
 {
     if (!d->player) return;
     [d->player play];
-    playing = true;
+    m_Playing = true;
 }
 
 void AVFVideoPlayer::pause()
 {
     if (d->player) [d->player pause];
-    playing = false;
+    m_Playing = false;
 }
 
 QImage AVFVideoPlayer::currentFrame()
 {
-    if (!playing) return QImage();
+    if (!m_Playing) return QImage();
     if (!d->player) return QImage();
     CMTime time = [d->player currentTime];
 

@@ -132,7 +132,7 @@ struct noise
 {
     float operator()() const
     {
-        return (float(rand()) / (RAND_MAX / 2)) - 1.0;
+        return (float(arc4random()) / (RAND_MAX / 2)) - 1.0;
     }
 };
 

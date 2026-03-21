@@ -36,45 +36,39 @@ private:
     int m_YellowBreak;
     int m_RedBreak;
     int m_Zero;
+    int m_LEDHeight = 3;
     void updateSize();
-    QLinearGradient lgBlack;
-    QLinearGradient lgRed;
-    QLinearGradient lgYellow;
-    QLinearGradient lgGreen;
-    int inline val2y(const float val) const
-    {
-        return qMax<int>(m_HalfHeight-int(val*m_Zero),0)+m_HalfMargin;
+    QPixmap pixBlack;
+    QPixmap pixRed;
+    QPixmap pixYellow;
+    QPixmap pixGreen;
+    int inline scaleY(const int val) const {
+         return (val * m_LEDHeight) + (m_Margin - m_LEDHeight);
     }
-    const QLinearGradient inline y2col(const int y) const
-    {
-        if (y > m_YellowBreak) return lgGreen;
-        if (y > m_RedBreak) return lgYellow;
-        return lgRed;
+    int inline val2y(const float val) const {
+        return qMax<int>(m_ScaleHeight - int(val * m_Zero),0);
     }
-    LEDColors inline LEDColor(const int y) const
+    const inline QPixmap& y2colPix(const int y) const
     {
-        if (y > m_YellowBreak) return LEDGreen;
-        if (y > m_RedBreak) return LEDYellow;
-        return LEDRed;
+        if (y > m_YellowBreak) return pixGreen;
+        if (y > m_RedBreak) return pixYellow;
+        return pixRed;
     }
-    void inline drawColorLED(const int y,QCanvasLayer* L)
-    {
-        L->setBrush(y2col(y));
-        drawLED(y,L);
+    QPixmap LEDPix(QLinearGradient& lg) const {
+        QPixmap pix = QPixmap(m_Width,m_LEDHeight - 1);
+        QPainter p(&pix);
+        p.fillRect(0,0,m_Width,m_LEDHeight - 1,lg);
+        return pix;
     }
-    void inline drawLED(const int y,QCanvasLayer* L)
-    {
-        L->drawRectangle(m_Left, y * 2, m_Width, 1);
-    }
-    static const int Border=4;
-    static const int HalfBorder=2;
+    static const int Border = 4;
+    static const int HalfBorder = 2;
     int m_Margin;
-    int m_HalfMargin;
-    int m_HalfHeight;
+    int m_ScaleHeight;
     int m_Left;
-    int m_Right;
     int m_Width;
     int m_MaxValue;
+    QPixmap brushPix;
+    QPixmap m_OverlayPix;
 };
 
 #endif // CPEAKCONTROL_H

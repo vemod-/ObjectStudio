@@ -74,13 +74,14 @@ public:
     inline ulong currentmSec() const { return m_CurrentmSec; }
     inline ulong currentTick() const { return m_CurrentTick; }
     inline ulong64 currentSample() const { return m_CurrentmSec * presets.SamplesPermSec; }
+    /*
     inline void setTempoAdjust(const double tempoAdjust)
     {
         if (closeEnough(tempoAdjust, m_TempoAdjust)) return;
         m_TempoAdjust = tempoAdjust;
         setTempo(m_uSPQ,m_TicksPQ);
     }
-/*
+*/
     inline void setTempoAdjust(const double tempoAdjust)
     {
         if (closeEnough(tempoAdjust, m_TempoAdjust)) return;
@@ -97,7 +98,6 @@ public:
         m_mSecSampleCount = phase * m_mSecsPerTick;
 
     }
-    */
     double tempoAdjust() const { return m_TempoAdjust; }
     inline void setTempo(const double uSPQ, const double ticksPQ = 240)
     {

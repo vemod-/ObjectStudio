@@ -55,7 +55,7 @@ void CMixerWidget::setSoloChannel(int channel)
     auto c = channels[channel]->findChild<CChannelEffects*>("ChannelEffects");
     if (c->isSolo())
     {
-        for (int i=0;i<channels.size();i++)
+        for (int i = 0; i < channels.size(); i++)
         {
             if (i != channel) channels[i]->soloButton(false);
         }
@@ -104,7 +104,7 @@ void CMixerWidget::stop()
 
 void CMixerWidget::start()
 {
-    peakTimer.start(40+channels.size());
+    peakTimer.start(40 + channels.size());
 }
 
 void CMixerWidget::clear()
@@ -127,7 +127,9 @@ void CMixerWidget::unserialize(const QDomLiteElement* xml)
     if (!xml) return;
     for (int i=0;i<channels.size();i++)
     {
-        if (const QDomLiteElement* ch=xml->elementByTag("Channel"+QString::number(i))) channels[i]->unserialize(ch->elementByTag("Channel"));
+        if (const QDomLiteElement* ch = xml->elementByTag("Channel" + QString::number(i))) {
+            channels[i]->unserialize(ch->elementByTag("Channel"));
+        }
     }
     master->unserialize(xml->elementByTag("Master"));
 }
@@ -136,7 +138,7 @@ void CMixerWidget::serialize(QDomLiteElement* xml) const
 {
     for (int i=0;i<channels.size();i++)
     {
-        channels[i]->serialize(xml->appendChild("Channel"+QString::number(i))->appendChild("Channel"));
+        channels[i]->serialize(xml->appendChild("Channel" + QString::number(i))->appendChild("Channel"));
     }
     master->serialize(xml->appendChild("Master"));
 }

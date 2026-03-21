@@ -145,12 +145,12 @@ void IWaveFile::createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplera
             return;
         }
         qDebug() << "Float RateFactor!" << double(RateFactor);
-        for (uint c = 0; c < m_Channels; c++)
+        for (uint c = 0; c < OutBuffer.channels(); c++)
         {
             const byte* ChannelPtr = m_WaveStart + (c * ByteCount);
-            for (ulong64 i = 0; i < Length; i++)
+            for (ulong64 i = 0; i < OutBuffer.size(); i++)
             {
-                OutBuffer.set(ReadAuMem(ChannelPtr + (ulong64(i * RateFactor) * UnitSize)));
+                OutBuffer.setAt(i,c,ReadAuMem(ChannelPtr + (ulong64(i * RateFactor) * UnitSize)));
             }
         }
         return;
@@ -158,7 +158,7 @@ void IWaveFile::createFloatBuffer(CChannelBuffer& OutBuffer, const uint Samplera
     const ldouble stridef = RateFactor * PointerInc;
     bool HalfByte = false;
     qDebug() << "Float all!" << double(stridef) << double(RateFactor);
-    for (uint c = 0; c < m_Channels; c++)
+    for (uint c = 0; c < OutBuffer.channels(); c++)
     {
         const byte* ChannelPtr = m_WaveStart + (c * ByteCount);
         for (ulong64 i = 0; i < Length; i++)

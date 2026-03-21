@@ -47,9 +47,9 @@ public:
         const ldouble RateFactor = ldouble(m_Frequency) / Samplerate;
         const auto Length = ulong64(ldouble(data[0].size()) / RateFactor);
         OutBuffer.init(Length, m_Channels);
-        for (uint c = 0; c < m_Channels; ++c) {
+        for (uint c = 0; c < OutBuffer.channels(); ++c) {
             ldouble Ptr = 0;
-            for (ulong64 i = 0; i < Length; ++i) {
+            for (ulong64 i = 0; i < OutBuffer.size(); ++i) {
                 OutBuffer.setAt(i, c, data[c][Ptr]);
                 Ptr += RateFactor;
             }

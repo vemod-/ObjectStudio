@@ -80,6 +80,12 @@ private:
     QGraphicsLineItem* m_ReleaseLine;
     QGraphicsEllipseItem* m_Point1;
     QGraphicsEllipseItem* m_Point2;
+    QGraphicsLineItem* m_VideoFadeInLine;
+    QGraphicsLineItem* m_VideoFadeOutLine;
+    QGraphicsLineItem* m_VideoOpaqueLine;
+    QGraphicsEllipseItem* m_VideoPoint1;
+    QGraphicsEllipseItem* m_VideoPoint2;
+
     QGraphicsItem* m_WaveItem = nullptr;
 };
 

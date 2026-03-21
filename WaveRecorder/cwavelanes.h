@@ -75,6 +75,14 @@ public slots:
     void zoomMin();
     void zoomMax();
     void setEditMenu();
+    void exportLaneAudio(const QString& filename) {
+        if (m_Mixer) {
+            int tempSolo = m_Mixer->SoloChannel;
+            m_Mixer->SoloChannel = CurrentLane;
+            IDevice::exportWave(filename);
+            m_Mixer->SoloChannel = tempSolo;
+        }
+    }
     void exportAudio(const QString &filename) {
         //QFile(filename).remove();
         IDevice::exportWave(filename);
@@ -87,7 +95,7 @@ public slots:
 
         QGraphicsScene* tempScene = videoWindow->scene();
         videoWindow->setScene(nullptr);
-        CChannelBuffer audio = IDevice::render();
+        CChannelBuffer* audio = IDevice::render();
 
         VideoExporter exporter(filename, outputSize, frameRate, CPresets::presets().SampleRate, 2);
 
@@ -106,7 +114,7 @@ public slots:
         for (CWaveLane* l : std::as_const(lanes)) {
             if (l->videoItem) {
                 l->videoItem->setRenderRect(videoWindow->resolution());
-                l->videoItem->setVisible(l->videoVisible);
+                l->videoItem->setEnabled(l->videoVisible);
             }
         }
         abortExport = false;
@@ -134,11 +142,11 @@ public slots:
             img.fill(Qt::black);
             for (CWaveLane* l : std::as_const(lanes)) {
                 if (l->videoItem) {
-                    if (l->videoItem->isVisible()) l->videoItem->paint(&p,nullptr,nullptr);
+                    if (l->videoItem->isEnabled()) l->videoItem->paint(&p,nullptr,nullptr);
                 }
             }
             exporter.addFrame(img,f);
-            frameBuffer.copy(audio,sample);
+            frameBuffer.copy(*audio,sample);
             std::vector<float>b = frameBuffer.toInterleaved();
             sample += frameBuffer.size();
             exporter.addAudio(b.data());
@@ -150,6 +158,9 @@ public slots:
             loop.quit();
         });
         loop.exec();
+
+        delete audio;
+
         exportProgress.setVisible(false);
 
         setExportMode(false);

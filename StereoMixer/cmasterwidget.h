@@ -27,6 +27,7 @@ public:
     void serialize(QDomLiteElement* xml) const;
     void unserialize(const QDomLiteElement* xml);
     void setSoloChannel(int channel);
+    int soloChannel() const;
     void resetPeak();
 private:
     Ui::CMasterWidget *ui;

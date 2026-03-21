@@ -151,9 +151,9 @@ void CStereoMixer::process()
     {
         if (Signal[i]->isValid())
         {
-            if (SoloChannel>-1)
+            if (SoloChannel > -1)
             {
-                if (SoloChannel==int(i)) OrigChannel.push_back(i);
+                if (SoloChannel == int(i)) OrigChannel.push_back(i);
             }
             else if (!channels[i]->Mute)
             {
