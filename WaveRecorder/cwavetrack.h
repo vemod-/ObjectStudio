@@ -17,14 +17,23 @@ public:
     ulong64 start;
     bool isValid;
     bool isActive;
-    bool hasOpacity() {
+    inline bool hasOpacity() const {
         return (loopParameters.VideoOpacity < 1 || loopParameters.VideoFadeIn > 0 || loopParameters.VideoFadeOut > 0);
     }
-    long64 length() const {
+    inline long64 length() const {
         return loopParameters.playLength();
     }
-    ulong64 end() const {
+    inline ulong64 end() const {
         return start + length();
+    }
+    inline ulong64 pos(ldouble Counter) const {
+        return ((Counter - start) * loopParameters.Speed) + loopParameters.Start;
+    }
+    inline float fadeOpacity(ulong64 Counter) const {
+        return loopParameters.fadeOpacity(Counter - start);
+    }
+    inline float fadeVolume(ulong64 Counter) const {
+        return loopParameters.fadeVolume(Counter - start);
     }
     void cutEnd(const long64 sample) {
         long64 s = sample;
@@ -41,16 +50,16 @@ public:
         loopParameters.Start = (s - waveStart()) * loopParameters.Speed;
         start = s;
     }
-    long64 waveStart() const {
+    inline long64 waveStart() const {
         return start - (loopParameters.Start / loopParameters.Speed);
     }
-    long64 waveEnd() {
+    inline long64 waveEnd() {
         return waveStart() + (waveGenerator.size() / loopParameters.Speed);
     }
     QImage videoThumbnail;
     long64 videoLength = 0;
     bool videoVisible = true;
-    QImage getThumbnail(QString path) {
+    QImage getThumbnail(QString path) const {
         QSize s = avf_displaySize(path);
         return avf_extract_fullframe(path).scaled(s,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
     }

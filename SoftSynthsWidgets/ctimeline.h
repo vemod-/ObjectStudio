@@ -201,7 +201,7 @@ public:
             }
             Scene->addPath(path,m_Pen);
             Scene->addPath(textPath,Qt::NoPen,c);
-            m_playline = QLine(sampleToX(m_CurrentSample),0,sampleToX(m_CurrentSample),visibleRect.height());
+            m_playline = QLine(sampleToX(m_CurrentSample),0,sampleToX(m_CurrentSample),Scene->height());
             /*
             m_PlayLine = new QGraphicsContainerItem();
             m_PlayLine->append(lineItem(0,0,0,visibleRect.height(),QPen(Qt::yellow)));

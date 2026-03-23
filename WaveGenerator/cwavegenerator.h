@@ -301,7 +301,7 @@ public:
         return new WaveformItem(lines,r);
     }
     QUrl videoURL;
-    bool hasVideo() {
+    inline bool hasVideo() const {
         return (!videoURL.isEmpty());
     }
 private:

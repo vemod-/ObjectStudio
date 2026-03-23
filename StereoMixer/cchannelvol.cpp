@@ -19,16 +19,18 @@ CChannelVol::~CChannelVol()
     delete ui;
 }
 
-int CChannelVol::vol()
+int CChannelVol::vol() const
 {
-    return ui->VolSlider->value();
+    return m_Ch->Level * 100;
 }
 
 void CChannelVol::setVol(int v)
 {
-    m_Ch->Level=v*0.01f;
+    m_Ch->Level = v * 0.01f;
     ui->VolLabel->setText(percent2dBText(v));
+    ui->VolSlider->blockSignals(true);
     ui->VolSlider->setValue(v);
+    ui->VolSlider->blockSignals(false);
 }
 
 void CChannelVol::peak(float l, float r)
@@ -52,7 +54,7 @@ void CChannelVol::showEvent(QShowEvent *)
 
 void CChannelVol::unserialize(const QDomLiteElement* xml)
 {
-    if (xml) ui->VolSlider->setValue(xml->attributeValueInt("Volume"));
+    if (xml) setVol(xml->attributeValueInt("Volume"));
 }
 
 void CChannelVol::serialize(QDomLiteElement* xml) const

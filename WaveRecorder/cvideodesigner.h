@@ -65,7 +65,8 @@ public:
                 bool o = enabled();
                 setEnabled(false);
                 m_AVFPlayer.pause();
-                update();
+                m_currentPlaybackImage = QImage();
+                update(m_rect);
                 setEnabled(o);
             },
             Qt::QueuedConnection
@@ -75,8 +76,10 @@ public:
         if (t->waveGenerator.hasVideo()) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
             if (mSec > t->videoLength) {
-                frameTimer.stop();
+                //frameTimer.stop();
                 m_AVFPlayer.pause();
+                m_currentPlaybackImage = QImage();
+                update(m_rect);
                 return false;
             }
             bool o = enabled();
@@ -91,7 +94,9 @@ public:
                 m_AVFPlayer.setPlaybackRate(t->loopParameters.Speed);
             }
             if (m_Playing) {
-                if (!m_AVFPlayer.isPlaying()) m_AVFPlayer.play();
+                if (!m_AVFPlayer.isPlaying()) {
+                    m_AVFPlayer.play();
+                }
             }
             setEnabled(o);
             return true;
@@ -102,8 +107,10 @@ public:
         if (t->waveGenerator.hasVideo()) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
             if (mSec > t->videoLength) {
-                frameTimer.stop();
+                //frameTimer.stop();
                 m_AVFPlayer.pause();
+                m_currentPlaybackImage = QImage();
+                update(m_rect);
                 return false;
             }
             bool o = enabled();
@@ -156,29 +163,32 @@ public:
             }
             if (mSec <= t->videoLength) {
                 m_stillImage = imgExtract.getImage(mSec / 1000.0).copy();
-                update();
+                update(m_rect);
                 return true;
             }
         }
         m_stillImage = QImage();
-        update();
+        update(m_rect);
         return false;
     }
     bool setVideoStillEmptyFrame() {
         if (m_Playing) return false;
         m_stillImage = QImage();
-        update();
+        update(m_rect);
         return true;
     }
     void play() {
         m_Playing = true;
+        m_currentPlaybackImage = QImage();
+        update(m_rect);
         frameTimer.start();
     }
     void stop() {
         frameTimer.stop();
         m_AVFPlayer.pause();
         m_Playing = false;
-        update();
+        m_currentPlaybackImage = QImage();
+        update(m_rect);
     }
     void setEnabled(bool v) {
         m_Enabled = v;
@@ -343,11 +353,11 @@ public:
     Guides(QRect rect) {
         left    = rect.left();
         right   = rect.right();
-        hcenter = rect.center().x();
+        hcenter = (rect.width() * 0.5) + rect.left();
 
         top     = rect.top();
         bottom  = rect.bottom();
-        vcenter = rect.center().y();
+        vcenter = (rect.height() * 0.5) + rect.top();
     }
     int left;
     int right;
@@ -418,7 +428,7 @@ private:
     void drawGuideLines() {
         guides.clear();
         if (m_MD) {
-            const double snapTol = 1.0;
+            const double snapTol = 0.5;
             QGraphicsItem* item = m_scene.mouseGrabberItem();
             if (auto movingItem = dynamic_cast<CVideoItem*>(item)) {
                 for (CVideoItem* other : videoItems())
@@ -446,21 +456,41 @@ private:
                     if (qAbs(a.vcenter - b.vcenter) < snapTol)
                         drawHorizontalGuide(b.vcenter);
 
-                    if (qAbs(a.right - b.left) < snapTol)
+                    if (qAbs((a.right + 1) - b.left) < snapTol)
                         drawVerticalGuide(b.left);
 
-                    if (qAbs(a.left - b.right) < snapTol)
-                        drawVerticalGuide(b.right);
+                    if (qAbs(a.left - (b.right + 1)) < snapTol)
+                        drawVerticalGuide(a.left);
+
+                    if (qAbs((a.bottom + 1) - b.top) < snapTol)
+                        drawHorizontalGuide(b.top);
+
+                    if (qAbs(a.top - (b.bottom + 1)) < snapTol)
+                        drawHorizontalGuide(a.top);
 
                     QRect sceneRect = QRect(0,0,1280,720);
 
-                    int cx = sceneRect.center().x();
-                    int cy = sceneRect.center().y();
+                    int cx = sceneRect.width() * 0.5;
+                    int cy = sceneRect.height() * 0.5;
+
+                    qDebug() << cx << a.left;
 
                     if (qAbs(a.hcenter - cx) < snapTol)
                         drawVerticalGuide(cx);
 
                     if (qAbs(a.vcenter - cy) < snapTol)
+                        drawHorizontalGuide(cy);
+
+                    if (qAbs(a.left - cx) < snapTol)
+                        drawVerticalGuide(cx);
+
+                    if (qAbs((a.right + 1) - cx) < snapTol)
+                        drawVerticalGuide(cx);
+
+                    if (qAbs(a.top - cy) < snapTol)
+                        drawHorizontalGuide(cy);
+
+                    if (qAbs((a.bottom + 1) - cy) < snapTol)
                         drawHorizontalGuide(cy);
 
                     scene()->invalidate(QRectF(),QGraphicsScene::ForegroundLayer);
@@ -616,8 +646,10 @@ public:
     }
 protected:
     void closeEvent(QCloseEvent* e) {
-        hide();
-        e->ignore();
+        if (isVisible()) {
+            hide();
+            e->ignore();
+        }
         QDialog::closeEvent(e);
     }
     void showEvent(QShowEvent*) {

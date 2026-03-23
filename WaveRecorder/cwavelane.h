@@ -38,6 +38,15 @@ public:
     void renameFile(const QString& oldName, const QString& newName);
     void removeFile(const QString& Filename);
     void addFile(CWaveTrack* t) {
+        for (CWaveTrack* track : std::as_const(tracks)) {
+            if (track) {
+                if ((track != t) && (track->isValid) && (t->isValid)) {
+                    if ((t->end() >= track->start) && (t->start <= track->start)) {
+                        t->cutEnd(track->start);
+                    }
+                }
+            }
+        }
         tracks.append(t);
         sanityCheck(t);
         createVideoWidget();
@@ -94,7 +103,7 @@ public:
             }
         }
     }
-    bool setExportTime(double sec)
+    inline bool setExportTime(double sec)
     {
         return setVideoExportTime(sec * 1000.0);
     }

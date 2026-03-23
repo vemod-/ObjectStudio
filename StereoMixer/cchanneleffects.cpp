@@ -130,6 +130,16 @@ bool CChannelEffects::isSolo()
     return ui->Solo->isChecked();
 }
 
+int CChannelEffects::panValue(){
+    if (m_Ch->PanR < 1) {
+        return m_Ch->PanR * 100;
+    }
+    if (m_Ch->PanL < 1) {
+        return ((1 - m_Ch->PanL) + 1) * 100;
+    }
+    return 100;
+}
+
 void CChannelEffects::unserialize(const QDomLiteElement* xml)
 {
     if (!xml) return;

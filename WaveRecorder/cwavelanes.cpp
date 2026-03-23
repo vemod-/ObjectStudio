@@ -125,6 +125,12 @@ bool CWaveLanes::event(QEvent *event)
             m_OldDragTrack = -1;
         }
     }
+    else if (event->type() == QEvent::Wheel) {
+        if (static_cast<QWheelEvent*>(event)->isEndEvent()) {
+            paint();
+            UpdateAutomationGeometry();
+        }
+    }
     return QGraphicsView::event(event);
 }
 
@@ -187,7 +193,9 @@ void CWaveLanes::timerEvent(QTimerEvent *)
     if (!m_TimerID) return;
     m_TimeLine.handleTimer(this);
     if (requestIsPlaying()) {
-        if (!zoomer->visibleRect().contains(m_TimeLine.currentPos(),1))
+        const int x = m_TimeLine.currentPos();
+        if (x < zoomer->visibleRect().left() || x > zoomer->visibleRect().right())
+        //if (!zoomer->visibleRect().contains(m_TimeLine.currentPos(),1))
         {
             if (m_EditLane > -1) {
                 requestSkip(m_TimeLine.sampleFromX(zoomer->scrollValueX()));
@@ -926,9 +934,7 @@ void CWaveLanes::updateMixer()
             ch->init(m_Mixer->channels[i],"Lane " + QString::number(i+1));
             if (QDomLiteElement* e = channelXML.elementByTag(lanes[i]->ID)) {
                 ch->unserialize(e);
-                if (e->attributeValueBool("Solo")) {
-                    m_Mixer->SoloChannel = i;
-                }
+                if (e->attributeValueBool("Solo")) m_Mixer->SoloChannel = i;
             }
             ch->ID = lanes[i]->ID;
             ch->setVisible(true);
@@ -1046,9 +1052,10 @@ void CWaveLanes::dropEvent(QDropEvent *e)
     const QString path = DropFileName(e->mimeData(),e->source());
     if (path.isEmpty()) return;
     InfoLabel->hide();
-    int Lane = MouseOverLane(e->position().toPoint());
-    int Track = MouseOverTrack(e->position().toPoint(),CurrentLane);
-    ulong64 Start=pos2Sample(e->position().x());
+    QPoint currentPos = mapToScene(e->position().toPoint()).toPoint();
+    int Lane = MouseOverLane(currentPos);
+    int Track = MouseOverTrack(currentPos,CurrentLane);
+    ulong64 Start=pos2Sample(currentPos.x());
     if (Lane < 0) {
         if (CurrentLane < 0) {
             AddLane();

@@ -21,6 +21,7 @@ public:
     void unserialize(const QDomLiteElement* xml);
     void serialize(QDomLiteElement* xml) const;
     bool isSolo();
+    int panValue();
 public slots:
     void setPanValue(int v) {
         setPan(v + 100);

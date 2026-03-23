@@ -1,7 +1,7 @@
 #include "cvideodesigner.h"
 #include <QPainter>
 #include <QGraphicsSceneMouseEvent>
-#include <QtOpenGLWidgets/QOpenGLWidget>
+//#include <QtOpenGLWidgets/QOpenGLWidget>
 
 CVideoItem::CVideoItem(QGraphicsItem* parent)
     : QGraphicsObject(parent)
@@ -16,9 +16,12 @@ CVideoItem::CVideoItem(QGraphicsItem* parent)
         if (!m_AVFPlayer.isPlaying()) return;
         if (!m_Playing) return;
         //if (!isVisible()) return;
-        if (!m_Enabled) return;
+        if (!m_Enabled) {
+            update(m_rect);
+            return;
+        }
         m_currentPlaybackImage = m_AVFPlayer.currentFrame();
-        if (!m_currentPlaybackImage.isNull()) update();
+        if (!m_currentPlaybackImage.isNull()) update(m_rect);
     });
     grabGesture(Qt::PinchGesture);
     setAcceptedMouseButtons(Qt::AllButtons);
@@ -32,6 +35,7 @@ CVideoItem::~CVideoItem() {
 
 QRectF CVideoItem::boundingRect() const
 {
+    if (m_Playing) return QRectF(m_rect).adjusted(1,1,-1,-1);
     return m_rect.adjusted(-m_handleSize,
                            -m_handleSize,
                            m_handleSize,
@@ -52,12 +56,17 @@ void CVideoItem::paint(QPainter* p,
         p->drawImage(renderRect, m_exportImage, m_sourceRect);
         return;
     }
+    if (m_Playing) {
+        p->setOpacity(m_opacity);
+        p->drawImage(m_rect,m_currentPlaybackImage,m_sourceRect);
+        return;
+    }
     if (!m_Enabled) return;
     //if (!isVisible()) return;
-    if (!m_Playing) {
-        p->setRenderHint(QPainter::SmoothPixmapTransform, true);
-        p->setRenderHint(QPainter::Antialiasing, true);
+//    if (!m_Playing) {
         if (!m_stillImage.isNull()) {
+            p->setRenderHint(QPainter::SmoothPixmapTransform, true);
+            p->setRenderHint(QPainter::Antialiasing, true);
             p->setOpacity(m_opacity);
             p->drawImage(m_rect,m_stillImage,m_sourceRect);
         }
@@ -69,6 +78,7 @@ void CVideoItem::paint(QPainter* p,
             //p->setBrush(QColor(0,0,0,60));
             //p->drawRect(m_rect);
         }
+        /*
     }
     else {
         //if (m_currentPlaybackImage.isNull()) return;
@@ -76,6 +86,7 @@ void CVideoItem::paint(QPainter* p,
         p->drawImage(m_rect,m_currentPlaybackImage,m_sourceRect);
         return;
     }
+*/
     if (isSelected())
     {
         p->setBrush(Qt::NoBrush);
@@ -83,7 +94,7 @@ void CVideoItem::paint(QPainter* p,
         p->drawRect(m_rect);
         drawHandles(p);
     }
-    if (!m_Playing) {
+//    if (!m_Playing) {
         if (m_MD) {
             QRect r = m_sourceRect;
             Qt::KeyboardModifiers kb = qApp->queryKeyboardModifiers();
@@ -116,7 +127,7 @@ void CVideoItem::paint(QPainter* p,
                 p->drawText(m_rect.topLeft() + QPoint(10,17),name);
             }
         }
-    }
+//    }
 }
 
 void CVideoItem::setThumbnail(const QImage& pix)
@@ -228,12 +239,9 @@ CVideoDesigner::CVideoDesigner(QWidget* parent)
     : QGraphicsView(parent)
 {
     setAlignment(Qt::AlignLeft | Qt::AlignTop);
-
     setBackgroundBrush(Qt::black);
-
-    setViewport(new QOpenGLWidget());
-
-    setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
+    //setViewport(new QOpenGLWidget());
+    setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     viewport()->setAttribute(Qt::WA_OpaquePaintEvent);
     viewport()->setAttribute(Qt::WA_NoSystemBackground);
     setOptimizationFlags(QGraphicsView::DontAdjustForAntialiasing | QGraphicsView::DontSavePainterState);
@@ -241,12 +249,12 @@ CVideoDesigner::CVideoDesigner(QWidget* parent)
     setRenderHint(QPainter::SmoothPixmapTransform, false);
     setRenderHint(QPainter::Antialiasing, false);
 
-    m_scene.setItemIndexMethod(QGraphicsScene::BspTreeIndex);
+    m_scene.setItemIndexMethod(QGraphicsScene::NoIndex);
     setScene(&m_scene);
 
     setDragMode(QGraphicsView::RubberBandDrag);
     setTransformationAnchor(AnchorUnderMouse);
-    m_scene.setSceneRect(0, 0, 640, 480); // default canvas
+    m_scene.setSceneRect(0, 0, 1280, 720); // default canvas
 }
 
 QList<CVideoItem*> CVideoDesigner::videoItems() const

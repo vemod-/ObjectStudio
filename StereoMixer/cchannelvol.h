@@ -19,7 +19,7 @@ public:
     void init(CStereoMixerChannel* ch) {
         m_Ch = ch;
     }
-    int vol();
+    int vol() const;
 
     void unserialize(const QDomLiteElement* xml);
     void serialize(QDomLiteElement* xml) const;

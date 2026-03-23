@@ -10,6 +10,9 @@ CWaveEditWidget::CWaveEditWidget(QWidget *parent) :
     connect(ui->StartSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->EndSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->FadeInSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
+    QPalette p = ui->FadeInSpin->palette();
+    p.setBrush(QPalette::Base,Qt::yellow);
+    ui->FadeInSpin->setPalette(p);
     connect(ui->FadeOutSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->VolSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
     connect(ui->VideoFadeInSpin,qOverload<int>(&QSpinBox::valueChanged),this,&CWaveEditWidget::UpdateGraph);
