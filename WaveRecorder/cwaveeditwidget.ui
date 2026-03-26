@@ -130,6 +130,13 @@
      </property>
      <item row="1" column="4">
       <widget class="QSpinBox" name="VolSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:yellow;</string>
+       </property>
        <property name="maximum">
         <number>100</number>
        </property>
@@ -206,13 +213,37 @@
       </widget>
      </item>
      <item row="1" column="0">
-      <widget class="QSpinBox" name="StartSpin"/>
+      <widget class="QSpinBox" name="StartSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:red;</string>
+       </property>
+      </widget>
      </item>
      <item row="1" column="2">
-      <widget class="QSpinBox" name="FadeInSpin"/>
+      <widget class="QSpinBox" name="FadeInSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:yellow;</string>
+       </property>
+      </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QSpinBox" name="EndSpin"/>
+      <widget class="QSpinBox" name="EndSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:red;</string>
+       </property>
+      </widget>
      </item>
      <item row="0" column="3">
       <widget class="QLabel" name="FadeOutLabel">
@@ -253,7 +284,15 @@
       </widget>
      </item>
      <item row="1" column="3">
-      <widget class="QSpinBox" name="FadeOutSpin"/>
+      <widget class="QSpinBox" name="FadeOutSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:yellow;</string>
+       </property>
+      </widget>
      </item>
      <item row="1" column="6">
       <widget class="QDoubleSpinBox" name="PitchSpin">
@@ -307,7 +346,15 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QSpinBox" name="VideoFadeOutSpin"/>
+       <widget class="QSpinBox" name="VideoFadeOutSpin">
+        <property name="styleSheet">
+         <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:blue;</string>
+        </property>
+       </widget>
       </item>
       <item row="0" column="0">
        <widget class="QLabel" name="label">
@@ -317,7 +364,15 @@
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QSpinBox" name="VideoFadeInSpin"/>
+       <widget class="QSpinBox" name="VideoFadeInSpin">
+        <property name="styleSheet">
+         <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:blue;</string>
+        </property>
+       </widget>
       </item>
       <item row="0" column="2">
        <widget class="QLabel" name="label_3">
@@ -328,6 +383,13 @@
       </item>
       <item row="1" column="2">
        <widget class="QSpinBox" name="VideoOpacitySpin">
+        <property name="styleSheet">
+         <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:blue;</string>
+        </property>
         <property name="maximum">
          <number>100</number>
         </property>

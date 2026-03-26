@@ -54,6 +54,8 @@ CWaveLanes::CWaveLanes(QWidget *parent) :
     m_TimerID=0;
     connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveLanes::paint);
     connect(horizontalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveLanes::UpdateAutomationGeometry);
+    connect(verticalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveLanes::paint);
+    connect(verticalScrollBar(),&QAbstractSlider::valueChanged,this,&CWaveLanes::UpdateAutomationGeometry);
     setBackgroundBrush(QDPRPixmap(":/Brushed Aluminium 3 Tile.bmp"));
 }
 
@@ -63,7 +65,7 @@ CWaveLanes::~CWaveLanes()
     m_TimerID=0;
     deleteAutomation();
     for (CWaveLane* L : std::as_const(lanes)) {
-        if (L->hasVideo()) {
+        if (L->hasVisible()) {
             if (videoWindow) videoWindow->removeVideo(L->videoItem);
         }
         deviceList.deleteDevice(L);
@@ -125,12 +127,14 @@ bool CWaveLanes::event(QEvent *event)
             m_OldDragTrack = -1;
         }
     }
-    else if (event->type() == QEvent::Wheel) {
-        if (static_cast<QWheelEvent*>(event)->isEndEvent()) {
+    /*
+    else if (event->type() == QEvent::Scroll) {
+        //if (static_cast<QWheelEvent*>(event)->isEndEvent()) {
             paint();
             UpdateAutomationGeometry();
-        }
+        //}
     }
+*/
     return QGraphicsView::event(event);
 }
 
@@ -253,7 +257,7 @@ void CWaveLanes::resizeEvent(QResizeEvent* event)
 
 double CWaveLanes::quarterRate() const
 {
-    return (60*presets.SampleRate)/rulerTempo;
+    return (60 * presets.SampleRate) / rulerTempo;
 }
 
 void CWaveLanes::UpdateGeometry() {
@@ -261,7 +265,7 @@ void CWaveLanes::UpdateGeometry() {
     {
         for(int j=0;j<lanes[i]->tracks.size();j++)
         {
-            lanes[i]->tracks[j]->isActive=((i==CurrentLane) && (CurrentTrack.contains(j)));
+            lanes[i]->tracks[j]->isActive = ((i == CurrentLane) && (CurrentTrack.contains(j)));
         }
     }
     if (m_EditLane < 0) {
@@ -402,7 +406,7 @@ void CWaveLanes::unserialize(const QDomLiteElement* xml)
         while (!m_MixerWidget->channels.empty()) m_MixerWidget->removeChannel();
     }
     for (CWaveLane* L : std::as_const(lanes)) {
-        if (L->hasVideo()) videoWindow->removeVideo(L->videoItem);
+        if (L->hasVisible()) videoWindow->removeVideo(L->videoItem);
         deviceList.deleteDevice(L);
     }
     lanes.clear();
@@ -998,7 +1002,7 @@ void CWaveLanes::RemoveLane()
         {
             MainMenu->UndoMenu->addItem("Delete Lane");
             deleteAutomation();
-            if (lanes[CurrentLane]->hasVideo()) {
+            if (lanes[CurrentLane]->hasVisible()) {
                 videoWindow->removeVideo(lanes[CurrentLane]->videoItem);
             }
             deviceList.deleteDevice(lanes[CurrentLane]);

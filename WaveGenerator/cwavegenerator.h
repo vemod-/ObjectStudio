@@ -304,6 +304,12 @@ public:
     inline bool hasVideo() const {
         return (!videoURL.isEmpty());
     }
+    inline bool hasImage() const {
+        return m_Size == 0;
+    }
+    inline bool hasVisual() const {
+        return hasVideo() || hasImage();
+    }
 private:
     void fillLines(const ulong64 Start, const double ZoomValue, const QRect& r) {
         lines.clear();

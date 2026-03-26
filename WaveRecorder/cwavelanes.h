@@ -253,14 +253,24 @@ private slots:
     void EffectRack();
     bool canCopy() { return (!CurrentTrack.isEmpty()) && (CurrentLane > -1); }
     bool canVideo() { if (CurrentLane > -1) {
-            if (lanes[CurrentLane]->hasVideo()) return true;
+            if (lanes[CurrentLane]->hasVisible()) return true;
         }
         return false;
     }
     bool trackCanVideo() {
         if (CurrentLane > -1 ) {
             if (!CurrentTrack.isEmpty()) {
-                if (lanes[CurrentLane]->tracks[CurrentTrack.first()]->waveGenerator.hasVideo()) {
+                if (lanes[CurrentLane]->tracks[CurrentTrack.first()]->hasVideo()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    bool trackIsImage() {
+        if (CurrentLane > -1 ) {
+            if (!CurrentTrack.isEmpty()) {
+                if (lanes[CurrentLane]->tracks[CurrentTrack.first()]->hasImage()) {
                     return true;
                 }
             }

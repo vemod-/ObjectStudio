@@ -4,13 +4,23 @@
 
 CWaveTrack::CWaveTrack(const QString &Filename, ulong64 StartPointer)
 {
-    name=Filename;
-    start=StartPointer;
-    isValid=waveGenerator.load(Filename);
-    loopParameters.reset(waveGenerator.size());
+    name = Filename;
+    start = StartPointer;
+    if (isImageFile(Filename)) {
+        image = QImage(Filename);
+        isValid = !image.isNull();
+        loopParameters.reset(CPresets::presets().SampleRate * 4);
+        size = loopParameters.End;
+        videoVisible = true;
+        return;
+    }
+    isValid = waveGenerator.load(Filename);
+    size = waveGenerator.size();
+    loopParameters.reset(size);
     if (waveGenerator.hasVideo()) {
         videoThumbnail = getThumbnail(Filename);
         videoLength = avf_video_track_duration(Filename) * 1000;
+        videoVisible = true;
     }
 }
 
@@ -53,25 +63,26 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     {
         Caption.chop(1);
     }
-    if (waveGenerator.hasVideo()) {
-        QGraphicsPixmapItem* pi = Scene.addPixmap(QPixmap::fromImage(videoThumbnail.scaled(geometry.size() * 0.9,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
+    if (hasVisible()) {
+        QGraphicsPixmapItem* pi = Scene.addPixmap(QPixmap::fromImage(thumbnail().scaled(geometry.size() * 0.9,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
         pi->setPos(geometry.topLeft() + QPoint(geometry.height() * 0.05,geometry.height() * 0.05));
     }
     QGraphicsTextItem* t = Scene.addText(Caption,f);
     t->setPos(geometry.topLeft());
 
-    Scene.addItem(waveGenerator.waveFormItem(geometry,visibleRect,ZoomFactor,&loopParameters));
-
-    if (loopParameters.Volume < 100 || loopParameters.FadeIn > 0 || loopParameters.FadeOut > 0) {
-        QPen redPen = QPen(Qt::yellow);
-        float volHeight = geometry.height()*loopParameters.Volume*0.01;
-        qreal fadeInWidth = loopParameters.FadeIn*ZoomFactor/loopParameters.Speed;
-        qreal fadeOutWidth = loopParameters.FadeOut*ZoomFactor/loopParameters.Speed;
-        Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
-        Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
-        Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+    if (!hasImage()) {
+        Scene.addItem(waveGenerator.waveFormItem(geometry,visibleRect,ZoomFactor,&loopParameters));
+        if (loopParameters.Volume < 100 || loopParameters.FadeIn > 0 || loopParameters.FadeOut > 0) {
+            QPen redPen = QPen(Qt::yellow);
+            float volHeight = geometry.height()*loopParameters.Volume*0.01;
+            qreal fadeInWidth = loopParameters.FadeIn*ZoomFactor/loopParameters.Speed;
+            qreal fadeOutWidth = loopParameters.FadeOut*ZoomFactor/loopParameters.Speed;
+            Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
+            Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
+            Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+        }
     }
-    if (waveGenerator.hasVideo()) {
+    if (hasVisible()) {
         if (hasOpacity()) {
             QPen redPen = QPen(Qt::blue);
             float volHeight = geometry.height()*loopParameters.VideoOpacity*0.01;

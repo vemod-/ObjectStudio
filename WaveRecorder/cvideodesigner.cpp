@@ -13,14 +13,12 @@ CVideoItem::CVideoItem(QGraphicsItem* parent)
     frameTimer.setInterval(40); // 25 fps ~60 fps
 
     connect(&frameTimer,&QTimer::timeout,this,[this]{
-        if (!m_AVFPlayer.isPlaying()) return;
         if (!m_Playing) return;
-        //if (!isVisible()) return;
         if (!m_Enabled) {
             update(m_rect);
             return;
         }
-        m_currentPlaybackImage = m_AVFPlayer.currentFrame();
+        if (m_AVFPlayer.isPlaying()) m_currentPlaybackImage = m_AVFPlayer.currentFrame();
         if (!m_currentPlaybackImage.isNull()) update(m_rect);
     });
     grabGesture(Qt::PinchGesture);
@@ -36,10 +34,7 @@ CVideoItem::~CVideoItem() {
 QRectF CVideoItem::boundingRect() const
 {
     if (m_Playing) return QRectF(m_rect).adjusted(1,1,-1,-1);
-    return m_rect.adjusted(-m_handleSize,
-                           -m_handleSize,
-                           m_handleSize,
-                           m_handleSize);
+    return m_rect.adjusted(-m_handleSize, -m_handleSize, m_handleSize, m_handleSize);
 }
 
 void CVideoItem::paint(QPainter* p,
@@ -106,7 +101,7 @@ void CVideoItem::paint(QPainter* p,
             p->setFont(QFont("",12));
             p->drawText(m_rect.topLeft() + QPoint(10,17),posString);
             p->drawText(m_rect.bottomRight() - QPoint(60,2),sizeString);
-            if (kb & Qt::ShiftModifier) {
+            if (kb & (Qt::ShiftModifier | Qt::ControlModifier)) {
                 p->setPen(QPen(Qt::yellow,1,Qt::DashLine));
                 qreal scaleX = (qreal)m_frameSize.width() / m_rect.width();
                 qreal scaleY = (qreal)m_frameSize.height() / m_rect.height();
@@ -148,6 +143,8 @@ void CVideoItem::mousePressEvent(QGraphicsSceneMouseEvent* e)
     m_activeHandle = handleAt(e->pos().toPoint());
     m_pressPos = e->pos();
     m_pressSourceRect = m_sourceRect;
+    scaleX = m_sourceRect.width()  / m_rect.width();
+    scaleY = m_sourceRect.height() / m_rect.height();
 
     if (m_activeHandle != NoHandle) {
         if (scene()) scene()->clearSelection();
@@ -164,8 +161,6 @@ void CVideoItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e)
     if (m_Playing) return;
     if (m_MD) {
         QPointF delta = e->pos() - m_pressPos;
-        qreal scaleX = m_pressSourceRect.width()  / m_rect.width();
-        qreal scaleY = m_pressSourceRect.height() / m_rect.height();
         QPointF scaledDelta(delta.x()*scaleX, delta.y()*scaleY);
 
         if (m_activeHandle != NoHandle) {
@@ -195,6 +190,12 @@ void CVideoItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e)
 
                 m_rect.setHeight((qreal)m_rect.width() / ratio);
             }
+            auto views = scene()->views();
+            if (!views.isEmpty()) {
+                if (auto v = qobject_cast<CVideoDesigner*>(views.first())) {
+                    v->drawGuideLines(this);
+                }
+            }
             update();
             return;
         }
@@ -210,15 +211,17 @@ void CVideoItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e)
             }
 
             m_sourceRect = r.toRect();
+            snapSourceRect();
             update();
             return;
         }
         if (e->modifiers() & Qt::ShiftModifier)
         {
             QRectF r = m_pressSourceRect;
-            r.moveTopLeft( m_pressSourceRect.topLeft() - scaledDelta);
+            r.moveTopLeft(m_pressSourceRect.topLeft() - scaledDelta);
 
             m_sourceRect = r.toRect();
+            snapSourceRect();
             update();
             return;
         }
@@ -233,6 +236,42 @@ void CVideoItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* e)
     m_activeHandle = NoHandle;
     update();
     QGraphicsObject::mouseReleaseEvent(e);
+}
+
+void CVideoItem::pinchTriggered(QPinchGesture *gesture)
+{
+    if (m_Playing) return;
+    static QRect startRect;
+    static QRectF startSource;
+    if (gesture->state() == Qt::GestureStarted) {
+        m_MD = true;
+        startRect = m_rect;
+        startSource = m_sourceRect;
+        if (scene()) scene()->clearSelection();
+        setSelected(true);
+    }
+    if (gesture->state() == Qt::GestureUpdated)
+    {
+        bool shift = (qApp->queryKeyboardModifiers() == Qt::ShiftModifier);
+        if (shift)
+        {
+            m_sourceRect.setSize(QSizeF(startSource.size() * gesture->totalScaleFactor()).toSize());
+            snapSourceRect();
+        }
+        else
+        {
+            prepareGeometryChange();
+            m_rect.setSize(startRect.size() * gesture->totalScaleFactor());
+            auto views = scene()->views();
+            if (!views.isEmpty()) {
+                if (auto v = qobject_cast<CVideoDesigner*>(views.first())) {
+                    v->drawGuideLines(this);
+                }
+            }
+        }
+    }
+    if ((gesture->state() == Qt::GestureFinished) || (gesture->state() == Qt::GestureCanceled)) m_MD = false;
+    update();
 }
 
 CVideoDesigner::CVideoDesigner(QWidget* parent)

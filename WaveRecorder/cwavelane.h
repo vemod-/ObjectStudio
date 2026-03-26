@@ -70,32 +70,32 @@ public:
     int sample2Pos(long64 sample) const;
     bool videoVisible = true;
     QList<CParameterWrapper*> parameters;
-    bool hasVideo() {
+    bool hasVisible() {
         for (CWaveTrack* t : std::as_const(tracks)) {
-            if (t->waveGenerator.hasVideo()) return true;
+            if (t->hasVisible()) return true;
         }
         return false;
     }
-    QImage videoThumbnail() {
+    QImage thumbnailImage() {
         for (CWaveTrack* t : std::as_const(tracks)) {
-            if (t->waveGenerator.hasVideo()) return t->videoThumbnail;
+            if (t->hasVisible()) return t->thumbnail();
         }
         return QImage();
     }
     bool trackVisible(CWaveTrack* t) {
-        return (t->videoVisible & videoVisible);
+        return (t->videoVisible & videoVisible & t->hasVisible());
     }
     void createVideoWidget() {
-        if (hasVideo()) {
+        if (hasVisible()) {
             if (!videoItem) {
-                videoItem = new CVideoItem(videoThumbnail());
+                videoItem = new CVideoItem(thumbnailImage());
                 videoItem->name = "Lane " + QString::number(m_Index);
                 videoDialog->addVideo(videoItem);
             }
         }
     }
     void destroyVideoWidget() {
-        if (!hasVideo()) {
+        if (!hasVisible()) {
             if (videoItem) {
                 videoDialog->removeVideo(videoItem);
                 videoItem->deleteLater();

@@ -37,7 +37,7 @@ public:
                QWidget*) override;
     void setThumbnail(const QImage& pix);
     void invokeVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
-        if (t->waveGenerator.hasVideo() & t->videoVisible) {
+        //if (t->videoVisible) {
             QMetaObject::invokeMethod(
                 this,
                 [this, t, sample]() {
@@ -45,10 +45,10 @@ public:
                 },
                 Qt::QueuedConnection
                 );
-        }
+        //}
     }
     void invokeVideoPlaySync(CWaveTrack* t, ulong64 sample) {
-        if (t->waveGenerator.hasVideo() & t->videoVisible) {
+        //if (t->videoVisible) {
             QMetaObject::invokeMethod(
                 this,
                 [this, t, sample]() {
@@ -56,7 +56,7 @@ public:
                 },
                 Qt::QueuedConnection
                 );
-        }
+        //}
     }
     void invokePause() {
         QMetaObject::invokeMethod(
@@ -73,7 +73,6 @@ public:
             );
     }
     bool setVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
-        if (t->waveGenerator.hasVideo()) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
             if (mSec > t->videoLength) {
                 //frameTimer.stop();
@@ -90,8 +89,8 @@ public:
             if (qAbs<long64>((m_AVFPlayer.position() * 1000) - mSec) > 40) {
                 m_AVFPlayer.setPosition(mSec / 1000.0);
             }
-            if (!closeEnough(m_AVFPlayer.playbackRate(),t->loopParameters.Speed)) {
-                m_AVFPlayer.setPlaybackRate(t->loopParameters.Speed);
+            if (!closeEnough(m_AVFPlayer.playbackRate(),t->rate())) {
+                m_AVFPlayer.setPlaybackRate(t->rate());
             }
             if (m_Playing) {
                 if (!m_AVFPlayer.isPlaying()) {
@@ -100,11 +99,8 @@ public:
             }
             setEnabled(o);
             return true;
-        }
-        return false;
     }
     bool setVideoPlaySync(CWaveTrack* t, ulong64 sample) {
-        if (t->waveGenerator.hasVideo()) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
             if (mSec > t->videoLength) {
                 //frameTimer.stop();
@@ -125,11 +121,12 @@ public:
 */
             setEnabled(o);
             return true;
-        }
-        return false;
+    }
+    void setPlaybackImage(const QImage& img) {
+        m_currentPlaybackImage = img;
     }
     bool setVideoExportProperties(CWaveTrack* t, long64 mSec) {
-        if (t->waveGenerator.hasVideo()) {
+        //if (t->waveGenerator.hasVideo()) {
             if (imgExtract.Url() != t->waveGenerator.videoURL) {
                 imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
             }
@@ -138,9 +135,12 @@ public:
                 m_frameGeneration = m_exportGeneration;
                 return true;
             }
-        }
+        //}
         setVideoExportEmptyFrame();
         return false;
+    }
+    void setExportImage(const QImage& img) {
+        m_exportImage = img;
     }
     bool setVideoExportEmptyFrame() {
         m_exportGeneration++;
@@ -157,7 +157,7 @@ public:
     }
     bool setVideoStillProperties(CWaveTrack* t, long64 mSec) {
         if (m_Playing) return false;
-        if (t->waveGenerator.hasVideo()) {
+        //if (t->waveGenerator.hasVideo()) {
             if (imgExtract.Url() != t->waveGenerator.videoURL) {
                 imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
             }
@@ -166,10 +166,16 @@ public:
                 update(m_rect);
                 return true;
             }
-        }
+        //}
         m_stillImage = QImage();
         update(m_rect);
         return false;
+    }
+    bool setStillImage(const QImage& img) {
+        if (m_Playing) return false;
+        m_stillImage = img;
+        update(m_rect);
+        return true;
     }
     bool setVideoStillEmptyFrame() {
         if (m_Playing) return false;
@@ -178,17 +184,19 @@ public:
         return true;
     }
     void play() {
+        prepareGeometryChange();
         m_Playing = true;
         m_currentPlaybackImage = QImage();
-        update(m_rect);
+        update();
         frameTimer.start();
     }
     void stop() {
+        prepareGeometryChange();
         frameTimer.stop();
         m_AVFPlayer.pause();
         m_Playing = false;
         m_currentPlaybackImage = QImage();
-        update(m_rect);
+        update();
     }
     void setEnabled(bool v) {
         m_Enabled = v;
@@ -224,13 +232,25 @@ public:
     QRect rect() {
         return m_rect.translated(pos().toPoint());
     }
+    void moveTopLeft(int x , int y) {
+        if (m_activeHandle != NoHandle) m_rect.setTopLeft(QPoint(x,y) - pos().toPoint());
+        else m_rect.moveTopLeft(QPoint(x,y) - pos().toPoint());
+    }
+    void moveBottomRight(int x , int y) {
+        if (m_activeHandle != NoHandle) m_rect.setBottomRight(QPoint(x,y) - pos().toPoint());
+        else m_rect.moveBottomRight(QPoint(x,y) - pos().toPoint());
+    }
+    void moveCenter(int x, int y) {
+        if (m_activeHandle != NoHandle) m_rect.moveTopLeft((QPoint(x,y) - QPoint(m_rect.width()*0.5,m_rect.height()*0.5)) - pos().toPoint());
+        else m_rect.moveTopLeft((QPoint(x,y) - QPoint(m_rect.width()*0.5,m_rect.height()*0.5)) - pos().toPoint());
+    }
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* e) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent* e) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent* e) override;
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) override {
         if (m_Playing) return;
-        if (e->modifiers() & Qt::ShiftModifier) {
+        if (e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier )) {
             m_sourceRect.setSize(m_frameSize);
             m_sourceRect.moveTopLeft(QPoint(0,0));
         }
@@ -282,32 +302,9 @@ private:
     qreal m_handleSize = 8.0;
     QRect m_rect = QRect(0, 0, 320, 240);
     QRect m_sourceRect = QRect(0,0,320,240);
-    void pinchTriggered(QPinchGesture *gesture)
-    {
-        if (m_Playing) return;
-        static QRect startRect;
-        static QRectF startSource;
-        if (gesture->state() == Qt::GestureStarted) {
-            m_MD = true;
-            startRect = m_rect;
-            startSource = m_sourceRect;
-        }
-        if (gesture->state() == Qt::GestureUpdated)
-        {
-            bool shift = (qApp->queryKeyboardModifiers() == Qt::ShiftModifier);
-            if (shift)
-            {
-                m_sourceRect.setSize(QSizeF(startSource.size() * gesture->totalScaleFactor()).toSize());
-            }
-            else
-            {
-                m_rect.setSize(startRect.size() * gesture->totalScaleFactor());
-            }
-
-            update();
-        }
-        if ((gesture->state() == Qt::GestureFinished) || (gesture->state() == Qt::GestureCanceled)) m_MD = false;
-    }
+    qreal scaleX;
+    qreal scaleY;
+    void pinchTriggered(QPinchGesture *gesture);
     void drawHandles(QPainter* p)
     {
         p->setBrush(Qt::white);
@@ -345,12 +342,47 @@ private:
 
         return NoHandle;
     }
+    void snapSourceRect() {
+        if (qAbs((m_sourceRect.center().x() - (m_frameSize.width() * 0.5 )) / scaleX) < 4) {
+            m_sourceRect.moveCenter(QPoint(m_frameSize.width() * 0.5,m_sourceRect.center().y()));
+        }
+        if (qAbs((m_sourceRect.center().y() - (m_frameSize.height() * 0.5 )) / scaleY) < 4) {
+            m_sourceRect.moveCenter(QPoint(m_sourceRect.center().x(),m_frameSize.height() * 0.5));
+        }
+        if (qAbs(m_sourceRect.left() / scaleX) < 4) {
+            m_sourceRect.moveLeft(0);
+        }
+        if (qAbs(m_sourceRect.top() / scaleY) < 4) {
+            m_sourceRect.moveTop(0);
+        }
+        if (qApp->queryKeyboardModifiers() & Qt::ControlModifier) {
+            if (qAbs((m_sourceRect.right() - m_frameSize.width()) / scaleX) < 4) {
+                m_sourceRect.setRight(m_frameSize.width() - 1);
+            }
+            if (qAbs((m_sourceRect.bottom() - m_frameSize.height()) / scaleY) < 4) {
+                m_sourceRect.setBottom(m_frameSize.height() - 1);
+            }
+            scaleX = m_sourceRect.width()  / m_rect.width();
+            scaleY = m_sourceRect.height() / m_rect.height();
+        }
+        else {
+            if (qAbs((m_sourceRect.right() - m_frameSize.width()) / scaleX) < 4) {
+                m_sourceRect.moveRight(m_frameSize.width() - 1);
+            }
+            if (qAbs((m_sourceRect.bottom() - m_frameSize.height()) / scaleY) < 4) {
+                m_sourceRect.moveBottom(m_frameSize.height() - 1);
+            }
+        }
+    }
 };
 
 class Guides
 {
 public:
     Guides(QRect rect) {
+        setRect(rect);
+    }
+    void setRect(QRect rect) {
         left    = rect.left();
         right   = rect.right();
         hcenter = (rect.width() * 0.5) + rect.left();
@@ -390,6 +422,41 @@ public:
     QSize sizeHint() const override {
         return QSize(640,480);
     }
+    void drawGuideLines(CVideoItem* movingItem) {
+        guides.clear();
+        Guides a(movingItem->rect());
+        for (CVideoItem* other : videoItems())
+        {
+            if (other == movingItem) continue;
+            Guides b(other->rect());
+            snapLeft(b.left,movingItem,a);
+            snapRight(b.right + 1,movingItem,a);
+            snapCenterX(b.hcenter,movingItem,a);
+            snapTop(b.top,movingItem,a);
+            snapBottom(b.bottom + 1,movingItem,a);
+            snapCenterY(b.vcenter,movingItem,a);
+
+            snapLeft(b.right + 1,movingItem,a);
+            snapRight(b.left,movingItem,a);
+            snapTop(b.bottom + 1,movingItem,a);
+            snapBottom(b.top,movingItem,a);
+        }
+        QRect sceneRect = rect();
+        int cx = sceneRect.width() * 0.5;
+        int cy = sceneRect.height() * 0.5;
+        qDebug() << cx << a.left;
+        snapCenterX(cx,movingItem,a);
+        snapCenterY(cy,movingItem,a);
+        snapLeft(cx,movingItem,a);
+        snapRight(cx,movingItem,a);
+        snapTop(cy,movingItem,a);
+        snapBottom(cy,movingItem,a);
+        snapLeft(sceneRect.left(),movingItem,a);
+        snapRight(sceneRect.right(),movingItem,a);
+        snapTop(sceneRect.top(),movingItem,a);
+        snapBottom(sceneRect.bottom(),movingItem,a);
+        scene()->invalidate(QRectF(),QGraphicsScene::ForegroundLayer);
+    }
 protected:
     void resizeEvent(QResizeEvent* e) override;
     void mousePressEvent(QMouseEvent *event) override {
@@ -418,85 +485,59 @@ private:
     QList<QLine>guides;
     void drawVerticalGuide(int x)
     {
-        guides.append(QLine(x, 0, x, 720));
+        guides.append(QLine(x, 0, x, height()));
     }
 
     void drawHorizontalGuide(int y)
     {
-        guides.append(QLine(0, y, 1280, y));
+        guides.append(QLine(0, y, width(), y));
     }
     void drawGuideLines() {
-        guides.clear();
         if (m_MD) {
-            const double snapTol = 0.5;
             QGraphicsItem* item = m_scene.mouseGrabberItem();
-            if (auto movingItem = dynamic_cast<CVideoItem*>(item)) {
-                for (CVideoItem* other : videoItems())
-                {
-                    if (other == movingItem)
-                        continue;
-
-                    Guides a(movingItem->rect());
-                    Guides b(other->rect());
-                    if (qAbs(a.left - b.left) < snapTol)
-                        drawVerticalGuide(b.left);
-
-                    if (qAbs(a.right - b.right) < snapTol)
-                        drawVerticalGuide(b.right);
-
-                    if (qAbs(a.hcenter - b.hcenter) < snapTol)
-                        drawVerticalGuide(b.hcenter);
-
-                    if (qAbs(a.top - b.top) < snapTol)
-                        drawHorizontalGuide(b.top);
-
-                    if (qAbs(a.bottom - b.bottom) < snapTol)
-                        drawHorizontalGuide(b.bottom);
-
-                    if (qAbs(a.vcenter - b.vcenter) < snapTol)
-                        drawHorizontalGuide(b.vcenter);
-
-                    if (qAbs((a.right + 1) - b.left) < snapTol)
-                        drawVerticalGuide(b.left);
-
-                    if (qAbs(a.left - (b.right + 1)) < snapTol)
-                        drawVerticalGuide(a.left);
-
-                    if (qAbs((a.bottom + 1) - b.top) < snapTol)
-                        drawHorizontalGuide(b.top);
-
-                    if (qAbs(a.top - (b.bottom + 1)) < snapTol)
-                        drawHorizontalGuide(a.top);
-
-                    QRect sceneRect = QRect(0,0,1280,720);
-
-                    int cx = sceneRect.width() * 0.5;
-                    int cy = sceneRect.height() * 0.5;
-
-                    qDebug() << cx << a.left;
-
-                    if (qAbs(a.hcenter - cx) < snapTol)
-                        drawVerticalGuide(cx);
-
-                    if (qAbs(a.vcenter - cy) < snapTol)
-                        drawHorizontalGuide(cy);
-
-                    if (qAbs(a.left - cx) < snapTol)
-                        drawVerticalGuide(cx);
-
-                    if (qAbs((a.right + 1) - cx) < snapTol)
-                        drawVerticalGuide(cx);
-
-                    if (qAbs(a.top - cy) < snapTol)
-                        drawHorizontalGuide(cy);
-
-                    if (qAbs((a.bottom + 1) - cy) < snapTol)
-                        drawHorizontalGuide(cy);
-
-                    scene()->invalidate(QRectF(),QGraphicsScene::ForegroundLayer);
-                }
-            }
-
+            if (auto movingItem = dynamic_cast<CVideoItem*>(item)) drawGuideLines(movingItem);
+        }
+    }
+    void snapLeft(int x, CVideoItem* item, Guides& a) {
+        if (qAbs(a.left - x) < 4) {
+            drawVerticalGuide(x);
+            item->moveTopLeft(x,a.top);
+            a.setRect(item->rect());
+        }
+    }
+    void snapRight(int x, CVideoItem* item, Guides& a) {
+        if (qAbs((a.right + 1) - x) < 4) {
+            drawVerticalGuide(x);
+            item->moveBottomRight(x - 1, a.bottom);
+            a.setRect(item->rect());
+        }
+    }
+    void snapTop(int y, CVideoItem* item, Guides& a) {
+        if (qAbs(a.top - y) < 4) {
+            drawHorizontalGuide(y);
+            item->moveTopLeft(a.left,y);
+            a.setRect(item->rect());
+        }
+    }
+    void snapBottom(int y, CVideoItem* item, Guides& a) {
+        if (qAbs((a.bottom + 1) - y) < 4) {
+            drawHorizontalGuide(y);
+            item->moveBottomRight(a.right,y - 1);
+            a.setRect(item->rect());
+        }
+    }
+    void snapCenterX(int cx, CVideoItem* item, Guides& a) {
+        if (qAbs(a.hcenter - cx) < 4) {
+            drawVerticalGuide(cx);
+            item->moveCenter(cx,a.vcenter);
+            a.setRect(item->rect());
+        }
+    }
+    void snapCenterY(int cy, CVideoItem* item, Guides& a) {
+        if (qAbs(a.vcenter - cy) < 4) {
+            drawHorizontalGuide(cy);
+            item->moveCenter(a.hcenter,cy);
+            a.setRect(item->rect());
         }
     }
 };

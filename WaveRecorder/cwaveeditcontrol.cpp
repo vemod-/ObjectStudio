@@ -61,10 +61,6 @@ CWaveEditControl::CWaveEditControl(QWidget *parent) :
     m_VideoPoint1->setZValue(1);
     m_VideoPoint2 = Scene.addEllipse(QRect(),QPen(Qt::blue));
     m_VideoPoint2->setZValue(1);
-
-    //m_SustainLine->setFlag(QGraphicsItem::ItemIsMovable);
-    //m_SustainLine->setFlag(QGraphicsItem::ItemSendsGeometryChanges);
-    //m_SustainLine->setAcceptHoverEvents(true);
     m_StartLine->setCursor(Qt::SizeHorCursor);
     m_EndLine->setCursor(Qt::SizeHorCursor);
     m_LoopStartLine->setCursor(Qt::SizeHorCursor);
@@ -88,19 +84,21 @@ void CWaveEditControl::Init(CWaveGenerator *WG, CWaveGenerator::LoopParameters L
     m_WG = WG;
     m_LoopOn = LoopOn;
     m_Length = m_WG->size();
+    if (m_Length == 0) m_Length = LP.End;
     m_Buffer = m_WG->channelPointer(0);
-    m_LoopStartLine->setVisible(m_LoopOn);
-    m_LoopEndLine->setVisible(m_LoopOn);
-    m_AttackLine->setVisible(!m_LoopOn);
-    m_SustainLine->setVisible(!m_LoopOn);
-    m_ReleaseLine->setVisible(!m_LoopOn);
-    m_Point1->setVisible(!m_LoopOn);
-    m_Point2->setVisible(!m_LoopOn);
-    m_VideoFadeInLine->setVisible(m_WG->hasVideo());
-    m_VideoFadeOutLine->setVisible(m_WG->hasVideo());
-    m_VideoOpaqueLine->setVisible(m_WG->hasVideo());
-    m_VideoPoint1->setVisible(m_WG->hasVideo());
-    m_VideoPoint2->setVisible(m_WG->hasVideo());
+    m_StartLine->setVisible(!m_WG->hasImage());
+    m_LoopStartLine->setVisible(m_LoopOn && !m_WG->hasImage());
+    m_LoopEndLine->setVisible(m_LoopOn && !m_WG->hasImage());
+    m_AttackLine->setVisible(!m_LoopOn && !m_WG->hasImage());
+    m_SustainLine->setVisible(!m_LoopOn && !m_WG->hasImage());
+    m_ReleaseLine->setVisible(!m_LoopOn && !m_WG->hasImage());
+    m_Point1->setVisible(!m_LoopOn && !m_WG->hasImage());
+    m_Point2->setVisible(!m_LoopOn && !m_WG->hasImage());
+    m_VideoFadeInLine->setVisible(m_WG->hasVisual());
+    m_VideoFadeOutLine->setVisible(m_WG->hasVisual());
+    m_VideoOpaqueLine->setVisible(m_WG->hasVisual());
+    m_VideoPoint1->setVisible(m_WG->hasVisual());
+    m_VideoPoint2->setVisible(m_WG->hasVisual());
     ZoomMin();
 }
 
@@ -111,19 +109,13 @@ void CWaveEditControl::Draw(CWaveGenerator::LoopParameters LP)
         if (zoomer->visibleRect().height() > 0) DrawLines(m_LP,m_LoopOn);
     }
 }
-/*
-QRect CWaveEditControl::visibleRect() {
-    return mapToScene(viewport()->rect()).boundingRect().toRect();
-}
-*/
+
 void CWaveEditControl::Paint()
 {
     if (m_WaveItem) {
         m_WaveItem->setParentItem(nullptr);
         delete m_WaveItem;
     }
-    //QRect r(viewport()->rect());
-    //r.setWidth(m_Length * zoomer->getZoom());
     setSceneRect(0,0,m_Length * zoomer->getZoom(),viewport()->height());
     zoomer->setMin(ldouble(viewport()->width())/m_Length);
     m_WaveItem = DrawWave();
@@ -135,7 +127,7 @@ void CWaveEditControl::Paint()
 
 void CWaveEditControl::DrawLines(CWaveGenerator::LoopParameters LP, bool LoopOn)
 {
-    DrawLine(m_StartLine,LP.Start);
+    if (m_WG->size() > 0) DrawLine(m_StartLine,LP.Start);
     DrawLine(m_EndLine,LP.End);
     if (LoopOn) {
         DrawLine(m_LoopStartLine,LP.LoopStart);
@@ -148,14 +140,14 @@ void CWaveEditControl::DrawLines(CWaveGenerator::LoopParameters LP, bool LoopOn)
         m_ReleaseLine->setLine(SampleToPos(LP.End-LP.FadeOut),VolPos,SampleToPos(LP.End),Vol2Pos(0));
         m_Point1->setRect(QRect(SampleToPos(LP.Start+LP.FadeIn),VolPos,6,6).translated(-3,-3));
         m_Point2->setRect(QRect(SampleToPos(LP.End-LP.FadeOut),VolPos,6,6).translated(-3,-3));
-        if (m_WG->hasVideo()) {
-            const int OpaquePos = Vol2Pos(LP.VideoOpacity);
-            m_VideoFadeInLine->setLine(SampleToPos(LP.Start),Vol2Pos(0),SampleToPos(LP.Start+LP.VideoFadeIn),OpaquePos);
-            m_VideoOpaqueLine->setLine(SampleToPos(LP.Start+LP.VideoFadeIn),OpaquePos,SampleToPos(LP.End-LP.VideoFadeOut),OpaquePos);
-            m_VideoFadeOutLine->setLine(SampleToPos(LP.End-LP.VideoFadeOut),OpaquePos,SampleToPos(LP.End),Vol2Pos(0));
-            m_VideoPoint1->setRect(QRect(SampleToPos(LP.Start+LP.VideoFadeIn),OpaquePos,6,6).translated(-3,-3));
-            m_VideoPoint2->setRect(QRect(SampleToPos(LP.End-LP.VideoFadeOut),OpaquePos,6,6).translated(-3,-3));
-        }
+    }
+    if (m_WG->hasVisual()) {
+        const int OpaquePos = Vol2Pos(LP.VideoOpacity);
+        m_VideoFadeInLine->setLine(SampleToPos(LP.Start),Vol2Pos(0),SampleToPos(LP.Start+LP.VideoFadeIn),OpaquePos);
+        m_VideoOpaqueLine->setLine(SampleToPos(LP.Start+LP.VideoFadeIn),OpaquePos,SampleToPos(LP.End-LP.VideoFadeOut),OpaquePos);
+        m_VideoFadeOutLine->setLine(SampleToPos(LP.End-LP.VideoFadeOut),OpaquePos,SampleToPos(LP.End),Vol2Pos(0));
+        m_VideoPoint1->setRect(QRect(SampleToPos(LP.Start+LP.VideoFadeIn),OpaquePos,6,6).translated(-3,-3));
+        m_VideoPoint2->setRect(QRect(SampleToPos(LP.End-LP.VideoFadeOut),OpaquePos,6,6).translated(-3,-3));
     }
 }
 
@@ -274,7 +266,6 @@ void CWaveEditControl::scrollToPos(double x)
 {
     qDebug() << "moved by zoom" << x;
     noScrollbarUpdate = true;
-    //centerOn(QRectF(viewport()->rect()).center() + QPointF(x,0));
     zoomer->scrollXTo(x);
     noScrollbarUpdate = false;
     Paint();
