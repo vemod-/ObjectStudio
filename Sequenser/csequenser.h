@@ -32,15 +32,15 @@ private:
     {jnMIDIOut};
     enum ParameterNames
     {pnTempo,pnMIDIChannel,pnHumanize};
-    int Counter;
-    int BeatCount;
-    int PatternIndex;
-    int PatternRepeatCount;
-    int CurrentPitch;
-    int CurrentLength;
-    int PatternLength;
-    int NextBeat;
-    int NextStop;
+    std::atomic<int> Counter;
+    std::atomic<int> BeatCount;
+    std::atomic<int> PatternIndex;
+    std::atomic<int> PatternRepeatCount;
+    std::atomic<int> CurrentPitch;
+    std::atomic<int> CurrentLength;
+    std::atomic<int> PatternLength;
+    std::atomic<int> NextBeat;
+    std::atomic<int> NextStop;
     CTickCounter mSecCount;
     //bool Playing;
     CMIDIBuffer* MIDIBuffer;

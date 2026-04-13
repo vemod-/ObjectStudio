@@ -136,25 +136,25 @@ int inline freq2MIDIkeyf(const float freq, const float A440=440.f)
     return int((freq2Centf(freq, A440) * 0.01f) + 0.5f);
 }
 
-double inline cent2Factor(const int Cent)
+double inline cent2Factor(const double Cent)
 {
-    return (Cent==0) ? 1 : voltage2Factor(Cent / 1200.0);
+    return (isZero(Cent)) ? 1 : voltage2Factor(Cent / 1200.0);
 }
 
-float inline cent2Factorf(const int Cent)
+float inline cent2Factorf(const float Cent)
 {
-    return (Cent==0) ? 1 : voltage2Factorf(Cent / 1200.f);
+    return (isZero(Cent)) ? 1 : voltage2Factorf(Cent / 1200.f);
 }
 
-int inline factor2Cent(const double factor)
+double inline factor2Cent(const double factor)
 {
-    return int((factor2voltage(factor) * 1200.0) + 0.5);
+    return factor2voltage(factor) * 1200.0;
     //return int((1200/log10(2))*log(factor));
 }
 
-int inline factor2Centf(const float factor)
+float inline factor2Centf(const float factor)
 {
-    return int((factor2voltagef(factor) * 1200.f) + 0.5f);
+    return float(factor2voltagef(factor) * 1200.f);
     //return int((1200/log10(2))*log(factor));
 }
 

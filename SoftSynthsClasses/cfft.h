@@ -113,7 +113,7 @@ public:
     }
     void setSize(uint size)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         N=size;
         if (W)
         {
@@ -388,7 +388,7 @@ protected:
     Complex* W = nullptr;
     Complex* Wi = nullptr;
     uint* T = nullptr;
-    QMutex mutex;
+    //QMutex mutex;
 };
 
 /*
@@ -1092,53 +1092,32 @@ template <typename T>
 
 class CFFTtwiddleInterleaved
 {
-private:
-    /*
-    struct cplx
-    {
-        T real;
-        T imag;
-    };
-    */
 public:
     enum TTransFormType {FORWARD, INVERSE};
-    CFFTtwiddleInterleaved() : CFFTtwiddleInterleaved(256) {}
-    CFFTtwiddleInterleaved(uint s) { setSize(s); }
+    //CFFTtwiddleInterleaved() : CFFTtwiddleInterleaved(4096) {}
+    CFFTtwiddleInterleaved(uint s) {
+        Input  = new cplx<T>[s];
+        Buffer  = new cplx<T>[s];
+        Twiddle = new cplx<T>[s/2];
+        iTwiddle = new cplx<T>[s/2];
+        RevBits  = new uint[s];
+        Result = Input;
+        setSize(s);
+    }
     ~CFFTtwiddleInterleaved()
     {
-        QMutexLocker locker(&mutex);
-        if (Buffer)
-        {
-            delete [] Input;
-            delete [] Buffer;
-            delete [] Twiddle;
-            delete [] iTwiddle;
-            delete [] RevBits;
-            Buffer = nullptr;
-        }
+        delete [] Input;
+        delete [] Buffer;
+        delete [] Twiddle;
+        delete [] iTwiddle;
+        delete [] RevBits;
     }
     void setSize(uint s)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         N = s;
 
         LogTwoOfN = uint( log(double(N)) / M_LN2 + 0.5 );
-
-        if (Buffer)
-        {
-            delete [] Input;
-            delete [] Buffer;
-            delete [] Twiddle;
-            delete [] iTwiddle;
-            delete [] RevBits;
-        }
-        // Memory allocation for all the arrays.
-        Input  = new cplx<T>[N];
-        Buffer  = new cplx<T>[N];
-        Twiddle = new cplx<T>[N/2];
-        iTwiddle = new cplx<T>[N/2];
-        RevBits  = new uint[N];
-        Result = Input;
         uint k, J, K;
 
         J = N/2;
@@ -1158,7 +1137,7 @@ public:
     }
     void Forward()
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
@@ -1172,7 +1151,7 @@ public:
     }
     void Forward(float* b)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
@@ -1186,7 +1165,7 @@ public:
     }
     void Forward(float* b, float* win)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
@@ -1201,12 +1180,12 @@ public:
     }
     void Inverse()
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
         cplx<T>* r;
-        for(j=0; j<N; j++)
+        for(uint j=0; j<N; j++)
         {
             r = &Input[RevBits[j]];
             c->real = r->real;
@@ -1217,12 +1196,12 @@ public:
     }
     void Inverse(float* b)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
         cplx<T>* r;
-        for(j=0; j<N; j++)
+        for(uint j=0; j<N; j++)
         {
             r = &Input[RevBits[j]];
             c->real = r->real;
@@ -1230,16 +1209,33 @@ public:
             c++;
         }
         Result = Perform(Input,Buffer,iTwiddle);
-        for(j=0; j<N; j++) b[j] += Result[j].real;
+        for(uint j=0; j<N; j++) b[j] = Result[j].real;
+    }
+    void InverseAdd(float* b)
+    {
+        //QMutexLocker locker(&mutex);
+        // Move the rearranged input values to Buffer.
+        // Take note of the pointer swaps at the top of the transform algorithm.
+        cplx<T>* c = Buffer;
+        cplx<T>* r;
+        for(uint j=0; j<N; j++)
+        {
+            r = &Input[RevBits[j]];
+            c->real = r->real;
+            c->imag = r->imag;
+            c++;
+        }
+        Result = Perform(Input,Buffer,iTwiddle);
+        for(uint j=0; j<N; j++) b[j] += Result[j].real;
     }
     void Inverse(float* b, float* win)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
         cplx<T>* r;
-        for(j=0; j<N; j++)
+        for(uint j=0; j<N; j++)
         {
             r = &Input[RevBits[j]];
             c->real = r->real;
@@ -1247,16 +1243,33 @@ public:
             c++;
         }
         Result = Perform(Input,Buffer,iTwiddle);
-        for(j=0; j<N; j++) *b++ += Result[j].real * *win++;
+        for(uint j=0; j<N; j++) *b++ = Result[j].real * *win++;
+    }
+    void InverseAdd(float* b, float* win)
+    {
+        //QMutexLocker locker(&mutex);
+        // Move the rearranged input values to Buffer.
+        // Take note of the pointer swaps at the top of the transform algorithm.
+        cplx<T>* c = Buffer;
+        cplx<T>* r;
+        for(uint j=0; j<N; j++)
+        {
+            r = &Input[RevBits[j]];
+            c->real = r->real;
+            c->imag = r->imag;
+            c++;
+        }
+        Result = Perform(Input,Buffer,iTwiddle);
+        for(uint j=0; j<N; j++) *b++ += Result[j].real * *win++;
     }
     void Inverse(float* b, float* win, T f)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         // Move the rearranged input values to Buffer.
         // Take note of the pointer swaps at the top of the transform algorithm.
         cplx<T>* c = Buffer;
         cplx<T>* r;
-        for(j=0; j<N; j++)
+        for(uint j=0; j<N; j++)
         {
             r = &Input[RevBits[j]];
             c->real = r->real;
@@ -1264,11 +1277,28 @@ public:
             c++;
         }
         Result = Perform(Input,Buffer,iTwiddle);
-        for(j=0; j<N; j++) *b++ += Result[j].real * *win++ * f;
+        for(uint j=0; j<N; j++) *b++ = Result[j].real * *win++ * f;
+    }
+    void InverseAdd(float* b, float* win, T f)
+    {
+        //QMutexLocker locker(&mutex);
+        // Move the rearranged input values to Buffer.
+        // Take note of the pointer swaps at the top of the transform algorithm.
+        cplx<T>* c = Buffer;
+        cplx<T>* r;
+        for(uint j=0; j<N; j++)
+        {
+            r = &Input[RevBits[j]];
+            c->real = r->real;
+            c->imag = r->imag;
+            c++;
+        }
+        Result = Perform(Input,Buffer,iTwiddle);
+        for(uint j=0; j<N; j++) *b++ += Result[j].real * *win++ * f;
     }
     void Hermitian()
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         cplx<T>* p1 = Input + (N >> 1) -1; // input
         cplx<T>* p2 = p1 + 2; // output
         while (p1 >= Input)
@@ -1288,7 +1318,20 @@ public:
     }
     inline void polar(const T magn, const T phase, const uint k)
     {
-        Input[k].real = magn*std::cos(phase); Input[k].imag = magn*std::sin(phase);
+        Input[k].real = magn*std::cos(phase);
+        Input[k].imag = magn*std::sin(phase);
+    }
+    inline void clearSpectrum() {
+        //memset(Input, 0, N * sizeof(cplx<T>));
+        for (int k = 0; k < N; k++) {
+            Input[k].real = 0;
+            Input[k].imag = 0;
+        }
+    }
+    inline void polarAdd(const T magn, const T phase, const uint k)
+    {
+        Input[k].real += magn*std::cos(phase);
+        Input[k].imag += magn*std::sin(phase);
     }
     inline T real(const uint k)
     {
@@ -1299,8 +1342,8 @@ public:
         return Result[k].imag;
     }
 private:
-    QRecursiveMutex mutex;
-    uint N, j, LogTwoOfN, *RevBits;
+    //QRecursiveMutex mutex;
+    uint N, LogTwoOfN, *RevBits;
     cplx<T> *Input = nullptr;
     cplx<T> *Buffer = nullptr;
     cplx<T> *Twiddle = nullptr;
@@ -1315,7 +1358,7 @@ private:
     #define M_SQRT_2 0.707106781186547524401
     void FillTwiddleArray(cplx<T> *Twiddle, int N, TTransFormType Type)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         int j;
         double Theta, TwoPiOverN;
 

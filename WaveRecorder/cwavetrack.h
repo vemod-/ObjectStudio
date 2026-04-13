@@ -1,9 +1,9 @@
 #ifndef CWAVETRACK_H
 #define CWAVETRACK_H
 
-#include "cwavegenerator.h"
+#include "../WaveGenerator/cwavegenerator.h"
 #include <QGraphicsScene>
-#include "avfoundation_wrapper.h"
+#include "../WaveGenerator/avfoundation_wrapper.h"
 #include <QImageReader>
 
 class CWaveTrack
@@ -19,8 +19,18 @@ public:
     ulong64 size;
     bool isValid;
     bool isActive;
-    inline bool isImageFile(const QString& path)
+    static inline bool isImageByExtension(const QString& path)
     {
+        static const QSet<QString> exts = {
+            "png","jpg","jpeg","bmp","gif","webp","tiff"
+        };
+
+        QString ext = QFileInfo(path).suffix().toLower();
+        return exts.contains(ext);
+    }
+    static inline bool isImageFile(const QString& path)
+    {
+        if (!isImageByExtension(path)) return false;
         QImageReader reader(path);
         return reader.canRead();
     }
@@ -42,8 +52,8 @@ public:
     inline ulong64 end() const {
         return start + length();
     }
-    inline ulong64 pos(ldouble Counter) const {
-        return ((Counter - start) * loopParameters.Speed) + loopParameters.Start;
+    inline ulong64 pos(ulong64 Counter) const {
+        return loopParameters.pos(Counter - start);
     }
     inline ulong64 startPos() const {
         return loopParameters.Start;
@@ -63,19 +73,23 @@ public:
     inline double rate() const {
         return loopParameters.Speed;
     }
-    void cutEnd(const long64 sample) {
-        long64 s = sample;
-        if (s < 0) s = 0;
-        if (s < waveStart()) s = waveStart();
-        if (!hasImage()) if (s > waveEnd()) s = waveEnd();
+    void cropEnd(const long64 sample) {
+        long64 s = std::max(sample,waveStart());
+        if (!hasImage()) s = std::min(s,waveEnd());
         loopParameters.End = (s - waveStart()) * loopParameters.Speed;
         if (hasImage()) size = loopParameters.End;
     }
-    void cutStart(const long64 sample) {
-        long64 s = sample;
-        if (s < 0) s = 0;
-        if (s < waveStart()) s = waveStart();
-        if (s >= waveEnd()) s = waveEnd();
+    void stretchEnd(const long64 sample) {
+        if (hasImage()) {
+            cropEnd(sample);
+            return;
+        }
+        const ldouble origlen = loopParameters.End - loopParameters.Start;
+        const ldouble newLen = (sample - start) - loopParameters.Start;
+        loopParameters.stretch(origlen / newLen);
+    }
+    void cropStart(const long64 sample) {
+        const long64 s = std::clamp(sample,waveStart(),waveEnd());
         loopParameters.Start = (s - waveStart()) * loopParameters.Speed;
         start = s;
         if (hasImage()) {
@@ -83,6 +97,18 @@ public:
             loopParameters.Start = 0;
             loopParameters.End = size;
         }
+    }
+    void stretchStart(const long64 sample) {
+        if (hasImage()) {
+            cropStart(sample);
+            return;
+        }
+        long64 s = sample;
+        if (s < 0) s = 0;
+        const ldouble origlen = loopParameters.End - loopParameters.Start;
+        const ldouble newLen = end() - s;
+        loopParameters.stretch(origlen / newLen);
+        start = s;
     }
     inline long64 waveStart() const {
         return start - (loopParameters.Start / loopParameters.Speed);
@@ -99,7 +125,7 @@ public:
     long64 videoLength = 0;
     bool videoVisible = false;
     QImage getThumbnail(QString path) const {
-        QSize s = avf_displaySize(path);
+        const QSize s = avf_displaySize(path);
         return avf_extract_fullframe(path).scaled(s,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
     }
 private:

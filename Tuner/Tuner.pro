@@ -26,6 +26,5 @@ HEADERS += \
     ctunerwidget.h
 
 FORMS += \
-    ctunerform.ui \
-    ctunerwidget.ui
+    ctunerform.ui
 

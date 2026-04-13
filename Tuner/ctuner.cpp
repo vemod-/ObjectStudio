@@ -26,14 +26,14 @@ void CTuner::init(const int Index, QWidget* MainWindow)
 
 void CTuner::tick()
 {
-    if (!m_OutJacks[0]->connectCount())
+    if (m_OutJacks[0]->connectCount() == 0)
     {
-        const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-        if (InBuffer->isValid())
-        {
-            if (m_Form->isVisible())
-            {
-                FORMFUNC(CTunerForm)->PD.ProcessBuffer(InBuffer->data(),presets.ModulationRate);
+        if (m_Form->isVisible()) {
+            CMonoBuffer* InBuffer = FetchAMono(jnIn);
+            if (InBuffer->isValid()) {
+                if (FORMFUNC(CTunerForm)->PD.ProcessBuffer(InBuffer->data(),presets.ModulationRate)) {
+                    FORMFUNC(CTunerForm)->setPitchRecord();
+                }
             }
         }
     }
@@ -43,11 +43,11 @@ void CTuner::tick()
 CAudioBuffer* CTuner::getNextA(const int /*ProcIndex*/)
 {
     CMonoBuffer* InBuffer = FetchAMono(jnIn);
-    if (InBuffer->isValid())
-    {
-        if (m_Form->isVisible())
-        {
-            FORMFUNC(CTunerForm)->PD.ProcessBuffer(InBuffer->data(),presets.ModulationRate);
+    if (InBuffer->isValid()) {
+        if (m_Form->isVisible()) {
+            if (FORMFUNC(CTunerForm)->PD.ProcessBuffer(InBuffer->data(),presets.ModulationRate)) {
+                FORMFUNC(CTunerForm)->setPitchRecord();
+            }
         }
     }
     return (m_Parameters[pnSilent]->Value) ? nullptr : InBuffer;
@@ -56,7 +56,7 @@ CAudioBuffer* CTuner::getNextA(const int /*ProcIndex*/)
 void inline CTuner::updateDeviceParameter(const CParameter* /*p*/)
 {
     auto f=FORMFUNC(CTunerForm);
-    f->PD.setTune(m_Parameters[pnTune]->PercentValue);
+    f->setCalib(m_Parameters[pnTune]->PercentValue);
     f->PD.setMaxDetectFrequency(m_Parameters[pnMaxFreq]->Value);
-    f->PD.setPitchRecordsPerSecond(1000/m_Parameters[pnRate]->Value);
+    f->setRate(m_Parameters[pnRate]->Value);
 }

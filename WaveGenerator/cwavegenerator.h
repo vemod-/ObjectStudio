@@ -134,7 +134,7 @@ public:
         LoopTypeEnum LoopType;
         uint origRate;
         double Speed = 1;
-        double PitchShift;
+        double PitchShift = 0;
         void reset(ulong64 len=0)
         {
             Start=0;
@@ -213,17 +213,24 @@ public:
             xml->setAttribute("PitchShift",PitchShift);
             xml->setAttribute("OrigRate",int(CPresets::presets().SampleRate));
         }
-        inline ulong64 playLength() const { return ldouble(End-Start)/Speed; }
+        inline ulong64 playLength() const {
+            if (isOne(Speed)) return End - Start;
+            return ldouble(End - Start) / Speed;
+        }
+        inline ulong64 pos(ulong64 Counter) const {
+            if (isOne(Speed)) return Counter + Start;
+            return (ldouble(Counter) * Speed) + Start;
+        }
         inline float fadeVolume(ldouble Counter) const
         {
-            float Vol=Volume*0.01f;
+            float Vol = Volume * 0.01f;
             if (Counter < FadeIn/Speed)
             {
-                Vol*=Counter/(FadeIn/Speed);
+                Vol *= Counter / (FadeIn / Speed);
             }
-            if (Counter>playLength()-(FadeOut/Speed))
+            if (Counter > playLength() - (FadeOut / Speed))
             {
-                Vol*=(playLength()-Counter)/(FadeOut/Speed);
+                Vol *= (playLength() - Counter) / (FadeOut / Speed);
             }
             return lin2expf(Vol);
         }
@@ -240,6 +247,13 @@ public:
             }
             if (round) return std::round(Opacity * round) / round;
             return Opacity;
+        }
+        static double speedToPitch(double speed) {
+            return -factor2Cent(speed)*0.01;
+        }
+        void stretch(double speed) {
+            Speed = speed;
+            PitchShift = speedToPitch(speed);
         }
     };
     CWaveGenerator();

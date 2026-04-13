@@ -52,18 +52,21 @@ void CMixerWidget::peak()
 
 void CMixerWidget::setSoloChannel(int channel)
 {
-    auto c = channels[channel]->findChild<CChannelEffects*>("ChannelEffects");
-    if (c->isSolo())
-    {
-        for (int i = 0; i < channels.size(); i++)
-        {
-            if (i != channel) channels[i]->soloButton(false);
-        }
-        master->setSoloChannel(channel);
-    }
-    else
-    {
+    if (channel < 0) {
+        for (int i = 0; i < channels.size(); i++) channels[i]->soloButton(false);
         master->setSoloChannel(-1);
+    }
+    else {
+        auto c = channels[channel]->findChild<CChannelEffects*>("ChannelEffects");
+        if (c->isSolo()) {
+            for (int i = 0; i < channels.size(); i++) {
+                if (i != channel) channels[i]->soloButton(false);
+            }
+            master->setSoloChannel(channel);
+        }
+        else {
+            master->setSoloChannel(-1);
+        }
     }
 }
 

@@ -12,7 +12,8 @@ public:
     {
         Coarse,
         Fine,
-        Freq
+        Freq,
+        Cents
     };
     CVoltageModulator(){}
     void init(IJack* ModulationJack = nullptr, CParameter* ModulationParameter = nullptr, CParameter* TuneParameter = nullptr, const TuneType T = Coarse)
@@ -26,6 +27,9 @@ public:
     {
         GlideValue = g;
         FreqGlider.setGlide(GlideValue);
+        //float t = (((100.0 - g) * 0.99) + 1.0) * 0.01;
+        //m_glideFactor = powf(t, 2.0f); // eller 2.0f
+        //m_glideFactor = sqrtf(t);
     }
     float exec(const float InVoltage=0)
     {
@@ -43,15 +47,18 @@ public:
             LastInVoltage=DefaultVoltage;
         }
 
-        float ReturnVoltage = LastInVoltage;
+        float ReturnVoltage = FreqGlider.runVoltage(LastInVoltage);
         if ((Modulation != nullptr) & (ModulationIn != nullptr)) if (Modulation->Value) ReturnVoltage += ModulationIn->getNext()*Modulation->percentValue();
         if (Tuning)
         {
             if (TuningType == Coarse) { if (Tuning->Value) ReturnVoltage += Tuning->percentValue(); }
             else if (TuningType == Fine) { if (Tuning->Value) ReturnVoltage += Tuning->percentValue()*0.01f; }
             else if (TuningType == Freq) { ReturnVoltage += tune2voltagef(Tuning->percentValue()); }
+            else if (TuningType == Cents) { ReturnVoltage += Tuning->Value / 1200.0; }
         }
-        ReturnVoltage = FreqGlider.runVoltage(ReturnVoltage);
+        //m_LastReturnVoltage = FreqGlider.runVoltage(ReturnVoltage);
+        //m_LastReturnVoltage = (1.0 - m_glideFactor) * m_LastReturnVoltage + m_glideFactor * ReturnVoltage;
+
         if (!closeEnough(ReturnVoltage,PrevVoltage))
         {
             PrevVoltage = ReturnVoltage;
@@ -90,6 +97,8 @@ private:
     int GlideValue=0;
     bool Changed=false;
     TuneType TuningType=Coarse;
+    //double m_glideFactor = 1;
+    //float m_LastReturnVoltage = 0;
 };
 
 

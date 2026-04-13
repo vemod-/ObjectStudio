@@ -40,7 +40,7 @@ private:
     enum JackNames
     {jnMIDI};
     //bool Playing;
-    bool SkipBuffer;
+    std::atomic<bool> SkipBuffer;
     CMIDIBuffer MIDIBuffer;
     CMIDIFileReader MFR;
     QList<CMIDIFileTrack*> PlayingTracks;

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>509</width>
+    <width>548</width>
     <height>204</height>
    </rect>
   </property>
@@ -128,17 +128,22 @@
      <property name="spacing">
       <number>2</number>
      </property>
-     <item row="1" column="4">
-      <widget class="QSpinBox" name="VolSpin">
-       <property name="styleSheet">
-        <string notr="true">border-left:4px solid;
-border-right:4px solid;
-border-top:1px solid;
-border-bottom:1px solid;
-border-color:yellow;</string>
+     <item row="0" column="3">
+      <widget class="QLabel" name="FadeOutLabel">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
-       <property name="maximum">
-        <number>100</number>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Fade Out</string>
        </property>
       </widget>
      </item>
@@ -161,44 +166,6 @@ border-color:yellow;</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="2">
-      <widget class="QLabel" name="FadeInLabel">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Fade In</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLabel" name="EndLabel">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>End</string>
-       </property>
-      </widget>
-     </item>
      <item row="1" column="5">
       <widget class="QDoubleSpinBox" name="SpeedSpin">
        <property name="minimum">
@@ -212,55 +179,10 @@ border-color:yellow;</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QSpinBox" name="StartSpin">
-       <property name="styleSheet">
-        <string notr="true">border-left:4px solid;
-border-right:4px solid;
-border-top:1px solid;
-border-bottom:1px solid;
-border-color:red;</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="2">
-      <widget class="QSpinBox" name="FadeInSpin">
-       <property name="styleSheet">
-        <string notr="true">border-left:4px solid;
-border-right:4px solid;
-border-top:1px solid;
-border-bottom:1px solid;
-border-color:yellow;</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QSpinBox" name="EndSpin">
-       <property name="styleSheet">
-        <string notr="true">border-left:4px solid;
-border-right:4px solid;
-border-top:1px solid;
-border-bottom:1px solid;
-border-color:red;</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="3">
-      <widget class="QLabel" name="FadeOutLabel">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16</height>
-        </size>
-       </property>
+     <item row="0" column="5">
+      <widget class="QCheckBox" name="StretchCheck">
        <property name="text">
-        <string>Fade Out</string>
+        <string>Speed</string>
        </property>
       </widget>
      </item>
@@ -283,6 +205,39 @@ border-color:red;</string>
        </property>
       </widget>
      </item>
+     <item row="0" column="2">
+      <widget class="QLabel" name="FadeInLabel">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Fade In</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="4">
+      <widget class="QSpinBox" name="VolSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:yellow;</string>
+       </property>
+       <property name="maximum">
+        <number>100</number>
+       </property>
+      </widget>
+     </item>
      <item row="1" column="3">
       <widget class="QSpinBox" name="FadeOutSpin">
        <property name="styleSheet">
@@ -294,13 +249,14 @@ border-color:yellow;</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="6">
-      <widget class="QDoubleSpinBox" name="PitchSpin">
-       <property name="minimum">
-        <double>-96.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>96.000000000000000</double>
+     <item row="1" column="2">
+      <widget class="QSpinBox" name="FadeInSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:yellow;</string>
        </property>
       </widget>
      </item>
@@ -311,10 +267,57 @@ border-color:yellow;</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="5">
-      <widget class="QCheckBox" name="StretchCheck">
+     <item row="1" column="6">
+      <widget class="QDoubleSpinBox" name="PitchSpin">
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="minimum">
+        <double>-96.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>96.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QSpinBox" name="StartSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:red;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSpinBox" name="EndSpin">
+       <property name="styleSheet">
+        <string notr="true">border-left:4px solid;
+border-right:4px solid;
+border-top:1px solid;
+border-bottom:1px solid;
+border-color:red;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="EndLabel">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16</height>
+        </size>
+       </property>
        <property name="text">
-        <string>Speed</string>
+        <string>End</string>
        </property>
       </widget>
      </item>

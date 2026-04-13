@@ -33,7 +33,6 @@ INCLUDEPATH += ../PluginLoader
 SOURCES += \
     ijack.cpp \
     cpitchtextconvert.cpp \
-    cpresets.cpp \
     csoftsynthsform.cpp \
     caudiobuffer.cpp \
     csounddevice.cpp \
@@ -82,6 +81,7 @@ HEADERS += \##softsynthsclasses.h \
     cvoltagemodulator.h
 
 OBJECTIVE_SOURCES += \
+    cpresets.mm \
     idevice.mm
 
 

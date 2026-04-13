@@ -35,6 +35,22 @@ public:
     {
         connectToWidget(sender,signal,sender,slot);
     }
+    void disconnectFromWidget()
+    {
+        QMutexLocker locker(&mutex);
+
+        if (m_connSignal)
+            QObject::disconnect(m_connSignal);
+
+        if (m_connSlot)
+            QObject::disconnect(m_connSlot);
+
+        m_connSignal = QMetaObject::Connection();
+        m_connSlot = QMetaObject::Connection();
+
+        m_SignalControl = nullptr;
+        m_SlotControl = nullptr;
+    }
     void updateParameter(const CParameter* p = nullptr);
 public slots:
     void setValue(int v);
@@ -46,18 +62,31 @@ signals:
     void intValueChanged(int v);
 private:
     CParameter* m_OwnerParameter = nullptr;
+    QMetaObject::Connection m_connSignal;
+    QMetaObject::Connection m_connSlot;
     QObject* m_SignalControl = nullptr;
     QObject* m_SlotControl = nullptr;
     int m_ControlOffset = 0;
     QRecursiveMutex mutex;
     template <typename Func1, typename Func2>
-    void connectToWidget(typename QtPrivate::FunctionPointer<Func1>::Object *sender, Func1 signal = nullptr, typename QtPrivate::FunctionPointer<Func2>::Object *receiver = nullptr, Func2 slot = nullptr)
+    void connectToWidget(
+        typename QtPrivate::FunctionPointer<Func1>::Object *sender,
+        Func1 signal = nullptr,
+        typename QtPrivate::FunctionPointer<Func2>::Object *receiver = nullptr,
+        Func2 slot = nullptr)
     {
         QMutexLocker locker(&mutex);
+
+        disconnectFromWidget();
+
         m_SignalControl = reinterpret_cast<QObject*>(sender);
         m_SlotControl = reinterpret_cast<QObject*>(receiver);
-        if (signal) connect(sender,signal,this,&CParameterWrapper::setIntValue);
-        if (slot) connect(this,&CParameterWrapper::intValueChanged,receiver,slot);
+
+        if (signal)
+            m_connSignal = connect(sender, signal, this, &CParameterWrapper::setIntValue);
+
+        if (slot)
+            m_connSlot = connect(this, &CParameterWrapper::intValueChanged, receiver, slot);
     }
 };
 

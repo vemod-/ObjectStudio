@@ -140,12 +140,11 @@ double checkTwo(double val1, double val2)
 }
 
 
-CFFTTracker::CFFTTracker(long sampleRate, ulong fftFrameSize) : InFIFO(48000)
+CFFTTracker::CFFTTracker(long sampleRate, ulong fftFrameSize) : m_win(fftFrameSize), m_fft(fftFrameSize), InFIFO(48000)
 {
     m_SampleRate=sampleRate;
     m_FrameSize=fftFrameSize;
     m_win.SetWindow(m_FrameSize, CSpectralWindow::wtHANNING, 0, 0, false);
-    m_fft.setSize(m_FrameSize);
     InFIFO.setStepSize(m_FrameSize/8);
     InFIFO.clear(0);
 

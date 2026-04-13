@@ -17,6 +17,7 @@
 #include "cresourceinitializer.h"
 #include "qgraphicsitemlist.h"
 #include "effectlabel.h"
+#include "../WaveRecorder/cwavetrack.h"
 #ifdef AVFOUNDATIONLIB
 #include "../WaveGenerator/avfaudiorw.h"
 #endif
@@ -250,7 +251,7 @@ void CDeviceComponent::paint(QGraphicsScene* Scene)
             Caption = QFileInfo(m_Device->filename()).fileName();
         }
         QString LabelText = (FileName.isEmpty()) ? Caption : Caption + "\n" + FileName;
-        static_cast<EffectLabel*>(m_DeviceLabel->widget())->setText(LabelText);
+        qobject_cast<EffectLabel*>(m_DeviceLabel->widget())->setText(LabelText);
 
         int MaxCount = qMax(m_Device->inJackCount(),m_Device->outJackCount());
 
@@ -494,7 +495,7 @@ void CDesktopComponent::MacroMenuClicked(QString ProgramName)
 void CDesktopComponent::editDeviceCaption() {
     if (m_DeviceIndex > -1) {
         if (m_LineEdit) {
-            currentDevice()->setAlias(static_cast<QLineEdit*>(m_LineEdit->widget())->text());
+            currentDevice()->setAlias(qobject_cast<QLineEdit*>(m_LineEdit->widget())->text());
             Scene.removeItem(m_LineEdit);
             m_LineEdit->deleteLater();
             m_LineEdit = nullptr;
@@ -660,6 +661,7 @@ bool CDesktopComponent::initWithFile(const QString &path, QPoint pos) {
 #else
     if (findSuffix(path,".wav .mp3 .m4a .mp4 .flac .ogg .au .aif .aiff .aifc .aup")) ClassName = "WaveRecorder";
 #endif
+    if (CWaveTrack::isImageFile(path))  ClassName = "WaveRecorder";
     if (path.endsWith(".mid",Qt::CaseInsensitive)) ClassName = "MIDIFile2Wave";
     if (findSuffix(path,".mus .mxl .musicxml")) ClassName = "ObjectComposer";
     if (!ClassName.isEmpty()) {

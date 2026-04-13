@@ -217,20 +217,22 @@ public:
     }
     inline CChannelBuffer(CChannelBuffer& b)
     {
-        m_Shadow=true;
-        m_ChannelPointers=nullptr;
+        m_Shadow = true;
+        m_ChannelPointers = nullptr;
         fromRawData(b.data(),b.channels(),b.size());
     }
-    inline void makeNull() { fromRawData(nullptr,1,0); }
+    inline void makeNull() {
+        if (isValid()) fromRawData(nullptr,1,0);
+    }
     inline void fromRawData(float* d, const uint c, const ulong64 s)
     {
         deleteData();
-        m_Shadow=true;
-        m_Data=d;
-        m_Size=s;
-        m_Capacity=s;
-        m_Channels=c;
-        m_CurrentPointer=d;
+        m_Shadow = true;
+        m_Data = d;
+        m_Size = s;
+        m_Capacity = s;
+        m_Channels = c;
+        m_CurrentPointer = d;
         setChannelPointers();
     }
     inline bool isValid() const { return ((m_Data != nullptr) && (m_Size != 0)); }

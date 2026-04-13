@@ -9,7 +9,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QVBoxLayout>
-#include "qgraphicsitemlist.h"
+#include <QPainter>
 
 #define timelineheight 20
 #define timelinehalfheight 10
@@ -100,6 +100,12 @@ public:
     void setTempo(double tempo) {
         m_Tempo = tempo;
     }
+    double sample2Beat(ulong64 sample, int div) const {
+        return sample / (quarterSamples / div);
+    }
+    ulong64 beat2Sample(int beat, int div) const {
+        return (beat * (quarterSamples / div));
+    }
     int numberRow() {
         return m_NumberRow;
     }
@@ -126,7 +132,8 @@ public:
     }
     QList<ldouble> lineUnits;
     void updateArrays() {
-        quarterrate = ldouble((4*60000)/m_Lower)/m_Tempo;
+        quarterrate = ldouble((4 * 60000) / m_Lower) / m_Tempo;
+        quarterSamples = ((presets.SamplesPermSec * 4 * 60000) / m_Lower) / m_Tempo;
         barrate = quarterrate * m_Upper;
         sixteensrate = quarterrate/4.0;
         sixtyfourrate = quarterrate/16.0;
@@ -201,15 +208,7 @@ public:
             }
             Scene->addPath(path,m_Pen);
             Scene->addPath(textPath,Qt::NoPen,c);
-            m_playline = QLine(sampleToX(m_CurrentSample),0,sampleToX(m_CurrentSample),Scene->height());
-            /*
-            m_PlayLine = new QGraphicsContainerItem();
-            m_PlayLine->append(lineItem(0,0,0,visibleRect.height(),QPen(Qt::yellow)));
-            m_PlayLine->append(lineItem(1,0,1,visibleRect.height(),QColor(0,0,0,40)));
-            m_PlayLine->setVisible(true);
-            m_PlayLine->setZValue(1);
-            m_PlayLine->setPos(sampleToX(m_CurrentSample),0);
-*/
+            m_playline = QLine(sampleToX(m_CurrentSample),0,sampleToX(m_CurrentSample),qMax<int>(visibleRect.bottom(),Scene->sceneRect().bottom()));
         }
     }
     void drawPlayLine(QPainter* painter) {
@@ -232,8 +231,9 @@ public:
     }
     void movePlayLine(int p) {
         const int x = m_playline.x1();
-        m_playline = QLine(p,0,p,m_playline.y2());
-        const QRect r = QRect(x,0,p - x,m_playline.y2()).normalized().adjusted(-1,0,2,0);
+        const int dx = p - x;
+        m_playline.translate(dx, 0);
+        const QRect r = QRect(x - 1,0,dx,m_playline.y2()).normalized().adjusted(-1,0,2,0);
         if (m_Scene) m_Scene->invalidate(r,QGraphicsScene::ForegroundLayer);
     }
     bool handleDoubleClick(QPointF p, IDevice* d) {
@@ -284,7 +284,6 @@ public:
         if (samples != m_CurrentSample) {
             m_CurrentSample = samples;
             if (m_TimeLineHeight > 0) {
-                //m_PlayLine->setPos(p,0);
                 movePlayLine(p);
             }
         }
@@ -309,21 +308,21 @@ public:
 private:
     QGraphicsScene* m_Scene = nullptr;
     QPen m_Pen = QPen(Qt::white);
-    //QGraphicsContainerItem* m_PlayLine;
     QLine m_playline;
     int m_Width=100;
     int m_Offset = 0;
-    double m_Zoom=1;
+    double m_Zoom = 1;
     ulong64 m_Samples;
-    TimelineViews m_View=TimeLineMilliseconds;
+    TimelineViews m_View = TimeLineMilliseconds;
     int m_Upper = 4;
     int m_Lower = 4;
     double m_Tempo = 90;
     int m_NumberRow = 0;
     bool m_MD = false;
-    ulong64 m_CurrentSample = 0;
+    std::atomic<ulong64> m_CurrentSample = 0;
     int m_TimeLineHeight = timelineheight;
     ldouble quarterrate;
+    ldouble quarterSamples;
     ldouble barrate;
     ldouble sixteensrate;
     ldouble sixtyfourrate;

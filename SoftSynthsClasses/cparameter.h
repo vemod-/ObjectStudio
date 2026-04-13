@@ -97,11 +97,11 @@ public:
     float PercentValue;
     float DryValue;
     inline const QStringList stringList() const { return List.split(ParameterListSeparator); }
-    inline float percentValue() const { return Value*0.01f; }
+    inline float percentValue() const { return Value * 0.01f; }
     inline float dryValue() const { return 1.f - percentValue(); }
     inline double decimalValue() const { return double(Value)/DecimalFactor; }
     inline float scaleValue(const float s) const { return Value*s; }
-    inline double dBValue() const { return lin2dB(Value*0.01); }
+    inline double dBValue() const { return lin2dB(Value * 0.01); }
     inline ulong64 mSec2samplesValue() const { return presets.mSecsToSamples(Value); }
 
     inline void setValue(const int v) {
@@ -176,7 +176,7 @@ public:
 private:
     IParameterHost* m_OwnerDevice = nullptr;
     IParameterHost* m_Wrapper = nullptr;
-    QRecursiveMutex mutex;
+    //QRecursiveMutex mutex;
 };
 
 typedef std::vector<CParameter*> CParameterList;

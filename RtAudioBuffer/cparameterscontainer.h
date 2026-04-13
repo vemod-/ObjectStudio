@@ -8,6 +8,8 @@
 #include <QDrag>
 #include <QScrollBar>
 
+class CAutomationLane;
+
 class CParametersContainer : public QGraphicsView
 {
     Q_OBJECT
@@ -17,7 +19,7 @@ public:
     ~CParametersContainer();
     void unserialize(const QDomLiteElement* xml);
     void serialize(QDomLiteElement* xml) const;
-    void createAutomationLane(IDevice* d, int parameterIndex);
+    CAutomationLane* createAutomationLane(IDevice* d, int parameterIndex);
     void animateTo(int i);
 public slots:
     void Init(CDeviceList* l);

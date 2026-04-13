@@ -178,6 +178,10 @@ public:
     void serialize(QDomLiteElement* xml) const {
         xml->setAttribute("DeviceID",m_Device->deviceID());
         xml->setAttribute("ParameterIndex",m_ParameterIndex);
+        m_TimeLine.serialize(xml);
+    }
+    void unserialize(const QDomLiteElement* xml) {
+        m_TimeLine.unserialize(xml);
     }
 protected:
     void drawForeground(QPainter *painter, const QRectF &rect) override

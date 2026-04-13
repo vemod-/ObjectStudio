@@ -1,16 +1,17 @@
 #include "charmonizer.h"
 
-CHarmonizer::CHarmonizer() : PD(presets.SampleRate), PS(presets.SampleRate)
+CHarmonizer::CHarmonizer() : PD(presets.SampleRate), PS(presets.SampleRate,presets.ModulationRate,3)
 {
-    PS.setPolyphony(8);
     PD.setMaxDetectFrequency(3000);
-    PD.setPitchRecordsPerSecond(40);
+    PD.setPitchRecordsPerSecond(10);
 }
 
 void CHarmonizer::updateDeviceParameter(const CParameter* /*p*/)
 {
     PS.setOverSampling(1 << m_Parameters[pnOversampling]->Value);
-    glider.setGlide(m_Parameters[pnGlide]->Value);
+    PD.setGlide(m_Parameters[pnGlide]->Value);
+    PD.setDetectSlack(m_Parameters[pnSlack]->Value);
+    PD.setDetectLevelThreshold(m_Parameters[pnThreshold]->PercentValue);
     if (m_Parameters[pnNote]->Value != m_oldValue)
     {
         m_Parameters[pnNote1]->setValue(m_Matrix[m_Parameters[pnNote]->Value].shift[0]);
@@ -35,11 +36,13 @@ void CHarmonizer::init(const int Index, QWidget* MainWindow)
     addParameterTranspose("Note 2");
     addParameterTranspose("Note 3");
     endParameterGroup();
-    startParameterGroup();
     addParameterTune();
+    startParameterGroup();
     addParameterOffOn("AutoTune");
-    endParameterGroup();
     addParameterPercent("Glide");
+    addParameter(CParameter::Numeric,"Slack","Cents",0,100,0,"",2);
+    addParameterPercent("Threshold",10);
+    endParameterGroup();
     addParameterSelect("Oversampling","1§2§4§8§16§32",3);
     addParameterPercent("Effect",50);
     updateDeviceParameter();
@@ -56,19 +59,9 @@ CAudioBuffer* CHarmonizer::getNextA(const int /*ProcIndex*/)
     else
     {
         PD.ProcessBuffer(inBuffer->data(),presets.ModulationRate);
-        const CPitchDetect::PitchRecord r = PD.CurrentPitchRecord();
-        int c = r.MidiCents*m_Parameters[pnAutotune]->Value;
-        if (r.MidiKey > 0)
-        {
-            const int mc = (r.MidiKey*100) + (r.MidiCents*m_Parameters[pnAutotune]->Value);
-            if (m_Parameters[pnGlide]->Value)
-            {
-                if (mc != m_lastMIDICent) glider.setTargetCent(c);
-                c = glider.currentCent();
-            }
-            m_lastKey = r.MidiKey;
-            m_lastMIDICent = mc;
-        }
+        const CYIN::PitchRecord r = PD.CurrentPitchRecord();
+        int target = (m_Parameters[pnAutotune]->Value) ? PD.correctionCents() : 0;
+        if (r.MidiKey > 0) m_lastKey = r.MidiKey;
         if (m_Parameters[pnNote]->Value > 0)
         {
             for (int i=0;i<3;i++)
@@ -76,12 +69,13 @@ CAudioBuffer* CHarmonizer::getNextA(const int /*ProcIndex*/)
                 const int t = m_Matrix[(m_lastKey % 12)+1].shift[i];
                 if (t)
                 {
-                    vol[i]=1;
-                    s[i] = cent2Factor((t*100)+c+tune2Cent(m_Parameters[pnTune]->PercentValue));
+                    vol[i]=m_Parameters[pnEffect]->PercentValue;
+                    s[i] = cent2Factor((t * 100) + target + tune2Cent(m_Parameters[pnTune]->PercentValue));
                 }
                 else
                 {
-                    vol[i]=0;
+                    vol[i] = 0;
+                    s[i] = 0;
                 }
             }
         }
@@ -92,23 +86,24 @@ CAudioBuffer* CHarmonizer::getNextA(const int /*ProcIndex*/)
                 const int t = m_Matrix[0].shift[i];
                 if (t)
                 {
-                    vol[i]=1;
-                    s[i] = cent2Factor((t*100)+c+tune2Cent(m_Parameters[pnTune]->PercentValue));
+                    vol[i]=m_Parameters[pnEffect]->PercentValue;
+                    s[i] = cent2Factor((t * 100) + target + tune2Cent(m_Parameters[pnTune]->PercentValue));
                 }
                 else
                 {
-                    vol[i]=0;
+                    vol[i] = 0;
+                    s[i] = 0;
                 }
             }
         }
         if (m_Parameters[pnEffect]->Value == 100)
         {
-            m_AudioBuffers[jnOut]->writeBuffer(PS.process(s,vol,presets.ModulationRate, inBuffer->data()));
+            PS.process(s,vol,inBuffer->data(),m_AudioBuffers[jnOut]->data());
         }
         else
         {
-            m_AudioBuffers[jnOut]->writeBuffer(PS.process(s,vol,presets.ModulationRate, inBuffer->data()),m_Parameters[pnEffect]->PercentValue);
-            m_AudioBuffers[jnOut]->addBuffer(inBuffer,m_Parameters[pnEffect]->DryValue);
+            PS.process(s,vol,inBuffer->data(),m_AudioBuffers[jnOut]->data());
+            m_AudioBuffers[jnOut]->addBuffer(inBuffer->data(),m_Parameters[pnEffect]->DryValue);
         }
     }
     return m_AudioBuffers[jnOut];

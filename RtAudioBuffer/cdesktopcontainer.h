@@ -41,7 +41,7 @@ private:
     //void clear();
 //private:
     QMacSplitter* splitter;
-    QRecursiveMutex mutex;
+    //QRecursiveMutex mutex;
     void duplicateMenu(QMenu* dst, QMenu& origin);
     void resizeContent();
 };

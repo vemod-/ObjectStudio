@@ -1,267 +1,182 @@
 #ifndef SMBPITCHSHIFTER_H
 #define SMBPITCHSHIFTER_H
 
-#include "cfastcircularbuffer.h"
 #include "cfft.h"
 #include "cspectralwindow.h"
-#include "QMutexLocker"
+//#include "QMutexLocker"
 
 #define MAX_FRAME_LENGTH 4096
 #define MAX_POLYPHONY 8
 
+struct smbVoice {
+    double sumPhase[(MAX_FRAME_LENGTH/2)+1];
+    int index[(MAX_FRAME_LENGTH/2)+1];
+    int maxBin;
+    double shiftFactor;
+    float velocity;
+    double newFactor;
+    float newVelocity;
+};
+
+class IOBuffer {
+public:
+    IOBuffer() {
+        reset();
+    }
+    void reset() {
+        memset(data, 0, IOBuffer::IOBufferSize * sizeof(float));
+        pos = 0;
+    }
+    float* current() {
+        return data + pos;
+    }
+    void inc(int s) {
+        pos += s;
+        if (pos >= IOBufferSize) pos = 0;
+    }
+    bool wrap(int s) {
+        if (pos + s > IOBufferSize) {
+            wrapSizeA = std::min(IOBuffer::IOBufferSize - pos, s);
+            wrapSizeB = s - wrapSizeA;
+            return true;
+        }
+        return false;
+    }
+    void write(const float* p, int s) {
+        if (p) {
+            memcpy(data + pos, p, s * sizeof(float));
+        }
+        else {
+            memset(data + pos, 0, s * sizeof(float));
+        }
+    }
+    void read(float* p, int s) {
+        if (p) memcpy(p, data + pos, s * sizeof(float));
+    }
+    void add(float* p, int s, float f) {
+        if (p) {
+            for (int i = 0; i < s; i++) p[i] += data[pos + i] * f;
+        }
+    }
+    void zero(int s) {
+        memset(data + pos, 0, s * sizeof(float));
+    }
+    float* wrapToTemp() {
+        memcpy(tempFrame, data + pos, wrapSizeA * sizeof(float));
+        memcpy(tempFrame + wrapSizeA, data, wrapSizeB * sizeof(float));
+        return tempFrame;
+    }
+    float* readWrap(int s) {
+        int readPos = pos - s;
+        if (readPos < 0) readPos += IOBufferSize;
+
+        float* temp;
+        if (readPos + s <= IOBufferSize) {
+            temp = data + readPos;
+        } else {
+            int sizeA = IOBufferSize - readPos;
+            int sizeB = s - sizeA;
+            memcpy(tempFrame, data + readPos, sizeA * sizeof(float));
+            memcpy(tempFrame + sizeA, data, sizeB * sizeof(float));
+            temp = tempFrame;
+        }
+        return temp;
+    }
+    void wrapAddFromTemp() {
+        for (int j = 0; j < wrapSizeA; j++) data[pos + j] += tempFrame[j];
+        for (int j = 0; j < wrapSizeB; j++) data[j] += tempFrame[wrapSizeA + j];
+    }
+    int pos = 0;
+    static const int IOBufferSize = MAX_FRAME_LENGTH;
+    float data[IOBufferSize];
+    static inline float tempFrame[MAX_FRAME_LENGTH];
+private:
+    int wrapSizeA = 0;
+    int wrapSizeB = 0;
+};
+
 class smbPitchShifter
 {
 public:
-    smbPitchShifter(double sampleRate, long fftFrameSize=2048, long osamp=8);
-    float* process(long numSampsToProcess, float* indata);
-    float* process(double f, long numSampsToProcess, float *indata)
-    {
-        QMutexLocker locker(&mutex);
-        return process(f,1.f,numSampsToProcess,indata);
-    }
-    float* process(double f, float s, long numSampsToProcess, float *indata)
-    {
-        QMutexLocker locker(&mutex);
+    smbPitchShifter(double sampleRate, int stepSize, int polyphony = 1);
+    void process(const double f, const float *indata, float *outdata, float mix = 0) {
         setShiftFactor(f);
-        setScale(s);
-        return process(numSampsToProcess,indata);
+        process(indata,outdata,mix);
     }
-    float* process(double* f, long numSampsToProcess, float *indata)
-    {
-        QMutexLocker locker(&mutex);
-        float s[MAX_POLYPHONY] = {1.f};
-        return process(f,s,numSampsToProcess,indata);
-    }
-    float* process(double* f, float* s, long numSampsToProcess, float *indata)
-    {
-        QMutexLocker locker(&mutex);
+    void process(const double* f, float* s, const float *indata, float *outdata) {
         setShiftFactor(f,m_Polyphony);
         setScale(s,m_Polyphony);
-        return process(numSampsToProcess,indata);
+        process(indata,outdata);
     }
-    void process(long numSampsToProcess, float *indata, float *outdata)
-    {
-        float* b = process(numSampsToProcess, indata);
-        if (!b) {
-            memset(outdata, 0, numSampsToProcess*sizeof(float));
-            return;
-        }
-        memcpy(outdata, b , numSampsToProcess*sizeof(float));
+    inline void setShiftFactor(const double f, int i = 0) {
+        m_Voices[i].newFactor = f;
     }
-    void process(double f, long numSampsToProcess, float *indata, float *outdata)
-    {
-        QMutexLocker locker(&mutex);
-        process(f,1.f,numSampsToProcess,indata,outdata);
+    inline void setScale(const float s) {
+        m_Voices[0].newVelocity = s;
     }
-    void process(double f, float s, long numSampsToProcess, float *indata, float *outdata)
-    {
-        QMutexLocker locker(&mutex);
-        setShiftFactor(f);
-        setScale(s);
-        process(numSampsToProcess,indata,outdata);
-    }
-    void process(double* f, long numSampsToProcess, float *indata, float *outdata)
-    {
-        QMutexLocker locker(&mutex);
-        float s[MAX_POLYPHONY] = {1.f};
-        process(f,s,numSampsToProcess,indata,outdata);
-    }
-    void process(double* f, float* s, long numSampsToProcess, float *indata, float *outdata)
-    {
-        QMutexLocker locker(&mutex);
-        setShiftFactor(f,m_Polyphony);
-        setScale(s,m_Polyphony);
-        process(numSampsToProcess,indata,outdata);
-    }
-    /*
-        Routine smbPitchShift(). See top of file for explanation
-        Purpose: doing pitch shifting while maintaining duration using the Short
-        Time Fourier Transform.
-        Author: (c)1999-2002 Stephan M. Bernsee <smb@dspdimension.com>
-*/
-    inline void setShiftFactor(double f)
-    {
-        setShiftFactor(&f,1);
-    }
-    inline void setScale(float s)
-    {
-        setScale(&s,1);
-    }
-    inline void setShiftFactor(double* f, uint poly)
-    {
-        for (uint i = 0; i < MAX_POLYPHONY; i++)
+    inline void setShiftFactor(const double* f, int poly) {
+        for (int i = 0; i < MAX_POLYPHONY; i++)
         {
-            if (i < poly)
-            {
-                m_shiftFactor[i]=f[i];
+            smbVoice* v = &m_Voices[i];
+            if (i < poly) {
+                v->newFactor = f[i];
             }
-            else
-            {
-                m_shiftFactor[i]=0;
+            else {
+                v->newFactor = 0;
             }
         }
     }
-    inline void setScale(float* s, uint poly)
-    {
-        for (uint i = 0; i < MAX_POLYPHONY; i++)
+    inline void setScale(const float* s, int poly) {
+        for (int i = 0; i < MAX_POLYPHONY; i++)
         {
-            if (i < poly)
-            {
-                m_Scale[i]=s[i];
+            smbVoice* v = &m_Voices[i];
+            if (i < poly) {
+                v->newVelocity = s[i];
             }
-            else
-            {
-                m_Scale[i]=0;
+            else {
+                v->newVelocity = 0;
             }
         }
     }
-    double* shiftFactor()
-    {
-        return m_shiftFactor;
-    }
-    uint polyphony()
-    {
-        return m_Polyphony;
-    }
-    void setPolyphony(uint v)
-    {
-        QMutexLocker locker(&mutex);
-        v = qBound<uint>(1,v,8);
-        if (m_Polyphony != v)
-        {
-            m_Polyphony=v;
-            reset();
-        }
-    }
-    void setFrameSize(long frameSize)
-    {
-        QMutexLocker locker(&mutex);
-        if (frameSize > MAX_FRAME_LENGTH) frameSize = MAX_FRAME_LENGTH;
-        if (m_FrameSize != frameSize)
-        {
-            m_FrameSize=frameSize;
-            reset();
-        }
-    }
-    void setOverSampling(long osamp)
-    {
-        QMutexLocker locker(&mutex);
-        if (osamp != m_OSamp)
-        {
-            m_OSamp=osamp;
-            reset();
-        }
+    void setOverSampling(int osamp) {
+        osamp = std::min(MAX_FRAME_LENGTH / m_StepSize, osamp);
+        m_NewOSamp = osamp;
     }
 private:
-    uint m_Polyphony = 1;
-    double m_PolyFactor = 1;
     void reset();
-    CFastCircularBuffer InFIFO;
-    CFastCircularBuffer OutFIFO;
-    float m_OutputAccum[2*MAX_FRAME_LENGTH];
+    void process(const float* indata, float* outdata, float f = 0);
+    void calcShiftVars(smbVoice* v) {
+        const double invShift = 1.0 / v->shiftFactor;
+        for (int k = 0; k <= m_HalfFrameSize; k++) {
+            v->index[k] = std::min((int)(k * invShift + 0.5), m_HalfFrameSize);
+        }
+        v->maxBin = std::min<int>(floor(m_HalfFrameSize * v->shiftFactor),m_HalfFrameSize);
+    }
     CSpectralWindow m_win;
     CFFTtwiddleInterleaved<double> m_fft;
-    double m_LastPhase[MAX_FRAME_LENGTH/2+1];
-    double m_SumPhase[MAX_POLYPHONY][(MAX_FRAME_LENGTH/2+1)];
-    double gAnaFreq[(MAX_FRAME_LENGTH/2+1)];
-    double gAnaMagn[(MAX_FRAME_LENGTH/2+1)];
-    double gSynFreq[(MAX_FRAME_LENGTH/2+1)];
-    double gSynMagn[(MAX_FRAME_LENGTH/2+1)];
+    IOBuffer m_InBuffer;
+    IOBuffer m_OutBuffer;
+    double m_LastPhase[(MAX_FRAME_LENGTH/2)+1];
+    double gAnaFreq[(MAX_FRAME_LENGTH/2)+1];
+    double gAnaMagn[(MAX_FRAME_LENGTH/2)+1];
     double m_freqPerBinV[(MAX_FRAME_LENGTH/2)+1];
     double m_ExpPhaseDiffV[(MAX_FRAME_LENGTH/2)+1];
     /* set up some handy variables */
     const double PI2 = M_PI * 2;
     double OS_PI2;
     double PI2_OS;
-    long m_HalfFrameSize;
-    long m_StepSize;
+    const double m_SampleRate;
+    int m_HalfFrameSize;
+    const int m_StepSize;
+    const int m_Polyphony = 1;
+    double m_Gain = 1;
     double m_FreqPerBin;
     double m_ExpectedPhaseDiff;
-    long m_InFifoLatency;
-
-    double m_SampleRate;
-    double m_shiftFactor[MAX_POLYPHONY];
-    float m_Scale[MAX_POLYPHONY];
-    long m_FrameSize;
-    long m_OSamp;
-    QRecursiveMutex mutex;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class smbPitchShifterOld
-{
-public:
-    smbPitchShifterOld(double sampleRate,long fftFrameSize=2048, long osamp=8);
-    void process(double f, long numSampsToProcess, const float *indata, float *outdata)
-    {
-        m_shiftFactor=f;
-        process(numSampsToProcess,indata,outdata);
-    }
-    void process(long numSampsToProcess, const float *indata, float *outdata);
-    /*
-        Routine smbPitchShift(). See top of file for explanation
-        Purpose: doing pitch shifting while maintaining duration using the Short
-        Time Fourier Transform.
-        Author: (c)1999-2002 Stephan M. Bernsee <smb@dspdimension.com>
-*/
-    void setShiftFactor(double f)
-    {
-        m_shiftFactor=f;
-    }
-    double shiftFactor()
-    {
-        return m_shiftFactor;
-    }
-    void setFrameSize(long frameSize)
-    {
-        m_FrameSize=frameSize;
-        reset();
-    }
-    void setOverSampling(long osamp)
-    {
-        m_OSamp=osamp;
-        reset();
-    }
-private:
-    void smbFft(double *fftBuffer, long fftFrameSize, long sign);
-    void reset();
-    long fftFrameSize2;
-    long stepSize;
-    double freqPerBin;
-    double expct;
-    long inFifoLatency;
-    double smbAtan2(double x, double y);
-    float gInFIFO[MAX_FRAME_LENGTH];
-    float gOutFIFO[MAX_FRAME_LENGTH];
-    double gFFTworksp[2*MAX_FRAME_LENGTH];
-    double gLastPhase[MAX_FRAME_LENGTH/2+1];
-    double gSumPhase[MAX_FRAME_LENGTH/2+1];
-    double gOutputAccum[2*MAX_FRAME_LENGTH];
-    double gAnaFreq[MAX_FRAME_LENGTH];
-    double gAnaMagn[MAX_FRAME_LENGTH];
-    double gSynFreq[MAX_FRAME_LENGTH];
-    double gSynMagn[MAX_FRAME_LENGTH];
-    double m_WindowFactor[MAX_FRAME_LENGTH];
-    long gRover;
-
-    double m_SampleRate;
-    double m_shiftFactor;
-    long m_FrameSize;
-    long m_OSamp;
+    smbVoice m_Voices[MAX_POLYPHONY];
+    int m_FrameSize;
+    int m_OSamp = 8;
+    int m_NewOSamp = 8;
+    //QRecursiveMutex mutex;
 };
 
 #endif // SMBPITCHSHIFTER_H

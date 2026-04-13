@@ -31,7 +31,7 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     QLinearGradient lg(0,geometry.top(),0,geometry.height()+geometry.top());
     if (isActive)
     {
-        p=QPen(Qt::black);
+        p = QPen(Qt::black);
         lg.setColorAt(0,QColor(0xeeeeee));
         lg.setColorAt(0.49999,QColor(0xbbbbbb));
         lg.setColorAt(0.5,QColor(0xafafaf));
@@ -39,7 +39,7 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     }
     else
     {
-        p=QPen(Qt::gray);
+        p = QPen(Qt::gray);
         lg.setColorAt(0,QColor(0xdddddd));
         lg.setColorAt(0.49999,QColor(0xaaaaaa));
         lg.setColorAt(0.5,QColor(0x8f8f8f));
@@ -58,7 +58,7 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     QFont f = Scene.font();
     f.setPointSize(9);
     QFontMetrics fm(f);
-    QString Caption=QFileInfo(name).baseName();
+    QString Caption = QFileInfo(name).baseName();
     while (fm.horizontalAdvance(Caption) > geometry.width())
     {
         Caption.chop(1);
@@ -73,24 +73,24 @@ void CWaveTrack::paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect visibleR
     if (!hasImage()) {
         Scene.addItem(waveGenerator.waveFormItem(geometry,visibleRect,ZoomFactor,&loopParameters));
         if (loopParameters.Volume < 100 || loopParameters.FadeIn > 0 || loopParameters.FadeOut > 0) {
-            QPen redPen = QPen(Qt::yellow);
-            float volHeight = geometry.height()*loopParameters.Volume*0.01;
-            qreal fadeInWidth = loopParameters.FadeIn*ZoomFactor/loopParameters.Speed;
-            qreal fadeOutWidth = loopParameters.FadeOut*ZoomFactor/loopParameters.Speed;
-            Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
-            Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
-            Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+            const QPen p = QPen(Qt::yellow);
+            const float volHeight = geometry.height()*loopParameters.Volume*0.01;
+            const qreal fadeInWidth = loopParameters.FadeIn*ZoomFactor/loopParameters.Speed;
+            const qreal fadeOutWidth = loopParameters.FadeOut*ZoomFactor/loopParameters.Speed;
+            Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,p);
+            Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,p);
+            Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),p);
         }
     }
     if (hasVisible()) {
         if (hasOpacity()) {
-            QPen redPen = QPen(Qt::blue);
-            float volHeight = geometry.height()*loopParameters.VideoOpacity*0.01;
-            qreal fadeInWidth = loopParameters.VideoFadeIn*ZoomFactor/loopParameters.Speed;
-            qreal fadeOutWidth = loopParameters.VideoFadeOut*ZoomFactor/loopParameters.Speed;
-            Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-volHeight,redPen);
-            Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-volHeight,geometry.width()-fadeOutWidth,geometry.bottom()-volHeight,redPen);
-            Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-volHeight,geometry.right(),geometry.bottom(),redPen);
+            const QPen p = QPen(Qt::blue);
+            const float opacityHeight = geometry.height()*loopParameters.VideoOpacity*0.01;
+            const qreal fadeInWidth = loopParameters.VideoFadeIn*ZoomFactor/loopParameters.Speed;
+            const qreal fadeOutWidth = loopParameters.VideoFadeOut*ZoomFactor/loopParameters.Speed;
+            Scene.addLine(geometry.left(),geometry.bottom(),geometry.left()+fadeInWidth,geometry.bottom()-opacityHeight,p);
+            Scene.addLine(geometry.left()+fadeInWidth,geometry.bottom()-opacityHeight,geometry.right()-fadeOutWidth,geometry.bottom()-opacityHeight,p);
+            Scene.addLine(geometry.right()-fadeOutWidth,geometry.bottom()-opacityHeight,geometry.right(),geometry.bottom(),p);
         }
     }
 }

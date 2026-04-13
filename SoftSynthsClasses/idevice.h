@@ -577,8 +577,8 @@ protected:
     IHost* m_Host;
     //ITicker* m_TickerDevice;
     QVector<ITicker*> m_TickerDevices;
-    bool m_Process;
-    bool m_Playing;
+    std::atomic<bool> m_Process;
+    std::atomic<bool> m_Playing;
     CSoftSynthsForm* m_Form;
     IDeviceParent* m_DeviceParent;
     IMainPlayer* mainPlayer() const {
@@ -590,7 +590,7 @@ protected:
         if (ProcIndex==-1) ProcIndex=int(m_Jacks.size());
         COutJack* OJ=new COutJack(Name,m_DeviceID,AttachMode,IJack::Out,this,ProcIndex);
         if (ProcIndex >= int(m_AudioBuffers.size())) m_AudioBuffers.resize(ProcIndex+1);
-        m_AudioBuffers[ProcIndex]=OJ->audioBuffer;
+        m_AudioBuffers[ProcIndex] = OJ->audioBuffer;
         m_Jacks.push_back(OJ);
         m_OutJacks.push_back(OJ);
         return OJ;

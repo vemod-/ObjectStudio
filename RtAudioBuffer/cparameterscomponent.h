@@ -38,7 +38,7 @@ private:
     QGraphicsContainerItem m_GroupList;
     QGraphicsContainerItem m_FrameList;
     QMenu* parametersMenu();
-    QRecursiveMutex mutex;
+    //QRecursiveMutex mutex;
     QGraphicsProxyWidget* createProxyItem(QWidget* w);
     /*
     int calcY(int y) {

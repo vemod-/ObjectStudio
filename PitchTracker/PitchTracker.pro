@@ -13,6 +13,7 @@ SOURCES += cpitchtrackerclass.cpp \
     cpitchdsp.cpp \
     cffttracker.cpp
 HEADERS += cpitchtrackerclass.h \
+    YinPitchDetector.h \
     bcf2.h \
     cpitchdetect.h \
     cpitchdsp.h \

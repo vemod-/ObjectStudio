@@ -11,14 +11,12 @@ private:
     enum JackNames
     {jnIn,jnModulation,jnOut};
     enum ParameterNames
-    {pnShift,pnOverSampling,pnFrameSize,pnModulation,pnTune,pnMix};
-    int PitchShift;
+    {pnShift,pnOverSampling,pnModulation,pnTune,pnMix};
     //float ModFactor;
     //float Tune;
-    float Wet;
-    float Dry;
     void inline updateDeviceParameter(const CParameter* p = nullptr);
     smbPitchShifter smb;
+    CMonoBuffer returnBuffer;
     CVoltageModulator Modulator;
 public:
     CPitchShifter();

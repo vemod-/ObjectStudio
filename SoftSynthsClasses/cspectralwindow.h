@@ -64,13 +64,13 @@ public:
                       wtHAMMING, wtBLACKMAN, wtFLATTOP, wtBLACKMAN_HARRIS,
                       wtBLACKMAN_NUTTALL, wtNUTTALL, wtKAISER_BESSEL, wtTRAPEZOID,
                       wtGAUSS, wtSINE, wtTEST };
-    CSpectralWindow() {}
+    //CSpectralWindow() : CSpectralWindow(4096) {}
     CSpectralWindow(uint s) : size(s), m_WinCoeff(s+2) {}
     void setSize(uint s)
     {
         QMutexLocker locker(&mutex);
         size=s;
-        m_WinCoeff.resize(s+2);
+        //m_WinCoeff.resize(s+2);
     }
     void SetWindow(uint s, TWindowType WindowType, float Alpha, float Beta, bool UnityGain)
     {
@@ -335,7 +335,7 @@ class CBasicFIR : protected CSpectralWindow
 {
 public:
     enum TPassTypeName {LPF, HPF, BPF, NOTCH};
-    CBasicFIR() {}
+    //CBasicFIR() {}
     CBasicFIR(uint s) : CSpectralWindow(s), m_FirCoeff(s+2) {}
     void setSize(uint s)
     {

@@ -42,7 +42,7 @@ private:
     static constexpr int kOctaveSteps = 96;
     static constexpr int kStepOverlap = 4;
     static constexpr double kMinFreq = 10;//50.0f;               // A1, Midi note 33, 55.0Hz
-    double m_MaxFreq = 20000;//1600.0f;             // A#6. Midi note 92
+    std::atomic<double> m_MaxFreq = 20000;//1600.0f;             // A#6. Midi note 92
     static constexpr int kStartCircular = 40;		        // how far into the sample buffer do we start checking (allow for filter settling)
     static constexpr double kDetectOverlapSec = 0.005;
     static constexpr double kMaxOctaveSecRate = 10.0;
@@ -55,27 +55,27 @@ private:
 
     CFastCircularBuffer m_FIFOLo;
     CFastCircularBuffer m_FIFOHi;
-    double m_Tune;
-    uint m_sampleRate;
-    float m_detectLevelThreshold = 0.01f;       // -40dB
-    int m_pitchRecordsPerSecond = 10;           // default is 50, or one record every 20ms
+    std::atomic<double> m_Tune;
+    std::atomic<uint> m_sampleRate;
+    std::atomic<float> m_detectLevelThreshold = 0.01f;       // -40dB
+    std::atomic<int> m_pitchRecordsPerSecond = 10;           // default is 50, or one record every 20ms
 
     std::vector<float> m_pitchBufLo;
     std::vector<float> m_pitchBufHi;
-    int m_pitchBufSize;
-    int m_samplesPerPitchBlock;
+    std::atomic<int> m_pitchBufSize;
+    std::atomic<int> m_samplesPerPitchBlock;
     //int m_curPitchIndex;
-    long64 m_curPitchSamplePos;
+    std::atomic<long64> m_curPitchSamplePos;
 
-    int m_detectOverlapSamples;
-    double m_maxOverlapDiff;
+    std::atomic<int> m_detectOverlapSamples;
+    std::atomic<double> m_maxOverlapDiff;
 
-    bool m_recordPitchRecords;
-    uint m_pitchRecordHistorySize;
+    std::atomic<bool> m_recordPitchRecords;
+    std::atomic<uint> m_pitchRecordHistorySize;
     std::vector<PitchRecord> m_pitchRecords;
     PitchRecord m_curPitchRecord;
 
-    double m_PrevPitch;
+    std::atomic<double> m_PrevPitch;
 
     CIIRFilters m_iirFilterLoHi;
     CIIRFilters m_iirFilterHiLo;
@@ -98,7 +98,7 @@ public:
     }
     void setSampleRate(uint value)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         if (m_sampleRate==value) return;
         m_sampleRate = value;
         Setup();
@@ -113,10 +113,10 @@ public:
     }
     void setDetectLevelThreshold(float value)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         float newValue = std::clamp<float>(value,0.0001f,1.0f); //std::max(0.0001f, std::min(1.0f, value));
 
-        if (closeEnough(m_detectLevelThreshold, newValue)) return;
+        if (closeEnough((float)m_detectLevelThreshold, newValue)) return;
 
         m_detectLevelThreshold = newValue;
         Setup();
@@ -148,7 +148,7 @@ public:
     }
     void setPitchRecordsPerSecond(int value)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         value = qBound<int>(1,value,100);
         if (value != m_pitchRecordsPerSecond)
         {
@@ -231,8 +231,8 @@ public:
     }
     void setMaxDetectFrequency(double v)
     {
-        QMutexLocker locker(&mutex);
-        if (!closeEnough(v,m_MaxFreq))
+        //QMutexLocker locker(&mutex);
+        if (!closeEnough(v,(double)m_MaxFreq))
         {
             m_MaxFreq=v;
             Setup();
@@ -245,7 +245,7 @@ public:
     }
     void setOverlap(int v)
     {
-        QMutexLocker locker(&mutex);
+        //QMutexLocker locker(&mutex);
         if (v != m_detectOverlapSamples)
         {
             m_detectOverlapSamples = v;
@@ -292,7 +292,7 @@ public:
     /// <param name="sampleCount">Number of samples to process. Zero means all samples in the buffer</param>
     void ProcessBuffer(float* inBuffer, int sampleCount);
 private:
-    QRecursiveMutex mutex;
+    //QRecursiveMutex mutex;
     /// <summary>
     /// Setup
     /// </summary>

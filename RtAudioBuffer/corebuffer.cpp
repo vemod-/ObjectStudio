@@ -48,10 +48,11 @@ void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint
                 if (m_Playing)
                 {
                     mSecCount.skipBuffer();
-                    if (mSecCount.currentSample() > m_Samples) m_Playing=false;
+                    if (mSecCount.currentSample() > m_Samples) m_Playing = false;
                 }
                 //if (m_TickerDevice) m_TickerDevice->tick(); //Tick All Devices!!!
-                IDevice::tick();
+                //IDevice::tick();
+                for (ITicker* t : std::as_const(m_TickerDevices)) if (t) t->tick();
                 ParseMidi(FetchP(jnMIDIOut));
                 OutChannelBuffer = FetchAStereo(jnOut);
                 if (OutChannelBuffer->isValid()) {
@@ -694,28 +695,13 @@ void CCoreMainBuffers::play(const bool FromStart)
 
 void CCoreMainBuffers::pause()
 {
-    //m_MilliSeconds=IDevice::milliSeconds();
-    //m_Playing=false;
-    //m_TickerDevice->pause();
     IDevice::pause();
 }
 
 void CCoreMainBuffers::skip(const ulong64 samples)
 {
-    //IDevice::pause();
-    m_Samples=IDevice::samples();
+    m_Samples = IDevice::samples();
     mSecCount.reset();
-    /*
-    if (mSecs==0)
-    {
-        IDevice::play(true);
-    }
-    else
-    {
-*/
     mSecCount.skip(samples);
-        //m_TickerDevice->skip(samples);
-        IDevice::skip(samples);
-        //m_Playing=true;
-    //}
+    IDevice::skip(samples);
 }

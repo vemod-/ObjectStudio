@@ -28,6 +28,7 @@ public:
     //ulong milliSeconds() const;
     //void skip(ulong mSecs);
     CStereoBuffer RecordBuffer;
+    bool m_InSignal = false;
     CWaveFile WaveFile;
     void startRecording();
     void finishRecording();

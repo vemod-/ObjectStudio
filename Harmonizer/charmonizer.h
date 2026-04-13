@@ -2,9 +2,8 @@
 #define CHARMONIZER_H
 
 #include "idevice.h"
-#include "cpitchdetect.h"
 #include "smbpitchshifter.h"
-#include "cfreqglider.h"
+#include "YinPitchDetector.h"
 
 class CHarmonizer : public IDevice
 {
@@ -23,18 +22,15 @@ private:
     enum JackNames
     {jnOut,jnIn};
     enum ParameterNames
-    {pnNote,pnNote1,pnNote2,pnNote3,pnTune,pnAutotune,pnGlide,pnOversampling,pnEffect};
+    {pnNote,pnNote1,pnNote2,pnNote3,pnTune,pnAutotune,pnGlide,pnSlack,pnThreshold,pnOversampling,pnEffect};
     void inline updateDeviceParameter(const CParameter* p = nullptr);
-    CPitchDetect PD;
+    CYIN PD;
     smbPitchShifter PS;
     shiftMatrix m_Matrix[13]={{0}};
     double s[8]={0};
     float vol[8]={1,1,1,0,0,0,0,0};
-    //CMonoBuffer* inBuffer = nullptr;
     int m_lastKey = 0;
-    CFreqGlider glider;
     int m_oldValue=0;
-    int m_lastMIDICent=0;
 };
 
 #endif // CHARMONIZER_H

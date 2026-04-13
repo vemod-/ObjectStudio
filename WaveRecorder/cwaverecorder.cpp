@@ -41,12 +41,12 @@ void CWaveRecorder::tick()
         RecordBuffer.writeStereoBuffer(InBuffer,FORMFUNC(CWaveRecorderForm)->volumeL(),FORMFUNC(CWaveRecorderForm)->volumeR());
         if (m_Recording) WaveFile.pushBuffer(RecordBuffer.data(),RecordBuffer.size());
         RecordBuffer.peakStereoBuffer(&PeakL,&PeakR);
+        m_InSignal = true;
     }
     else
     {
-        RecordBuffer.zeroBuffer();
+        m_InSignal = false;
     }
-    //if (m_TickerDevice) m_TickerDevice->tick();
     IDevice::tick();
 }
 
@@ -67,7 +67,7 @@ void CWaveRecorder::skip(ulong mSecs)
 */
 CAudioBuffer* CWaveRecorder::getNextA(const int ProcIndex)
 {
-    if (m_Monitor) {
+    if (m_Monitor && m_InSignal) {
         m_AudioBuffers[ProcIndex]->writeBuffer(FORMFUNC(CWaveRecorderForm)->getNextA(ProcIndex));
         m_AudioBuffers[ProcIndex]->addBuffer(&RecordBuffer,m_MonitorLevel);
         return m_AudioBuffers[ProcIndex];

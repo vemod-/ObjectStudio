@@ -60,7 +60,10 @@ void CPitchDetect::ProcessBuffer(float *inBuffer, int sampleCount)
             const double pitch1 = m_dsp.DetectPitch(pitchBufLo, pitchBufHi, m_pitchBufSize);
             if (pitch1 > 0.0)
             {
-                const double pitch2 = (m_detectOverlapSamples > 0) ? m_dsp.DetectPitch(pitchBufLo  + m_detectOverlapSamples, pitchBufHi  + m_detectOverlapSamples, m_pitchBufSize) : m_PrevPitch;
+                double pitch2 = m_PrevPitch;
+                if (m_detectOverlapSamples > 0) {
+                    m_dsp.DetectPitch(pitchBufLo  + m_detectOverlapSamples, pitchBufHi  + m_detectOverlapSamples, m_pitchBufSize);
+                }
                 if (pitch2 > 0.0)
                 {
                     const double fDiff = fmax(pitch1, pitch2) / fmin(pitch1, pitch2) - 1.0;

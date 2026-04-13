@@ -38,11 +38,11 @@ private:
     {pnTempo,pnVolume,pnHumanize};
     float VolumeFactor;
     void inline updateDeviceParameter(const CParameter* p = nullptr);
-    int Counter;
-    int BeatCount;
-    int PatternIndex;
-    int PatternRepeatCount;
-    int PatternLength;
+    std::atomic<int> Counter;
+    std::atomic<int> BeatCount;
+    std::atomic<int> PatternIndex;
+    std::atomic<int> PatternRepeatCount;
+    std::atomic<int> PatternLength;
     ulong m_MilliSeconds;
     ulong m_Ticks;
     CTickCounter mSecCount;

@@ -157,7 +157,8 @@ void CWaveEditWidget::UpdateGraph()
     LP.Speed=ui->SpeedSpin->value()*0.01;
     if (ui->StretchCheck->isChecked())
     {
-        LP.PitchShift = -factor2Cent(LP.Speed)*0.01;
+        //LP.PitchShift = -factor2Cent(LP.Speed)*0.01;
+        LP.stretch(LP.Speed);
         ui->PitchSpin->setValue(LP.PitchShift);
     }
     if (m_LoopOn)
@@ -211,5 +212,8 @@ void CWaveEditWidget::UpdateControls(CWaveGenerator::LoopParameters LP)
 
 void CWaveEditWidget::UpdateStretch(bool v)
 {
-    if (v) ui->PitchSpin->setValue(-factor2Cent(ui->SpeedSpin->value()*0.01)*0.01);
+    if (v) {
+        ui->PitchSpin->setValue(CWaveGenerator::LoopParameters::speedToPitch(ui->SpeedSpin->value())*0.01);
+    }
 }
+

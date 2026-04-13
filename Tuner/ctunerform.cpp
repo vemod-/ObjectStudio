@@ -7,20 +7,24 @@ CTunerForm::CTunerForm(IDevice* Device, QWidget *parent) :
     ui(new Ui::CTunerForm)
 {
     ui->setupUi(this);
-    m_TimerID = startTimer(100);
 }
 
 CTunerForm::~CTunerForm()
 {
-    if (m_TimerID) killTimer(m_TimerID);
-    m_TimerID = 0;
     delete ui;
 }
 
-void CTunerForm::timerEvent(QTimerEvent* /*e*/)
-{
-    if (!m_TimerID) return;
-    QMutexLocker locker(&mutex);
-    if (isVisible()) ui->TunerWidget->setTune(PD.CurrentPitchRecord(),PD.tune());
+void CTunerForm::setPitchRecord() {
+    ui->TunerWidget->setPitchRecord(PD.CurrentPitchRecord());
 }
+
+void CTunerForm::setRate(int r) {
+    PD.setPitchRecordsPerSecond(1000/r);
+}
+
+void CTunerForm::setCalib(double c){
+    ui->TunerWidget->setCalib(c);
+    PD.setTune(c);
+}
+
 

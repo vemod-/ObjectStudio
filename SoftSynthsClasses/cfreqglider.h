@@ -14,13 +14,13 @@ private:
     int m_CurrentSpeed=1;
     inline double calcAdd(int Glide)
     {
-        const double factor=(pow(double(100-Glide)*0.01,4)*0.95)+0.05;
-        return factor*(presets.ModulationTime/(m_CurrentSpeed*40));
+        const double factor = (pow(double(100 - Glide) * 0.01, 4) * 0.95) + 0.05;
+        return factor * (presets.ModulationTime / (m_CurrentSpeed * 40));
     }
     inline void calc()
     {
-        m_AttackAdd=calcAdd(m_CurrentGlide);
-        m_DecayAdd=m_AttackAdd;
+        m_AttackAdd = calcAdd(m_CurrentGlide);
+        m_DecayAdd = m_AttackAdd;
     }
     inline void exec()
     {
@@ -53,58 +53,61 @@ public:
         m_CurrentGlide=Glide;
         calc();
     }
+    inline int glide() {
+        return m_CurrentGlide;
+    }
     inline void setGlide(const int Attack, const int Decay)
     {
-        m_CurrentGlide=Attack+Decay;
+        m_CurrentGlide = Attack + Decay;
         m_AttackAdd = calcAdd(Attack);
         m_DecayAdd = calcAdd(Decay);
 
     }
-    inline void setTargetFreq(const float Freq)
+    inline void setTargetFreq(const double Freq)
     {
         m_TargetVoltage = freq2voltage(Freq);
         //calc();
     }
-    inline void setTargetVoltage(const float Volt)
+    inline void setTargetVoltage(const double Volt)
     {
         m_TargetVoltage = Volt;
         //calc();
     }
-    inline void setTargetCent(const long MIDICents)
+    inline void setTargetCent(const double MIDICents)
     {
-        m_TargetVoltage = MIDICents/1200.0;
+        m_TargetVoltage = MIDICents / 1200.0;
         //calc();
     }
-    inline float currentFreq()
+    inline double currentFreq()
     {
         exec();
         return voltage2Freq(m_LastGlideVoltage);
     }
-    inline long currentCent()
+    inline double currentCent()
     {
         exec();
-        return m_LastGlideVoltage*1200;
+        return m_LastGlideVoltage * 1200;
     }
-    inline float currentVoltage()
+    inline double currentVoltage()
     {
         exec();
         return m_LastGlideVoltage;
     }
-    inline float runVoltage(const float v)
+    inline double runVoltage(const double v)
     {
-        if (m_CurrentGlide==0) return v;
+        if (m_CurrentGlide == 0) return v;
         setTargetVoltage(v);
         return currentVoltage();
     }
-    inline float runFreq(const float f)
+    inline double runFreq(const double f)
     {
-        if (m_CurrentGlide==0) return f;
+        if (m_CurrentGlide == 0) return f;
         setTargetFreq(f);
         return currentFreq();
     }
-    inline long runCent(const long c)
+    inline double runCent(const double c)
     {
-        if (m_CurrentGlide==0) return c;
+        if (m_CurrentGlide == 0) return c;
         setTargetCent(c);
         return currentCent();
     }

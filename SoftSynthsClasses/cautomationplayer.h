@@ -187,8 +187,8 @@ private:
     QMap<QString,CParameter*> m_Parameters;
     CParameterEventList m_PlayList;
     CSampleCounter m_Counter;
-    uint m_BufferCount=0;
-    bool m_Playing = false;
+    std::atomic<uint> m_BufferCount=0;
+    std::atomic<bool> m_Playing = false;
     uint m_NextEvent=0;
     ulong64 m_NextTime=0;
     QString createId(const QString& deviceID, const QString& parameterName) {

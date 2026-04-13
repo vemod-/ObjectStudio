@@ -128,8 +128,8 @@ void CParametersComponent::init(IDevice* Device)
                 QColor c = g->color;
                 c.setAlphaF(0.2);
                 const int endIndex = (g->endIndex > -1) ? g->endIndex : m_ProxyDials.childItems().size() - 1;
-                const QGraphicsProxyWidget* sw = static_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(g->startIndex));
-                const QGraphicsProxyWidget* ew = static_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(endIndex));
+                const QGraphicsProxyWidget* sw = qgraphicsitem_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(g->startIndex));
+                const QGraphicsProxyWidget* ew = qgraphicsitem_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(endIndex));
                 QRectF r1 = sw->geometry().adjusted(1,-6,-2,6);
                 QRectF r2 = ew->geometry().adjusted(1,-6,-2,6);
                 QRectF r = r1.united(r2);
@@ -230,8 +230,8 @@ bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* 
 {
     if (event->button() == Qt::RightButton) {
         if (itemIsKnob(item)) {
-            QGraphicsProxyWidget* w = static_cast<QGraphicsProxyWidget*>(item);
-            CKnobControl* k = static_cast<CKnobControl*>(w->widget());
+            QGraphicsProxyWidget* w = qgraphicsitem_cast<QGraphicsProxyWidget*>(item);
+            CKnobControl* k = qobject_cast<CKnobControl*>(w->widget());
             k->popupMenu(event->globalPosition().toPoint());
         }
         else {

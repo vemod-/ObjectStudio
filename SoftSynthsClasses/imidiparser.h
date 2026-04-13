@@ -16,7 +16,7 @@ public:
     void parseMIDI(const CMIDIBuffer* MB)
     {
         if (!MB) return;
-        const CMIDIEventList l=MB->eventList();
+        const CMIDIEventList l = MB->eventList();
         for (uint i=0; i<l.size(); i++)
         {
             const CMIDIEvent* Event=l[i];

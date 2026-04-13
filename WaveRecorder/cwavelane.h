@@ -9,6 +9,72 @@
 //#include <QtMultimediaWidgets/QVideoWidget>
 #include <unistd.h>
 #include "cvideodesigner.h"
+#include <QLineEdit>
+#include <QToolButton>
+#include <QGraphicsProxyWidget>
+#include <QGraphicsObject>
+#include "qtogglebutton.h"
+#include "qlcdlabel.h"
+
+class CWaveLaneSidebarItem : public QGraphicsObject {
+    Q_OBJECT
+public:
+    CWaveLaneSidebarItem() : QGraphicsObject(){
+        editWidget = new QGraphicsProxyWidget(this);
+        editWidget->setWidget(&nameEdit);
+        editWidget->setVisible(true);
+        nameEdit.setFixedSize(120,18);
+        editWidget->setParentItem(this);
+        //nameEdit.setAttribute(Qt::WA_TranslucentBackground);
+        editWidget->setPos(0,20);
+        connect(&nameEdit,&QLCDEdit::editingFinished,this,&CWaveLaneSidebarItem::change);
+
+        int l = 0;
+        setupButton(muteButton,muteWidget,l);
+        muteButton.setText("M");
+        setupButton(soloButton,soloWidget,l + 30);
+        soloButton.setText("S");
+        setupButton(videoMuteButton,videoWidget,l + (30 * 2));
+        videoMuteButton.setText("V");
+        setupButton(automationButton,automationWidget,l + (30 * 3));
+        automationButton.setText("A");
+
+    }
+    QRectF boundingRect() const override {
+        return childrenBoundingRect();
+    }
+    void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override {
+        // tom om du bara använder widgets
+    }
+    QLCDEdit nameEdit;
+    QToggleButton muteButton;
+    QToggleButton soloButton;
+    QToggleButton videoMuteButton;
+    QToggleButton automationButton;
+signals:
+    void changed(CWaveLaneSidebarItem* item);
+private slots:
+    void change() {
+        emit changed(this);
+    }
+private:
+    QGraphicsProxyWidget* editWidget;
+    QGraphicsProxyWidget* muteWidget;
+    QGraphicsProxyWidget* soloWidget;
+    QGraphicsProxyWidget* videoWidget;
+    QGraphicsProxyWidget* automationWidget;
+    void setupButton(QToggleButton& b, QGraphicsProxyWidget* w, int left) {
+        w = new QGraphicsProxyWidget();
+        w->setWidget(&b);
+        w->setVisible(true);
+        b.setFixedSize(28,28);
+        b.setCheckable(true);
+        w->setParentItem(this);
+        w->setPos(left,40);
+        connect(&b,&QToolButton::clicked,this,&CWaveLaneSidebarItem::change);
+        b.setAttribute(Qt::WA_TranslucentBackground);
+    }
+};
 
 class CWaveLane : public IDevice
 {
@@ -26,7 +92,6 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
     QRect geometry;
     void pitchShift(CWaveTrack* T);
-    //void modifyBuffers(CStereoBuffer* Buffer, const float MixFactor);
     void reset();
     void UpdateGeometry(ldouble ZoomFactor, long CanvasRight);
     void paint(QGraphicsScene& Scene, ldouble ZoomFactor, QRect viewportGeometry, bool Active);
@@ -37,20 +102,7 @@ public:
     const QStringList fileList();
     void renameFile(const QString& oldName, const QString& newName);
     void removeFile(const QString& Filename);
-    void addFile(CWaveTrack* t) {
-        for (CWaveTrack* track : std::as_const(tracks)) {
-            if (track) {
-                if ((track != t) && (track->isValid) && (t->isValid)) {
-                    if ((t->end() >= track->start) && (t->start <= track->start)) {
-                        t->cutEnd(track->start);
-                    }
-                }
-            }
-        }
-        tracks.append(t);
-        sanityCheck(t);
-        createVideoWidget();
-    }
+    void addFile(CWaveTrack* t);
     void serialize(QDomLiteElement* xml) const;
     void unserialize(const QDomLiteElement* xml,ldouble ZoomFactor);
     void serializeTrack(QDomLiteElement* xml, const CWaveTrack* WT) const;
@@ -89,7 +141,7 @@ public:
         if (hasVisible()) {
             if (!videoItem) {
                 videoItem = new CVideoItem(thumbnailImage());
-                videoItem->name = "Lane " + QString::number(m_Index);
+                videoItem->name = alias();
                 videoDialog->addVideo(videoItem);
             }
         }
@@ -110,22 +162,20 @@ public:
     void setExportMode(bool m) {
         if (videoItem) videoItem->setExportMode(m);
     }
-    //CEffectRack* m_EffectRack;
+    CWaveLaneSidebarItem sideBarItem;
     QList<int> DragTracks;
     QString ID;
     TrackEdges DragTrackEdge;
     CVideoItem* videoItem = nullptr;
     CVideoDialog* videoDialog;
 private:
-    ulong64 Counter;
-    uint ModulationCounter;
+    std::atomic<ulong64> Counter;
+    std::atomic<uint> ModulationCounter;
     int syncCounter;
     CChannelBuffer CurrentBuffer;
-    CStereoBuffer TempBuffer;
-    float Vol;
     smbPitchShifter pitchShifterL;
     smbPitchShifter pitchShifterR;
-    smbPitchShifter* PS[2];
+    std::array<smbPitchShifter*, 2> PS;
     ulong64 DragTrackStart;
     ulong64 DragTrackEnd;
     QRect waveRect;

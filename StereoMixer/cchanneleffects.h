@@ -22,6 +22,9 @@ public:
     void serialize(QDomLiteElement* xml) const;
     bool isSolo();
     int panValue();
+    bool muted(){
+        return m_Ch->Mute;
+    }
 public slots:
     void setPanValue(int v) {
         setPan(v + 100);

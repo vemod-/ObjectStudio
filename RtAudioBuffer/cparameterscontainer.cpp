@@ -163,7 +163,7 @@ QList<QWidget *> CParametersContainer::ProxyWidgets() const {
     const QGraphicsItemList g(Scene.items());
     for (QGraphicsItem* i : g) {
         if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(i)) {
-            if (i->zValue() > 4) l.append(proxy->widget());
+            if (CAutomationLane* a = qobject_cast<CAutomationLane*>(proxy->widget())) l.append(a);
         }
     }
     return l;
@@ -267,8 +267,8 @@ QPoint CParametersContainer::jackPoint(IDevice* device, int i)
 
 bool CParametersContainer::hasAutomation(const QPoint& p){
     QGraphicsItem* w = Scene.itemAt(p,transform());
-    if (w) {
-        if (w->zValue() > 4) return true;
+    if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(w)) {
+        if (CAutomationLane* a = qobject_cast<CAutomationLane*>(proxy->widget())) return true;
     }
     return false;
 }
@@ -539,13 +539,14 @@ void CParametersContainer::dropEvent(QDropEvent *e) {
     emit devicesReordered(deviceIndex,move);
 }
 
-void CParametersContainer::createAutomationLane(IDevice* d, int parameterIndex)
+CAutomationLane* CParametersContainer::createAutomationLane(IDevice* d, int parameterIndex)
 {
     CAutomationLane* a = new CAutomationLane();
     a->fill(d,parameterIndex,m_DL);
     QGraphicsProxyWidget* w = addProxyWidget(a);
     w->setPos(0,deviceIndex(d) * rackUnitHeight);
     connect(this,&CParametersContainer::closeAutomation,a,&CAutomationLane::close);
+    return a;
 }
 
 void CParametersContainer::showAutomation(IDevice* d, int ParameterIndex)
@@ -558,7 +559,9 @@ void CParametersContainer::unserialize(const QDomLiteElement* xml) {
     if (QDomLiteElement* Lanes = xml->elementByTag("AutomationLanes")) {
         for (const QDomLiteElement* e : (const QDomLiteElementList)Lanes->elementsByTag("AutomationLane")) {
             if (IDevice* d = m_DL->device(e->attribute("DeviceID"))) {
-                createAutomationLane(d,e->attributeValueInt("ParameterIndex"));
+                CAutomationLane* a = createAutomationLane(d,e->attributeValueInt("ParameterIndex"));
+                a->unserialize(e);
+                a->Paint();
             }
         }
     }
@@ -568,7 +571,7 @@ void CParametersContainer::serialize(QDomLiteElement* xml) const
 {
     QDomLiteElement* Lanes = xml->appendChild("AutomationLanes");
     for (QWidget* a : ProxyWidgets()) {
-        if (QDomLiteElement* l = Lanes->appendChild("AutomationLane")) static_cast<CAutomationLane*>(a)->serialize(l);
+        if (QDomLiteElement* l = Lanes->appendChild("AutomationLane")) qobject_cast<CAutomationLane*>(a)->serialize(l);
     }
 }
 

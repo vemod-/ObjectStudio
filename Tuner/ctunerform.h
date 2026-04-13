@@ -2,6 +2,7 @@
 #define CTUNERFORM_H
 
 #include "cpitchdetect.h"
+#include "YinPitchDetector.h"
 #include "csoftsynthsform.h"
 
 namespace Ui {
@@ -15,12 +16,12 @@ class CTunerForm : public CSoftSynthsForm
 public:
     explicit CTunerForm(IDevice* Device, QWidget *parent = 0);
     ~CTunerForm();
-    CPitchDetect PD;
-protected:
-    void timerEvent(QTimerEvent* e);
+    CYIN PD;
+    void setPitchRecord();
+    void setRate(int r);
+    void setCalib(double c);
 private:
     Ui::CTunerForm *ui;
-    int m_TimerID;
 };
 
 #endif // CTUNERFORM_H

@@ -31,6 +31,7 @@ public:
     void serialize(QDomLiteElement* xml) const;
     void unserialize(const QDomLiteElement* xml);
     void setSender(const QString& s);
+    void setName(const QString& s);
     CChannelVol* volSlider;
     CChannelEffects* effectsPanel;
     void toggleEffectRack();

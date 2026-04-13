@@ -45,7 +45,7 @@ void CSF2ChannelWidget::init(CStereoMixerChannel *ch, const QString& Name, CDevi
     setMinimumHeight(524+(42*int(ch->sendCount)));
     if (!SF2)
     {
-        m_Name=Name;
+        m_Name = Name;
         m_Instrument = nullptr;
         setSender(QString());
         ui->SF2Frame->setVisible(false);
@@ -110,6 +110,11 @@ void CSF2ChannelWidget::setSender(const QString& s)
         setFontSizeScr(ui->Sender,9);
         ui->Sender->setText(s);
     }
+}
+
+void CSF2ChannelWidget::setName(const QString &s){
+    m_Name = s;
+    setSender(QString());
 }
 
 void CSF2ChannelWidget::checkPeak()

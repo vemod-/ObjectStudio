@@ -20,6 +20,7 @@
 #include "avfoundation_wrapper.h"
 
 #define defaultResolution 720
+#define snaptol 4
 
 class CVideoItem : public QGraphicsObject
 {
@@ -37,26 +38,22 @@ public:
                QWidget*) override;
     void setThumbnail(const QImage& pix);
     void invokeVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
-        //if (t->videoVisible) {
-            QMetaObject::invokeMethod(
-                this,
-                [this, t, sample]() {
-                    setVideoPlayProperties(t,sample);
-                },
-                Qt::QueuedConnection
-                );
-        //}
+        QMetaObject::invokeMethod(
+            this,
+            [this, t, sample]() {
+                setVideoPlayProperties(t,sample);
+            },
+            Qt::QueuedConnection
+            );
     }
     void invokeVideoPlaySync(CWaveTrack* t, ulong64 sample) {
-        //if (t->videoVisible) {
-            QMetaObject::invokeMethod(
-                this,
-                [this, t, sample]() {
-                    setVideoPlaySync(t,sample);
-                },
-                Qt::QueuedConnection
-                );
-        //}
+        QMetaObject::invokeMethod(
+            this,
+            [this, t, sample]() {
+                setVideoPlaySync(t,sample);
+            },
+            Qt::QueuedConnection
+            );
     }
     void invokePause() {
         QMetaObject::invokeMethod(
@@ -75,7 +72,6 @@ public:
     bool setVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
             if (mSec > t->videoLength) {
-                //frameTimer.stop();
                 m_AVFPlayer.pause();
                 m_currentPlaybackImage = QImage();
                 update(m_rect);
@@ -103,7 +99,6 @@ public:
     bool setVideoPlaySync(CWaveTrack* t, ulong64 sample) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
             if (mSec > t->videoLength) {
-                //frameTimer.stop();
                 m_AVFPlayer.pause();
                 m_currentPlaybackImage = QImage();
                 update(m_rect);
@@ -114,11 +109,6 @@ public:
             if (qAbs<long64>((m_AVFPlayer.position() * 1000) - mSec) > 40) {
                 m_AVFPlayer.setPosition(mSec / 1000.0);
             }
-            /*
-            if (m_Playing) {
-                if (!m_AVFPlayer.isPlaying()) m_AVFPlayer.play();
-            }
-*/
             setEnabled(o);
             return true;
     }
@@ -126,16 +116,14 @@ public:
         m_currentPlaybackImage = img;
     }
     bool setVideoExportProperties(CWaveTrack* t, long64 mSec) {
-        //if (t->waveGenerator.hasVideo()) {
-            if (imgExtract.Url() != t->waveGenerator.videoURL) {
-                imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
-            }
-            if (mSec <= t->videoLength) {
-                m_exportImage = imgExtract.getImage(mSec / 1000.0);
-                m_frameGeneration = m_exportGeneration;
-                return true;
-            }
-        //}
+        if (imgExtract.Url() != t->waveGenerator.videoURL) {
+            imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
+        }
+        if (mSec <= t->videoLength) {
+            m_exportImage = imgExtract.getImage(mSec / 1000.0);
+            m_frameGeneration = m_exportGeneration;
+            return true;
+        }
         setVideoExportEmptyFrame();
         return false;
     }
@@ -157,16 +145,14 @@ public:
     }
     bool setVideoStillProperties(CWaveTrack* t, long64 mSec) {
         if (m_Playing) return false;
-        //if (t->waveGenerator.hasVideo()) {
-            if (imgExtract.Url() != t->waveGenerator.videoURL) {
-                imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
-            }
-            if (mSec <= t->videoLength) {
-                m_stillImage = imgExtract.getImage(mSec / 1000.0).copy();
-                update(m_rect);
-                return true;
-            }
-        //}
+        if (imgExtract.Url() != t->waveGenerator.videoURL) {
+            imgExtract.setSource(t->waveGenerator.videoURL,m_frameSize);
+        }
+        if (mSec <= t->videoLength) {
+            m_stillImage = imgExtract.getImage(mSec / 1000.0).copy();
+            update(m_rect);
+            return true;
+        }
         m_stillImage = QImage();
         update(m_rect);
         return false;
@@ -178,7 +164,10 @@ public:
         return true;
     }
     bool setVideoStillEmptyFrame() {
-        if (m_Playing) return false;
+        if (m_Playing) {
+            m_currentPlaybackImage = QImage();
+            return false;
+        }
         m_stillImage = QImage();
         update(m_rect);
         return true;
@@ -200,7 +189,6 @@ public:
     }
     void setEnabled(bool v) {
         m_Enabled = v;
-        //if (!v) update();
     }
     bool enabled() {
         return m_Enabled;
@@ -343,33 +331,33 @@ private:
         return NoHandle;
     }
     void snapSourceRect() {
-        if (qAbs((m_sourceRect.center().x() - (m_frameSize.width() * 0.5 )) / scaleX) < 4) {
+        if (qAbs((m_sourceRect.center().x() - (m_frameSize.width() * 0.5 )) / scaleX) < snaptol) {
             m_sourceRect.moveCenter(QPoint(m_frameSize.width() * 0.5,m_sourceRect.center().y()));
         }
-        if (qAbs((m_sourceRect.center().y() - (m_frameSize.height() * 0.5 )) / scaleY) < 4) {
+        if (qAbs((m_sourceRect.center().y() - (m_frameSize.height() * 0.5 )) / scaleY) < snaptol) {
             m_sourceRect.moveCenter(QPoint(m_sourceRect.center().x(),m_frameSize.height() * 0.5));
         }
-        if (qAbs(m_sourceRect.left() / scaleX) < 4) {
+        if (qAbs(m_sourceRect.left() / scaleX) < snaptol) {
             m_sourceRect.moveLeft(0);
         }
-        if (qAbs(m_sourceRect.top() / scaleY) < 4) {
+        if (qAbs(m_sourceRect.top() / scaleY) < snaptol) {
             m_sourceRect.moveTop(0);
         }
         if (qApp->queryKeyboardModifiers() & Qt::ControlModifier) {
-            if (qAbs((m_sourceRect.right() - m_frameSize.width()) / scaleX) < 4) {
+            if (qAbs((m_sourceRect.right() - m_frameSize.width()) / scaleX) < snaptol) {
                 m_sourceRect.setRight(m_frameSize.width() - 1);
             }
-            if (qAbs((m_sourceRect.bottom() - m_frameSize.height()) / scaleY) < 4) {
+            if (qAbs((m_sourceRect.bottom() - m_frameSize.height()) / scaleY) < snaptol) {
                 m_sourceRect.setBottom(m_frameSize.height() - 1);
             }
             scaleX = m_sourceRect.width()  / m_rect.width();
             scaleY = m_sourceRect.height() / m_rect.height();
         }
         else {
-            if (qAbs((m_sourceRect.right() - m_frameSize.width()) / scaleX) < 4) {
+            if (qAbs((m_sourceRect.right() - m_frameSize.width()) / scaleX) < snaptol) {
                 m_sourceRect.moveRight(m_frameSize.width() - 1);
             }
-            if (qAbs((m_sourceRect.bottom() - m_frameSize.height()) / scaleY) < 4) {
+            if (qAbs((m_sourceRect.bottom() - m_frameSize.height()) / scaleY) < snaptol) {
                 m_sourceRect.moveBottom(m_frameSize.height() - 1);
             }
         }
@@ -499,42 +487,42 @@ private:
         }
     }
     void snapLeft(int x, CVideoItem* item, Guides& a) {
-        if (qAbs(a.left - x) < 4) {
+        if (qAbs(a.left - x) < snaptol) {
             drawVerticalGuide(x);
             item->moveTopLeft(x,a.top);
             a.setRect(item->rect());
         }
     }
     void snapRight(int x, CVideoItem* item, Guides& a) {
-        if (qAbs((a.right + 1) - x) < 4) {
+        if (qAbs((a.right + 1) - x) < snaptol) {
             drawVerticalGuide(x);
             item->moveBottomRight(x - 1, a.bottom);
             a.setRect(item->rect());
         }
     }
     void snapTop(int y, CVideoItem* item, Guides& a) {
-        if (qAbs(a.top - y) < 4) {
+        if (qAbs(a.top - y) < snaptol) {
             drawHorizontalGuide(y);
             item->moveTopLeft(a.left,y);
             a.setRect(item->rect());
         }
     }
     void snapBottom(int y, CVideoItem* item, Guides& a) {
-        if (qAbs((a.bottom + 1) - y) < 4) {
+        if (qAbs((a.bottom + 1) - y) < snaptol) {
             drawHorizontalGuide(y);
             item->moveBottomRight(a.right,y - 1);
             a.setRect(item->rect());
         }
     }
     void snapCenterX(int cx, CVideoItem* item, Guides& a) {
-        if (qAbs(a.hcenter - cx) < 4) {
+        if (qAbs(a.hcenter - cx) < snaptol) {
             drawVerticalGuide(cx);
             item->moveCenter(cx,a.vcenter);
             a.setRect(item->rect());
         }
     }
     void snapCenterY(int cy, CVideoItem* item, Guides& a) {
-        if (qAbs(a.vcenter - cy) < 4) {
+        if (qAbs(a.vcenter - cy) < snaptol) {
             drawHorizontalGuide(cy);
             item->moveCenter(a.hcenter,cy);
             a.setRect(item->rect());
