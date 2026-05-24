@@ -5,11 +5,14 @@
 #include "cwavebank.h"
 #include "cvoltagemodulator.h"
 
+#define devicejacks monoout,frequencyin,modulationin,pulsemodulationin
+#define devicecategory SynthModule | Generator
+
 class CToneGenerator : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnFrequency,jnModulation,jnPulseModulation};
+    {devicejacks};
     enum ParameterNames
     {pnFrequency,pnGlide,pnModulation,pnTuning,pnDetune,pnWaveForm,pnPulse,pnPulseModulation,pnRectify,pnVolume};
     //float voltageValue;

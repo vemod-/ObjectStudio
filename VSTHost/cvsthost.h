@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks stereoin,midiin,stereoout
+#define devicecategory Instrument | Effect
+
 #define VSTPLUGINCLASS dynamic_cast<CVSTHostClass*>(FORMFUNC(CVSTForm)->plugIn)
 
 class CVSTHost : public IDevice
@@ -23,7 +26,7 @@ public:
     const QPixmap* picture() const;
 private:
     enum JackNames
-    {jnIn,jnMIDIIn,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnVolume,pnMIDIChannel,pnTranspose,pnPatchChange};
     float VolFactor;

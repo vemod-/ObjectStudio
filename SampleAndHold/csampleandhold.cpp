@@ -11,15 +11,15 @@ void CSampleAndHold::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
-    addJackModulationOut(jnOutPitch,"Out");
+    addJackMonoIn();
+    addJackModulationOut(modulationout,"Out");
     addParameterRate("Sample Rate",400);
     updateDeviceParameter();
 }
 
 float CSampleAndHold::getNext(const int /*ProcIndex*/)
 {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (InBuffer->isValid())
     {
         while (m_Counter + m_SampleRate < m_BufferSize)

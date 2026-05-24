@@ -8,7 +8,7 @@ void CEnvelope::init(const int Index, QWidget* MainWindow)
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
     addJackModulationIn("Trigger In");
-    addJackModulationOut(jnOut,"Out");
+    addJackModulationOut(modulationout,"Out");
     startParameterGroup();
     addParameterTime("Delay Time");
     addParameterTime("Attack Time");
@@ -25,7 +25,7 @@ void CEnvelope::init(const int Index, QWidget* MainWindow)
 
 float CEnvelope::getNext(int /*ProcIndex*/)
 {
-    return ADSR.GetVol(Fetch(jnTriggerIn))*VolumeFactor;
+    return ADSR.GetVol(Fetch(triggerin))*VolumeFactor;
 }
 
 void inline CEnvelope::updateDeviceParameter(const CParameter* /*p*/)

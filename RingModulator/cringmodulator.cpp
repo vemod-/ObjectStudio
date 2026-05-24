@@ -8,17 +8,17 @@ CRingModulator::CRingModulator():ModulationFactor(0)
 void CRingModulator::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
-    addJackWaveIn("Modulation");
+    addJackMonoOut(monoout);
+    addJackMonoIn();
+    addJackMonoIn("Modulation");
     addParameterPercent();
     updateDeviceParameter();
 }
 
 CAudioBuffer *CRingModulator::getNextA(const int ProcIndex) {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-    const CMonoBuffer* InModulationBuffer = FetchAMono(jnModulation);
-    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
+    const CMonoBuffer* InModulationBuffer = FetchAMono(modmonoin);
+    CMonoBuffer* OutBuffer=MonoBuffer(monoout);
     if (!InBuffer->isValid()) return nullptr;
     if (!InModulationBuffer->isValid()) return nullptr;
     for (uint i=0;i<m_BufferSize;i++)

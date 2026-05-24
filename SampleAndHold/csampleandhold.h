@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks monoin,modulationout
+#define devicecategory SynthModule
+
 class CSampleAndHold : public IDevice
 {
 public:
@@ -11,7 +14,7 @@ public:
     float getNext(const int ProcIndex);
 private:
     enum JackNames
-    {jnIn,jnOutPitch};
+    {devicejacks};
     enum ParameterNames
     {pnSampleRate};
     float ReturnValue;

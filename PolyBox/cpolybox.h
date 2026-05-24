@@ -4,6 +4,9 @@
 #include "idevice.h"
 #include "ccvdevice.h"
 
+#define devicejacks stereoout,leftmonoout,rightmonoout,midiin
+#define devicecategory Container | SynthModule
+
 class CPolyBox : public IDevice
 {
 public:
@@ -19,7 +22,7 @@ public:
     void process();
 private:
     enum JackNames
-    {jnOut,jnOutLeft,jnOutRight,jnMIDIIn};
+    {devicejacks};
     enum ParameterNames
     {pnMIDIChannel,pnTranspose,pnTune};
     void Reset();

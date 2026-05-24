@@ -7,8 +7,8 @@ void CDrumMachine::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(0);
-    addJackMIDIOut(1);
+    addJackMonoOut(monoout);
+    addJackMIDIOut(midiout);
     addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
     addParameterVolume();
     addParameterPercent("Humanize");
@@ -62,7 +62,14 @@ void CDrumMachine::tick()
                             MIDIBuffer.append(0x9A,MIDINumbers[i],(byte)(vol * 1.27));
                         }
                     }
-                    DRUMMACHINEFORM->Flash(PatternIndex,BeatCount);
+                    //QMetaObject::invokeMethod(DRUMMACHINEFORM,DRUMMACHINEFORM->Flash(PatternIndex,BeatCount),Qt::QueuedConnection);
+                    QMetaObject::invokeMethod(DRUMMACHINEFORM,
+                                              [=]()
+                                              {
+                                                  DRUMMACHINEFORM->Flash(PatternIndex,BeatCount);
+                                              },
+                                              Qt::QueuedConnection
+                                              );
                     if (++BeatCount >= Patterns[PatternIndex]->numOfBeats())
                     {
                         BeatCount=0;
@@ -122,12 +129,14 @@ void CDrumMachine::CalcDuration()
     c.reset(dmTicksPQ);
     for (const PatternListType* pl : std::as_const(PatternsInList))
     {
-        if (pl->Repeats==0) break;
+        int repeats = pl->Repeats;
+        if (repeats==0) repeats = 1000;
         c.setTempo((60000000.0/4.0) / (m_Parameters[pnTempo]->PercentValue*pl->Pattern->Tempo),dmTicksPQ);
-        c.skipTicks(pl->Pattern->numOfBeats() * dmTicksPQ * pl->Repeats);
+        c.skipTicks(pl->Pattern->numOfBeats() * dmTicksPQ * repeats);
     }
     m_MilliSeconds=c.currentmSec();
     m_Ticks=c.currentTick();
+    qDebug() << "Drummachine" << m_MilliSeconds;
 }
 
 void CDrumMachine::Reset()

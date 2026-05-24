@@ -11,8 +11,8 @@ void CIIRFilter::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addJackModulationIn("Modulation In");
     startParameterGroup("IIR",Qt::blue);
     addParameterSelect("Type","LP§HP§BP",0);
@@ -29,8 +29,8 @@ void CIIRFilter::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CIIRFilter::getNextA(const int ProcIndex)
 {
-    const float Mod=Fetch(jnModulation);
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const float Mod=Fetch(modulationin);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
     //if (isZero(Mod)) return nullptr;//&m_NullBufferMono;
     if (!closeEnough(Mod,LastMod))

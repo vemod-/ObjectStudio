@@ -18,7 +18,7 @@ void CAudioUnitHost::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackStereoIn();
     addJackMIDIIn();
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addParameterVolume();
     startParameterGroup("MIDI", Qt::yellow);
     addParameterMIDIChannel();
@@ -119,26 +119,31 @@ void CAudioUnitHost::unserializeCustom(const QDomLiteElement* xml)
 
 void CAudioUnitHost::process()
 {
-    AUPLUGINCLASS->parseMIDI(FetchP(jnMIDIIn));
+    AUPLUGINCLASS->parseMIDI(FetchP(midiin));
     //PLUGINCLASS->inBuffer.writeBuffer(FetchA(jnIn),true);
     if (AUPLUGINCLASS->isMono()) {
-        AUPLUGINCLASS->InBuffers.fill(m_MonoBuffer.fromStereo(FetchAStereo(jnIn)->data()),m_BufferSize);
+        AUPLUGINCLASS->InBuffers.fill(m_MonoBuffer.fromStereo(FetchAStereo(stereoin)->data()),m_BufferSize);
     }
     else {
-        AUPLUGINCLASS->InBuffers.fill(FetchA(jnIn)->data(),m_BufferSize*2);
+        AUPLUGINCLASS->InBuffers.fill(FetchA(stereoin)->data(),m_BufferSize*2);
     }
+    CStereoBuffer* out = StereoBuffer(stereoout);
     if (AUPLUGINCLASS->process())
     {
+        float* b = AUPLUGINCLASS->OutBuffers.data();
         if (AUPLUGINCLASS->isMono()) {
-            m_AudioBuffers[jnOut]->writeBuffer(m_StereoBuffer.fromMono(AUPLUGINCLASS->OutBuffers.data()),float(VolFactor*0.5));
+            //out->writeBuffer(m_StereoBuffer.fromMono(AUPLUGINCLASS->OutBuffers.data()),float(VolFactor*0.5)));
+            //out->writeLeftBuffer(b,VolFactor);
+            //out->writeRightBuffer(b,VolFactor);
+            out->fromMono(b,VolFactor,VolFactor);
         }
         else {
-            m_AudioBuffers[jnOut]->writeBuffer(AUPLUGINCLASS->OutBuffers.data(),VolFactor);
+            out->writeBuffer(b,VolFactor);
         }
     }
     else
     {
-        m_AudioBuffers[jnOut]->zeroBuffer();
+        out->zeroBuffer();
     }
 }
 

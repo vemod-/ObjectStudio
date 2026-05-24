@@ -1,6 +1,9 @@
 #ifndef CEFFECTRACK_H
 #define CEFFECTRACK_H
 
+#define devicejacks stereoin,stereoout
+#define devicecategory Effect | Container
+
 #include "cdevicelist.h"
 #include "cparameterscontainer.h"
 #include "qsignalmenu.h"
@@ -20,6 +23,7 @@ public:
     void unserializeCustom(const QDomLiteElement* xml);
     void serializeCustom(QDomLiteElement* xml) const;
     void parameterChange(IDevice* device, const CParameter* parameter);
+    void updateDeviceJacks();
     void closeAutomation(IDevice* /*device*/);
 protected:
     bool event(QEvent* e);
@@ -40,6 +44,7 @@ private slots:
     void rackSizeChanged();
 signals:
     void controlChanged(IDevice*, const CParameter*);
+    void connectionsChanged();
 };
 
 class CEffectRack : public IDevice
@@ -49,11 +54,10 @@ public:
     void init(const int Index, QWidget* MainWindow);
     CAudioBuffer* getNextA(const int ProcIndex);
     void process();
-    //void tick();
     void mixerChannelProc(CStereoBuffer* buffer);
 private:
     enum JackNames
-    {jnIn,jnOut,jnInsideIn};
+    {devicejacks,jnInsideIn};
     void inline updateDeviceParameter(const CParameter* p = nullptr);
     CStereoBuffer* InBuffer;
 };

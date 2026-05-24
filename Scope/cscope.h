@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks monoin,modulationin
+#define devicecategory Monitor
+
 class CScope : public IDevice
 {
 public:
@@ -12,7 +15,7 @@ public:
     void tick();
 private:
     enum JackNames
-    {jnIn,jnModulationIn};
+    {devicejacks};
     enum ParameterNames
     {pnVolume,pnScopeRate,pnFrequency,pnDetectPitch,pnScopeMode};
     void Reset();

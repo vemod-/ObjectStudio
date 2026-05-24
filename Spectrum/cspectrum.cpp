@@ -9,7 +9,7 @@ void CSpectrum::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
+    addJackMonoIn();
     addParameterVolume("Gain");
     addParameter(CParameter::Numeric,"Rate","mSec",10,200,0,"",100);
     addParameterSelect("Mode","Circular§Continuous§Diagram§Peak Diagram§Avg Diagram");
@@ -27,7 +27,7 @@ void CSpectrum::tick()
     if (m_Form->isVisible())
     {
         auto f=FORMFUNC(CSpectrumForm);
-        const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+        const CMonoBuffer* InBuffer = FetchAMono(monoin);
         f->Spectrum->process(InBuffer->data(),presets.ModulationRate);
         //(!InBuffer->isValid()) ? f->Spectrum->process(nullptr,presets.ModulationRate) :
         //                         f->Spectrum->process(InBuffer->data(),presets.ModulationRate);

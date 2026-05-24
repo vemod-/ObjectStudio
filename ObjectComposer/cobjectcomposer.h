@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks stereoout
+#define devicecategory Generator
+
 class CObjectComposer : public IDevice
 {
 public:
@@ -15,7 +18,7 @@ public:
     {pnVolume,pnHumanize};
 private:
     enum JackNames
-    {jnOut};
+    {devicejacks};
     void inline updateDeviceParameter(const CParameter* p = nullptr);
 };
 

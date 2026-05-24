@@ -6,7 +6,7 @@
 //#include "QMutexLocker"
 
 #define MAX_FRAME_LENGTH 4096
-#define MAX_POLYPHONY 8
+//#define MAX_POLYPHONY 8
 
 struct smbVoice {
     double sumPhase[(MAX_FRAME_LENGTH/2)+1];
@@ -98,53 +98,43 @@ private:
 class smbPitchShifter
 {
 public:
-    smbPitchShifter(double sampleRate, int stepSize, int polyphony = 1);
+    smbPitchShifter(double sampleRate, int stepSize, int polyphony = 1, int oversampling = 8);
+    void reset();
     void process(const double f, const float *indata, float *outdata, float mix = 0) {
         setShiftFactor(f);
         process(indata,outdata,mix);
     }
     void process(const double* f, float* s, const float *indata, float *outdata) {
-        setShiftFactor(f,m_Polyphony);
-        setScale(s,m_Polyphony);
+        setShiftFactor(f);
+        setScale(s);
         process(indata,outdata);
-    }
-    inline void setShiftFactor(const double f, int i = 0) {
-        m_Voices[i].newFactor = f;
-    }
-    inline void setScale(const float s) {
-        m_Voices[0].newVelocity = s;
-    }
-    inline void setShiftFactor(const double* f, int poly) {
-        for (int i = 0; i < MAX_POLYPHONY; i++)
-        {
-            smbVoice* v = &m_Voices[i];
-            if (i < poly) {
-                v->newFactor = f[i];
-            }
-            else {
-                v->newFactor = 0;
-            }
-        }
-    }
-    inline void setScale(const float* s, int poly) {
-        for (int i = 0; i < MAX_POLYPHONY; i++)
-        {
-            smbVoice* v = &m_Voices[i];
-            if (i < poly) {
-                v->newVelocity = s[i];
-            }
-            else {
-                v->newVelocity = 0;
-            }
-        }
     }
     void setOverSampling(int osamp) {
         osamp = std::min(MAX_FRAME_LENGTH / m_StepSize, osamp);
         m_NewOSamp = osamp;
     }
 private:
-    void reset();
     void process(const float* indata, float* outdata, float f = 0);
+    inline void setShiftFactor(const double f, int i = 0) {
+        m_Voices[i].newFactor = f;
+    }
+    inline void setScale(const float s) {
+        m_Voices[0].newVelocity = s;
+    }
+    inline void setShiftFactor(const double* f) {
+        for (int i = 0; i < m_Polyphony; i++)
+        {
+            smbVoice* v = &m_Voices[i];
+            v->newFactor = f[i];
+        }
+    }
+    inline void setScale(const float* s) {
+        for (int i = 0; i < m_Polyphony; i++)
+        {
+            smbVoice* v = &m_Voices[i];
+            v->newVelocity = s[i];
+        }
+    }
     void calcShiftVars(smbVoice* v) {
         const double invShift = 1.0 / v->shiftFactor;
         for (int k = 0; k <= m_HalfFrameSize; k++) {
@@ -172,7 +162,7 @@ private:
     double m_Gain = 1;
     double m_FreqPerBin;
     double m_ExpectedPhaseDiff;
-    smbVoice m_Voices[MAX_POLYPHONY];
+    std::vector<smbVoice> m_Voices;
     int m_FrameSize;
     int m_OSamp = 8;
     int m_NewOSamp = 8;

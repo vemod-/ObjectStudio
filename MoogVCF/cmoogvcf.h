@@ -4,6 +4,9 @@
 #include "idevice.h"
 #include "cvoltagemodulator.h"
 
+#define devicejacks monoout,monoin,modulationin
+#define devicecategory Effect
+
 class  CMoogVCF : public IDevice
 {
 public:
@@ -13,7 +16,7 @@ public:
     void play(const bool FromStart) override;
 private:
     enum JackNames
-    {jnOut,jnIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnInVolume,pnCutOffModulation,pnCutOffFrequency,pnResponse,pnResonance,pnOutVolume};
     int LastResonance;

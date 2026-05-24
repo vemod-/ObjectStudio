@@ -1,6 +1,9 @@
 #ifndef CENVELOPE_H
 #define CENVELOPE_H
 
+#define devicejacks triggerin,modulationout
+#define devicecategory SynthModule
+
 #include "idevice.h"
 #include "cadsr.h"
 
@@ -16,7 +19,7 @@ public:
     float getNext(const int ProcIndex);
 private:
     enum JackNames
-    {jnTriggerIn,jnOut};
+    {devicejacks};
     CADSR ADSR;
     float VolumeFactor;
     void inline updateDeviceParameter(const CParameter* p = nullptr);

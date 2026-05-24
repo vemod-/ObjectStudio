@@ -1,6 +1,9 @@
 #ifndef CLFO_H
 #define CLFO_H
 
+#define devicejacks modulationout
+#define devicecategory SynthModule
+
 #include "idevice.h"
 #include "cwavebank.h"
 
@@ -8,7 +11,7 @@ class CLFO : public IDevice
 {
 private:
     enum JackNames
-    {jnOutPitch,jnOutAmplitude};
+    {devicejacks};
     enum ParameterNames
     {pnFrequency,pnWaveForm,pnRectify,pnLevel,pnBias};
     float FreqValue;

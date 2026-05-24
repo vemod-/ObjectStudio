@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks monoout,monoin
+#define devicecategory Monitor
+
 class CTuner : public IDevice
 {
 public:
@@ -13,7 +16,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnTune,pnSilent,pnMaxFreq,pnRate};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

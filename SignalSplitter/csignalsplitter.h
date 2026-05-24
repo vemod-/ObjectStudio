@@ -5,6 +5,9 @@
 #include "biquad.h"
 #include "cvoltagemodulator.h"
 
+#define devicejacks monoout1,monoout2,monoin,modulationin
+#define devicecategory SynthModule | Effect
+
 class CSignalSplitter : public IDevice
 {
 
@@ -14,7 +17,7 @@ public:
     void play(const bool FromStart) override;
 private:
     enum JackNames
-    {jnOut1,jnOut2,jnIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnType,pnSplitFreq,pnSplitVolume,pnModulation,pnSlope,pnResponse};
     CBiquad lopass;

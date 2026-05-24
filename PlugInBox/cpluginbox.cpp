@@ -23,7 +23,7 @@ void CPlugInBox::init(const int Index, QWidget* MainWindow)
     QMutexLocker locker(&mutex);
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(0);
+    addJackStereoOut(stereoout);
     addJackStereoIn();
     addJackMIDIIn();
     m_Form=new CMacroBoxForm(this,MainWindow);

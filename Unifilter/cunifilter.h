@@ -4,11 +4,14 @@
 #include "idevice.h"
 #include "cfxrbjfilter.h"
 
+#define devicejacks monoout,monoin,modulationin
+#define devicecategory Effect | SynthModule
+
 class CUnifilter : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnFilterType,pnInVolume,pnCutOffModulation,pnCutOffFrequency,pnResonance,pnOutVolume};
     CFxRbjFilter RBJFilter;

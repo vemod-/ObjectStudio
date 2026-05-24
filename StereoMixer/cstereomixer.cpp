@@ -122,7 +122,7 @@ CStereoMixer::CStereoMixer(const uint channelCount, const uint sendCount)
     for (uint i = 0; i < m_SendCount; i++) Sends[i]=1;
     channels=new CStereoMixerChannel*[m_ChannelCount];
     for (uint i = 0; i < m_ChannelCount; i++) channels[i]=new CStereoMixerChannel(int(m_SendCount));
-    jnIn=jnSend+int(m_SendCount);
+    jnIn=sendstereoout+int(m_SendCount);
     jnReturn=jnIn+int(m_ChannelCount);
 }
 
@@ -186,12 +186,12 @@ void CStereoMixer::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
-    OutBuffer=StereoBuffer(jnOut);
+    addJackStereoOut(stereoout);
+    OutBuffer=StereoBuffer(stereoout);
     for (uint i=0;i<m_SendCount;i++)
     {
-        COutJack* OJ = (MainWindow) ? new COutJack("Send " + QString::number(i+1),m_DeviceID,IJackBase::Stereo,IJack::Out,this,int(i)+jnSend) :
-                                      addJackStereoOut(jnSend+int(i),"Send " + QString::number(i+1));
+        COutJack* OJ = (MainWindow) ? new COutJack("Send " + QString::number(i+1),m_DeviceID,IJackBase::Stereo,IJack::Out,this,int(i)+sendstereoout) :
+                                      addJackStereoOut(sendstereoout+int(i),"Send " + QString::number(i+1));
         SendBuffers.push_back(dynamic_cast<CStereoBuffer*>(OJ->audioBuffer));
         SendJacks.push_back(OJ);
     }
@@ -240,8 +240,8 @@ CAudioBuffer* CStereoMixer::getNextA(const int ProcIndex)
             m_Process=false;
             process();
         }
-        if (ProcIndex==jnOut) return m_AudioBuffers[jnOut];
-        return SendBuffers[uint(ProcIndex-jnSend)];
+        if (ProcIndex==stereoout) return m_AudioBuffers[stereoout];
+        return SendBuffers[uint(ProcIndex-sendstereoout)];
         //return m_AudioBuffers[ProcIndex];
     }
     return nullptr;

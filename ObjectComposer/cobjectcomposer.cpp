@@ -16,7 +16,7 @@ void CObjectComposer::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
+    addJackStereoOut(stereoout);
     addParameterVolume("Volume");
     addParameterPercent("Humanize");
 

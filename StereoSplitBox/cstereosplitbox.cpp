@@ -19,7 +19,7 @@ void CStereoSplitBox::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addJackStereoIn();
 
     m_Form=new CMacroBoxForm(this,MainWindow);
@@ -27,12 +27,12 @@ void CStereoSplitBox::init(const int Index, QWidget* MainWindow)
     addTickerDevice(d->deviceList());
     setDeviceParent(d->deviceList());
 
-    WaveOutL = new CInJack("Out Left","This",IJack::Wave,IJack::In,this);
+    WaveOutL = new CInJack("Out Left","This",IJack::Mono,IJack::In,this);
     d->JacksCreated.append(d->addJack(WaveOutL,0));
-    WaveOutR = new CInJack("Out Right","This",IJack::Wave,IJack::In,this);
+    WaveOutR = new CInJack("Out Right","This",IJack::Mono,IJack::In,this);
     d->JacksCreated.append(d->addJack(WaveOutR,0));
-    d->JacksCreated.append(d->addJack(new COutJack("In Left","This",IJack::Wave,IJack::Out,this,jnInLeft),0));
-    d->JacksCreated.append(d->addJack(new COutJack("In Right","This",IJack::Wave,IJack::Out,this,jnInRight),0));
+    d->JacksCreated.append(d->addJack(new COutJack("In Left","This",IJack::Mono,IJack::Out,this,jnInLeft),0));
+    d->JacksCreated.append(d->addJack(new COutJack("In Right","This",IJack::Mono,IJack::Out,this,jnInRight),0));
 }
 /*
 void CStereoSplitBox::hideForm()
@@ -43,12 +43,12 @@ void CStereoSplitBox::hideForm()
 */
 void CStereoSplitBox::process()
 {
-    InBuffer = FetchAStereo(jnIn);
+    InBuffer = FetchAStereo(stereoin);
 }
 
 CAudioBuffer* CStereoSplitBox::getNextA(const int ProcIndex)
 {
-    if (ProcIndex == jnOut) StereoBuffer(jnOut)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
+    if (ProcIndex == stereoout) StereoBuffer(stereoout)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
     if (ProcIndex == jnInLeft)
     {
         if (m_Process)

@@ -1,14 +1,18 @@
 #ifndef CEXCITER_H
 #define CEXCITER_H
 
+
 #include "idevice.h"
 #include "cfxrbjfilter.h"
+
+#define devicejacks monoout,effectmonoout,monoin
+#define devicecategory Effect
 
 class CExciter : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnEffOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnType,pnInVolume,pnAmount,pnCutOffFrequency,pnOutVolume};
     CFxRbjFilter RBJFilter;

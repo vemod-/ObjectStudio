@@ -16,7 +16,7 @@ CBeatFrame::CBeatFrame(QWidget *parent) :
     connect(ui->PitchSlider,&QAbstractSlider::valueChanged,this,&CBeatFrame::PitchChanged);
     connect(ui->VolSlider,&QAbstractSlider::valueChanged,this,&CBeatFrame::VolChanged);
     connect(ui->PitchCombo,qOverload<int>(&QComboBox::currentIndexChanged),this,&CBeatFrame::PitchChanged);
-    connect(this,&CBeatFrame::flashed,this,&CBeatFrame::timerStart);
+    //connect(this,&CBeatFrame::flashed,this,&CBeatFrame::timerStart);
 }
 
 CBeatFrame::~CBeatFrame()
@@ -95,14 +95,15 @@ void CBeatFrame::Flash()
     p.setColor(QPalette::Window,Qt::yellow);
     ui->label->setPalette(p);
     update();
-    emit flashed();
+    //emit flashed();
+    m_TimerID = startTimer(200);
 }
-
+/*
 void CBeatFrame::timerStart()
 {
     m_TimerID = startTimer(200);
 }
-
+*/
 void CBeatFrame::timerEvent(QTimerEvent *)
 {
     if (!m_TimerID) return;

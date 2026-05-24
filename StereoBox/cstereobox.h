@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks stereoout,leftmonoout,rightmonoout,stereoin,leftmonoin,rightmonoin
+#define devicecategory Container | Effect | Generator
+
 class CStereoBox : public IDevice
 {
 public:
@@ -12,7 +15,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnOut,jnOutLeft,jnOutRight,jnIn,jnInLeft,jnInRight,jnInsideInLeft,jnInsideInRight};
+    {devicejacks,jnInsideInLeft,jnInsideInRight};
     enum ParameterNames
     {};
     void process();

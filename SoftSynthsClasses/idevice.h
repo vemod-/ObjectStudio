@@ -26,6 +26,19 @@ bool isWindowPartlyVisible(QWidget* w);
 
 #pragma pack(push,1)
 
+enum pluginCategories {
+    Instrument=1,
+    Effect=2,
+    Generator=4,
+    Monitor=8,
+    MIDIGenerator=16,
+    Container=32,
+    SynthModule=64,
+    Custom=127
+};
+
+class CDeviceList;
+
 class IDevice : public IDeviceBase, public ITicker, protected IPresetRef
 {
 public:
@@ -39,7 +52,8 @@ public:
         m_Process(false),
         m_Playing(false),
         m_Form(nullptr),
-        m_DeviceParent(nullptr) {
+        m_DeviceParent(nullptr),
+        m_OwnerList(nullptr) {
     }
     virtual ~IDevice();
     inline CParameter* parameter(const int Index) const { return m_Parameters[uint(Index)]; }
@@ -62,6 +76,8 @@ public:
         m_TickerDevices.clear();
     }
     virtual void setDeviceParent(IDeviceParent* Parent) { m_DeviceParent = Parent; }
+    virtual void setOwnerList(CDeviceList* l) { m_OwnerList = l; }
+    virtual CDeviceList* ownerList() { return m_OwnerList; }
     virtual const QString selectFile(const QString& Filter) {
         return (m_FileParameter) ? m_FileParameter->selectFile(Filter) : QString();
     }
@@ -269,8 +285,8 @@ public:
     }
     //IHost
     virtual void updateHostParameter(const CParameter* p = nullptr) { if (m_Host) m_Host->parameterChange(this,p); }
-    virtual void removeHostJack(IJack* jack) { if (m_Host) m_Host->removeDeviceJack(jack); }
-    virtual void addHostJack(IJack* jack) { if (m_Host) m_Host->addDeviceJack(jack); }
+    //virtual void removeHostJack(IJack* jack) { if (m_Host) m_Host->removeDeviceJack(jack); }
+    //virtual void addHostJack(IJack* jack) { if (m_Host) m_Host->addDeviceJack(jack); }
     virtual void updateHostJacks() { if (m_Host) m_Host->updateDeviceJacks(); }
     virtual void activate() { if (m_Host != nullptr) m_Host->activate(this); }
     virtual void closeAutomation() { if (m_Host != nullptr) m_Host->closeAutomation(this); }
@@ -318,14 +334,14 @@ public:
             if (CParameter* p = parameter(n)) p->unserialize(XMLParameter);
         }
     }
-    void unserializeParameters(const QDomLiteElement* Parameters)
+    virtual void unserializeParameters(const QDomLiteElement* Parameters)
     {
         if (!Parameters) return;
         QMutexLocker locker(&mutex);
         unserializeStandardParameters(Parameters);
         unserializeCustomParameters(Parameters->elementByTag("Custom"));
     }
-    void unserializeDevice(const QDomLiteElement* Parameters)
+    virtual void unserializeDevice(const QDomLiteElement* Parameters)
     {
         if (!Parameters) return;
         QMutexLocker locker(&mutex);
@@ -345,12 +361,12 @@ public:
         Parameters->setAttribute(AliasAttribute,m_Alias);
         for (const CParameter* p : m_Parameters) p->serialize(Parameters->appendChild(ParameterTag));
     }
-    void serializeParameters(QDomLiteElement* Parameters) const
+    virtual void serializeParameters(QDomLiteElement* Parameters) const
     {
         serializeStandardParameters(Parameters);
         serializeCustomParameters(Parameters->appendChild("Custom"));
     }
-    void serializeDevice(QDomLiteElement* Parameters) const
+    virtual void serializeDevice(QDomLiteElement* Parameters) const
     {
         serializeParameters(Parameters);
         serializeUI(Parameters->elementByTagCreate("Custom"));
@@ -581,6 +597,7 @@ protected:
     std::atomic<bool> m_Playing;
     CSoftSynthsForm* m_Form;
     IDeviceParent* m_DeviceParent;
+    CDeviceList* m_OwnerList;
     IMainPlayer* mainPlayer() const {
         return dynamic_cast<IMainPlayer*>(m_MainWindow);
     }
@@ -603,23 +620,23 @@ protected:
         m_InJacks.push_back(IJ);
         return IJ;
     }
-    COutJack* addJackWaveOut(int ProcIndex, const QString& Name="Out")
+    COutJack* addJackMonoOut(int ProcIndex, const QString& Name="Out")
     {
-        return addOutJack(Name,IJack::Wave,ProcIndex);
+        return addOutJack(Name,IJack::Mono,ProcIndex);
     }
-    CInJack* addJackWaveIn(const QString& Name="In")
+    CInJack* addJackMonoIn(const QString& Name="In")
     {
-        return addInJack(Name,IJack::Wave);
+        return addInJack(Name,IJack::Mono);
     }
     void addJackDualMonoOut(int ProcIndex, const QString& Name="Out")
     {
-        addOutJack(Name+" Left",IJack::Wave,ProcIndex);
-        addOutJack(Name+" Right",IJack::Wave,ProcIndex+1);
+        addOutJack(Name+" Left",IJack::Mono,ProcIndex);
+        addOutJack(Name+" Right",IJack::Mono,ProcIndex+1);
     }
     void addJackDualMonoIn(const QString& Name="In")
     {
-        addInJack(Name+" Left",IJack::Wave);
-        addInJack(Name+" Right",IJack::Wave);
+        addInJack(Name+" Left",IJack::Mono);
+        addInJack(Name+" Right",IJack::Mono);
     }
     COutJack* addJackStereoOut(int ProcIndex, const QString& Name="Out")
     {

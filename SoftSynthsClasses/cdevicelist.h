@@ -148,6 +148,7 @@ public:
         QMutexLocker locker(&mutex);
         if (VoiceIndex == 0)
         {
+            device->setOwnerList(this);
             device->init(index,MainWindow);
             qDebug() << "addDevice" << device->deviceID() << m_PolyDevices.size();
             AutomationPlayer.addDevice(device);

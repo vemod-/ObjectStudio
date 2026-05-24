@@ -7,11 +7,14 @@
 
 #define BufferCount 2
 
+#define devicejacks monoin,frequencyout,midifrequencyout,midiout,diffmodulationout,corrmodulationout
+#define devicecategory MIDIGenerator | SynthModule
+
 class CPitchTracker : public IDevice
 {
 private:
     enum JackNames
-    {jnIn,jnFrequencyOut,jnMIDIFreqOut,jnMIDIOut,jnDiffOut,jnCorrectionOut};
+    {devicejacks};
     enum ParameterNames
     {pnThreshold,pnTune,pnMaxFreq,pnRate,pnGlide,pnSlack};
     int LastNote;

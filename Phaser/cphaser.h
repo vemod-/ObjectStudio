@@ -31,6 +31,9 @@ private:
     float _pi;
 };
 
+#define devicejacks monoout,monoin
+#define devicecategory Effect
+
 class CPhaser : public IDevice
 {
 public:
@@ -39,7 +42,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnRangeMin,pnRangeMax,pnRate,pnFeedback,pnDepth};
     Phaser P;

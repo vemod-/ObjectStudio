@@ -28,8 +28,8 @@ void CHarmonizer::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     startParameterGroup("Harmonize",Qt::blue);
     addParameterSelect("Note","All§C§C#§D§D#§E§F§F#§G§G#§A§A#§B");
     addParameterTranspose("Note 1");
@@ -50,11 +50,11 @@ void CHarmonizer::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CHarmonizer::getNextA(const int /*ProcIndex*/)
 {
-    const CMonoBuffer* inBuffer=FetchAMono(jnIn);
+    const CMonoBuffer* inBuffer=FetchAMono(monoin);
     if (!inBuffer->isValid()) return nullptr;
     if (m_Parameters[pnEffect]->Value == 0)
     {
-        m_AudioBuffers[jnOut]->writeBuffer(inBuffer);
+        m_AudioBuffers[monoout]->writeBuffer(inBuffer);
     }
     else
     {
@@ -98,15 +98,15 @@ CAudioBuffer* CHarmonizer::getNextA(const int /*ProcIndex*/)
         }
         if (m_Parameters[pnEffect]->Value == 100)
         {
-            PS.process(s,vol,inBuffer->data(),m_AudioBuffers[jnOut]->data());
+            PS.process(s,vol,inBuffer->data(),m_AudioBuffers[monoout]->data());
         }
         else
         {
-            PS.process(s,vol,inBuffer->data(),m_AudioBuffers[jnOut]->data());
-            m_AudioBuffers[jnOut]->addBuffer(inBuffer->data(),m_Parameters[pnEffect]->DryValue);
+            PS.process(s,vol,inBuffer->data(),m_AudioBuffers[monoout]->data());
+            m_AudioBuffers[monoout]->addBuffer(inBuffer->data(),m_Parameters[pnEffect]->DryValue);
         }
     }
-    return m_AudioBuffers[jnOut];
+    return m_AudioBuffers[monoout];
 }
 
 void CHarmonizer::serializeCustom(QDomLiteElement* xml) const

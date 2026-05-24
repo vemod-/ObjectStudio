@@ -6,6 +6,15 @@
 #include "../Chorus/biquad.h"
 #include "../EffectRack/ceffectrack.h"
 
+#ifdef devicejacks
+#undef devicejacks
+#endif
+#define devicejacks stereoout,sendstereoout
+#ifdef devicecategory
+#undef devicecategory
+#endif
+#define devicecategory Effect
+
 class CStereoMixerChannel : protected IPresetRef
 {
 public:
@@ -35,7 +44,7 @@ class CStereoMixer : public IDevice
 {
 public:
     enum JackNames
-    {jnOut,jnSend};
+    {devicejacks};
     int jnIn;
     int jnReturn;
     CStereoMixer(const uint channelCount = 12, const uint sendCount = 3);

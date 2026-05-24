@@ -7,7 +7,7 @@ CToneGenerator::CToneGenerator():WavePosition(0),DetunePosition(0)
 void CToneGenerator::init(const int Index, QWidget* MainWindow) {
     m_Name="ToneGenerator";
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(0);
+    addJackMonoOut(monoout);
     addJackModulationIn("Frequency");
     addJackModulationIn();
     addJackModulationIn("Pulse Modulation");
@@ -24,15 +24,15 @@ void CToneGenerator::init(const int Index, QWidget* MainWindow) {
     endParameterGroup();
     addParameterRectify();
     addParameterVolume();
-    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnModulation],m_Parameters[pnTuning]);
+    Modulator.init(m_Jacks[modulationin],m_Parameters[pnModulation],m_Parameters[pnTuning]);
     updateDeviceParameter();
 }
 
 CAudioBuffer *CToneGenerator::getNextA(const int ProcIndex) {
-    const float currentVoltage=Modulator.exec(Fetch(jnFrequency));
+    const float currentVoltage=Modulator.exec(Fetch(frequencyin));
     const float CurrentFrequency=voltage2Freqf(currentVoltage);
 
-    const float PulseModIn = (m_Parameters[pnPulseModulation]->Value) ? Fetch(jnPulseModulation) : 0;
+    const float PulseModIn = (m_Parameters[pnPulseModulation]->Value) ? Fetch(pulsemodulationin) : 0;
 
     CAudioBuffer* Buffer=m_AudioBuffers[ProcIndex];
 

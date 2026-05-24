@@ -1,6 +1,9 @@
 #ifndef CKARLSENFILTER_H
 #define CKARLSENFILTER_H
 
+#define devicejacks monoout,monoin,modulationin
+#define devicecategory Effect
+
 #include "idevice.h"
 #include "cvoltagemodulator.h"
 
@@ -13,7 +16,7 @@ public:
     void play(const bool FromStart) override;
 private:
     enum JackNames
-    {jnOut,jnIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnInVolume,pnCutOffModulation,pnCutOffFrequency,pnResponse,pnResonance,pnOutVolume};
 

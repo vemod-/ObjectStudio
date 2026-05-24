@@ -11,8 +11,8 @@ void CPreamp::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
-    addJackWaveOut(jnOut);
+    addJackMonoIn();
+    addJackMonoOut(monoout);
     addParameter(CParameter::dB, "Gain", "dB", 100, 1000, 1, "", 100);
     startParameterGroup("EQ");
     addParameterVolume("Bass");
@@ -30,8 +30,8 @@ void CPreamp::init(const int Index, QWidget* MainWindow)
 CAudioBuffer* CPreamp::getNextA(const int ProcIndex)
 {
 
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
+    CMonoBuffer* OutBuffer=MonoBuffer(monoout);
     if (!InBuffer->isValid()) return nullptr;
     for (uint i=0;i<m_BufferSize;i++)
     {

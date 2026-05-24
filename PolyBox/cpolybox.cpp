@@ -17,8 +17,8 @@ void CPolyBox::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
-    addJackDualMonoOut(jnOutLeft);
+    addJackStereoOut(stereoout);
+    addJackDualMonoOut(leftmonoout);
     addJackMIDIIn();
     m_Form=new CMacroBoxForm(this,MainWindow);
     CDesktopComponent* d=FORMFUNC(CMacroBoxForm)->DesktopComponent;
@@ -55,7 +55,7 @@ void CPolyBox::hideForm()
 */
 void CPolyBox::process()
 {
-    CVDevice.parseMIDI(FetchP(jnMIDIIn));
+    CVDevice.parseMIDI(FetchP(midiin));
 }
 
 float CPolyBox::getNext(const int ProcIndex)

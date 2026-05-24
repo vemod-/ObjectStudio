@@ -626,14 +626,14 @@ void AVFVideoPlayer::setSource(const QUrl& url)
 void AVFVideoPlayer::play()
 {
     if (!d->player) return;
-    [d->player play];
     m_Playing = true;
+    [d->player play];
 }
 
 void AVFVideoPlayer::pause()
 {
-    if (d->player) [d->player pause];
     m_Playing = false;
+    if (d->player) [d->player pause];
 }
 
 QImage AVFVideoPlayer::currentFrame()

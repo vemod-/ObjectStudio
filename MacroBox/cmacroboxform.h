@@ -4,6 +4,8 @@
 #include <QDialog>
 #include "cdesktopcontainer.h"
 #include <QTreeWidget>
+#include "customparameters.h"
+#include "customjacks.h"
 
 namespace Ui {
     class CMacroBoxForm;
@@ -64,7 +66,7 @@ protected:
         }
     }
 };
-
+/*
 class CParameterID {
 public:
     QString DeviceID;
@@ -214,7 +216,8 @@ public:
         }
     }
 };
-
+*/
+/*
 class CJackCompare {
 public:
     CJackCompare(const IJack* j) {
@@ -384,12 +387,6 @@ public:
         d->addHostJack(J);
         for (CDesktopComponent* desktop : *desktops) {
             desktop->addInsideJack(J,d,alias);
-            /*
-            IJack* J1 = desktop->addJack(J->createInsideJack(d->jackCount() - 1,d),0);
-            J1->setAlias(alias);
-            desktop->JacksCreated.append(J1);
-            (J->isOutJack()) ? desktop->InsideJacks.append(dynamic_cast<CInJack*>(J1)) : desktop->InsideJacks.append(dynamic_cast<CInJack*>(J));
-            */
         }
         //qDebug() << created->size() << inside->size() << desktops->size() << d->jack(0)->jackID();
         if (d->outJackCount()) qDebug() << d->outJack(0)->procIndex;
@@ -424,7 +421,7 @@ private:
         }
     }
 };
-
+*/
 class CMacroBoxForm : public CSoftSynthsForm
 {
     Q_OBJECT

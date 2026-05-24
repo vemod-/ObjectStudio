@@ -10,7 +10,7 @@ void CSampler::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addJackMIDIIn();
     addJackModulationIn();
     startParameterGroup("MIDI", Qt::yellow);
@@ -20,7 +20,7 @@ void CSampler::init(const int Index, QWidget* MainWindow)
     makeParameterGroup(2,"Tune",Qt::green);
     addParameterTune();
     addParameterPercent();
-    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnModulation]);
+    Modulator.init(m_Jacks[modulationin],m_Parameters[pnModulation]);
     VolumeFactor=mixFactorf(Sampler::samplervoices);
     //LastMod=0;
     //CurrentMod=1;
@@ -33,11 +33,11 @@ void CSampler::init(const int Index, QWidget* MainWindow)
 
 void CSampler::process()
 {
-    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    CStereoBuffer* OutBuffer=StereoBuffer(stereoout);
     if (SamplerDevice.testMode==CSamplerDevice::st_NoTest)
     {
         const long ModCent = Modulator.execCent();
-        SamplerDevice.parseMIDI(FetchP(jnMIDIIn));
+        SamplerDevice.parseMIDI(FetchP(midiin));
         bool First=true;
         SamplerDevice.setModulation(cent2Factorf(ModCent));
         for (int i1=0;i1<SamplerDevice.voiceCount();i1++)
@@ -62,12 +62,12 @@ void CSampler::process()
     }
     else if (SamplerDevice.testMode==CSamplerDevice::st_LoopTest)
     {
-        m_AudioBuffers[jnOut]->zeroBuffer();
+        m_AudioBuffers[stereoout]->zeroBuffer();
         SamplerDevice.loopTest(OutBuffer);
     }
     else if (SamplerDevice.testMode==CSamplerDevice::st_TuneTest)
     {
-        m_AudioBuffers[jnOut]->zeroBuffer();
+        m_AudioBuffers[stereoout]->zeroBuffer();
         SamplerDevice.tuneTest(OutBuffer);
     }
 }

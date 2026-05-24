@@ -6,6 +6,7 @@
 #include <QMessageBox>
 #include <QClipboard>
 #include <QCalendarWidget>
+#include <QMainWindow>
 #include "cconnectionhelper.h"
 #include <QHBoxLayout>
 //#include <quazip.h>
@@ -244,7 +245,7 @@ void CDeviceComponent::paint(QGraphicsScene* Scene)
         QString Caption = m_Device->caption();
         QString FileName;
         if (!m_Device->alias().isEmpty()) {
-            FileName = "(" + Caption + ")";
+            FileName = "(" + m_Device->deviceID() + ")";
         }
         else if (!m_Device->filename().isEmpty()) {
             FileName = "(" + Caption + ")";
@@ -408,7 +409,7 @@ void CDesktopComponent::reorderJackbarJacks(QList<IJack*>* jacksCreated) {
         (Jack->isInJack()) ? JackBar2.addJack(Jack) : JackBar1.addJack(Jack);
     }
 }
-
+/*
 void CDesktopComponent::removeDeviceJack(IJack* jack){
     DeviceList.disconnectJack(jack);
     DeviceList.removeJack(jack);
@@ -419,7 +420,7 @@ void CDesktopComponent::addDeviceJack(IJack *jack){
     DeviceList.addJack(jack);
     updateDeviceJacks();
 }
-
+*/
 void CDesktopComponent::updateDeviceJacks() {
     DrawConnections();
     jacksChanged();
@@ -792,7 +793,6 @@ void CDesktopComponent::serialize(QDomLiteElement* xml) const
 {
     QDomLiteElement* Items=xml->appendChild("Items");
     for (const CDeviceComponent* dc : Devices) serializeDevice(dc->device(), dc->geometry, Items);
-    emit requestSerializeAutomationXML(Items);
     for (int i = 0; i < DeviceList.inJackCount(); i++) serializeConnection(DeviceList.inJack(i),Items);
     if (m_ParentWindow)
     {
@@ -803,6 +803,7 @@ void CDesktopComponent::serialize(QDomLiteElement* xml) const
         Position->setAttribute("Width",m_ParentWindow->width());
         Position->setAttribute("Visible",m_ParentWindow->isVisible());
     }
+    emit requestSerializeAutomationXML(Items);
 }
 
 QPair<QString,QString> CDesktopComponent::unserializeDevice(const QDomLiteElement* xml, const QPoint& StartPoint, bool ReIndex)
@@ -853,7 +854,6 @@ void CDesktopComponent::unserialize(const QDomLiteElement* xml)
     if (const QDomLiteElement* Items=xml->elementByTag("Items"))
     {
         for(const QDomLiteElement* XMLDevice : (const QDomLiteElementList)Items->elementsByTag("Device")) unserializeDevice(XMLDevice);
-        emit requestUnserializeAutomationXML(Items);
         for(const QDomLiteElement* XMLConnection : (const QDomLiteElementList)Items->elementsByTag("Connection")) unserializeConnection(XMLConnection);
         if (m_ParentWindow)
         {
@@ -868,6 +868,7 @@ void CDesktopComponent::unserialize(const QDomLiteElement* xml)
             }
 #endif
         }
+        emit requestUnserializeAutomationXML(Items);
     }
     SelectDevice(0);
     emit connectionsChanged();
@@ -892,7 +893,14 @@ void CDesktopComponent::SaveDoc(QString path)
     QString p = _DocumentPath + f.baseName() + ".zip";
     QDomLiteDocument Doc("ObjectStudioProject","Custom");
     serialize(Doc.documentElement);
-    CProjectPage::saveFile(p,&Doc,this->grab());
+    QPixmap pix;
+    if (auto mw = parentWidget()) {
+        pix = mw->grab();
+    }
+    else {
+        pix = grab();
+    }
+    CProjectPage::saveFile(p,&Doc,pix);
 }
 
 int CDesktopComponent::DeviceIndex(const QPoint& Pos) const

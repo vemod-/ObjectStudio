@@ -1,6 +1,9 @@
 #ifndef CLIMITER_H
 #define CLIMITER_H
 
+#define devicejacks monoout,monoin
+#define devicecategory Effect
+
 #include "idevice.h"
 #include "cringbuffer.h"
 
@@ -8,7 +11,7 @@ class CLimiter : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnLimitVol,pnOutVol};
     uint buflen;

@@ -13,18 +13,18 @@ public:
     YinPitchDetector(int sampleRate, int bufferSize)
         : m_sampleRate(sampleRate),
         m_bufferSize(bufferSize),
-        m_halfSize(bufferSize / 2)
+        m_halfSize(bufferSize / 2),
+        tauMax(std::min(m_halfSize - 1, sampleRate / 2))
     {
-        m_diff.resize(m_halfSize);
+        //m_diff.resize(m_halfSize);
         m_cmnf.resize(m_halfSize);
         tauMin = std::max(2, sampleRate / (sampleRate / 2));
-        tauMax = std::min(m_halfSize - 1, sampleRate / 2);
     }
 
     float process(const float* x)
     {
         difference(x);
-        cumulativeMeanNormalizedDifference();
+        //cumulativeMeanNormalizedDifference();
         int tau = absoluteThreshold();
 
         if (tau == -1) return 0.0f;
@@ -43,77 +43,55 @@ public:
         tauMin = std::max(2, m_sampleRate / f);
     }
 private:
+    /*
     void difference(const float* x)
     {
-        /*
-        //for (int tau = 0; tau < m_halfSize; tau++)
-        for (int tau = tauMin; tau < tauMax; tau++)
-        {
-            float sum = 0.0f;
-            for (int i = 0; i < m_halfSize; i++)
-            {
-                const float d = x[i] - x[i + tau];
-                sum += d * d;
-            }
-            m_diff[tau] = sum;
-        }
+        const float* x1 = x;
         for (int tau = 0; tau < tauMin; tau++) m_diff[tau] = 0;
-*/
-        for (int tau = tauMin; tau < tauMax; tau++)
-        {
+        for (int tau = tauMin; tau < tauMax; tau++) {
             float sum = 0.0f;
-            const float* x1 = x;
             const float* x2 = x + tau;
-
-            for (int i = 0; i < m_halfSize; i++)
-            {
-                float d = x1[i] - x2[i];
+            for (int i = 0; i < m_halfSize; i++) {
+                const float d = x1[i] - x2[i];
                 sum += d * d;
             }
             m_diff[tau] = sum;
         }
-        for (int tau = 0; tau < tauMin; tau++) m_diff[tau] = 0;
     }
     void cumulativeMeanNormalizedDifference()
     {
-        /*
-        m_cmnf[0] = 1.0f;
         float runningSum = 0.0f;
-
-        for (int tau = 1; tau < m_halfSize; tau++)
-        {
+        for (int tau = 0; tau < tauMin; tau++) m_cmnf[tau] = 1.0f; // ignorera
+        for (int tau = tauMin; tau < tauMax; tau++) {
             runningSum += m_diff[tau];
             m_cmnf[tau] = m_diff[tau] * tau / runningSum;
         }
+    }
 */
-        m_cmnf[0] = 1.0f;
+    void difference(const float* x)
+    {
+        const float* x1 = x;
         float runningSum = 0.0f;
-
-        for (int tau = 1; tau < tauMax; tau++)
-        {
-            runningSum += m_diff[tau];
-
-            if (tau < tauMin)
-            {
-                m_cmnf[tau] = 1.0f; // ignorera
+        for (int tau = 0; tau < tauMin; tau++) {
+            //m_diff[tau] = 0;
+            m_cmnf[tau] = 1.0f;
+        }
+        for (int tau = tauMin; tau < tauMax; tau++) {
+            float sum = 0.0f;
+            const float* x2 = x + tau;
+            for (int i = 0; i < m_halfSize; i++) {
+                const float d = x1[i] - x2[i];
+                sum += d * d;
             }
-            else
-            {
-                m_cmnf[tau] = m_diff[tau] * tau / runningSum;
-            }
+            runningSum += sum;
+            m_cmnf[tau] = sum * tau / runningSum;
         }
     }
     int absoluteThreshold()
     {
-        //for (int tau = 2; tau < m_halfSize; tau++)
-        for (int tau = tauMin; tau < tauMax; tau++)
-        {
-            if (m_cmnf[tau] < m_threshold)
-            {
-                while (tau + 1 < m_halfSize && m_cmnf[tau + 1] < m_cmnf[tau])
-                {
-                    tau++;
-                }
+        for (int tau = tauMin; tau < tauMax; tau++) {
+            if (m_cmnf[tau] < m_threshold) {
+                while (tau + 1 < m_halfSize && m_cmnf[tau + 1] < m_cmnf[tau]) tau++;
                 return tau;
             }
         }
@@ -122,7 +100,7 @@ private:
     float parabolicInterpolation(int tau)
     {
         if (tau <= 0 || tau >= m_halfSize - 1) return (float)tau;
-        tau = std::clamp(tau, tauMin+1, tauMax-2);
+        tau = std::clamp(tau, tauMin + 1, tauMax - 2);
         const float s0 = m_cmnf[tau - 1];
         const float s1 = m_cmnf[tau];
         const float s2 = m_cmnf[tau + 1];
@@ -132,11 +110,11 @@ private:
 
         return tau + (s2 - s0) / (2.0f * denom);
     }
-    int m_sampleRate;
-    int m_bufferSize;
-    int m_halfSize;
+    const int m_sampleRate;
+    const int m_bufferSize;
+    const int m_halfSize;
 
-    std::vector<float> m_diff;
+    //std::vector<float> m_diff;
     std::vector<float> m_cmnf;
 
     float m_threshold = 0.1f; // viktig parameter!
@@ -152,11 +130,14 @@ public:
         int MidiKey;
         float MidiCents;
     };
-    CYIN(int sampleRate) : m_SampleRate(sampleRate), m_LoYin(sampleRate, MAX_FRAME_LENGTH / 4), m_HiYin(sampleRate, MAX_FRAME_LENGTH / 4) {
+    CYIN(int sampleRate) : m_SampleRate(sampleRate),
+        m_LoYin(sampleRate, MAX_FRAME_LENGTH / 4),
+        m_HiYin(sampleRate, MAX_FRAME_LENGTH / 4),
+        maxPitch(sampleRate / 6),
+        breakPitch(20 + (sampleRate / (m_HiYin.bufferSize() / 2))),
+        minPitchLo(sampleRate / (m_LoYin.bufferSize() * 4 / 2))
+    {
         memset(&m_CurrentPitchRecord,0,sizeof(PitchRecord));
-        maxPitch = sampleRate / 6;
-        breakPitch = 20 + (sampleRate / (m_HiYin.bufferSize() / 2));
-        minPitchLo = sampleRate / (m_LoYin.bufferSize() * 4 / 2);
         glider.setSpeed(10);
     }
     bool ProcessBuffer(float* buffer, int size) {
@@ -237,19 +218,19 @@ public:
         glider.setGlide(glide);
     }
 private:
-    int m_SampleRate;
+    const int m_SampleRate;
     IOBuffer m_LoBuffer;
     YinPitchDetector m_LoYin;
     IOBuffer m_HiBuffer;
     YinPitchDetector m_HiYin;
+    const int maxPitch;
+    const int breakPitch;
+    const int minPitchLo;
+    const int loFactor = 4;
     PitchRecord m_CurrentPitchRecord;
     int m_HopRate = 512;
     int m_HopCounter = 0;
     float m_Tune = 440;
-    int maxPitch;
-    int breakPitch;
-    int minPitchLo;
-    const int loFactor = 4;
     CFreqGlider glider;
     int m_Slack = 0;
 };

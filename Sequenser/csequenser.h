@@ -11,6 +11,9 @@
 #include "sequenserclasses.h"
 #include "cmseccounter.h"
 
+#define devicejacks midiout
+#define devicecategory MIDIGenerator
+
 class CSequenser : public IDevice
 {
 public:
@@ -29,7 +32,7 @@ public:
     void tick();
 private:
     enum JackNames
-    {jnMIDIOut};
+    {devicejacks};
     enum ParameterNames
     {pnTempo,pnMIDIChannel,pnHumanize};
     std::atomic<int> Counter;

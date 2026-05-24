@@ -5,16 +5,23 @@
 #include "smbpitchshifter.h"
 #include "cvoltagemodulator.h"
 
+#define devicejacks monoin,modulationin,monoout
+#define devicecategory Effect | SynthModule
+
 class CPitchShifter : public IDevice
 {
 private:
     enum JackNames
-    {jnIn,jnModulation,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnShift,pnOverSampling,pnModulation,pnTune,pnMix};
     //float ModFactor;
     //float Tune;
     void inline updateDeviceParameter(const CParameter* p = nullptr);
+    void play(bool FromStart) {
+        smb.reset();
+        IDevice::play(FromStart);
+    }
     smbPitchShifter smb;
     CMonoBuffer returnBuffer;
     CVoltageModulator Modulator;

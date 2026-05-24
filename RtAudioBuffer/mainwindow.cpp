@@ -242,7 +242,7 @@ void MainWindow::Continue()
 
 void MainWindow::Skip(const unsigned long long samples)
 {
-    setButton(ui->TogglePlayButton,true,":/stop");
+    //setButton(ui->TogglePlayButton,true,":/stop");
     MainBuffers.skip(samples);
     m_TimeLineSlider->skip(samples);
     m_TimeLineSlider->draw();
@@ -251,7 +251,7 @@ void MainWindow::Skip(const unsigned long long samples)
 void MainWindow::Stop()
 {
     setButton(ui->TogglePlayButton,false,":/play");
-     MainBuffers.pause();
+    MainBuffers.pause();
     MainBuffers.panic();
     m_TimeLineSlider->draw();
 }

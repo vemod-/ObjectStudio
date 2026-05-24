@@ -1,6 +1,9 @@
 #ifndef CAUDIOUNITHOST_H
 #define CAUDIOUNITHOST_H
 
+#define devicejacks stereoin,midiin,stereoout
+#define devicecategory Effect | Instrument
+
 #include "caudiounitclass.h"
 #include "idevice.h"
 
@@ -26,7 +29,7 @@ public:
     const QPixmap* picture() const override;
 private:
     enum JackNames
-    {jnIn,jnMIDIIn,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnVolume,pnMIDIChannel,pnTranspose,pnPatchChange};
     float VolFactor;

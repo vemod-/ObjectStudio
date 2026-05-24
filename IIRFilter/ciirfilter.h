@@ -1,6 +1,9 @@
 #ifndef CIIRFILTER_H
 #define CIIRFILTER_H
 
+#define devicejacks monoout,monoin,modulationin
+#define devicecategory SynthModule | Effect
+
 #include "idevice.h"
 #include "../PitchTracker/ciirfilters.h"
 
@@ -15,7 +18,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnOut,jnIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnType,pnProtoType,pnLoFreq,pnHiFreq,pnOrder,pnModulation};
     float ModFactor;

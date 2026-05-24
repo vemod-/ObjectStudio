@@ -14,7 +14,7 @@ void CSF2Player::init(const int Index, QWidget* MainWindow)
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
     addJackMIDIIn();
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     startParameterGroup("MIDI", Qt::yellow);
     addParameterMIDIChannel();
     addParameterTranspose();
@@ -34,9 +34,9 @@ void CSF2Player::init(const int Index, QWidget* MainWindow)
 
 void CSF2Player::process()
 {
-    SF2Device.parseMIDI(FetchP(jnIn));
+    SF2Device.parseMIDI(FetchP(midiin));
     bool First = true;
-    CStereoBuffer* OutBuffer = StereoBuffer(jnOut);
+    CStereoBuffer* OutBuffer = StereoBuffer(stereoout);
     for (int i = 0; i < SF2Device.voiceCount(); i++)
     {
         const CStereoBuffer DeviceBuffer(SF2Device.getNext(i));

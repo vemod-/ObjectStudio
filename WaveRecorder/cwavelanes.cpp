@@ -204,7 +204,7 @@ void CWaveLanes::timerEvent(QTimerEvent *)
 
 CAudioBuffer* CWaveLanes::getNextA(const int ProcIndex)
 {
-    if (m_Mixer != nullptr) return m_Mixer->getNextA(ProcIndex+CStereoMixer::jnOut);
+    if (m_Mixer != nullptr) return m_Mixer->getNextA(ProcIndex+CStereoMixer::stereoout);
     return nullptr;
 }
 
@@ -772,55 +772,25 @@ void CWaveLanes::sidebarItemChanged(CWaveLaneSidebarItem *item){
 
     const bool videoMuted = item->videoMuteButton.isChecked();
     if (lane->videoItem) {
-        if (videoMuted) {
-            if (lane->videoVisible) {
-                lane->videoVisible = !videoMuted;
-                updateVideoWindow(index);
-            }
-        }
-        if (!videoMuted) {
-            if (!lane->videoVisible) {
-                lane->videoVisible = !videoMuted;
-                updateVideoWindow(index);
-            }
+        if (lane->videoVisible == videoMuted) {
+            lane->videoVisible = !videoMuted;
+            updateVideoWindow(index);
         }
     }
 
     const bool audioMuted = item->muteButton.isChecked();
-    if (audioMuted) {
-        if (!channel->effectsPanel->muted()) {
-            channel->effectsPanel->setMute(audioMuted);
-        }
-    }
-    if (!audioMuted) {
-        if (channel->effectsPanel->muted()) {
-            channel->effectsPanel->setMute(audioMuted);
-        }
-    }
+    if (channel->effectsPanel->muted() != audioMuted) channel->effectsPanel->setMute(audioMuted);
 
     const bool audioSolo = item->soloButton.isChecked();
-    if (audioSolo) {
-        if (m_MixerWidget->soloChannel() != index) {
-            m_MixerWidget->setSoloChannel(index);
-            channel->effectsPanel->setSolo(audioSolo);
-        }
-    }
-    if (!audioSolo) {
-        if (m_MixerWidget->soloChannel() == index) {
-            m_MixerWidget->setSoloChannel(-1);
-            channel->effectsPanel->setSolo(audioSolo);
-        }
-    }
+    if (channel->effectsPanel->isSolo() != audioSolo) channel->effectsPanel->setSolo(audioSolo);
 
     const bool automation = item->automationButton.isChecked();
-    if (automation) {
-        if (!automationWidget(index)) {
+    if ((bool)automationWidget(index) != automation) {
+        if (automation) {
             Automation(index);
             UpdateAutomationGeometry();
         }
-    }
-    if (!automation) {
-        if (automationWidget(index)) {
+        else {
             automationWidget(index)->close();
         }
     }
@@ -1179,9 +1149,9 @@ void CWaveLanes::updateMixer()
         deviceList.deleteDevice(m_Mixer);
         m_Mixer = new CStereoMixer(lanes.size(),3);
         deviceList.addDevice(m_Mixer,1,nullptr);
-        m_Mixer->addEffectRacksToDeviceList(&deviceList,m_MainWindow);
         while (m_MixerWidget->channels.size()>lanes.size()) m_MixerWidget->removeChannel();
         while (m_MixerWidget->channels.size()<lanes.size()) m_MixerWidget->appendChannel();
+        m_Mixer->addEffectRacksToDeviceList(&deviceList,m_MainWindow);
         for (int i = 0; i < lanes.size(); i++) {
             CSF2ChannelWidget* ch = m_MixerWidget->channels[i];
             ch->init(m_Mixer->channels[i],lanes[i]->alias());

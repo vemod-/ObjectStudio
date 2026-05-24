@@ -6,6 +6,9 @@
 #include "YinPitchDetector.h"
 #include "smbpitchshifter.h"
 
+#define devicejacks monoout,monoin,midiin
+#define devicecategory Instrument
+
 class CVocoder : public IDevice
 {
 
@@ -17,7 +20,7 @@ public:
     void pause();
 private:
     enum JackNames
-    {jnOut,jnIn,jnMIDIIn};
+    {devicejacks};
     enum ParameterNames
     {pnMIDIChannel,pnTranspose,pnTune,pnAutotune,pnGlide,pnSlack,pnThreshold,pnOversampling,pnEffect};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

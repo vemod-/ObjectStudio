@@ -1,6 +1,9 @@
 #ifndef CAMPLIFIER_H
 #define CAMPLIFIER_H
 
+#define devicejacks monoin,monoout,modulationin
+#define devicecategory SynthModule
+
 #include "idevice.h"
 #include "cvoltagemodulator.h"
 
@@ -12,7 +15,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnIn,jnOut,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnModulation};
     CVoltageModulator Modulator;

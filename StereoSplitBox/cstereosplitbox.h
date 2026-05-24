@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks stereoout,stereoin
+#define devicecategory Container | Effect
+
 class CStereoSplitBox  : public IDevice
 {
 public:
@@ -13,7 +16,7 @@ public:
     //void hideForm();
 private:
     enum JackNames
-    {jnOut,jnIn,jnOutLeft,jnOutRight,jnInLeft,jnInRight};
+    {devicejacks,jnOutLeft,jnOutRight,jnInLeft,jnInRight};
     enum ParameterNames
     {};
     void process();

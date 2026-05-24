@@ -212,8 +212,6 @@ private:
     CWaveLanesSidebar* m_sidebarItem;
     QGraphicsScene Scene;
     CDeviceList deviceList;
-    QEventLoop m_loop;
-    std::atomic<int> pendingFrames = 0;
     std::atomic<bool> abortExport = false;
     QString LaneID(int i) {
         return"Lane " + QString::number(i + 1);

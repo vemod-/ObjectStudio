@@ -1,6 +1,9 @@
 #ifndef CHARMONIZER_H
 #define CHARMONIZER_H
 
+#define devicejacks monoout,monoin
+#define devicecategory Effect
+
 #include "idevice.h"
 #include "smbpitchshifter.h"
 #include "YinPitchDetector.h"
@@ -20,7 +23,7 @@ private:
         int shift[8];
     };
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnNote,pnNote1,pnNote2,pnNote3,pnTune,pnAutotune,pnGlide,pnSlack,pnThreshold,pnOversampling,pnEffect};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

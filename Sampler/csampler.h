@@ -5,11 +5,14 @@
 #include "csamplerdevice.h"
 #include "cvoltagemodulator.h"
 
+#define devicejacks stereoout,midiin,modulationin
+#define devicecategory Instrument
+
 class CSampler : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnMIDIIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnMIDIChannel,pnTranspose,pnTune,pnModulation};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

@@ -19,8 +19,8 @@ void CStereoBox::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
-    addJackDualMonoOut(jnOutLeft);
+    addJackStereoOut(stereoout);
+    addJackDualMonoOut(leftmonoout);
     addJackStereoIn();
     addJackDualMonoIn();
 
@@ -30,19 +30,19 @@ void CStereoBox::init(const int Index, QWidget* MainWindow)
     setDeviceParent(d->deviceList());
     d->deviceList()->setPolyphony(2);
 
-    WaveOutL = new CInJack("Out","This",IJack::Wave,IJack::In,this);
+    WaveOutL = new CInJack("Out","This",IJack::Mono,IJack::In,this);
     d->JacksCreated.append(d->addJack(WaveOutL,0));
-    WaveOutR = new CInJack("Out","This",IJack::Wave,IJack::In,this);
+    WaveOutR = new CInJack("Out","This",IJack::Mono,IJack::In,this);
     d->JacksCreated.append(d->addJack(WaveOutR,1));
-    d->JacksCreated.append(d->addJack(new COutJack("In","This",IJack::Wave,IJack::Out,this,jnInsideInLeft),0));
-    d->JacksCreated.append(d->addJack(new COutJack("In","This",IJack::Wave,IJack::Out,this,jnInsideInRight),1));
+    d->JacksCreated.append(d->addJack(new COutJack("In","This",IJack::Mono,IJack::Out,this,jnInsideInLeft),0));
+    d->JacksCreated.append(d->addJack(new COutJack("In","This",IJack::Mono,IJack::Out,this,jnInsideInRight),1));
 }
 
 void CStereoBox::process()
 {
-    const CStereoBuffer* B = FetchAStereo(jnIn);
-    CMonoBuffer* BL = FetchAMono(jnInLeft);
-    CMonoBuffer* BR = FetchAMono(jnInRight);
+    const CStereoBuffer* B = FetchAStereo(stereoin);
+    CMonoBuffer* BL = FetchAMono(leftmonoin);
+    CMonoBuffer* BR = FetchAMono(rightmonoin);
     if (!B->isValid())
     {
         InL = BL;
@@ -61,7 +61,7 @@ void CStereoBox::process()
         InL = InBuffer.leftBuffer;
         InR = InBuffer.rightBuffer;
     }
-    StereoBuffer(jnOut)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
+    StereoBuffer(stereoout)->fromDualMono(WaveOutL->getNextA()->data(),WaveOutR->getNextA()->data());
 }
 
 CAudioBuffer* CStereoBox::getNextA(const int ProcIndex)
@@ -73,9 +73,9 @@ CAudioBuffer* CStereoBox::getNextA(const int ProcIndex)
     }
     if (ProcIndex == jnInsideInLeft) return InL;
     if (ProcIndex == jnInsideInRight) return InR;
-    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
-    if (ProcIndex == jnOutRight) return OutBuffer->rightBuffer;
-    if (ProcIndex == jnOutLeft) return OutBuffer->leftBuffer;
+    CStereoBuffer* OutBuffer=StereoBuffer(stereoout);
+    if (ProcIndex == rightmonoout) return OutBuffer->rightBuffer;
+    if (ProcIndex == leftmonoout) return OutBuffer->leftBuffer;
     return OutBuffer;
 }
 

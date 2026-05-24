@@ -15,8 +15,8 @@ public:
     IHost(){}
     virtual ~IHost();
     virtual void parameterChange(IDevice* /*device*/, const CParameter* /*parameter*/ = nullptr){}
-    virtual void removeDeviceJack(IJack* /*jack*/){}
-    virtual void addDeviceJack(IJack* /*jack*/){}
+    //virtual void removeDeviceJack(IJack* /*jack*/){}
+    //virtual void addDeviceJack(IJack* /*jack*/){}
     virtual void updateDeviceJacks() {}
     virtual void activate(IDevice* /*Device*/){}
     virtual void closeAutomation(IDevice* /*Device*/){}

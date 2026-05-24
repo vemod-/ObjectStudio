@@ -7,7 +7,7 @@ void CCompressor::init(const int Index, QWidget* MainWindow)
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
     addJackStereoIn();
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addParameterPercent("Threshold",100);
     addParameterPercent("Ratio",100);
     startParameterGroup();
@@ -29,10 +29,10 @@ void inline CCompressor::updateDeviceParameter(const CParameter* /*p*/)
 
 CAudioBuffer* CCompressor::getNextA(const int ProcIndex)
 {
-    const CStereoBuffer* InBuffer = FetchAStereo(jnIn);
+    const CStereoBuffer* InBuffer = FetchAStereo(stereoin);
     qDebug() << InBuffer << InBuffer->isValid();
     if (!InBuffer->isValid()) return nullptr;
-    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
+    CStereoBuffer* OutBuffer=StereoBuffer(stereoout);
     compr.process(InBuffer->data(),InBuffer->dataR(),OutBuffer->data(),OutBuffer->dataR(),OutBuffer->size());
     return m_AudioBuffers[ProcIndex];
 }

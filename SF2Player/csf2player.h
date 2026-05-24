@@ -4,6 +4,9 @@
 #include "idevice.h"
 #include "csf2device.h"
 
+#define devicejacks midiin,stereoout
+#define devicecategory Instrument
+
 class CSF2Player : public IDevice
 {
 public:
@@ -22,7 +25,7 @@ public:
     CSF2Device SF2Device;
 private:
     enum JackNames
-    {jnIn,jnOut};
+    {devicejacks};
     int LastTrigger;
     float LastFreq;
     float VolumeFactor;

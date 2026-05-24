@@ -22,7 +22,7 @@ void CVSTHost::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackStereoIn();
     addJackMIDIIn();
-    for (int i=0;i<BufferCount/2;i++) addJackStereoOut(jnOut+i,"Out " + QString::number(i));
+    for (int i=0;i<BufferCount/2;i++) addJackStereoOut(stereoout+i,"Out " + QString::number(i));
     addParameterVolume();
     startParameterGroup("MIDI", Qt::yellow);
     addParameterMIDIChannel();
@@ -93,12 +93,12 @@ void CVSTHost::unserializeCustom(const QDomLiteElement* xml)
 void CVSTHost::process()
 {
     //qDebug() << "CVSTHost Process";
-    VSTPLUGINCLASS->parseMIDI(FetchP(jnMIDIIn));
-    VSTPLUGINCLASS->InBuffers.fill(FetchA(jnIn)->data(),m_BufferSize*2);
+    VSTPLUGINCLASS->parseMIDI(FetchP(midiin));
+    VSTPLUGINCLASS->InBuffers.fill(FetchA(stereoin)->data(),m_BufferSize*2);
     int j;
     for (int i=0;i<4;i++)
     {
-        CStereoBuffer* b=StereoBuffer(jnOut+i);
+        CStereoBuffer* b=StereoBuffer(stereoout+i);
         if ((j=i*2)>=OldBuffers) break;
         if (j>=VSTPLUGINCLASS->outputCount()) b->zeroLeftBuffer();
         if (++j>=OldBuffers) break;
@@ -109,7 +109,7 @@ void CVSTHost::process()
     {
         for (int i=0;i<4;i++)
         {
-            CStereoBuffer* b=StereoBuffer(jnOut+i);
+            CStereoBuffer* b=StereoBuffer(stereoout+i);
             if ((j=i*2)<OldBuffers) b->writeLeftBuffer(VSTPLUGINCLASS->OutBuffers.channelPointer(j),VolFactor);
             if (++j<OldBuffers) b->writeRightBuffer(VSTPLUGINCLASS->OutBuffers.channelPointer(j),VolFactor);
         }
@@ -118,7 +118,7 @@ void CVSTHost::process()
     {
         for (int i=0;i<4;i++)
         {
-            CStereoBuffer* b=StereoBuffer(jnOut+i);
+            CStereoBuffer* b=StereoBuffer(stereoout+i);
             if ((j=i*2)<OldBuffers) b->zeroLeftBuffer();
             if (++j<OldBuffers) b->zeroRightBuffer();
         }

@@ -7,7 +7,7 @@ class IJackBase
 {
 public:
     enum AttachModes
-    {Amplitude=1,Pitch=2,Voltage=3,Frequency=4,Trigger=8,Wave=16,Audio=16,Stereo=48,MIDI=64};
+    {Amplitude=1,Pitch=2,Voltage=3,Frequency=4,Trigger=8,Mono=16,Audio=16,Stereo=48,MIDI=64};
     enum Directions
     {In,Out};
     inline IJackBase(IJackBase::AttachModes AttachMode, IJackBase::Directions Direction):attachMode(AttachMode),direction(Direction){}
@@ -21,7 +21,7 @@ public:
         case Voltage:
         case Trigger:
             return Qt::yellow;
-        case Wave:
+        case Mono:
             return Qt::darkRed;
         case Stereo:
             return Qt::red;

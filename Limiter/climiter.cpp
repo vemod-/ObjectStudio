@@ -8,8 +8,8 @@ CLimiter::CLimiter()
 void CLimiter::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addParameterVolume("Limit Vol");
     addParameterVolume();
     /* 80 Hz is the lowest frequency with which zero-crosses were
@@ -25,7 +25,7 @@ void CLimiter::init(const int Index, QWidget* MainWindow) {
 }
 
 CAudioBuffer *CLimiter::getNextA(const int ProcIndex) {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
     uint run_length;
     uint total_length = 0;

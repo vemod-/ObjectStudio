@@ -7,9 +7,9 @@ CNoiseGate::CNoiseGate()
 void CNoiseGate::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
-    addJackWaveOut(jnOut);
-    addJackModulationOut(jnEnvOut,"Envelope Out");
+    addJackMonoIn();
+    addJackMonoOut(monoout);
+    addJackModulationOut(modulationout,"Envelope Out");
     addParameterPercent("Threshold");
     startParameterGroup();
     addParameterPercent("Response Time");
@@ -39,13 +39,13 @@ float CNoiseGate::getNext(int) {
 }
 
 void CNoiseGate::process() {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid())
     {
         CurrentVol=0;
         return;
     }
-    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
+    CMonoBuffer* OutBuffer=MonoBuffer(monoout);
     OutBuffer->writeBuffer(InBuffer);
     float Signal=0;
     OutBuffer->peakBuffer(&Signal);

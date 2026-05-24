@@ -1,6 +1,9 @@
 #ifndef CFILTER_H
 #define CFILTER_H
 
+#define devicejacks monoout,monoin,modulationin
+#define devicecategory SynthModule | Effect
+
 #include "idevice.h"
 #include "cvoltagemodulator.h"
 
@@ -8,7 +11,7 @@ class CFilter : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnIn,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnInVolume,pnCutOffModulation,pnCutOffFrequency,pnResponse,pnResonance,pnOutVolume};
     float FiltCoefTab0;

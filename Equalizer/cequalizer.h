@@ -1,6 +1,9 @@
 #ifndef CEQUALIZER_H
 #define CEQUALIZER_H
 
+#define devicejacks monoout,monoin
+#define devicecategory Effect
+
 #include "idevice.h"
 #include "biquad.h"
 
@@ -12,7 +15,7 @@ class CEqualizer : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {};
     CBiquad filters[8];

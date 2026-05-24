@@ -8,8 +8,8 @@ void CAutoTune::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addParameterTune("Calibration");
     addParameterPercent("Glide");
     addParameter(CParameter::Numeric,"Slack","Cents",0,100,0,"",2);
@@ -24,12 +24,12 @@ void CAutoTune::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CAutoTune::getNextA(const int /*ProcIndex*/)
 {
-    CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
     PD.ProcessBuffer(InBuffer->data(), int(presets.ModulationRate));
     const double target = PD.correctionFactor();
-    PS.process(target, InBuffer->data(), m_AudioBuffers[jnOut]->data());
-    return m_AudioBuffers[jnOut];
+    PS.process(target, InBuffer->data(), m_AudioBuffers[monoout]->data());
+    return m_AudioBuffers[monoout];
 }
 
 void inline CAutoTune::updateDeviceParameter(const CParameter* /*p*/)

@@ -1,6 +1,9 @@
 #ifndef CAUTOTUNE_H
 #define CAUTOTUNE_H
 
+#define devicejacks monoout,monoin
+#define devicecategory Effect
+
 #include "YinPitchDetector.h"
 #include "smbpitchshifter.h"
 #include "idevice.h"
@@ -13,7 +16,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnTune,pnGlide,pnSlack,pnThreshold,pnMaxFreq,pnRate,pnOversampling};
     CYIN PD;

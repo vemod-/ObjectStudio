@@ -19,23 +19,47 @@ public:
     {
         return addInInstanceFunction(indexOf(Name));
     }
-    static const QStringList addInNames()
+    static const QStringList addInNames(const int category = 0, const QString& filter = QString())
     {
         QStringList l;
-        for (const CAddIns::AddInType& AI : std::as_const(getInstance()->AddInList)) l.append(AI.ClassName);
+        if (category == 0) {
+            for (const CAddIns::AddInType& AI : std::as_const(getInstance()->AddInList)) l.append(AI.ClassName);
+        }
+        else {
+            for (const CAddIns::AddInType& AI : std::as_const(getInstance()->AddInList)) {
+                if (AI.Category & category) l.append(AI.ClassName);
+            }
+        }
+        if (filter.isEmpty()) return l;
+        const QStringList f = filter.split(",");
+        for (const QString& n : std::as_const(l)) {
+            const int i = indexOf(n);
+            const QString s = getInstance()->AddInList[i].Jacks;
+            for (const QString& j : f) {
+                if (!s.contains(j)) {
+                    l.removeOne(n);
+                    break;
+                }
+            }
+        }
         return l;
     }
     inline static const QString addInName(const int index)
     {
         return getInstance()->AddInList[index].ClassName;
     }
+    inline static const QStringList jacks(const int index) {
+        return getInstance()->AddInList[index].Jacks.split(",");
+    }
     static int indexOf(const QString& Name)
     {
         return getInstance()->addInNames().indexOf(Name);
     }
-    static void registerAddIn(voidinstancefunc f, QString n) {
+    static void registerAddIn(voidinstancefunc f, QString n, int c, QString j = QString()) {
         AddInType addin;
         addin.ClassName = n;
+        addin.Jacks = j;
+        addin.Category = c;
         addin.InstanceFunction = f;
         getInstance()->AddInList.append(addin);
     }
@@ -54,6 +78,8 @@ private:
     {
         QString Path;
         QString ClassName;
+        QString Jacks;
+        int Category;
         voidinstancefunc InstanceFunction;
         QLibrary* Instance;
     };

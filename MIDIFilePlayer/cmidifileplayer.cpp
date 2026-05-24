@@ -15,7 +15,7 @@ void CMIDIFilePlayer::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackMIDIOut(jnMIDI);
+    addJackMIDIOut(midiout);
     addParameterTrack();
     addParameter(CParameter::ParameterTypes::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
     addParameterPercent("Humanize");
@@ -30,7 +30,7 @@ void CMIDIFilePlayer::tick()
     //qDebug() << "Tick" << mSecCount << SampleCount << SamplesPermSec << SamplesPerTick << CurrentTick << CurrentMilliSecond << SkipBuffer << uSPerTick << uSPQ;
     if (PlayingTracks.isEmpty())
     {
-        m_Playing=false;
+        //m_Playing=false;
         return;
     }
     if (!SkipBuffer)

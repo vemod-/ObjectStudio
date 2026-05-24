@@ -6,6 +6,9 @@
 #include "c3bandfilter.h"
 #include "campsimulator.h"
 
+#define devicejacks monoin,monoout
+#define devicecategory Effect
+
 class CPreamp : public IDevice
 {
 public:
@@ -14,7 +17,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnIn,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnGain,pnBass,pnMid,pnTreble,pnPresence,pnSimulation,pnVolume};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

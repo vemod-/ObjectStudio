@@ -21,6 +21,7 @@ public:
     ~CSequenserForm();
     void unserializeCustom(const QDomLiteElement* xml);
     void serializeCustom(QDomLiteElement* xml) const;
+public slots:
     void Flash(int Pattern, int Beat);
 private:
     Ui::CSequenserForm *ui;

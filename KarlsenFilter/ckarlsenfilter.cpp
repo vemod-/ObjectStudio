@@ -17,8 +17,8 @@ CKarlsenFilter::CKarlsenFilter()
 void CKarlsenFilter::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addJackModulationIn();
     addParameterVolume("Gain");
     makeParameterGroup(2,"Cutoff",Qt::green);
@@ -27,13 +27,13 @@ void CKarlsenFilter::init(const int Index, QWidget* MainWindow) {
     addParameterPercent("Response Time",50);
     addParameterPercent("Resonance");
     addParameterVolume();
-    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnCutOffModulation]);
+    Modulator.init(m_Jacks[modulationin],m_Parameters[pnCutOffModulation]);
     CalcExpResonance(0);
     updateDeviceParameter();
 }
 
 CAudioBuffer *CKarlsenFilter::getNextA(const int ProcIndex) {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
     const float CurrentFreq = qBound<float>(20,Modulator.execFreq(m_Parameters[pnCutOffFrequency]->Value),presets.MaxCutoff);
     bool Recalc=Modulator.changed();

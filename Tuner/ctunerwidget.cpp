@@ -104,7 +104,14 @@ void CTunerWidget::setPitchRecord(const CYIN::PitchRecord& rec)
     if (m_rec.MidiKey != m_lastDrawnRec.MidiKey) {
         m_noteText = CPitchTextConvert::pitch2Text(m_rec.MidiKey);
     }
-    QMetaObject::invokeMethod(this,"update",Qt::QueuedConnection);
+    //QMetaObject::invokeMethod(this,&CTunerWidget::update,Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            update();
+        },
+        Qt::QueuedConnection
+        );
 }
 
 void CTunerWidget::setCalib(double calib){

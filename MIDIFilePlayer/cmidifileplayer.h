@@ -5,6 +5,9 @@
 #include "cmidifilereader.h"
 #include "cmseccounter.h"
 
+#define devicejacks midiout
+#define devicecategory MIDIGenerator
+
 namespace MIDIFilePlayer
 {
 const QString MIDIFilter("MIDI files (*.mid;*.kar)");
@@ -38,7 +41,7 @@ public:
     bool loadFile(const QString& fn);
 private:
     enum JackNames
-    {jnMIDI};
+    {devicejacks};
     //bool Playing;
     std::atomic<bool> SkipBuffer;
     CMIDIBuffer MIDIBuffer;

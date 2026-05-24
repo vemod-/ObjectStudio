@@ -170,8 +170,8 @@ public:
     void addInsideJack(IJack* J, IDevice* d, const QString& alias = QString());
     void removeJack(IJack* jack, int PolyIndex);
     void reorderJackbarJacks(QList<IJack*>* jacksCreated);
-    void removeDeviceJack(IJack* jack);
-    void addDeviceJack(IJack* jack);
+    //void removeDeviceJack(IJack* jack);
+    //void addDeviceJack(IJack* jack);
     void updateDeviceJacks();
     void clear();
     void clearJacksCreated();

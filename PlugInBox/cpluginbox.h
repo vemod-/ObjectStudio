@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks stereoout,stereoin,midiin
+#define devicecategory Effect | Generator | Container
+
 class CPlugInBox : public IDevice
 {
 public:
@@ -14,7 +17,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnMIDIIn,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnMIDIChannel,pnVolume};
 };

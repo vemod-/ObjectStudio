@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks monoin1,monoin2,voltagein1,voltagein2,monoout1,monoout2,voltageout1,voltageout2
+#define devicecategory SynthModule
+
 class CSwitch : public IDevice
 {
 public:
@@ -12,7 +15,7 @@ public:
     float getNext(const int ProcIndex);
 private:
     enum JackNames
-    {jnIn1,jnIn2,jnVoltageIn1,jnVoltageIn2,jnOut1,jnOut2,jnVoltageOut1,jnVoltageOut2};
+    {devicejacks};
     enum ParameterNames
     {pnSwitch};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

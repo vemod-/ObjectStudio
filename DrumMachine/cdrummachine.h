@@ -5,6 +5,9 @@
 #include "cwavegenerator.h"
 #include "cmseccounter.h"
 
+#define devicejacks monoout,midiout
+#define devicecategory MIDIGenerator | Generator
+
 #define DRUMMACHINEFORM FORMFUNC(CDrumMachineForm)
 
 namespace DrumMachine
@@ -33,7 +36,7 @@ class CDrumMachine : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnMIDIOut};
+    {devicejacks};
     enum ParameterNames
     {pnTempo,pnVolume,pnHumanize};
     float VolumeFactor;

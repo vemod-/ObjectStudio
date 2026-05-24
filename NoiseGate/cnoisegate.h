@@ -4,6 +4,9 @@
 #include "idevice.h"
 #include "cfreqglider.h"
 
+#define devicejacks monoin,monoout,modulationout
+#define devicecategory Effect
+
 class CNoiseGate : public IDevice
 {
 public:
@@ -13,7 +16,7 @@ public:
     float getNext(int /*ProcIndex*/);
 private:
     enum JackNames
-    {jnIn,jnOut,jnEnvOut};
+    {devicejacks};
     enum ParameterNames
     {pnThreshold,pnResponse,pnDecay};
     float Threshold;

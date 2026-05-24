@@ -8,6 +8,8 @@
 #include "qsynthbuttonpanel.h"
 //#include "array"
 
+#define devicecategory Custom
+
 #define MaxPresets 16
 
 class CPresetBox : public IDevice

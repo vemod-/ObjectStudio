@@ -10,11 +10,14 @@ include(../SoftSynthsIncludes.pri)
 
 LIBS += -lWaveBank
 INCLUDEPATH += ../wavebank
+INCLUDEPATH += ../Chorus
 
 DEFINES += DELAY_LIBRARY
 
 SOURCES += cdelay.cpp
 
-HEADERS += cdelay.h
+HEADERS += cdelay.h \
+    ../Chorus/biquad.h
+
 
 

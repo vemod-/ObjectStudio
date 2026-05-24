@@ -14,9 +14,9 @@ CMixer::CMixer()
 
 void CMixer::process()
 {
-    CStereoBuffer* OutBuffer=StereoBuffer(jnOut);
-    CStereoBuffer* SendBuffer=StereoBuffer(jnSend);
-    for (int i =0; i < Mixer::mixerchannels; i++) Signal[i]=FetchAMono(i+jnIn);
+    CStereoBuffer* OutBuffer=StereoBuffer(stereoout);
+    CStereoBuffer* SendBuffer=StereoBuffer(sendstereoout);
+    for (int i =0; i < Mixer::mixerchannels; i++) Signal[i]=FetchAMono(i+monoin);
 
     OrigChannel.clear();
     for (int i =0; i < Mixer::mixerchannels; i++)
@@ -47,7 +47,7 @@ void CMixer::process()
         }
     }
     *SendBuffer *= MixFactor;
-    OutBuffer->addStereoBuffer(FetchA(jnReturn)->data());
+    OutBuffer->addStereoBuffer(FetchA(returnstereoin)->data());
     OutBuffer->multiplyStereoBuffer(MasterLeft*MixFactor,MasterRight*MixFactor);
     OutBuffer->peakStereoBuffer(&PeakL,&PeakR);
 }
@@ -58,12 +58,12 @@ void CMixer::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
 
     addJackStereoIn("Return");
-    addJackStereoOut(jnOut);
-    addJackStereoOut(jnSend,"Send");
+    addJackStereoOut(stereoout);
+    addJackStereoOut(sendstereoout,"Send");
 
     for (int i = 0; i < Mixer::mixerchannels; i++)
     {
-        addJackWaveIn("In " + QString::number(i+1));
+        addJackMonoIn("In " + QString::number(i+1));
     }
     for (CMixerChannel& c : Channel) c.Peak=0;
     m_Form=new CMixerForm(this,MainWindow);
@@ -96,7 +96,7 @@ void CMixer::connectionChanged()
     auto f = dynamic_cast<CMixerForm*>(m_Form);
     for (int i =0; i < Mixer::mixerchannels; i++)
     {
-        auto j = dynamic_cast<CInJack*>(m_Jacks[i+jnIn]);
+        auto j = dynamic_cast<CInJack*>(m_Jacks[i+monoin]);
         (j->outJackCount()) ? f->setSender(j->outJack(0)->jackID(),i) : f->setSender(QString(),i);
     }
 }

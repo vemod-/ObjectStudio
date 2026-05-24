@@ -6,11 +6,11 @@ void CAmplifier::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
-    addJackWaveOut(jnOut);
+    addJackMonoIn();
+    addJackMonoOut(monoout);
     addJackModulationIn("Modulation In");
     addParameterPercent("Modulation",100);
-    Modulator.init(m_Jacks[jnModulation],m_Parameters[pnModulation]);
+    Modulator.init(m_Jacks[modulationin],m_Parameters[pnModulation]);
     updateDeviceParameter();
 }
 
@@ -19,7 +19,7 @@ CAudioBuffer* CAmplifier::getNextA(const int ProcIndex)
     if (m_Parameters[pnModulation]->Value==0) return nullptr;
     const float Mod = Modulator.exec();
     if (isZero(Mod)) return nullptr;
-    m_AudioBuffers[ProcIndex]->writeBuffer(FetchA(jnIn),Mod);
+    m_AudioBuffers[ProcIndex]->writeBuffer(FetchA(monoin),Mod);
     return m_AudioBuffers[ProcIndex];
 }
 

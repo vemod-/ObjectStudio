@@ -1,6 +1,8 @@
 #ifndef CMIDI2CV_H
 #define CMIDI2CV_H
 
+#define devicecategory SynthModule
+
 #include "idevice.h"
 #include "ccvdevice.h"
 

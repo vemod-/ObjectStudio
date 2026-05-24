@@ -3,11 +3,14 @@
 
 #include "idevice.h"
 
+#define devicejacks monoin,monoout
+#define devicecategory Effect
+
 class CWaveShaper : public IDevice
 {
 private:
     enum JackNames
-    {jnIn,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnGain,pnAmount,pnType};
     float m_Gain;

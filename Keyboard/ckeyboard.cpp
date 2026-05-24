@@ -15,11 +15,11 @@ void CKeyboard::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackMIDIOut(jnMIDI);
-    addJackModulationOut(jnFrequency,"Frequency");
-    addJackModulationOut(jnTrigger,"Trigger Out");
-    addJackModulationOut(jnModulationOut1,"Modulation 1 Out");
-    addJackModulationOut(jnModulationOut2,"Modulation 2 Out");
+    addJackMIDIOut(midiout);
+    addJackModulationOut(frequencyout,"Frequency");
+    addJackModulationOut(triggerout,"Trigger Out");
+    addJackModulationOut(modulationout1,"Modulation 1 Out");
+    addJackModulationOut(modulationout2,"Modulation 2 Out");
     addJackModulationIn("Modulation 1 In");
     addJackModulationIn("Modulation 2 In");
     addParameterMIDIChannel();
@@ -46,15 +46,15 @@ float CKeyboard::getNext(const int ProcIndex)
 {
     if (!notesDown.empty())
     {
-        if (ProcIndex == jnFrequency) return MIDIkey2voltagef(notesDown.last(), m_Parameters[pnTune]->PercentValue, pitchBend);
-        if (ProcIndex == jnTrigger) return 1;
-        if (ProcIndex == jnModulationOut1)
+        if (ProcIndex == frequencyout) return MIDIkey2voltagef(notesDown.last(), m_Parameters[pnTune]->PercentValue, pitchBend);
+        if (ProcIndex == triggerout) return 1;
+        if (ProcIndex == modulationout1)
         {
-            return (m_Parameters[pnMod1Mode]->Value) ? mod1 : mod1 * Fetch(jnModulationIn1);
+            return (m_Parameters[pnMod1Mode]->Value) ? mod1 : mod1 * Fetch(modulationin1);
         }
-        if (ProcIndex == jnModulationOut2)
+        if (ProcIndex == modulationout2)
         {
-            return (m_Parameters[pnMod2Mode]->Value) ? mod2 : mod2 * Fetch(jnModulationIn2);
+            return (m_Parameters[pnMod2Mode]->Value) ? mod2 : mod2 * Fetch(modulationin2);
         }
 
     }

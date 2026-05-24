@@ -1,6 +1,6 @@
 #include "cscope.h"
 #include "cscopeform.h"
-#include "csimplebuffer.h"
+//#include "csimplebuffer.h"
 
 CScope::CScope()
 {
@@ -14,7 +14,7 @@ void CScope::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
+    addJackMonoIn();
     addJackModulationIn("Voltage In");
     addParameterVolume("Gain");
     addParameter(CParameter::Numeric,"Rate","mSec",1,500,0,"",20);
@@ -34,8 +34,8 @@ void CScope::tick()
     if (m_Form->isVisible())
     {
         auto f=FORMFUNC(CScopeForm);
-        const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-        const float Modulation = Fetch(jnModulationIn);
+        const CMonoBuffer* InBuffer = FetchAMono(monoin);
+        const float Modulation = Fetch(modulationin);
         if (m_Parameters[pnScopeMode]->Value==0)
         {
             (!InBuffer->isValid()) ?

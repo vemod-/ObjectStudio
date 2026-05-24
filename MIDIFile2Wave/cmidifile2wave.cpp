@@ -102,7 +102,7 @@ void CMIDIFile2Wave::tick()
 */
 CAudioBuffer* CMIDIFile2Wave::getNextA(const int ProcIndex)
 {
-    return (Mx) ? Mx->getNextA(ProcIndex+CStereoMixer::jnOut) : nullptr;//&m_NullBufferStereo;
+    return (Mx) ? Mx->getNextA(ProcIndex+CStereoMixer::stereoout) : nullptr;//&m_NullBufferStereo;
 }
 
 bool CMIDIFile2Wave::loadFile(const QString& filename)
@@ -427,7 +427,7 @@ void CMIDIFile2Wave::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addTickerDevice(&DeviceList);
     setDeviceParent(&DeviceList);
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addParameter(CParameter::ParameterTypes::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
     addParameterTune();
     addParameterPercent("Humanize");

@@ -11,7 +11,7 @@ void CSequenser::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackMIDIOut(jnMIDIOut);
+    addJackMIDIOut(midiout);
     addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
     addParameter(CParameter::Numeric,"MIDI Channel","",1,16,0,"",1);
     addParameterPercent("Humanize");
@@ -69,7 +69,15 @@ void CSequenser::tick()
                 {
                     CurrentLength=0;
                 }
-                FORMFUNC(CSequenserForm)->Flash(PatternIndex,BeatCount);
+                //FORMFUNC(CSequenserForm)->Flash(PatternIndex,BeatCount);
+                QMetaObject::invokeMethod(FORMFUNC(CSequenserForm),
+                                          [=]()
+                                          {
+                                              FORMFUNC(CSequenserForm)->Flash(PatternIndex,BeatCount);
+                                          },
+                                          Qt::QueuedConnection
+                                          );
+
                 NextBeat=seqTicksPQ * (BeatCount+1);
                 NextStop=(seqTicksPQ * BeatCount) + CurrentLength;
                 if (++BeatCount>=Pattern->numOfBeats())
@@ -127,9 +135,10 @@ void CSequenser::CalcDuration()
     c.reset(seqTicksPQ);
     for (const PatternListType* pl : std::as_const(PatternsInList))
     {
-        if (pl->Repeats==0) break;
+        int repeats = pl->Repeats;
+        if (repeats==0) repeats = 1000;
         c.setTempo((60000000.0/4.0) / (m_Parameters[pnTempo]->PercentValue*pl->Pattern->Tempo),seqTicksPQ);
-        c.skipTicks(pl->Pattern->numOfBeats() * seqTicksPQ * pl->Repeats);
+        c.skipTicks(pl->Pattern->numOfBeats() * seqTicksPQ * repeats);
     }
     m_MilliSeconds=c.currentmSec();
     m_Ticks=c.currentTick();

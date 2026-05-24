@@ -9,7 +9,7 @@ CLFO::CLFO():FreqValue(0)
 void CLFO::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackModulationOut(jnOutPitch,"Out");
+    addJackModulationOut(modulationout,"Out");
     addParameterRate("Frequency",400);
     addParameterSelect("WaveForm","Sine§Square§Triangle§Sawtooth§Ramp§Noise§S&H Noise");
     addParameterRectify();

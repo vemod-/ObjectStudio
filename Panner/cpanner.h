@@ -4,18 +4,21 @@
 #include "idevice.h"
 #include "cvoltagemodulator.h"
 
+#define devicejacks stereoin,stereoout,leftmonoout,rightmonoout,modulationin
+#define devicecategory Effect | SynthModule
+
 class CPanner : public IDevice
 {
 private:
     enum JackNames
-    {jnIn,jnOut,jnOutLeft,jnOutRight,jnModulation};
+    {devicejacks};
     enum ParameterNames
     {pnPan,pnModulation};
     float LeftModFactor;
     float RightModFactor;
     float LeftFactor;
     float RightFactor;
-    CMonoBuffer* InSignal;
+    CStereoBuffer* InSignal;
     CVoltageModulator Modulator;
     void inline updateDeviceParameter(const CParameter* p = nullptr);
     void process();

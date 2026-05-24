@@ -3,6 +3,9 @@
 
 #include "idevice.h"
 
+#define devicejacks monoin
+#define devicecategory Monitor
+
 class CSpectrum : public IDevice
 {
 public:
@@ -11,7 +14,7 @@ public:
     void tick();
 private:
     enum JackNames
-    {jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnVolume,pnSpectrumRate,pnMode,pnWindow,pnScale,pnRange};
     void Reset();

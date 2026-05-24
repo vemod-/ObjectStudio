@@ -36,22 +36,27 @@ void CCoreMainBuffers::AudioErrorCallback(RtAudioErrorType type, const std::stri
 
 void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint BufferSize)
 {
-    if (BufferState==IMainPlayer::Ready)
+    auto expected = IMainPlayer::Ready;
+    if (BufferState.compare_exchange_strong(expected, IMainPlayer::Working))
     {
-        BufferState = IMainPlayer::BufferStates(BufferState | IMainPlayer::Working);
         float* outBufferPointer=static_cast<float*>(OutBuffer);
         float* inBufferPointer=static_cast<float*>(InBuffer);
-        for (uint i=0; i<BufferSize; i++)
+        for (uint i = 0; i < BufferSize; i++)
         {
-            if (TickCount >= presets.ModulationRate)
+            if (--ticksUntilModulation <= 0)
             {
+                ticksUntilModulation += presets.ModulationRate;
                 if (m_Playing)
                 {
                     mSecCount.skipBuffer();
-                    if (mSecCount.currentSample() > m_Samples) m_Playing = false;
+                    if (mSecCount.currentSample() > m_Samples) {
+                        QMetaObject::invokeMethod(
+                            m_MainWindow,
+                            [this]() { this->requestPause(); },
+                            Qt::QueuedConnection
+                            );
+                    }
                 }
-                //if (m_TickerDevice) m_TickerDevice->tick(); //Tick All Devices!!!
-                //IDevice::tick();
                 for (ITicker* t : std::as_const(m_TickerDevices)) if (t) t->tick();
                 ParseMidi(FetchP(jnMIDIOut));
                 OutChannelBuffer = FetchAStereo(jnOut);
@@ -62,7 +67,7 @@ void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint
                     OutChannelBuffer = &m_NullBufferStereo;
                 }
                 if (m_Recording) WaveFile.pushBuffer(OutChannelBuffer->data(),OutChannelBuffer->size());
-                TickCount=0;
+                TickCount = 0;
             }
 #ifdef __MINIAUDIO__
             if (*m_InDriverID.coreaudio != 0) InChannelBuffer->setAtFromInterleaved(TickCount,inBufferPointer);
@@ -71,12 +76,13 @@ void CCoreMainBuffers::MainAudioLoop(void* OutBuffer, void* InBuffer, const uint
 #endif
             OutChannelBuffer->interleaveAt(TickCount++,outBufferPointer,outputVol);
         }
-        BufferState = IMainPlayer::BufferStates(BufferState & (!IMainPlayer::Working));
+        //BufferState = IMainPlayer::BufferStates(BufferState & ~IMainPlayer::Working);
+        BufferState.store(IMainPlayer::Ready, std::memory_order_release);
     }
-    else if (BufferState==IMainPlayer::Starting)
+    else if (BufferState == IMainPlayer::Starting)
     {
-        if (m_Startcounter>presets.SampleRate) BufferState = IMainPlayer::Ready;
-        m_Startcounter+=BufferSize/2;
+        if (m_Startcounter > presets.SampleRate) BufferState = IMainPlayer::Ready;
+        m_Startcounter += BufferSize / 2;
     }
 }
 
@@ -84,10 +90,10 @@ CCoreMainBuffers::CCoreMainBuffers()
 {
     caffeine.setReason("Real Time Audio Processing");
     //m_Ticker=nullptr;
-    TickCount=0;
-
-    PeakL=0;
-    PeakR=0;
+    TickCount = 0;
+    ticksUntilModulation = presets.ModulationRate;
+    PeakL = 0;
+    PeakR = 0;
 
     //mainPlayer()->setBufferState(IMainPlayer::Stopped);
 
@@ -686,11 +692,10 @@ const QList<uint> CCoreMainBuffers::sampleRates()
 
 void CCoreMainBuffers::play(const bool FromStart)
 {
-    m_Samples=IDevice::samples();
-    //IDevice::pause();
     if (FromStart) mSecCount.reset();
-    IDevice::play(FromStart); //m_TickerDevice->play(FromStart);
-    //m_Playing=true;
+    IDevice::play(FromStart);
+    m_Samples=IDevice::samples();
+    qDebug() << "CoreBuffer play" << m_Samples << FromStart;
 }
 
 void CCoreMainBuffers::pause()
@@ -700,8 +705,9 @@ void CCoreMainBuffers::pause()
 
 void CCoreMainBuffers::skip(const ulong64 samples)
 {
-    m_Samples = IDevice::samples();
     mSecCount.reset();
     mSecCount.skip(samples);
     IDevice::skip(samples);
+    m_Samples = IDevice::samples();
+    qDebug() << "CoreBuffer skip" << m_Samples << samples;
 }

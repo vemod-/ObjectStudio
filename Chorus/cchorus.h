@@ -1,6 +1,9 @@
 #ifndef CCHORUS_H
 #define CCHORUS_H
 
+#define devicejacks stereoout,stereoin
+#define devicecategory Effect
+
 #include "idevice.h"
 #include "biquad.h"
 #include "cringbuffer.h"
@@ -25,7 +28,7 @@ public:
     void process();
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {pnFrequency,pnPhase,pnDepth,pnDelay,pnContour,pnEffect};
     CRingBuffer ring_L;

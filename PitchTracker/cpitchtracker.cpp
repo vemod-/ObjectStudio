@@ -8,12 +8,12 @@ void CPitchTracker::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     LastNote=0;
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
-    addJackModulationOut(jnFrequencyOut,"Frequency Out");
-    addJackModulationOut(jnMIDIFreqOut,"MIDI Frequency Out");
-    addJackMIDIOut(jnMIDIOut);
-    addJackModulationOut(jnDiffOut,"Difference Out");
-    addJackModulationOut(CPitchTracker::jnCorrectionOut,"Correction Out");
+    addJackMonoIn();
+    addJackModulationOut(frequencyout,"Frequency Out");
+    addJackModulationOut(midifrequencyout,"MIDI Frequency Out");
+    addJackMIDIOut(midiout);
+    addJackModulationOut(diffmodulationout,"Difference Out");
+    addJackModulationOut(CPitchTracker::corrmodulationout,"Correction Out");
     addParameterPercent("Threshold");
     addParameterTune();
     addParameter(CParameter::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",presets.HalfRate * 0.5);
@@ -35,22 +35,22 @@ float CPitchTracker::getNext(const int ProcIndex) {
         process();
     }
     CYIN::PitchRecord r = PD.CurrentPitchRecord();
-    if (ProcIndex==jnFrequencyOut)
+    if (ProcIndex==frequencyout)
     {
         //Retval=PT.CurrentFreq/BufferDivide;
         Retval=freq2voltagef(r.Pitch);
     }
-    if (ProcIndex==jnMIDIFreqOut)
+    if (ProcIndex==midifrequencyout)
     {
         //Retval=PT.CurrentMIDIFreq/BufferDivide;
         Retval=MIDIkey2voltagef(r.MidiKey);//freq2voltagef(MIDIkey2Freqf(r.MidiNote));
     }
-    if (ProcIndex==jnDiffOut)
+    if (ProcIndex==diffmodulationout)
     {
         //Retval=PT.CurrentDiff;
         Retval=r.MidiCents/1200.f;
     }
-    if (ProcIndex==jnCorrectionOut)
+    if (ProcIndex==corrmodulationout)
     {
         //Retval=PT.CurrentDiff;
         Retval=PD.correctionCents()/1200.f;
@@ -68,7 +68,7 @@ float CPitchTracker::getNext(const int ProcIndex) {
 }
 
 void CPitchTracker::process() {
-    const CMonoBuffer* Input = FetchAMono(jnIn);
+    const CMonoBuffer* Input = FetchAMono(monoin);
     if (!Input->isValid()) return;
     //QMutexLocker locker(&mutex);
     //m_FFTTracker.process(Input->data(),presets.ModulationRate);

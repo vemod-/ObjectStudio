@@ -303,8 +303,10 @@ void CDrumMachineForm::serializeCustom(QDomLiteElement* xml) const
 
 void CDrumMachineForm::Flash(int Pattern, int Beat)
 {
-    if (Pattern != ui->PatternPlayList->currentRow()) ui->PatternPlayList->setCurrentRow(Pattern);
-    m_Beats[Beat]->Flash();
+    if (Pattern != ui->PatternPlayList->currentRow()) {
+        if (Pattern < ui->PatternPlayList->count()) ui->PatternPlayList->setCurrentRow(Pattern);
+    }
+    if (Beat < m_Beats.size()) m_Beats[Beat]->Flash();
 }
 
 void CDrumMachineForm::ChangeListIndex(int index)

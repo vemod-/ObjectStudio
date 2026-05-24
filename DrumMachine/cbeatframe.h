@@ -16,6 +16,7 @@ public:
     explicit CBeatFrame(QWidget *parent = 0);
     ~CBeatFrame();
     void Init(BeatType* Beat,int Index,int SoundIndex,bool HideLength,bool HideVolume,bool HidePitch);
+public slots:
     void Flash();
 private:
     Ui::CBeatFrame *ui;
@@ -27,7 +28,7 @@ private slots:
     void LenChanged(int Value);
     void PitchChanged(int Value);
     void VolChanged(int Value);
-    void timerStart();
+    //void timerStart();
 protected:
     void timerEvent(QTimerEvent *);
 signals:

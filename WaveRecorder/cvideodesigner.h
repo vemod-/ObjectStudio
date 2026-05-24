@@ -59,15 +59,18 @@ public:
         QMetaObject::invokeMethod(
             this,
             [this]() {
-                bool o = enabled();
-                setEnabled(false);
-                m_AVFPlayer.pause();
-                m_currentPlaybackImage = QImage();
-                update(m_rect);
-                setEnabled(o);
+                pause();
             },
             Qt::QueuedConnection
             );
+    }
+    void pause() {
+        bool o = enabled();
+        setEnabled(false);
+        m_AVFPlayer.pause();
+        m_currentPlaybackImage = QImage();
+        update(m_rect);
+        setEnabled(o);
     }
     bool setVideoPlayProperties(CWaveTrack* t, ulong64 sample) {
             const long64 mSec = CPresets::samplesTomSecs(sample);
@@ -172,8 +175,29 @@ public:
         update(m_rect);
         return true;
     }
-    void play() {
+    void play(CWaveTrack* t = nullptr) {
         prepareGeometryChange();
+        if (t) {
+            if (m_AVFPlayer.Url() != t->waveGenerator.videoURL) {
+                m_AVFPlayer.setSource(t->waveGenerator.videoURL);
+                const long64 mSec = CPresets::samplesTomSecs(t->startPos());
+                m_AVFPlayer.play();
+                for (int i = 0; i < 5000; i++) {
+                    if (!m_AVFPlayer.currentFrame().isNull()) {
+                        qDebug() << "Preload" << t->waveGenerator.videoURL << i;
+                        break;
+                    }
+                    qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+                    //QThread::msleep(1);
+                }
+                if (mSec > 0) {
+                    m_AVFPlayer.pause();
+                    m_AVFPlayer.setPosition(mSec / 1000.0);
+                }
+                //m_AVFPlayer.setPosition(mSec / 1000.0);
+                qDebug() << "Preload" << t->waveGenerator.videoURL << m_AVFPlayer.position();
+            }
+        }
         m_Playing = true;
         m_currentPlaybackImage = QImage();
         update();
@@ -186,6 +210,9 @@ public:
         m_Playing = false;
         m_currentPlaybackImage = QImage();
         update();
+    }
+    bool videoPlayerIsPlaying() {
+        return m_AVFPlayer.isPlaying();
     }
     void setEnabled(bool v) {
         m_Enabled = v;

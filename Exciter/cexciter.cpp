@@ -8,9 +8,9 @@ void CExciter::init(const int Index, QWidget* MainWindow)
 {
     m_Name="Exciter";
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveOut(jnEffOut,"Effect Out");
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoOut(effectmonoout,"Effect Out");
+    addJackMonoIn();
     addParameterSelect("Type","Soft§Clipping");
     addParameterVolume("Gain");
     addParameterPercent("Amount",100);
@@ -21,9 +21,9 @@ void CExciter::init(const int Index, QWidget* MainWindow)
 
 void CExciter::process()
 {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
-    CMonoBuffer* EffectBuffer=MonoBuffer(jnEffOut);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
+    CMonoBuffer* OutBuffer=MonoBuffer(monoout);
+    CMonoBuffer* EffectBuffer=MonoBuffer(effectmonoout);
     if (!InBuffer->isValid())
     {
         OutBuffer->zeroBuffer();

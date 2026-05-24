@@ -44,7 +44,7 @@ public:
         return hasImage() || hasVideo();
     }
     inline bool hasOpacity() const {
-        return (loopParameters.VideoOpacity < 1 || loopParameters.VideoFadeIn > 0 || loopParameters.VideoFadeOut > 0);
+        return ((loopParameters.VideoOpacity < 1) || (loopParameters.VideoFadeIn > 0) || (loopParameters.VideoFadeOut > 0));
     }
     inline long64 length() const {
         return loopParameters.playLength();

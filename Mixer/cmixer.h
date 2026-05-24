@@ -67,6 +67,9 @@ public:
     bool EffectMute;
 };
 
+#define devicejacks returnstereoin,stereoout,sendstereoout,monoin
+#define devicecategory Effect
+
 class CMixer : public IDevice
 {
 public:
@@ -82,7 +85,7 @@ public:
     float PeakR;
 private:
     enum JackNames
-    {jnReturn,jnOut,jnSend,jnIn};
+    {devicejacks};
     float MixFactor;
     void process();
     CMonoBuffer* Signal[Mixer::mixerchannels]={nullptr};

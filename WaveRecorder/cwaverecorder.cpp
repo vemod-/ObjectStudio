@@ -15,7 +15,7 @@ void CWaveRecorder::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addJackStereoIn();
     m_Form=new CWaveRecorderForm(this,MainWindow);
     FORMFUNC(CWaveRecorderForm)->setHost(m_Host);
@@ -35,7 +35,7 @@ void CWaveRecorder::execute(bool show)
 
 void CWaveRecorder::tick()
 {
-    const CStereoBuffer* InBuffer = FetchAStereo(jnIn);
+    const CStereoBuffer* InBuffer = FetchAStereo(stereoin);
     if (InBuffer->isValid())
     {
         RecordBuffer.writeStereoBuffer(InBuffer,FORMFUNC(CWaveRecorderForm)->volumeL(),FORMFUNC(CWaveRecorderForm)->volumeR());

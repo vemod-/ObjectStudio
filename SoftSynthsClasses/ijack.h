@@ -26,7 +26,7 @@ public:
     {
         m_JackID = m_Owner + " " + m_Name;
         //qDebug() << "Jack Created " << sOwner << sName;
-        if (attachMode == Wave)
+        if (attachMode == Mono)
         {
             QMutexLocker locker(&mutex);
             audioBuffer = new CMonoBuffer;

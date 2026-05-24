@@ -77,10 +77,10 @@ public:
                 f.setPointSizeF(16);
                 QGraphicsTextItem* i = Scene.addText(m_Device->deviceID() + " " + currentParameter()->Name);
                 i->setPos(0,m_TimeLineHeight);
+                m_TimeLine.setSamples(m_Device->requestSamples());
+                //m_TimeLine.render(&Scene,zoomer->visibleRect().toRect());
+                m_TimeLine.render(&Scene,mapToScene(viewport()->rect()).boundingRect().toRect());
             }
-            m_TimeLine.setSamples(m_Device->requestSamples());
-            //m_TimeLine.render(&Scene,zoomer->visibleRect().toRect());
-            m_TimeLine.render(&Scene,mapToScene(viewport()->rect()).boundingRect().toRect());
         }
         if (!deviceValid()) return;
         if (m_Marking)
@@ -252,6 +252,7 @@ protected:
         if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
         m_Orig = p;
         m_MD=true;
+        viewport()->grabMouse();
         m_MousePlacing = MouseOutside;
         int i = insideEvent(p);
         if (i > -1) {
@@ -340,6 +341,7 @@ protected:
         }
         else if (m_MD)
         {
+            viewport()->releaseMouse();
             if (p != m_Orig)
             {
                 CParameterEventList& l = currentParameter()->events;
@@ -390,7 +392,14 @@ protected:
                 return true;
             }
         }
-        if (e->type()==QEvent::Leave) InfoLabel.hide();
+        if (e->type()==QEvent::Leave) {
+            if (!(QGuiApplication::mouseButtons() & Qt::LeftButton))
+            {
+                m_MD = false;
+                viewport()->releaseMouse();
+            }
+            InfoLabel.hide();
+        }
         if (e->type()==QEvent::Wheel) e->ignore();
         return QGraphicsView::event(e);
     }

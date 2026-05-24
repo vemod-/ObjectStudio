@@ -47,8 +47,8 @@ float CWaveShaper::clip(float x, float a, float b) {
 void CWaveShaper::init(const int Index, QWidget* MainWindow) {
     m_Name="WaveShaper";
     IDevice::init(Index,MainWindow);
-    addJackWaveIn();
-    addJackWaveOut(jnOut);
+    addJackMonoIn();
+    addJackMonoOut(monoout);
     addParameterVolume("Gain");
     addParameterPercent("Amount",1);
     addParameterSelect("Type","Hard§Softer§Sinus§Gloubi-boulga§Clipping");
@@ -56,9 +56,9 @@ void CWaveShaper::init(const int Index, QWidget* MainWindow) {
 }
 
 CAudioBuffer *CWaveShaper::getNextA(const int ProcIndex) {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
-    CMonoBuffer* OutBuffer=MonoBuffer(ProcIndex);
+    CMonoBuffer* OutBuffer = MonoBuffer(ProcIndex);
     switch (m_Parameters[pnType]->Value)
     {
     case 0:

@@ -43,6 +43,7 @@ CEffectRackForm::CEffectRackForm(IDevice* Device,QWidget* Parent) :
     setMinimumWidth(800);
     //setAcceptDrops(true);
     connect(this,&CEffectRackForm::controlChanged,m_Rack,&CParametersContainer::updateControl,Qt::QueuedConnection);
+    connect(this,&CEffectRackForm::connectionsChanged,m_Rack,&CParametersContainer::updateConnections,Qt::QueuedConnection);
     connect(m_Rack,&CParametersContainer::devicesReordered,this,&CEffectRackForm::reorderDevices);
     connect(m_Rack,&CParametersContainer::deviceRemoved,this,&CEffectRackForm::removeDevice);
 }
@@ -230,7 +231,14 @@ void CEffectRackForm::parameterChange(IDevice* device, const CParameter* paramet
             const int d = m_DeviceList.indexOfDevice(device);
             if (d > -1) m_DeviceList.updateParameter(d,parameter);
         }
+        else {
+            m_Rack->showParameters(device);
+        }
     }
+}
+
+void CEffectRackForm::updateDeviceJacks() {
+    emit connectionsChanged();
 }
 
 void CEffectRackForm::closeAutomation(IDevice* /*device*/) {
@@ -284,7 +292,7 @@ void CEffectRack::init(const int Index, QWidget* MainWindow)
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
     addJackStereoIn();
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     m_Form=new CEffectRackForm(this,MainWindow);
     FORMFUNC(CEffectRackForm)->init((CInJack*)m_Jacks[1]->createInsideJack(4,this), (COutJack*)m_Jacks[0]->createInsideJack(jnInsideIn,this));
     FORMFUNC(CEffectRackForm)->updateConnections();
@@ -293,7 +301,7 @@ void CEffectRack::init(const int Index, QWidget* MainWindow)
 
 void CEffectRack::process()
 {
-    InBuffer = FetchAStereo(jnIn);
+    InBuffer = FetchAStereo(stereoin);
 }
 
 CAudioBuffer* CEffectRack::getNextA(const int ProcIndex)
@@ -304,10 +312,12 @@ CAudioBuffer* CEffectRack::getNextA(const int ProcIndex)
         process();
     }
     if (ProcIndex==jnInsideIn) return InBuffer;
-    if (ProcIndex==jnOut)
+    if (ProcIndex==stereoout)
     {
-        if (!InBuffer->isValid()) return nullptr;
         if (!FORMFUNC(CEffectRackForm)->deviceCount()) return InBuffer;
+        if (!FORMFUNC(CEffectRackForm)->insideIn->outJackCount()) return nullptr;
+        //if (!InBuffer) return nullptr;
+        //if (!InBuffer->isValid()) return nullptr;
         return FORMFUNC(CEffectRackForm)->insideIn->getNextA();
     }
     return nullptr;
@@ -318,7 +328,7 @@ void CEffectRack::mixerChannelProc(CStereoBuffer* buffer) {
     if (!buffer->isValid()) return;
     InBuffer = buffer;
     m_Process = false;
-    CStereoBuffer* b = (CStereoBuffer*)getNextA(jnOut);
+    CStereoBuffer* b = (CStereoBuffer*)getNextA(stereoout);
     if (!b) return;
     buffer->writeStereoBuffer(b);
 }

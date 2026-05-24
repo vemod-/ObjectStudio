@@ -23,8 +23,8 @@ void CDeviceContainer::process()
 {
     if (m_Device)
     {
-        InBuffer=FetchAStereo(jnIn);
-        MIDIBuffer=FetchP(jnMIDIIn);
+        InBuffer=FetchAStereo(stereoin);
+        MIDIBuffer=FetchP(midiin);
         if (!MIDIInBuffer.isEmpty())
         {
             if (MIDIBuffer)
@@ -53,7 +53,7 @@ CAudioBuffer* CDeviceContainer::getNextA(const int ProcIndex)
             process();
         }
         if (ProcIndex==jnInsideIn) return InBuffer;
-        if (ProcIndex==jnOut) return m_Device->getNextA(outProcIndex); //return InsideOut->getNextA();
+        if (ProcIndex==stereoout) return m_Device->getNextA(outProcIndex); //return InsideOut->getNextA();
     }
     return nullptr;//&m_NullBufferStereo;
 }
@@ -103,7 +103,7 @@ void CDeviceContainer::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackStereoIn();
     addJackMIDIIn();
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     InsideIn=new COutJack("InsideIn","This",IJack::Stereo,IJack::Out,this,jnInsideIn);
     InsideMIDIIn=new COutJack("InsideMIDIIn","This",IJack::MIDI,IJack::Out,this,jnInsideMIDIIn);
     //InsideOut=new CInJack("InsideOut","This",IJack::Stereo,IJack::In,this);
@@ -118,6 +118,8 @@ void CDeviceContainer::unserializeCustom(const QDomLiteElement* xml)
     QMutexLocker locker(&mutex);
     //qDebug() << "CDeviceContainer unserializeCustom" << m_Device << m_DeviceType << xml->toString();
     setDeviceType(xml->attribute("DeviceType"));
+    //IDevice::unserializeDevice(xml);
+    if (m_Device) m_Device->unserializeDevice(xml->elementByTag("Device"));
     //qDebug() << m_Device << m_DeviceType;
     if (m_Device)
     {
@@ -139,10 +141,12 @@ void CDeviceContainer::unserializeCustom(const QDomLiteElement* xml)
 void CDeviceContainer::serializeCustom(QDomLiteElement* xml) const
 {
     //qDebug() << "CDeviceContainer serializeCustom" << m_Device << m_DeviceType;
+    //IDevice::serializeDevice(xml);
     if (m_Device)
     {
         m_Device->serializeCustomParameters(xml);
         m_Device->serializeUI(xml);
+        //m_Device->serializeDevice(xml->appendChild(new QDomLiteElement("Device")));
         xml->setAttribute("DeviceType",m_DeviceType);
         m_Device->serializeStandardParameters(xml->appendChild(new QDomLiteElement("Device")));
     }

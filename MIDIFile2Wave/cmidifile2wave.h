@@ -12,6 +12,16 @@
 
 #define MIDIFILE2WAVECLASS DEVICEFUNC(CMIDIFile2Wave)
 
+#ifdef devicejacks
+#undef devicejacks
+#endif
+#define devicejacks stereoout
+
+#ifdef devicecategory
+#undef devicecategory
+#endif
+#define devicecategory Generator
+
 namespace MIDIFile2Wave
 {
 const int effectCount=3;
@@ -55,7 +65,7 @@ public:
     QStringList IDList;
 private:
     enum JackNames
-    {jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnTempoAdjust,pnTune,pnHumanize};
     CMIDIFileReader MFR;

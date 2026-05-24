@@ -58,18 +58,20 @@ public:
                 {
                     int vDelta=e.value+vSign;
                     ldouble inc=ldouble(e1.time-e.time) / ldouble(qAbs(e1.value-e.value));
-                    while (inc < 50) {
-                        inc *= 2;
-                        vSign *= 2;
-                    }
-                    //qDebug() << e.time << e.value << e1.time << e1.value << vDelta << vSign;
-                    //for (ldouble deltaTime = e.time+inc; deltaTime < e1.time; deltaTime+=inc) {
-                    ldouble deltaTime = e.time + inc;
-                    for (int i = 1; deltaTime < e1.time; i++) {
-                        deltaTime = e.time + (i*inc);
-                        //qDebug() << ulong64(deltaTime) << vDelta << parameterID;
-                        l1.push_back(CParameterEvent(deltaTime,vDelta,parameterID));
-                        vDelta+=vSign;
+                    if (!isZero(inc)) {
+                        while (inc < 50) {
+                            inc *= 2;
+                            vSign *= 2;
+                        }
+                        //qDebug() << e.time << e.value << e1.time << e1.value << vDelta << vSign;
+                        //for (ldouble deltaTime = e.time+inc; deltaTime < e1.time; deltaTime+=inc) {
+                        ldouble deltaTime = e.time + inc;
+                        for (int i = 1; deltaTime < e1.time; i++) {
+                            deltaTime = e.time + (i*inc);
+                            //qDebug() << ulong64(deltaTime) << vDelta << parameterID;
+                            l1.push_back(CParameterEvent(deltaTime,vDelta,parameterID));
+                            vDelta+=vSign;
+                        }
                     }
                 }
             }

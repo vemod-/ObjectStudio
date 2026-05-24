@@ -6,8 +6,6 @@ void inline CalcPeak(float Val,float* Peak)
     *Peak=qMax<float>(qAbs<float>(Val),*Peak);
 }
 
-
-
 void inline CEqualizer::updateDeviceParameter(const CParameter* /*p*/)
 {
     for (CBiquad& f : filters) f.init();
@@ -38,8 +36,8 @@ void CEqualizer::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     m_Form=new CEqualizerForm(this,MainWindow);
     EQUALIZERFORM->Init();
     EQUALIZERFORM->Reset();
@@ -48,7 +46,7 @@ void CEqualizer::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CEqualizer::getNextA(const int ProcIndex)
 {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid())
     {
         for (int i=0;i<8;i++) CalcPeak(0,EQUALIZERFORM->PeakVal+i);

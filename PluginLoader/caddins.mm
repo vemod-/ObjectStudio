@@ -66,15 +66,25 @@ void CAddIns::LoadAddIns(const QDir& pluginsDir)
         {
             auto initializer = reinterpret_cast<void*>(lib->resolve("createinstance"));
             auto name = reinterpret_cast<void*>(lib->resolve("name"));
+            auto jacks = reinterpret_cast<void*>(lib->resolve("jacks"));
+            auto category = lib->resolve("category");
             if ((initializer != nullptr) && (name != nullptr))
             {
                 AddInType addin;
                 addin.ClassName = *static_cast<char**>(name);
+                addin.Jacks = *static_cast<char**>(jacks);
+                if(category)
+                {
+                    addin.Category = static_cast<int>(*reinterpret_cast<int*>(category));
+                }
+                else {
+                    addin.Category = 0;
+                }
                 addin.Instance=lib;
                 addin.InstanceFunction = *static_cast<voidinstancefunc*>(initializer);
                 addin.Path = filepath;
                 AddInList.push_back(addin);
-                qDebug() << "success" << addin.ClassName << addin.Path;
+                qDebug() << "success" << addin.ClassName << addin.Jacks << category << addin.Category << addin.Path;
             }
             else
             {

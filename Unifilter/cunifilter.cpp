@@ -7,8 +7,8 @@ CUnifilter::CUnifilter()
 void CUnifilter::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addJackModulationIn();
     addParameterSelect("Filter Type","Low pass§Hi pass§Band pass 1§Band pass 2§Notch§All pass§Peaking§Low shelf§Hi shelf");
     addParameterVolume("Gain");
@@ -22,7 +22,7 @@ void CUnifilter::init(const int Index, QWidget* MainWindow) {
 }
 
 CAudioBuffer *CUnifilter::getNextA(const int ProcIndex) {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
     CAudioBuffer* Buffer=m_AudioBuffers[ProcIndex];
     for (uint i=0;i<m_BufferSize;i++)

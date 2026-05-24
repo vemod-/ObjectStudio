@@ -4,9 +4,9 @@ void CDelay::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     ring.reserve(presets.DoubleRate);
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveOut(jnEffectOut,"EffectOut");
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoOut(effectmonoout,"EffectOut");
+    addJackMonoIn();
     startParameterGroup("LFO",Qt::green);
     addParameterRate("Modulation Frequency");
     addParameterPercent("Modulation Amplitude");
@@ -14,6 +14,7 @@ void CDelay::init(const int Index, QWidget* MainWindow) {
     startParameterGroup();
     addParameterTime("Delay Time",10);
     addParameterPercent("Delay Regeneration");
+    addParameterVolume("Delay EQ");
     endParameterGroup();
     addParameterPercent("Effect",100);
     updateDeviceParameter();
@@ -32,17 +33,21 @@ void CDelay::updateDeviceParameter(const CParameter* /*p*/) {
     RegenCleanMix=(200-m_Parameters[pnRegen]->Value)* 0.002f;
     RegenEffectMix=m_Parameters[pnRegen]->scaleValue(0.008f);
     DelayRate=m_Parameters[pnDelay]->mSec2samplesValue();
+    hs.init();
+    hs.hsSetParams(6000,m_Parameters[pnRegenEQ]->dBValue(),1,presets.SampleRate);
 }
 
 CDelay::CDelay():ReadPosition(0),CleanMix(0),EffectMix(0), RegenCleanMix(0),RegenEffectMix(0),DelayRate(0),CurrentMod(0){}
 
 void CDelay::process() {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-    CMonoBuffer* OutBuffer=MonoBuffer(jnOut);
-    CMonoBuffer* EffectBuffer=MonoBuffer(jnEffectOut);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
+    CMonoBuffer* OutBuffer=MonoBuffer(monoout);
+    CMonoBuffer* EffectBuffer=MonoBuffer(effectmonoout);
     for (uint i=0;i<m_BufferSize;i++)
     {
-        EffectBuffer->setAt(i,ring.read_buffer(ReadPosition));
+        float in = ring.read_buffer(ReadPosition);
+        if (m_Parameters[pnRegenEQ]->Value != 100) in = hs.run(in);
+        EffectBuffer->setAt(i,in);
         float fTemp=EffectBuffer->at(i)*RegenEffectMix;
         if (!InBuffer->isValid())
         {

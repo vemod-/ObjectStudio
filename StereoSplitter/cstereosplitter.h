@@ -2,6 +2,9 @@
 #define CSTEREOSPLITTER_H
 
 #include "idevice.h"
+#define devicecategory SynthModule
+
+#define devicejacks stereoin,leftmonoout,rightmonoout
 
 class CStereoSplitter : public IDevice
 {
@@ -12,7 +15,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnIn,jnOutLeft,jnOutRight};
+    {devicejacks};
     CStereoBuffer* m_Input;
     //CMonoBuffer OutL;
     //CMonoBuffer OutR;

@@ -4,11 +4,14 @@
 #include "idevice.h"
 #include "cwavefile.h"
 
+#define devicejacks stereoout,stereoin
+#define devicecategory Generator
+
 class CWaveRecorder : public IDevice
 {
 private:
     enum JackNames
-    {jnOut,jnIn};
+    {devicejacks};
     enum ParameterNames
     {};
     //bool Playing;

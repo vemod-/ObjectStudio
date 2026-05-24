@@ -90,6 +90,26 @@ public:
     void pause();
     void init(const int Index, QWidget* MainWindow);
     CAudioBuffer* getNextA(const int ProcIndex);
+    void writeToOut(CStereoBuffer* OutBuffer, CWaveTrack* t, int ModRate, float vol, int s, int l) {
+        float* b = t->getNext();
+        if (!b) {
+            OutBuffer->zeroBuffer();
+            return;
+        }
+        if (!isZero(t->loopParameters.PitchShift)) {
+            for (int c = 0; c < t->channels(); c++) {
+                float* p = b + (c * ModRate);
+                PS[c]->process(cent2Factor(t->loopParameters.PitchShift * 100.0),p,p);
+            }
+        }
+        CChannelBuffer::copyFloatBuffer(OutBuffer->data() + s, b, vol, l);
+        if (t->channels() > 1) CChannelBuffer::copyFloatBuffer(OutBuffer->dataR() + s, b + ModRate, vol, l);
+        if (s > 0) {
+            CChannelBuffer::zeroFloatBuffer(OutBuffer->data(),s);
+            if (t->channels() > 1) CChannelBuffer::zeroFloatBuffer(OutBuffer->dataR(),s);
+            t->waveGenerator.skipTo(t->loopParameters.pos(l));
+        }
+    }
     QRect geometry;
     void pitchShift(CWaveTrack* T);
     void reset();
@@ -169,10 +189,10 @@ public:
     CVideoItem* videoItem = nullptr;
     CVideoDialog* videoDialog;
 private:
-    std::atomic<ulong64> Counter;
-    std::atomic<uint> ModulationCounter;
+    ulong64 Counter;
+    int ReadBufferPos;
     int syncCounter;
-    CChannelBuffer CurrentBuffer;
+    CChannelBuffer ReadBuffer;
     smbPitchShifter pitchShifterL;
     smbPitchShifter pitchShifterR;
     std::array<smbPitchShifter*, 2> PS;

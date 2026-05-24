@@ -1,6 +1,9 @@
 #ifndef CKEYBOARD_H
 #define CKEYBOARD_H
 
+#define devicejacks midiout,frequencyout,triggerout,modulationout1,modulationout2,modulationin1,modulationin2
+#define devicecategory MIDIGenerator | SynthModule
+
 #include "idevice.h"
 #include "cmidibuffer.h"
 
@@ -27,7 +30,7 @@ public:
     {pnMIDIChannel,pnTune,pnPitchBendRange,pnMod1Mode,pnMod2Mode};
 private:
     enum JackNames
-    {jnMIDI,jnFrequency,jnTrigger,jnModulationOut1,jnModulationOut2,jnModulationIn1,jnModulationIn2};
+    {devicejacks};
     void inline updateDeviceParameter(const CParameter* p = nullptr);
 };
 

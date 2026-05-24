@@ -4,6 +4,9 @@
 #include "cdevicecontainer.h"
 #include "qsignalmenu.h"
 
+#define devicejacks stereoin,midiin,stereoout
+#define devicecategory Container | Effect | Generator | Instrument
+
 class CMenuWidget : public QWidget
 {
     Q_OBJECT

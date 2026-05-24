@@ -74,8 +74,8 @@ float Phaser::AllpassDelay::Update(float inSamp) {
 void CPhaser::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     startParameterGroup();
     addParameterCutOff("Range Min",440);
     addParameterCutOff("Range Max",1600);
@@ -87,7 +87,7 @@ void CPhaser::init(const int Index, QWidget* MainWindow) {
 }
 
 CAudioBuffer *CPhaser::getNextA(const int ProcIndex) {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (!InBuffer->isValid()) return nullptr;
     CMonoBuffer* OutBuffer=MonoBuffer(ProcIndex);
     for (uint i=0;i<m_BufferSize;i++)

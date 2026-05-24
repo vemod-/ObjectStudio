@@ -1,6 +1,9 @@
 #ifndef CCOMPRESSOR_H
 #define CCOMPRESSOR_H
 
+#define devicejacks stereoin,stereoout
+#define devicecategory Effect
+
 #include "idevice.h"
 #include <cmath>
 
@@ -98,7 +101,7 @@ public:
     CAudioBuffer* getNextA(const int ProcIndex);
 private:
     enum JackNames
-    {jnIn,jnOut};
+    {devicejacks};
     enum ParameterNames
     {pnThreshold,pnRatio,pnAttack,pnRelease,pnOutput};
     void inline updateDeviceParameter(const CParameter* p = nullptr);

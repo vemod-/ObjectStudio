@@ -9,9 +9,9 @@ void CSignalSplitter::init(const int Index, QWidget *MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut1,"Out 1");
-    addJackWaveOut(jnOut2,"Out 2");
-    addJackWaveIn();
+    addJackMonoOut(monoout1,"Out 1");
+    addJackMonoOut(monoout2,"Out 2");
+    addJackMonoIn();
     addJackModulationIn();
     addParameterSelect("Type","Frequency§Volume");
     addParameter(CParameter::Numeric,"Split Frequency","Hz",20,presets.MaxCutoff/2,0,"",440);
@@ -19,7 +19,7 @@ void CSignalSplitter::init(const int Index, QWidget *MainWindow)
     addParameterPercent();
     addParameterPercent("X-fade",10);
     addParameterPercent("Response Time",10);
-    modulator.init(m_Jacks[jnModulation],m_Parameters[pnModulation]);
+    modulator.init(m_Jacks[modulationin],m_Parameters[pnModulation]);
     updateDeviceParameter();
 }
 
@@ -40,9 +40,9 @@ void CSignalSplitter::play(const bool FromStart)
 
 void CSignalSplitter::process()
 {
-    const CMonoBuffer* InBuffer = FetchAMono(jnIn);
-    CMonoBuffer* OutBuffer1=MonoBuffer(jnOut1);
-    CMonoBuffer* OutBuffer2=MonoBuffer(jnOut2);
+    const CMonoBuffer* InBuffer = FetchAMono(monoin);
+    CMonoBuffer* OutBuffer1=MonoBuffer(monoout1);
+    CMonoBuffer* OutBuffer2=MonoBuffer(monoout2);
     if (!InBuffer->isValid()) return;
     if (m_Parameters[pnType]->Value == 0)
     {

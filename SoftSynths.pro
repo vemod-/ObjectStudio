@@ -32,8 +32,10 @@ macx {
 TEMPLATE = subdirs
 
 SUBDIRS = PluginLoader \
+    DualMonoContainer \
     SoftSynthsClasses \
     SoftSynthsWidgets \
+    StereoContainer \
     Switch \
     WaveBank \
     WaveGenerator \

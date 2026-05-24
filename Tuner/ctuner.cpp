@@ -13,8 +13,8 @@ void CTuner::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addParameterTune("Calibration");
     addParameterOffOn("Silent");
     addParameter(CParameter::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",5000);
@@ -29,7 +29,7 @@ void CTuner::tick()
     if (m_OutJacks[0]->connectCount() == 0)
     {
         if (m_Form->isVisible()) {
-            CMonoBuffer* InBuffer = FetchAMono(jnIn);
+            CMonoBuffer* InBuffer = FetchAMono(monoin);
             if (InBuffer->isValid()) {
                 if (FORMFUNC(CTunerForm)->PD.ProcessBuffer(InBuffer->data(),presets.ModulationRate)) {
                     FORMFUNC(CTunerForm)->setPitchRecord();
@@ -42,7 +42,7 @@ void CTuner::tick()
 
 CAudioBuffer* CTuner::getNextA(const int /*ProcIndex*/)
 {
-    CMonoBuffer* InBuffer = FetchAMono(jnIn);
+    CMonoBuffer* InBuffer = FetchAMono(monoin);
     if (InBuffer->isValid()) {
         if (m_Form->isVisible()) {
             if (FORMFUNC(CTunerForm)->PD.ProcessBuffer(InBuffer->data(),presets.ModulationRate)) {

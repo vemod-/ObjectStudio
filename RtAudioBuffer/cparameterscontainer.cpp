@@ -4,6 +4,7 @@
 #include <QScrollBar>
 #include "cconnectionhelper.h"
 #include "cautomationlane.h"
+#include <QSplitter>
 
 #define shadowColor QColor(0,0,0,40)
 #define shadowOffset QPoint(5,5)
@@ -539,6 +540,14 @@ void CParametersContainer::dropEvent(QDropEvent *e) {
     emit devicesReordered(deviceIndex,move);
 }
 
+void CParametersContainer::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    for (QWidget* a : ProxyWidgets()) {
+        a->resize(constantWidth(),a->height());
+    }
+    adjustSizes();
+}
+
 CAutomationLane* CParametersContainer::createAutomationLane(IDevice* d, int parameterIndex)
 {
     CAutomationLane* a = new CAutomationLane();
@@ -565,6 +574,21 @@ void CParametersContainer::unserialize(const QDomLiteElement* xml) {
             }
         }
     }
+    adjustSizes();
+    QWidget* p = parentWidget();
+    while (p) {
+        if (auto splitter = qobject_cast<QSplitter*>(p)) {
+            const int h = xml->attributeValueInt("SplitHeight",geometry().height());
+            QList<int> sizes;
+            sizes.append(h);
+            sizes.append(splitter->height() - h);
+            splitter->setSizes(sizes);
+            break;
+        }
+        p = p->parentWidget();
+    }
+    qDebug() << "ParametersContainer unserialize" << geometry() << minimumHeight() << maximumHeight() << devices.size();
+    verticalScrollBar()->setSliderPosition(xml->attributeValueInt("ScrollPos",verticalScrollBar()->sliderPosition()));
 }
 
 void CParametersContainer::serialize(QDomLiteElement* xml) const
@@ -573,6 +597,8 @@ void CParametersContainer::serialize(QDomLiteElement* xml) const
     for (QWidget* a : ProxyWidgets()) {
         if (QDomLiteElement* l = Lanes->appendChild("AutomationLane")) qobject_cast<CAutomationLane*>(a)->serialize(l);
     }
+    xml->setAttribute("SplitHeight",geometry().height());
+    xml->setAttribute("ScrollPos",verticalScrollBar()->sliderPosition());
 }
 
 void CParametersContainer::animateTo(int i)

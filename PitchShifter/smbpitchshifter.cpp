@@ -1,10 +1,11 @@
 #include "smbpitchshifter.h"
 #include <QDebug>
 
-smbPitchShifter::smbPitchShifter(double sampleRate,int stepSize,int polyphony)
-    : m_win(MAX_FRAME_LENGTH), m_fft(MAX_FRAME_LENGTH), m_SampleRate(sampleRate), m_StepSize(stepSize), m_Polyphony(polyphony)
+smbPitchShifter::smbPitchShifter(double sampleRate,int stepSize,int polyphony, int oversampling)
+    : m_win(MAX_FRAME_LENGTH), m_fft(MAX_FRAME_LENGTH), m_SampleRate(sampleRate), m_StepSize(stepSize), m_Polyphony(polyphony), m_OSamp(oversampling)
 {
-    for (int i = 0; i < MAX_POLYPHONY; i++) {
+    m_Voices.resize(m_Polyphony);
+    for (int i = 0; i < m_Polyphony; i++) {
         smbVoice* v = &m_Voices[i];
         v->shiftFactor = 0;
         v->newFactor = 0;

@@ -10,6 +10,8 @@
 
 #define MaxPrograms 16
 
+#define devicecategory Custom
+
 class CProgramBox : public IDevice
 {
 public:

@@ -86,7 +86,7 @@ public:
         if (m_Ticker) return m_Ticker->milliSeconds();
         return 0;    }
         */
-    IMainPlayer::BufferStates BufferState = IMainPlayer::Stopped;
+    std::atomic<IMainPlayer::BufferStates> BufferState = IMainPlayer::Stopped;
 private:
     /*
     enum BufferStates
@@ -123,6 +123,7 @@ private:
 
     //ITicker* m_Ticker;
     uint TickCount;
+    int ticksUntilModulation;
 
     float PeakL;
     float PeakR;
@@ -132,7 +133,7 @@ private:
     void inline ParseMidi(const CMIDIBuffer* MIDIBuffer);
 
     CWaveFile WaveFile;
-    bool m_Recording;
+    std::atomic<bool> m_Recording;
 
     ulong64 ActivityCount;
     ulong64 ActivityLimit;

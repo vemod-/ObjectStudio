@@ -1,6 +1,8 @@
 #ifndef CMACROBOX_H
 #define CMACROBOX_H
 
+#define devicecategory Custom
+
 #include "idevice.h"
 
 class CMacroBox : public IDevice

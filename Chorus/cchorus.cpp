@@ -19,7 +19,7 @@ CChorus::CChorus()
 void CChorus::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackStereoOut(jnOut);
+    addJackStereoOut(stereoout);
     addJackStereoIn();
     addParameterRate("Rate",400);
     addParameter(CParameter::Numeric,"Phase","Centigrades",0,180,0,"",100);
@@ -40,8 +40,8 @@ float inline chorus_run(const CRingBuffer* ring,uint pos,float fpos)
 }
 
 void CChorus::process() {
-    const CStereoBuffer* InBuffer = FetchAStereo(jnIn);
-    CStereoBuffer* OutBuffer = StereoBuffer(jnOut);
+    const CStereoBuffer* InBuffer = FetchAStereo(stereoin);
+    CStereoBuffer* OutBuffer = StereoBuffer(stereoout);
     float in_L=0;
     float in_R=0;
     for (uint sample_index = 0; sample_index < m_BufferSize; sample_index++)

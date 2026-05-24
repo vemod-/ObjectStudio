@@ -21,8 +21,8 @@ void CVocoder::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackWaveOut(jnOut);
-    addJackWaveIn();
+    addJackMonoOut(monoout);
+    addJackMonoIn();
     addJackMIDIIn();
     startParameterGroup("MIDI", Qt::yellow);
     addParameterMIDIChannel();
@@ -42,12 +42,12 @@ void CVocoder::init(const int Index, QWidget* MainWindow)
 
 CAudioBuffer* CVocoder::getNextA(const int /*ProcIndex*/)
 {
-    CVDevice.parseMIDI(FetchP(jnMIDIIn));
-    inBuffer=FetchAMono(jnIn);
+    CVDevice.parseMIDI(FetchP(midiin));
+    inBuffer=FetchAMono(monoin);
     if (!inBuffer->isValid()) return nullptr;
     if (m_Parameters[pnEffect]->Value == 0)
     {
-        m_AudioBuffers[jnOut]->writeBuffer(inBuffer);
+        m_AudioBuffers[monoout]->writeBuffer(inBuffer);
     }
     else
     {
@@ -77,15 +77,15 @@ CAudioBuffer* CVocoder::getNextA(const int /*ProcIndex*/)
         }
         if (m_Parameters[pnEffect]->Value == 100)
         {
-            PS.process(m_shiftFactor,m_scale,inBuffer->data(),m_AudioBuffers[jnOut]->data());
+            PS.process(m_shiftFactor,m_scale,inBuffer->data(),m_AudioBuffers[monoout]->data());
         }
         else
         {
-            PS.process(m_shiftFactor,m_scale,inBuffer->data(),m_AudioBuffers[jnOut]->data());
-            m_AudioBuffers[jnOut]->addBuffer(inBuffer,m_Parameters[pnEffect]->DryValue);
+            PS.process(m_shiftFactor,m_scale,inBuffer->data(),m_AudioBuffers[monoout]->data());
+            m_AudioBuffers[monoout]->addBuffer(inBuffer,m_Parameters[pnEffect]->DryValue);
         }
     }
-    return m_AudioBuffers[jnOut];
+    return m_AudioBuffers[monoout];
 }
 
 void CVocoder::play(const bool FromStart)

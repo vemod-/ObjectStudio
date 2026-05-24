@@ -1,6 +1,8 @@
 #ifndef CDEVICECONTAINER_H
 #define CDEVICECONTAINER_H
 
+//#define devicejacks stereoin,midiin,stereoout
+
 #include <QWidget>
 #include "idevice.h"
 
@@ -46,7 +48,7 @@ public:
     int parameterValue(const QString &name) const;
 protected:
     enum JackNames
-    {jnIn,jnMIDIIn,jnOut,jnInsideIn,jnInsideMIDIIn};
+    {stereoin,midiin,stereoout,jnInsideIn,jnInsideMIDIIn};
     void process();
     IDevice* m_Device;
     QString m_DeviceType;
