@@ -47,6 +47,7 @@ private slots:
     void ChangeTempo(int Value);
     void PlayListPopup(QPoint Pos);
     void ChangeListIndex(int index);
+    void ChangePan(int Value);
 };
 
 #endif // CDRUMMACHINEFORM_H

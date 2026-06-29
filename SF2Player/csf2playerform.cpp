@@ -114,7 +114,7 @@ void CSF2PlayerForm::ChangePreset(int /*index*/)
 {
     if (ui->PresetList->currentIndex() < 0) return;
     const int bank=ui->BankList->currentText().toInt();
-    const int preset=ui->PresetList->currentText().left(3).toInt();
+    const int preset=QStringView(ui->PresetList->currentText()).left(3).toInt();
     SF2DEVICE->setBankPreset(bank,preset);
 }
 
@@ -137,7 +137,7 @@ void CSF2PlayerForm::timerEvent(QTimerEvent *)
     const int p=SF2DEVICE->currentPreset(-1);
     const int b=SF2DEVICE->currentBank(-1);
     const int bank=ui->BankList->currentText().toInt();
-    int preset=ui->PresetList->currentText().left(3).toInt();
+    int preset=QStringView(ui->PresetList->currentText()).left(3).toInt();
     if (bank != b)
     {
         preset=p;

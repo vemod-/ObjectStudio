@@ -229,17 +229,17 @@ void CSF2ChannelWidget::buildPresetMenu()
     }
     bankMenu->addMenu(transposeMenu);
     connect(transposeMenu,qOverload<int>(&QSignalMenu::menuClicked),this,&CSF2ChannelWidget::setTranspose);
-    QStringList l=m_Instrument->bankNames();
+    QStringList l = m_Instrument->bankNames();
     if (l.size() > 1)
     {
         for (const QString& s : std::as_const(l))
         {
-            int b=s.left(3).toInt();
+            int b=QStringView(s).left(3).toInt();
             QSignalMenu* m=new QSignalMenu("Bank "+s,this);
             QStringList pl=m_Instrument->presetNames(b);
             for (const QString& ps : std::as_const(pl))
             {
-                m->addAction(ps,m_Instrument->bankPresetNumber(b,ps.left(3).toInt()));
+                m->addAction(ps,m_Instrument->bankPresetNumber(b,QStringView(ps).left(3).toInt()));
             }
             bankMenu->addMenu(m);
             presetMenus.append(m);

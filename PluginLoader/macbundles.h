@@ -40,7 +40,33 @@ void* functionPointerInBundle(const QString& functionName, CFBundleRef bundle)
     CFRelease(fncName);
     return fnc;
 }
+/*
+void* functionPointerInBundle(const QString& functionName, CFBundleRef bundle)
+{
+    if (!bundle)
+        return nullptr;
+    qDebug() << "1";
+    if (!CFBundleIsExecutableLoaded(bundle))
+    {
+        qDebug() << "2";
+        if (!CFBundleLoadExecutable(bundle))
+        {
+            qDebug() << "Could not load bundle";
+            return nullptr;
+        }
+    }
+    qDebug() << "3";
+    CFStringRef fncName = functionName.toCFString();
+    qDebug() << "4";
+    void* fnc = CFBundleGetFunctionPointerForName(bundle, fncName);
+    qDebug() << "5";
+    qDebug() << functionName << fnc;
 
+    CFRelease(fncName);
+
+    return fnc;
+}
+*/
 CFArrayRef bundleArchitechtures(const QString& path)
 {
     //CFURLRef bundleURL=createCFURLRef(path);

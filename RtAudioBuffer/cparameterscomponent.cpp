@@ -3,6 +3,7 @@
 #include <QClipboard>
 #include "cparametersmenu.h"
 #include "qdprpixmap.h"
+#include "caddins.h"
 
 #define rackLeftWidth 68
 #define rackFrontWidth 1140
@@ -30,12 +31,12 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     m_UILabel->setFrameShape(QFrame::Panel);
     m_UILabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_IDLabel = new QLCDLabel();
-    m_IDLabel->setFixedSize(120,12);
+    m_IDLabel->setFixedSize(116,12);
     m_IDLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_PresetLabel = new QLCDLabel();
-    m_PresetLabel->setFixedSize(120,12);
+    m_PresetLabel->setFixedSize(116,12);
     m_PresetLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-    m_NameLabel->setFixedSize(120,80);
+    m_NameLabel->setFixedSize(116,80);
     m_NameLabel->setEffect(EffectLabel::Raised);
     m_NameLabel->setTextColor(QColor(0,0,0,200));
     m_NameLabel->setShadowColor(QColor(255,255,255,200));
@@ -65,6 +66,8 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     m_FrameList.append(l3);
     m_FrameList.append(l4);
 
+    m_FrameList.append(&m_CategoryFrame);
+
     QFont f(m_NameLabel->font());
     f.setPointSize(15);
     m_NameLabel->setFont(f);
@@ -73,16 +76,16 @@ CParametersComponent::CParametersComponent(QGraphicsScene* s)
     m_PresetLabel->setFont(f);
     m_IDLabel->setFont(f);
     QGraphicsProxyWidget* p = createProxyItem(m_PresetLabel);
-    p->setPos(rackLeftWidth + 12, 96);
+    p->setPos(rackLeftWidth + 14, 93);
     m_FrameList.append(p);
     QGraphicsProxyWidget* p1 = createProxyItem(m_IDLabel);
-    p1->setPos(rackLeftWidth + 12, 80);
+    p1->setPos(rackLeftWidth + 14, 80);
     m_FrameList.append(p1);
     m_ProxyNameLabel = createProxyItem(m_NameLabel);
-    m_ProxyNameLabel->setPos(rackLeftWidth + 12, 0);
+    m_ProxyNameLabel->setPos(rackLeftWidth + 14, 0);
     m_FrameList.append(m_ProxyNameLabel);
     m_ProxyUILabel = createProxyItem(m_UILabel);
-    m_ProxyUILabel->setPos(rackLeftWidth + 136, 12);
+    m_ProxyUILabel->setPos(rackLeftWidth + 133, 12);
     m_FrameList.append(m_ProxyUILabel);
 }
 
@@ -105,6 +108,18 @@ void CParametersComponent::init(IDevice* Device)
         m_ProxyDials.clear();
         m_GroupList.clear();
         Dials.clear();
+        QPainterPath path;
+        QRect categoryRect = QRect(rackLeftWidth + 11,2,120,106);
+        if (m_Device->hasUI()) categoryRect.adjust(0,0,134,0);
+        path.addRoundedRect(categoryRect, 5, 5);
+        m_CategoryFrame.setPath(path);
+        m_CategoryFrame.setPen(QColor(0,0,0,40));
+        uint32_t mask = CAddIns::addInCategory(m_Device->name());
+        double hue = fmod(mask * 137.50776405, 360.0); // golden angle
+        QColor c;
+        c.setHsvF(hue / 360.0, 0.75, 0.9);
+        c.setAlphaF(0.3);
+        m_CategoryFrame.setBrush(c);
         for (int i = 0; i < Device->parameterCount(); i++)
         {
             Parameters.append(Device->parameter(i));
@@ -126,7 +141,7 @@ void CParametersComponent::init(IDevice* Device)
             {
                 const CParameterGroup* g = (m_Device)->parameterGroup(i);
                 QColor c = g->color;
-                c.setAlphaF(0.2);
+                c.setAlphaF(0.3);
                 const int endIndex = (g->endIndex > -1) ? g->endIndex : m_ProxyDials.childItems().size() - 1;
                 const QGraphicsProxyWidget* sw = qgraphicsitem_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(g->startIndex));
                 const QGraphicsProxyWidget* ew = qgraphicsitem_cast<QGraphicsProxyWidget*>(m_ProxyDials.childItems().at(endIndex));

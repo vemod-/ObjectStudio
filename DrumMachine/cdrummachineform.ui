@@ -164,6 +164,28 @@
      </layout>
     </widget>
    </widget>
+   <widget class="QSlider" name="PanSlider">
+    <property name="geometry">
+     <rect>
+      <x>710</x>
+      <y>34</y>
+      <width>141</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>-100</number>
+    </property>
+    <property name="maximum">
+     <number>100</number>
+    </property>
+    <property name="tracking">
+     <bool>true</bool>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Orientation::Horizontal</enum>
+    </property>
+   </widget>
   </widget>
   <widget class="QListWidget" name="PatternPlayList">
    <property name="geometry">

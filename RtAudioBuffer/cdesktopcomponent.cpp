@@ -51,7 +51,9 @@ void CJackContainer::paint(QGraphicsScene* /*Scene*/)
     for (JackRect& j : jackRects)
     {
         QPen p(j.jack->JackColor(),jackPen);
-        jackItems.append(ellipseItem(QRect(j.topLeft(),QSize(j.size() - QSize(jackPen,jackPen))),p,QColor(0,0,0,80)));
+        //jackItems.append(ellipseItem(QRect(j.topLeft() - QPoint(1,1),QSize(j.size() + QSize(2,2) - QSize(jackPen,jackPen))),p,QColor(0,0,0,80)));
+        const QRect r = j.adjusted(-1, -1, 1 - jackPen, 1 - jackPen);
+        jackItems.append(ellipseItem(r, p, QColor(0, 0, 0, 80)));
         QGraphicsPixmapItem* plug = new QGraphicsPixmapItem(connectedDeviceJack);
         QGraphicsPixmapItem* jack = new QGraphicsPixmapItem(freeDeviceJack);
         plug->setPos(j.topLeft()-QPoint(1,1));
@@ -1046,7 +1048,8 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             connect(m,&CConnectionsMenu::aboutToChange,MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
             connect(m,&CConnectionsMenu::connectionsChanged,this,&CDesktopComponent::connectionsChanged);
             connect(m,&CConnectionsMenu::connectionsChanged,this,&CDesktopComponent::DrawConnections);
-            m->popup(event->globalPosition().toPoint());
+            //m->popup(event->globalPosition().toPoint());
+            m->popup(cursor().pos());
             MouseDown=false;
             return;
         }
@@ -1078,7 +1081,8 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             DeviceMenu->addSeparator();
             DeviceMenu->addAction("Disconnect",this,&CDesktopComponent::RemoveConnections);
             DeviceMenu->addAction("Show/Hide UI",this,&CDesktopComponent::toggleUI);
-            DeviceMenu->popup(event->globalPosition().toPoint());
+            //DeviceMenu->popup(event->globalPosition().toPoint());
+            DeviceMenu->popup(cursor().pos());
             MouseDown=false;
             return;
         }
@@ -1088,10 +1092,20 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
         if (event->button()==Qt::RightButton)
         {
             MouseDown=false;
-            QSignalMenu* PluginsPopup=new QSignalMenu("New Device",this);
-            connect(PluginsPopup,qOverload<QString>(&QSignalMenu::menuClicked),this,&CDesktopComponent::PluginMenuClicked);
             const QStringList plugs=CAddIns::addInNames();
-            for (const QString& p : plugs) PluginsPopup->addAction(p,p);
+
+            QMenu* PluginCategoryPopup = new QMenu("New Device",this);
+            const QStringList categories = QString(pluginCategoryNames).split(",");
+            int i = 1;
+            for (const QString& category : categories) {
+                QSignalMenu* PluginsPopup=new QSignalMenu(category,this);
+                PluginCategoryPopup->addMenu(PluginsPopup);
+                connect(PluginsPopup,qOverload<QString>(&QSignalMenu::menuClicked),this,&CDesktopComponent::PluginMenuClicked);
+                const QStringList categoryPlugs = CAddIns::addInNames(i);
+                i *= 2;
+                if (i > 64) i = 127;
+                for (const QString& p : categoryPlugs) PluginsPopup->addAction(p,p);
+            }
             QMenu* MacrosPopup=new QMenu("Saved Device",this);
             for (const QString& p : plugs)
             {
@@ -1116,13 +1130,14 @@ void CDesktopComponent::mousePressEvent(QMouseEvent *event)
             DesktopMenu->setAttribute(Qt::WA_DeleteOnClose);
             DesktopMenu->addActions(MainMenu->EditMenu->actions());
             DesktopMenu->addSeparator();
-            DesktopMenu->addMenu(PluginsPopup);
+            DesktopMenu->addMenu(PluginCategoryPopup);
             DesktopMenu->addMenu(MacrosPopup);
             DesktopMenu->addSeparator();
             DesktopMenu->addActions(MainMenu->FileMenu->actions());
             DesktopMenu->addSeparator();
             DesktopMenu->addMenu(MainMenu->RecentMenu);
-            DesktopMenu->popup(event->globalPosition().toPoint());
+            //DesktopMenu->popup(event->globalPosition().toPoint());
+            DesktopMenu->popup(cursor().pos());
             return;
         }
     }
@@ -1243,7 +1258,8 @@ void CDesktopComponent::mouseReleaseEvent(QMouseEvent *event)
             MarkMenu->addAction(pp);
             MarkMenu->addSeparator();
             MarkMenu->addAction("Disconnect",this,&CDesktopComponent::RemoveConnections);
-            MarkMenu->popup(event->globalPosition().toPoint());
+            //MarkMenu->popup(event->globalPosition().toPoint());
+            MarkMenu->popup(cursor().pos());
         }
     }
     QGraphicsView::mouseReleaseEvent(event);

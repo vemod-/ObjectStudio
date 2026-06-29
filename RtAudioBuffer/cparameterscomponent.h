@@ -37,6 +37,7 @@ private:
     QGraphicsProxyWidget* m_ProxyUILabel = nullptr;
     QGraphicsContainerItem m_GroupList;
     QGraphicsContainerItem m_FrameList;
+    QGraphicsPathItem m_CategoryFrame;
     QMenu* parametersMenu();
     //QRecursiveMutex mutex;
     QGraphicsProxyWidget* createProxyItem(QWidget* w);

@@ -1,7 +1,13 @@
 #ifndef CEFFECTRACK_H
 #define CEFFECTRACK_H
 
+#ifdef devicejacks
+#undef devicejacks
+#endif
 #define devicejacks stereoin,stereoout
+#ifdef devicecategory
+#undef devicecategory
+#endif
 #define devicecategory Effect | Container
 
 #include "cdevicelist.h"

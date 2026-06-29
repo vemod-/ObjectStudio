@@ -5,7 +5,13 @@
 #include "cmidifilereader.h"
 #include "cmseccounter.h"
 
+#ifdef devicejacks
+#undef devicejacks
+#endif
 #define devicejacks midiout
+#ifdef devicecategory
+#undef devicecategory
+#endif
 #define devicecategory MIDIGenerator
 
 namespace MIDIFilePlayer

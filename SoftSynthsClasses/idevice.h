@@ -37,6 +37,8 @@ enum pluginCategories {
     Custom=127
 };
 
+#define pluginCategoryNames "Instruments,Effects,Generators,Monitors,MIDIGenerators,Containers,SynthModules,Custom"
+
 class CDeviceList;
 
 class IDevice : public IDeviceBase, public ITicker, protected IPresetRef

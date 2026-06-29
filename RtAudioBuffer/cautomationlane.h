@@ -231,16 +231,17 @@ protected:
         QGraphicsView::mouseDoubleClickEvent(event);
     }
     void mousePressEvent(QMouseEvent *event) override {
+        qDebug() << "automationlane mousePress" << event->button();
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (event->button() == Qt::RightButton) {
             if (p.y() < m_TimeLineHeight) {
                 CTimeLineMenu* d = new CTimeLineMenu(&m_TimeLine,nullptr);
                 connect(d,&CTimeLineMenu::Changed,this,&CAutomationLane::Paint);
                 d->popup(cursor().pos());
-                QGraphicsView::mousePressEvent(event);
-                return;
             }
-            m_ParameterMenu->popup(event->globalPosition().toPoint());
+            else {
+                m_ParameterMenu->popup(cursor().pos());
+            }
             QGraphicsView::mousePressEvent(event);
             return;
         }
@@ -278,7 +279,12 @@ protected:
         QGraphicsView::mousePressEvent(event);
     }
     void mouseMoveEvent(QMouseEvent *event) override {
+        qDebug() << "automationlane mouseMove" << event->button();
         QPointF p = QGraphicsView::mapToScene(event->pos());
+        if (event->button() == Qt::RightButton) {
+            QGraphicsView::mouseMoveEvent(event);
+            return;
+        }
         if (m_TimeLine.handleMouseMove(p, m_Device)) return;
         if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
         if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
@@ -314,12 +320,18 @@ protected:
         if (!InfoLabel.isVisible()) InfoLabel.show();
         InfoLabel.setText(v + "\n" + m_TimeLine.timeToText(t));
         //InfoLabel->move(event->pos()+geometry().topLeft()+QPoint(4,4));
-        InfoLabel.move(event->globalPosition().toPoint() + QPoint(10,10));
+        //InfoLabel.move(event->globalPosition().toPoint() + QPoint(10,10));
+        InfoLabel.move(cursor().pos() + QPoint(10,10));
         InfoLabel.adjustSize();
         QGraphicsView::mouseMoveEvent(event);
     }
     void mouseReleaseEvent(QMouseEvent *event) override {
+        qDebug() << "automationlane mouseRelease" << event->button();
         QPointF p = QGraphicsView::mapToScene(event->pos());
+        if (event->button() == Qt::RightButton) {
+            QGraphicsView::mouseReleaseEvent(event);
+            return;
+        }
         if (m_TimeLine.handleMouseRelease(p, m_Device)) return;
         if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
         if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
@@ -341,7 +353,6 @@ protected:
         }
         else if (m_MD)
         {
-            viewport()->releaseMouse();
             if (p != m_Orig)
             {
                 CParameterEventList& l = currentParameter()->events;
@@ -363,6 +374,7 @@ protected:
                 DrawAutomation(true);
             }
         }
+        viewport()->releaseMouse();
         m_MD = false;
         m_Marking = false;
         QGraphicsView::mouseReleaseEvent(event);
@@ -392,12 +404,15 @@ protected:
                 return true;
             }
         }
-        if (e->type()==QEvent::Leave) {
-            if (!(QGuiApplication::mouseButtons() & Qt::LeftButton))
-            {
-                m_MD = false;
-                viewport()->releaseMouse();
-            }
+        if (e->type() == QEvent::Leave) {
+            //if (!(QGuiApplication::mouseButtons() & Qt::LeftButton))
+            //{
+            //    if (m_MD) {
+                    m_MD = false;
+            //        viewport()->releaseMouse();
+            //    }
+            //}
+            viewport()->releaseMouse();
             InfoLabel.hide();
         }
         if (e->type()==QEvent::Wheel) e->ignore();

@@ -166,6 +166,7 @@ int CEffectRackForm::deviceCount()
 void CEffectRackForm::unserializeCustom(const QDomLiteElement* xml)
 {
     QMutexLocker locker(&mutex);
+    for (IDevice* d : *m_DeviceList.devices()) m_Rack->removeDevice(d);
     m_DeviceList.clear();
     if (QDomLiteElement* Items = xml->elementByTag("Items"))
     {
@@ -176,8 +177,7 @@ void CEffectRackForm::unserializeCustom(const QDomLiteElement* xml)
             //qDebug() << CAddIns::addInNames();
             const int MenuIndex=CAddIns::indexOf(Name);
             IDevice* d = m_DeviceList.createDevice(instancefn(MenuIndex),Index,parentWidget());
-            if (d)
-            {
+            if (d) {
                 m_Rack->addDevice(d);
                 m_DeviceList.unserializeDevice(Device,d);
             }

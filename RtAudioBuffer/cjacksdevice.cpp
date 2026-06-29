@@ -69,8 +69,11 @@ void CJacksDevice::paint(QGraphicsScene* scene, int index)
         sr.setTopLeft(QPoint(0,0));
         scene->setSceneRect(sr);
         QColor c(r.jack->JackColor());
-        c.setAlpha(95);
-        JackItems.append(ellipseItem(QRect(r.topLeft(),r.size() - QSize(3,3)),QPen(c,3),Qt::NoBrush));
+        c.setAlphaF(0.6);
+        const int jackPenSize = 3;
+        const QRect jackRect = r.adjusted(-1, -1, 1 - jackPenSize, 1 - jackPenSize);
+        JackItems.append(ellipseItem(jackRect, QPen(c,jackPenSize), Qt::NoBrush));
+        //JackItems.append(ellipseItem(QRect(r.topLeft(),r.size() - QSize(3,3)),QPen(c,3),Qt::NoBrush));
         QGraphicsPixmapItem* px = new QGraphicsPixmapItem(freeDeviceJack);
         px->setPos(r.topLeft() - QPoint(1,1));
         JackItems.append(px);

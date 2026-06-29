@@ -7,7 +7,7 @@ void CDrumMachine::init(const int Index, QWidget* MainWindow)
 {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
-    addJackMonoOut(monoout);
+    addJackStereoOut(stereoout);
     addJackMIDIOut(midiout);
     addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
     addParameterVolume();
@@ -19,11 +19,11 @@ void CDrumMachine::init(const int Index, QWidget* MainWindow)
     PatternsInList.append(new PatternListType(DefaultPattern));
     AddSound("kick02.wav","Kick",WG[0]);
     AddSound("snr01.wav","Snare",WG[1]);
-    AddSound("hat01.wav","Hi-Hat",WG[2]);
-    AddSound("hat19.wav","Open Hi-Hat",WG[3]);
-    AddSound("cym01.wav","Cymbal",WG[4]);
-    AddSound("tom01.wav","Tom 1",WG[5]);
-    AddSound("tom02.wav","Tom 2",WG[6]);
+    AddSound("hat01.wav","Hi-Hat",WG[2],-20);
+    AddSound("hat19.wav","Open Hi-Hat",WG[3],-20);
+    AddSound("cym01.wav","Cymbal",WG[4],30);
+    AddSound("tom01.wav","Tom 1",WG[5],-40);
+    AddSound("tom02.wav","Tom 2",WG[6],50);
     Reset();
     updateDeviceParameter();
     CalcDuration();
@@ -98,9 +98,14 @@ CAudioBuffer* CDrumMachine::getNextA(const int ProcIndex)
 {
     if (m_Playing)
     {
-        m_AudioBuffers[ProcIndex]->zeroBuffer();
-        for (CWaveGeneratorX& w : WG)
-            m_AudioBuffers[ProcIndex]->addBuffer(w.getNext(), w.Volume*VolumeFactor);
+        CStereoBuffer* b = StereoBuffer(ProcIndex);
+        b->zeroBuffer();
+        for (CWaveGeneratorX& w : WG) {
+            //m_AudioBuffers[ProcIndex]->addBuffer(w.getNext(), w.Volume*VolumeFactor);
+            const float* in = w.getNext();
+            b->addLeftBuffer(in,w.Volume*w.PanL*VolumeFactor);
+            b->addRightBuffer(in,w.Volume*w.PanR*VolumeFactor);
+        }
         return m_AudioBuffers[ProcIndex];
     }
     return nullptr;//&m_NullBufferMono;

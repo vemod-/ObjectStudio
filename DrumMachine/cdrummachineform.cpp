@@ -25,6 +25,7 @@ CDrumMachineForm::CDrumMachineForm(IDevice* Device, QWidget *parent) :
 
     connect(ui->PatternList,&QListWidget::currentRowChanged,this,&CDrumMachineForm::ChangePatternIndex);
     connect(ui->InstrList,&QTabBar::currentChanged,this,&CDrumMachineForm::ChangeInstrument);
+    connect(ui->PanSlider,&QSlider::valueChanged,this,&CDrumMachineForm::ChangePan);
     connect(ui->PatternPlayList,&QWidget::customContextMenuRequested,this,&CDrumMachineForm::PlayListPopup);
     connect(ui->PatternPlayList,&QListWidget::currentRowChanged,this,&CDrumMachineForm::ChangeListIndex);
 
@@ -44,7 +45,7 @@ void CDrumMachineForm::UpdateSounds()
     ui->InstrList->blockSignals(true);
     while (ui->InstrList->count()) ui->InstrList->removeTab(ui->InstrList->count()-1);
     for (const CWaveGeneratorX& w : DRUMMACHINECLASS->WG) ui->InstrList->addTab(w.Name);
-    ui->InstrList->blockSignals(false);
+    ui->PanSlider->blockSignals(false);
 }
 
 void CDrumMachineForm::UpdatePatterns()
@@ -72,15 +73,21 @@ void CDrumMachineForm::UpdateBeats()
     ui->BeatsSpin->blockSignals(true);
     ui->TempoSpin->blockSignals(true);
     ui->NameEdit->blockSignals(true);
+    ui->PanSlider->blockSignals(true);
     const PatternType* CP=DRUMMACHINECLASS->Patterns.at(ui->PatternList->currentRow());
     for (CBeatFrame* b : std::as_const(m_Beats)) b->hide();
     ui->BeatsSpin->setValue(CP->numOfBeats());
     ui->NameEdit->setText(CP->Name);
     ui->TempoSpin->setValue(CP->Tempo);
+    CWaveGeneratorX& WG = DRUMMACHINECLASS->WG[soundIndex];
+    int L = WG.PanL * 100;
+    int R = WG.PanR * 100;
+    int V = R - L;
+    ui->PanSlider->setValue(V);
     for (int i=0;i<CP->numOfBeats();i++)
     {
         CBeatFrame* Beat;
-        if (i>=m_Beats.size())
+        if (i >= m_Beats.size())
         {
             Beat=new CBeatFrame(this);
             Beat->hide();
@@ -94,6 +101,7 @@ void CDrumMachineForm::UpdateBeats()
     ui->BeatsSpin->blockSignals(false);
     ui->TempoSpin->blockSignals(false);
     ui->NameEdit->blockSignals(false);
+    ui->PanSlider->blockSignals(false);
 }
 
 void CDrumMachineForm::UpdatePatternlist()
@@ -236,6 +244,13 @@ void CDrumMachineForm::unserializeCustom(const QDomLiteElement* xml)
     //DRUMMACHINECLASS->Patterns.clear();
     DRUMMACHINECLASS->PatternsInList.clear();
     if (!xml) return;
+    for (const QDomLiteElement* Instrument : (const QDomLiteElementList)xml->elementsByTag("Instrument"))
+    {
+        int i = Instrument->attributeValueInt("Index");
+        CWaveGeneratorX& WG = DRUMMACHINECLASS->WG[i];
+        WG.PanL = Instrument->attributeValueInt("PanL",100) * 0.01;
+        WG.PanR = Instrument->attributeValueInt("PanR",100) * 0.01;
+    }
     for (const QDomLiteElement* Pattern : (const QDomLiteElementList)xml->elementsByTag("Pattern"))
     {
         PatternType* P=new PatternType(Pattern->attribute("Name"),Pattern->attributeValueInt("NumOfBeats"),Pattern->attributeValueInt("Sounds"));
@@ -270,6 +285,13 @@ void CDrumMachineForm::unserializeCustom(const QDomLiteElement* xml)
 
 void CDrumMachineForm::serializeCustom(QDomLiteElement* xml) const
 {
+    for (uint i = 0; i < DRUMMACHINECLASS->WG->size(); i++) {
+        QDomLiteElement* Instrument = xml->appendChild("Instrument");
+        Instrument->setAttribute("Index",i);
+        CWaveGeneratorX& WG = DRUMMACHINECLASS->WG[i];
+        Instrument->setAttribute("PanL",int(WG.PanL * 100));
+        Instrument->setAttribute("PanR",int(WG.PanR * 100));
+    }
     for (int i=0; i<DRUMMACHINECLASS->Patterns.size(); i++)
     {
         const PatternType* P=DRUMMACHINECLASS->Patterns[i];
@@ -320,4 +342,15 @@ void CDrumMachineForm::ChangeListIndex(int index)
             break;
         }
     }
+}
+
+void CDrumMachineForm::ChangePan(int Value){
+    float L = 1;
+    float R = 1;
+    if (Value < 0) {R += Value * 0.01;}
+    if (Value > 0) {L -= Value * 0.01;}
+    const int soundIndex=ui->InstrList->currentIndex();
+    CWaveGeneratorX& WG = DRUMMACHINECLASS->WG[soundIndex];
+    WG.PanL = L;
+    WG.PanR = R;
 }

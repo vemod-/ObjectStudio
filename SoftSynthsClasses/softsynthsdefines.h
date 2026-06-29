@@ -294,11 +294,15 @@ QString inline percent2dBText(const int percent)
     return QString::number(lin2dB(percent*0.01),'f',2)+" dB";
 }
 
-QString inline mSecsToText(const ulong64 mSecs)
+QString inline mSecsToText(const ulong64 mSecs, bool format = false)
 {
     int minutes = mSecs/60000;
     int seconds = int(mSecs/1000)%60;
     int milliseconds = mSecs%1000;
+    if (format) return QString("%1:%2:%3")
+                       .arg(minutes, 2, 10, QChar('0'))
+                       .arg(seconds, 2, 10, QChar('0'))
+                       .arg(milliseconds, 3, 10, QChar('0'));
     return QString::number(minutes) + ":" + QString::number(seconds) + "." + QString::number(milliseconds);
 }
 

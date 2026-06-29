@@ -131,6 +131,8 @@ public:
     QAction* InsertLaneAction;
     QAction* RemoveLaneAction;
     QAction* RemoveTrackAction;
+    QAction* MoveLaneUpAction;
+    QAction* MoveLaneDownAction;
     QAction* CutAction;
     QAction* CopyAction;
     QAction* PasteAction;
@@ -177,6 +179,8 @@ private slots:
     void AddLane();
     void InsertLane();
     void RemoveLane();
+    void MoveLaneUp();
+    void MoveLaneDown();
     void UpdateEditTrack(CWaveGenerator::LoopParameters LP);
     void ShowMixer();
     void QuantizeStraight();
@@ -188,6 +192,7 @@ private slots:
     bool automationVisible(const QPointF& scenePos);
     CAutomationLane* automationWidget(int lane);
     void Automation(int lane = -1);
+    void AutomationCurrent();
     void setZoom(double z);
     void ZoomToCursor(double z, double o);
     void UpdateAutomationGeometry();
@@ -213,9 +218,7 @@ private:
     QGraphicsScene Scene;
     CDeviceList deviceList;
     std::atomic<bool> abortExport = false;
-    QString LaneID(int i) {
-        return"Lane " + QString::number(i + 1);
-    }
+    QString LaneID(int i);
     void UpdateGeometry();
     int MouseOverLane(QPoint Pos);
     int MouseOverTrack(QPoint Pos, int Lane);
@@ -225,7 +228,7 @@ private:
     //double sample2Beat(ulong64 sample, int div=1) const;
     //ulong64 beat2Sample(int beat, int div=1) const;
     //double quarterRate() const;
-    void ShowInfoLabel(ulong64 Start,CWaveLane* Lane);
+    //void ShowInfoLabel(ulong64 Start,CWaveLane* Lane);
     void ShowInfoLabel(ulong64 Start,int Lane);
     QString DropFileName(const QMimeData* d, const QObject* s);
     bool MD = false;

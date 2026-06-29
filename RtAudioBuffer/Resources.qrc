@@ -8,9 +8,9 @@
         <file>ocicon.icns</file>
         <file>ocicon.png</file>
         <file>busyindicator.qml</file>
-        <file>New Composer Project.zip</file>
         <file>New Wave Project.zip</file>
         <file>loading.gif</file>
         <file>Info.plist</file>
+        <file>New Composer Project.zip</file>
     </qresource>
 </RCC>

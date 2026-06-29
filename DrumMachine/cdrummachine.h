@@ -5,7 +5,7 @@
 #include "cwavegenerator.h"
 #include "cmseccounter.h"
 
-#define devicejacks monoout,midiout
+#define devicejacks stereoout,midiout
 #define devicecategory MIDIGenerator | Generator
 
 #define DRUMMACHINEFORM FORMFUNC(CDrumMachineForm)
@@ -22,6 +22,8 @@ class CWaveGeneratorX : public CWaveGenerator
 public:
     QString Name;
     float Volume;
+    float PanL;
+    float PanR;
     void trigger(const int vol)
     {
         if (vol>0)
@@ -52,12 +54,18 @@ private:
     //bool Playing;
     void CalcDuration();
     void Reset();
-    void inline AddSound(const QString& Path,const QString& Name,CWaveGeneratorX& WG)
+    void inline AddSound(const QString& Path,const QString& Name,CWaveGeneratorX& WG,int Pan = 0)
     {
         if (WG.load(":/sounds/"+Path))
         {
             WG.Name=Name;
             WG.Volume=0;
+            float L = 1;
+            float R = 1;
+            if (Pan < 0) {R += Pan * 0.01;}
+            if (Pan > 0) {L -= Pan * 0.01;}
+            WG.PanL = L;
+            WG.PanR = R;
         }
     }
     byte MIDINumbers[7] = {36,38,42,46,49,50,48};

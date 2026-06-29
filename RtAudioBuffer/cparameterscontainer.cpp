@@ -171,6 +171,7 @@ QList<QWidget *> CParametersContainer::ProxyWidgets() const {
 }
 
 void CParametersContainer::mousePressEvent(QMouseEvent *event) {
+    qDebug() << "parametersContainer mousePress" << event->button();
     const QPoint scenePos = mapToScene(event->pos()).toPoint();
     if (hasAutomation(scenePos)) {
         QGraphicsView::mousePressEvent(event);
@@ -184,7 +185,8 @@ void CParametersContainer::mousePressEvent(QMouseEvent *event) {
             CConnectionsMenu* m = new CConnectionsMenu(m_DL->jack(JackID),m_DL,this);
             connect(m,&CConnectionsMenu::aboutToChange,this,&CParametersContainer::aboutToChange,Qt::DirectConnection);
             connect(m,&CConnectionsMenu::connectionsChanged,this,&CParametersContainer::DrawChangedConnections);
-            m->popup(event->globalPosition().toPoint());
+            //m->popup(event->globalPosition().toPoint());
+            m->popup(cursor().pos());
             return;
         }
         DragJack = m_DL->jack(JackID);
@@ -429,6 +431,7 @@ QString CParametersContainer::MouseOverJack(const QPoint &Pos)
 
 void CParametersContainer::mouseMoveEvent(QMouseEvent* event)
 {
+    qDebug() << "parametersContainer mouseMove" << event->button();
     static QDPRPixmap plugPix = QDPRPixmap(rackJackSize,":/Plug.png").shadowedPixmap(10);
     const QPoint scenePos = mapToScene(event->pos()).toPoint();
     if (hasAutomation(scenePos)) {
@@ -469,6 +472,7 @@ void CParametersContainer::mouseMoveEvent(QMouseEvent* event)
 }
 
 void CParametersContainer::mouseReleaseEvent(QMouseEvent *event){
+    qDebug() << "parametersContainer mouseRelease" << event->button();
     const QPoint scenePos = mapToScene(event->pos()).toPoint();
     if (hasAutomation(scenePos)) {
         QGraphicsView::mouseReleaseEvent(event);

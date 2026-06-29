@@ -99,7 +99,9 @@ void CWaveLanes::init(const int Index, QWidget* MainWindow)
     InsertLaneAction=MainMenu->EditMenu->addAction("Insert Lane",this,&CWaveLanes::InsertLane);
     AddLaneAction=MainMenu->EditMenu->addAction("Add Lane",this,&CWaveLanes::AddLane);
     RemoveLaneAction=MainMenu->EditMenu->addAction("Remove Lane",this,&CWaveLanes::RemoveLane);
-    AutomationAction = MainMenu->EditMenu->addAction("Show Automation",this,&CWaveLanes::Automation);
+    MoveLaneUpAction=MainMenu->EditMenu->addAction("Move Lane Up",this,&CWaveLanes::MoveLaneUp);
+    MoveLaneDownAction=MainMenu->EditMenu->addAction("Move Lane Down",this,&CWaveLanes::MoveLaneDown);
+    AutomationAction = MainMenu->EditMenu->addAction("Show Automation",this,&CWaveLanes::AutomationCurrent);
     EditLaneAction = MainMenu->EditMenu->addAction("Edit Lane",this,&CWaveLanes::EditLane);
     EditLaneAction->setCheckable(true);
     EffectRackAction = MainMenu->EditMenu->addAction("Show EffectRack",this,&CWaveLanes::EffectRack);
@@ -458,9 +460,17 @@ void CWaveLanes::QuantizeTriplet()
 }
 
 void CWaveLanes::ShowInfoLabel(ulong64 Start,int Lane) {
-    if (Lane > -1) ShowInfoLabel(Start, lanes[Lane]);
+    int Top = timelineheight;
+    if (Lane > -1) Top = lanes[Lane]->geometry.bottom();
+    const ldouble mSecs = presets.samplesTomSecs(Start);
+    InfoLabel->hide();
+    setFontSizeScr(InfoLabel,11);
+    InfoLabel->setText("Sample: "+QString::number(Start)+" \nTime: "+m_TimeLine.timeToText(mSecs,CTimeLine::TimeLineMilliseconds)+" \nBar: " + m_TimeLine.timeToText(mSecs,CTimeLine::TimelineBars));
+    InfoLabel->move(sample2Pos(Start)-zoomer->visibleRect().left(),Top);//,fm.horizontalAdvance("Sample "+QString::number(Start)+" \n")+4,(fm.height()*3)+4);
+    InfoLabel->adjustSize();
+    InfoLabel->show();
 }
-
+/*
 void CWaveLanes::ShowInfoLabel(ulong64 Start, CWaveLane* Lane)
 {
     const int Top = Lane->geometry.bottom();
@@ -472,7 +482,7 @@ void CWaveLanes::ShowInfoLabel(ulong64 Start, CWaveLane* Lane)
     InfoLabel->adjustSize();
     InfoLabel->show();
 }
-
+*/
 void CWaveLanes::mouseDoubleClickEvent(QMouseEvent *event)
 {
     const QPointF scenePos = mapToScene(event->pos());
@@ -598,6 +608,8 @@ void CWaveLanes::setEditMenu() {
     }
     EditLaneAction->setEnabled(CurrentLane>-1);
     InsertLaneAction->setEnabled(CurrentLane>-1);
+    MoveLaneUpAction->setEnabled(CurrentLane > 0);
+    MoveLaneDownAction->setEnabled((CurrentLane < lanes.size() - 1) & (CurrentLane > -1));
     EffectRackAction->setEnabled(CurrentLane>-1);
     MainMenu->EditMenu->setSelectionStatus(canCopy());
     EditLaneAction->setChecked(m_EditLane > -1);
@@ -797,15 +809,21 @@ void CWaveLanes::sidebarItemChanged(CWaveLaneSidebarItem *item){
     qDebug() << "automationwidgets" << ProxyWidgets().size();
 }
 
+QString CWaveLanes::LaneID(int i) {
+    return"Lane " + QString::number(i + 1);
+}
+
 void CWaveLanes::mousePressEvent(QMouseEvent *event)
 {
+    qDebug() << "waveLanes mousePress" << event->button();
     StartPos = mapToScene(event->pos()).toPoint();
     if (m_sidebarItem->isOpen()) {
         QGraphicsItem* item = Scene.itemAt(StartPos,transform());
         if (QGraphicsProxyWidget* w = qgraphicsitem_cast<QGraphicsProxyWidget*>(item)) {
             if (QLCDEdit* k = qobject_cast<QLCDEdit*>(w->widget())) {
                 m_sidebarItem->setPopup(true);
-                k->popupMenu(event->globalPosition().toPoint());
+                //k->popupMenu(event->globalPosition().toPoint());
+                k->popupMenu(cursor().pos());
                 return;
             }
         }
@@ -845,12 +863,19 @@ void CWaveLanes::mousePressEvent(QMouseEvent *event)
             lanes[CurrentLane]->paintEdges(StartPos,Track,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect());
         }
     }
-    if ((CurrentLane > -1) && (!CurrentTrack.isEmpty())) ShowInfoLabel(lanes[CurrentLane]->tracks[CurrentTrack.first()]->start,CurrentLane);
     if (event->button()==Qt::RightButton) {
-        MainMenu->EditMenu->popup(event->globalPosition().toPoint());
+        ShowInfoLabel(pos2Sample(StartPos.x()),-1);
+        //MainMenu->EditMenu->popup(event->globalPosition().toPoint());
+        MainMenu->EditMenu->popup(cursor().pos());
         return;
     }
     if (CurrentLane > -1) {
+        if (!CurrentTrack.isEmpty()) {
+            ShowInfoLabel(lanes[CurrentLane]->tracks[CurrentTrack.first()]->start,CurrentLane);
+        }
+        else {
+            ShowInfoLabel(pos2Sample(StartPos.x()),CurrentLane);
+        }
         qDebug() << Lane << Track << CurrentLane << lanes[CurrentLane]->DragTracks << CurrentTrack;
         lanes[CurrentLane]->DragTracks = CurrentTrack;
         qDebug() << Lane << Track << CurrentLane << lanes[CurrentLane]->DragTracks << CurrentTrack;
@@ -866,11 +891,12 @@ void CWaveLanes::mousePressEvent(QMouseEvent *event)
             }
         }
     }
-    //QGraphicsView::mousePressEvent(event);
+    QGraphicsView::mousePressEvent(event);
 }
 
 void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
 {
+    qDebug() << "waveLanes mouseMove" << event->button();
     const QPoint Pos = mapToScene(event->pos()).toPoint();
     if (m_sidebarItem->isOpen()) {
         InfoLabel->hide();
@@ -882,7 +908,10 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
         QGraphicsView::mouseMoveEvent(event);
         return;
     }
-    if (m_TimeLine.handleMouseMove(Pos,this)) return;
+    if (m_TimeLine.handleMouseMove(Pos,this)) {
+        ShowInfoLabel(pos2Sample(Pos.x()),-1);
+        return;
+    }
     if (CurrentLane > -1) {
         long64 s = lanes[CurrentLane]->handleMouseMove(Pos,&m_TimeLine);
         if (s > -1) {
@@ -910,7 +939,12 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
         }
     }
     else {
-        InfoLabel->hide();
+        if (Pos.y() < timelineheight) {
+            ShowInfoLabel(pos2Sample(Pos.x()),-1);
+        }
+        else {
+            InfoLabel->hide();
+        }
     }
     if (!MD) unsetCursor();
     if ((m_OldDragLane > -1) && (m_OldDragTrack > -1)) {
@@ -923,12 +957,9 @@ void CWaveLanes::mouseMoveEvent(QMouseEvent *event)
 
 void CWaveLanes::mouseReleaseEvent(QMouseEvent *event)
 {
+    qDebug() << "waveLanes mouseRelease" << event->button();
     const QPoint Pos = mapToScene(event->pos()).toPoint();
-    if (m_sidebarItem->isOpen()) {
-        QGraphicsView::mouseReleaseEvent(event);
-        return;
-    }
-    if (automationVisible(Pos)) {
+    if (m_sidebarItem->isOpen() || automationVisible(Pos)) {
         QGraphicsView::mouseReleaseEvent(event);
         return;
     }
@@ -957,7 +988,7 @@ void CWaveLanes::mouseReleaseEvent(QMouseEvent *event)
             if (TrackIndex > -1) Lane->paintEdges(Pos,TrackIndex,Scene,zoomer->getZoom(),zoomer->visibleRect().toRect());
         }
     }
-    //QGraphicsView::mouseReleaseEvent(event);
+    QGraphicsView::mouseReleaseEvent(event);
 }
 
 
@@ -1077,6 +1108,10 @@ void CWaveLanes::Automation(int lane) {
     }
 }
 
+void CWaveLanes::AutomationCurrent(){
+    Automation(CurrentLane);
+}
+
 void CWaveLanes::UpdateAutomationGeometry() {
     for (int i = 0; i < lanes.size(); i++) {
         if (CAutomationLane* a = automationWidget(i)) {
@@ -1129,7 +1164,6 @@ void CWaveLanes::updateMixer()
     m_MixerWidget->stop();
     for (int i = 0; i < m_MixerWidget->channels.count(); i++) qDebug() << "Channel ID 1" << m_MixerWidget->channels[i]->ID;
     mutex.lock();
-    deviceList.disconnectAll();
     if (!m_Mixer) {
         m_Mixer=new CStereoMixer(0,3);
         deviceList.addDevice(m_Mixer,1,nullptr);
@@ -1137,7 +1171,19 @@ void CWaveLanes::updateMixer()
     m_MixerWidget->hide();
     m_MixerWidget->hideMaster();
     for (int i = 0; i < m_MixerWidget->channels.count(); i++) qDebug() << "Channel ID 2" << m_MixerWidget->channels[i]->ID;
-    if (lanes.size()!=int(m_Mixer->channelCount())) {
+    const bool channelMatch = int(m_Mixer->channelCount()) == lanes.size();
+    bool IDMatch = channelMatch;
+    if (m_MixerWidget->channels.size() != lanes.size()) IDMatch = false;
+    if (IDMatch) {
+        for (int i = 0; i < m_MixerWidget->channels.size(); i++) {
+            if (m_MixerWidget->channels[i]->ID != lanes[i]->ID) {
+                IDMatch = false;
+                break;
+            }
+        }
+    }
+    if (!IDMatch) {
+    //if (lanes.size() != int(m_Mixer->channelCount())) {
         QDomLiteElement channelXML;
         for (uint i = 0; i < m_Mixer->channelCount(); i++) {
             QDomLiteElement* e = new QDomLiteElement("Channel");
@@ -1145,13 +1191,19 @@ void CWaveLanes::updateMixer()
             channelXML.appendChild(e);
         }
         qDebug() << "save" << channelXML.toString();
-        m_Mixer->removerEffectRacksFromDeviceList(&deviceList);
-        deviceList.deleteDevice(m_Mixer);
-        m_Mixer = new CStereoMixer(lanes.size(),3);
-        deviceList.addDevice(m_Mixer,1,nullptr);
-        while (m_MixerWidget->channels.size()>lanes.size()) m_MixerWidget->removeChannel();
-        while (m_MixerWidget->channels.size()<lanes.size()) m_MixerWidget->appendChannel();
-        m_Mixer->addEffectRacksToDeviceList(&deviceList,m_MainWindow);
+        if (!channelMatch) {
+            deviceList.disconnectAll();
+            m_Mixer->removerEffectRacksFromDeviceList(&deviceList);
+            deviceList.deleteDevice(m_Mixer);
+            m_Mixer = new CStereoMixer(lanes.size(),3);
+            deviceList.addDevice(m_Mixer,1,nullptr);
+            while (m_MixerWidget->channels.size() > lanes.size()) m_MixerWidget->removeChannel();
+            if (m_MixerWidget->channels.size() < lanes.size()) {
+                while (m_MixerWidget->channels.size() > 0) m_MixerWidget->removeChannel();
+                while (m_MixerWidget->channels.size() < lanes.size()) m_MixerWidget->appendChannel();
+            }
+            m_Mixer->addEffectRacksToDeviceList(&deviceList,m_MainWindow);
+        }
         for (int i = 0; i < lanes.size(); i++) {
             CSF2ChannelWidget* ch = m_MixerWidget->channels[i];
             ch->init(m_Mixer->channels[i],lanes[i]->alias());
@@ -1168,15 +1220,17 @@ void CWaveLanes::updateMixer()
             lanes[i]->parameters[0]->connectToWidget(ch->volSlider,&CChannelVol::volChanged,&CChannelVol::setVol);
             lanes[i]->parameters[1]->connectToWidget(ch->effectsPanel,&CChannelEffects::panValueChanged,&CChannelEffects::setPanValue);
         }
-        channelXML.clearChildren();
-    }
-    for (int i = 0; i < m_MixerWidget->channels.count(); i++) qDebug() << "Channel ID 3" << m_MixerWidget->channels[i]->ID;
-    for (int i = 0; i < lanes.size(); i++) {
-        deviceList.connect("StereoMixer 1 In " + QString::number(i+1),lanes[i]->deviceID() + " Out");
-    }
-    for (int i = 0; i < 3; i++) {
-        deviceList.connect("Effect "+ QString::number(i+1) +" In","StereoMixer 1 Send "+ QString::number(i+1));
-        deviceList.connect("StereoMixer 1 Return "+ QString::number(i+1),"Effect "+ QString::number(i+1) +" Out");
+        if (!channelMatch) {
+            for (int i = 0; i < m_MixerWidget->channels.count(); i++) qDebug() << "Channel ID 3" << m_MixerWidget->channels[i]->ID;
+            for (int i = 0; i < lanes.size(); i++) {
+                deviceList.connect("StereoMixer 1 In " + QString::number(i+1),lanes[i]->deviceID() + " Out");
+            }
+            for (int i = 0; i < 3; i++) {
+                deviceList.connect("Effect "+ QString::number(i+1) +" In","StereoMixer 1 Send "+ QString::number(i+1));
+                deviceList.connect("StereoMixer 1 Return "+ QString::number(i+1),"Effect "+ QString::number(i+1) +" Out");
+            }
+        }
+        //channelXML.clearChildren();
     }
     m_MixerWidget->showMaster(m_Mixer,&Effects);
     mutex.unlock();
@@ -1212,13 +1266,13 @@ void CWaveLanes::AddLaneInternal(int index) {
     for (int i = 0; i < m_MixerWidget->channels.count(); i++) qDebug() << "Channel ID addlaneinternal" << m_MixerWidget->channels[i]->ID;
     auto L = new CWaveLane;
     L->videoDialog = videoWindow;
-    deviceList.addDevice(L,lanes.size()+1,m_MainWindow);
     int i = 0;
     QStringList IDList;
     for (const CWaveLane* l : std::as_const(lanes)) IDList.append(l->ID);
     while (IDList.contains(LaneID(i))) i++;
     L->ID = LaneID(i);
     L->setAlias(L->ID);
+    deviceList.addDevice(L, i + 1, m_MainWindow);
     if (index > -1) {
         lanes.insert(index,L);
         CurrentLane = index;
@@ -1251,13 +1305,33 @@ void CWaveLanes::RemoveLane()
             updateMixer();
             const ulong64 samples = requestSamples();
             if (requestCurrentSample() > samples) {
-                    requestPause();
-                    requestSkip(samples);
+                requestPause();
+                requestSkip(samples);
             }
             paint();
             setEditMenu();
         }
     }
+}
+
+void CWaveLanes::MoveLaneUp(){
+    MainMenu->UndoMenu->addItem("Move Lane Up");
+    closeAutomation();
+    lanes.swapItemsAt(CurrentLane,CurrentLane - 1);
+    CurrentLane--;
+    updateMixer();
+    paint();
+    setEditMenu();
+}
+
+void CWaveLanes::MoveLaneDown(){
+    MainMenu->UndoMenu->addItem("Move Lane Down");
+    closeAutomation();
+    lanes.swapItemsAt(CurrentLane,CurrentLane + 1);
+    CurrentLane++;
+    updateMixer();
+    paint();
+    setEditMenu();
 }
 
 QString CWaveLanes::DropFileName(const QMimeData* d, const QObject* s) {

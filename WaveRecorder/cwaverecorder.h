@@ -4,7 +4,13 @@
 #include "idevice.h"
 #include "cwavefile.h"
 
+#ifdef devicejacks
+#undef devicejacks
+#endif
 #define devicejacks stereoout,stereoin
+#ifdef devicecategory
+#undef devicecategory
+#endif
 #define devicecategory Generator
 
 class CWaveRecorder : public IDevice

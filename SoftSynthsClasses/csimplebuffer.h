@@ -290,7 +290,7 @@ public:
     inline void reset(const uint c = 0) { m_CurrentPointer = channelPointer(c); }
     inline float at(const ulong64 p,const uint c) const { return *(channelPointer(c) + p); }
     inline short shortAt(const ulong64 p,const uint c) const { return short(*(channelPointer(c) + p) * SHRT_MAX); }
-    inline int intAt(const ulong64 p,const uint c) const { return int(*(channelPointer(c) + p) * INT_MAX); }
+    inline int intAt(const ulong64 p,const uint c) const { return int(*(channelPointer(c) + p) * static_cast<float>(INT_MAX)); }
     inline std::vector<short> toShortInterleaved() const
     {
         std::vector<short> b(dataSize());

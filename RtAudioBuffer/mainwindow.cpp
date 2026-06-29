@@ -94,7 +94,7 @@ MainWindow::MainWindow(QWidget *parent) :
     MainBuffers.createBuffer();
 
     m_TimeLineSlider = new CTimeLineSlider(this);
-    m_TimeLineSlider->init(&MainBuffers);
+    m_TimeLineSlider->init(&MainBuffers,ui->lcdNumber);
     ui->mainLayout->addWidget(m_TimeLineSlider);
 
     qDebug() << "Create buffer finished";

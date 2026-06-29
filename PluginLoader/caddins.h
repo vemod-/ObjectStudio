@@ -25,9 +25,16 @@ public:
         if (category == 0) {
             for (const CAddIns::AddInType& AI : std::as_const(getInstance()->AddInList)) l.append(AI.ClassName);
         }
+        else if (category == 127) {
+            for (const CAddIns::AddInType& AI : std::as_const(getInstance()->AddInList)) {
+                if (AI.Category == category) l.append(AI.ClassName);
+            }
+        }
         else {
             for (const CAddIns::AddInType& AI : std::as_const(getInstance()->AddInList)) {
-                if (AI.Category & category) l.append(AI.ClassName);
+                if (AI.Category != 127) {
+                    if (AI.Category & category) l.append(AI.ClassName);
+                }
             }
         }
         if (filter.isEmpty()) return l;
@@ -54,6 +61,11 @@ public:
     static int indexOf(const QString& Name)
     {
         return getInstance()->addInNames().indexOf(Name);
+    }
+    static int addInCategory(const QString& name) {
+        const int i = indexOf(name);
+        if (i < 0) return 0;
+        return getInstance()->AddInList[i].Category;
     }
     static void registerAddIn(voidinstancefunc f, QString n, int c, QString j = QString()) {
         AddInType addin;

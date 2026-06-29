@@ -20,10 +20,10 @@ CTimeLineSlider::CTimeLineSlider(QWidget *parent)
     setMouseTracking(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    InfoLabel=new QLabel(parent);
-    InfoLabel->setAutoFillBackground(true);
-    InfoLabel->setFrameStyle(QFrame::Box | QFrame::Plain);
-    InfoLabel->hide();
+    InfoLabel.setWindowFlags(Qt::ToolTip);
+    InfoLabel.setAutoFillBackground(true);
+    InfoLabel.setFrameStyle(QFrame::Box | QFrame::Plain);
+    InfoLabel.hide();
 }
 
 void CTimeLineSlider::resizeEvent(QResizeEvent* /*e*/) {
@@ -35,6 +35,9 @@ void CTimeLineSlider::resizeEvent(QResizeEvent* /*e*/) {
 void CTimeLineSlider::timerEvent(QTimerEvent* /*e*/) {
     if (!m_TimerID) return;
     m_TimeLine.handleTimer(m_Device);
+    if (m_Display) {
+        if (m_Device->requestIsPlaying()) m_Display->showTime(m_Device);
+    }
 }
 
 void CTimeLineSlider::mouseDoubleClickEvent(QMouseEvent* e) {
@@ -56,6 +59,23 @@ void CTimeLineSlider::mousePressEvent(QMouseEvent* e) {
 void CTimeLineSlider::mouseMoveEvent(QMouseEvent* e) {
     QPointF p = QGraphicsView::mapToScene(e->pos());
     m_TimeLine.handleMouseMove(p, m_Device);
+    ulong64 t = m_TimeLine.timeFromX(p.x());
+    /*
+    if (!InfoLabel.isVisible()) InfoLabel.show();
+    InfoLabel.setText(m_TimeLine.timeToText(t));
+    //InfoLabel->move(event->pos()+geometry().topLeft()+QPoint(4,4));
+    //InfoLabel.move(e->globalPosition().toPoint() + QPoint(10,10));
+    InfoLabel.move(cursor().pos() + QPoint(10,10));
+    InfoLabel.adjustSize();
+*/
+    if (!InfoLabel.isVisible()) InfoLabel.show();
+    InfoLabel.setText(m_TimeLine.timeToText(t));
+    InfoLabel.adjustSize();
+    const QRect r = screen()->availableGeometry();
+    QPoint pos = QCursor::pos() + QPoint(10, 10);
+    if (pos.x() + InfoLabel.width() > r.right()) pos.setX(QCursor::pos().x() - InfoLabel.width() - 10);
+    if (pos.y() + InfoLabel.height() > r.bottom()) pos.setY(QCursor::pos().y() - InfoLabel.height() - 10);
+    InfoLabel.move(pos);
 }
 
 void CTimeLineSlider::mouseReleaseEvent(QMouseEvent* e) {
