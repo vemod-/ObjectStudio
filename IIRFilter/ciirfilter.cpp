@@ -22,8 +22,8 @@ void CIIRFilter::init(const int Index, QWidget* MainWindow)
     addParameterCutOff("Low Freq",20);
     addParameterCutOff("High Freq",presets.MaxCutoff);
     endParameterGroup();
-    addParameter(CParameter::Numeric,"Order","",1,16,0,"",5);
-    addParameter(CParameter::Percent,"Modulation","%",0,200,0,"",0);
+    addParameter(CParameterVars::Numeric,"Order","",1,16,0,"",5);
+    addParameter(CParameterVars::Percent,"Modulation","%",0,200,0,"",0);
     updateDeviceParameter();
 }
 

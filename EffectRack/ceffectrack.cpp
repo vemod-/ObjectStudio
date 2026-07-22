@@ -225,15 +225,15 @@ void CEffectRackForm::parameterChange(IDevice* device, const CParameter* paramet
 {
     if (device)
     {
+        const int d = m_DeviceList.indexOfDevice(device);
         if (parameter)
         {
             emit controlChanged(device,parameter);
-            const int d = m_DeviceList.indexOfDevice(device);
-            if (d > -1) m_DeviceList.updateParameter(d,parameter);
         }
         else {
             m_Rack->showParameters(device);
         }
+        if (d > -1) m_DeviceList.updatePolyParameter(d,parameter);
     }
 }
 
@@ -250,7 +250,7 @@ bool CEffectRackForm::event(QEvent* e) {
         if (dynamic_cast<QMouseEvent*>(e)->button()==Qt::RightButton)
         {
             CParametersMenu* m = new CParametersMenu(m_Device,this,false);
-            m->setAttribute(Qt::WA_DeleteOnClose,true);
+            //m->setAttribute(Qt::WA_DeleteOnClose,true);
             connect(m,&CParametersMenu::parametersChanged,this,&CEffectRackForm::updateConnections);
             m->popup(dynamic_cast<QMouseEvent*>(e)->globalPosition().toPoint());
         }

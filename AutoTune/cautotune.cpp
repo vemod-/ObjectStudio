@@ -12,11 +12,11 @@ void CAutoTune::init(const int Index, QWidget* MainWindow)
     addJackMonoIn();
     addParameterTune("Calibration");
     addParameterPercent("Glide");
-    addParameter(CParameter::Numeric,"Slack","Cents",0,100,0,"",2);
+    addParameter(CParameterVars::Numeric,"Slack","Cents",0,100,0,"",2);
     startParameterGroup();
     addParameterPercent("Threshold",10);
-    addParameter(CParameter::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",5000);
-    addParameter(CParameter::Numeric,"Rate","mSec",10,1000,0,"",10);
+    addParameter(CParameterVars::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",5000);
+    addParameter(CParameterVars::Numeric,"Rate","mSec",10,1000,0,"",10);
     addParameterSelect("Oversampling","1§2§4§8§16§32",3);
     endParameterGroup();
     updateDeviceParameter();

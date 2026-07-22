@@ -48,10 +48,10 @@ void CKnobControl::setValue(CParameter* p)
     //QMutexLocker locker(&mutex);
     m_Parameter=p;
     KnobType t = Knob;
-    if (p->Type == CParameter::SelectBox)
+    if (p->vars.Type == CParameterVars::SelectBox)
     {
-        if (p->Max < 4) t = Switch;
-        if (p->Max < 2) t = Checkbox;
+        if (p->vars.Max < 4) t = Switch;
+        if (p->vars.Max < 2) t = Checkbox;
     }
     if (t != m_KnobType)
     {
@@ -77,8 +77,8 @@ void CKnobControl::setValue(CParameter* p)
     else
     {
         ui->dial->blockSignals(true);
-        ui->dial->setMinimum(p->Min);
-        ui->dial->setMaximum(p->Max);
+        ui->dial->setMinimum(p->vars.Min);
+        ui->dial->setMaximum(p->vars.Max);
         ui->dial->setValue(p->Value);
         ui->dial->blockSignals(false);
     }
@@ -88,9 +88,10 @@ void CKnobControl::setValue(CParameter* p)
 void CKnobControl::setLabels(CParameter* p)
 {
     //QMutexLocker locker(&mutex);
+    vars = p->vars;
     ui->label->blockSignals(true);
     ui->label_2->blockSignals(true);
-    ui->label->setText(p->Name);
+    ui->label->setText(p->vars.Name);
     ui->label_2->setText(p->valueText());
     ui->label->blockSignals(false);
     ui->label_2->blockSignals(false);
@@ -119,7 +120,7 @@ void CKnobControl::popupMenu(QPoint p)
     popup->clear();
     QAction* automationAction = new QAction("Automation");
     connect(automationAction,&QAction::triggered,this,&CKnobControl::sendAutomationRequest);
-    if (m_Parameter->Type==CParameter::SelectBox)
+    if (m_Parameter->vars.Type==CParameterVars::SelectBox)
     {
         QStringList l=m_Parameter->stringList();
         for (int i=0;i<l.size();i++)
@@ -131,10 +132,10 @@ void CKnobControl::popupMenu(QPoint p)
         popup->addAction(automationAction);
         popup->popup(p);
     }
-    else if (m_Parameter->Type==CParameter::dB)
+    else if (m_Parameter->vars.Type==CParameterVars::dB)
     {
-        spinbox->setMinimum(lin2dB(m_Parameter->Min*0.01));
-        spinbox->setMaximum(lin2dB(m_Parameter->Max*0.01));
+        spinbox->setMinimum(lin2dB(m_Parameter->vars.Min*0.01));
+        spinbox->setMaximum(lin2dB(m_Parameter->vars.Max*0.01));
         spinbox->setDecimals(2);
         spinbox->setValue(lin2dB(value()*0.01));
         spinbox->selectAll();
@@ -147,10 +148,10 @@ void CKnobControl::popupMenu(QPoint p)
     }
     else
     {
-        spinbox->setMinimum(m_Parameter->Min/double(m_Parameter->DecimalFactor));
-        spinbox->setMaximum(m_Parameter->Max/double(m_Parameter->DecimalFactor));
-        spinbox->setDecimals(QString::number(m_Parameter->DecimalFactor).length()-1);
-        spinbox->setValue(value()/double(m_Parameter->DecimalFactor));
+        spinbox->setMinimum(m_Parameter->vars.Min/double(m_Parameter->vars.DecimalFactor));
+        spinbox->setMaximum(m_Parameter->vars.Max/double(m_Parameter->vars.DecimalFactor));
+        spinbox->setDecimals(QString::number(m_Parameter->vars.DecimalFactor).length()-1);
+        spinbox->setValue(value()/double(m_Parameter->vars.DecimalFactor));
         spinbox->selectAll();
         popup->addAction(spinboxAction);
         connect(spinbox,qOverload<double>(&QDoubleSpinBox::valueChanged),this,&CKnobControl::SetNumericValue);
@@ -161,9 +162,13 @@ void CKnobControl::popupMenu(QPoint p)
     }
 }
 
+bool CKnobControl::match(CParameter* p){
+    return vars.match(p->vars);
+}
+
 void CKnobControl::SetNumericValue(double Value)
 {
-    ui->dial->setValue(int(Value*m_Parameter->DecimalFactor));
+    ui->dial->setValue(int(Value*m_Parameter->vars.DecimalFactor));
     spinbox->selectAll();
     spinbox->setFocus();
 }

@@ -108,7 +108,7 @@ public:
     {
         const CJackCompareList deviceJacks(d);
         deviceJacks.serialize(xml);
-        qDebug() << xml->toString();
+        //qDebug() << xml->toString();
     }
     void unserialize(const QDomLiteElement* xml, IDevice* d, QList<CDesktopComponent*>* desktops) {
         QMutexLocker l(&m);

@@ -57,7 +57,7 @@ void CWaveLane::init(const int Index, QWidget* MainWindow)
     m_Name = "WaveLane";
     IDevice::init(Index,MainWindow);
     addJackStereoOut(0);
-    addParameter(CParameter::dB,"Volume","dB",0,150,1,"",100);
+    addParameter(CParameterVars::dB,"Volume","dB",0,150,1,"",100);
     addParameterPan();
     for (int i = 0; i < parameterCount(); i++) parameters.append(new CParameterWrapper(parameter(i)));
 }

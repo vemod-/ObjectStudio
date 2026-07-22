@@ -24,7 +24,7 @@ void CKeyboard::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Modulation 2 In");
     addParameterMIDIChannel();
     addParameterTune();
-    addParameter(CParameter::Numeric, "Pitch Bend Range","",1,24,0,"",2);
+    addParameter(CParameterVars::Numeric, "Pitch Bend Range","",1,24,0,"",2);
     startParameterGroup("Mod Wheels");
     addParameterSelect("Mod 1 Mode","Thru§Voltage",0);
     addParameterSelect("Mod 2 Mode","Thru§Voltage",0);

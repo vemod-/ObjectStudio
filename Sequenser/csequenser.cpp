@@ -12,8 +12,8 @@ void CSequenser::init(const int Index, QWidget* MainWindow)
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
     addJackMIDIOut(midiout);
-    addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
-    addParameter(CParameter::Numeric,"MIDI Channel","",1,16,0,"",1);
+    addParameter(CParameterVars::Numeric,"Tempo","BPM",20,300,0,"",100);
+    addParameter(CParameterVars::Numeric,"MIDI Channel","",1,16,0,"",1);
     addParameterPercent("Humanize");
     MIDIBuffer=new CMIDIBuffer();
     PatternLength=0;

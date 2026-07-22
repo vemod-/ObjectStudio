@@ -77,7 +77,7 @@ void CMIDIFile2Wave::updateDeviceParameter(const CParameter* /*p*/)
         p->parameter(CMIDIFilePlayer::pnTempoAdjust)->setValue(m_Parameters[pnTempoAdjust]->Value);
         p->parameter(CMIDIFilePlayer::pnHumanize)->setValue(m_Parameters[pnHumanize]->Value);
     }
-    for (CDeviceContainer* d: std::as_const(Instruments)) d->setParameterValue(m_Parameters[pnTune]->Name,m_Parameters[pnTune]->Value);
+    for (CDeviceContainer* d: std::as_const(Instruments)) d->setParameterValue(m_Parameters[pnTune]->vars.Name,m_Parameters[pnTune]->Value);
 }
 
 void CMIDIFile2Wave::play(const bool FromStart)
@@ -445,7 +445,7 @@ void CMIDIFile2Wave::init(const int Index, QWidget* MainWindow)
     addTickerDevice(&DeviceList);
     setDeviceParent(&DeviceList);
     addJackStereoOut(stereoout);
-    addParameter(CParameter::ParameterTypes::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
+    addParameter(CParameterVars::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
     addParameterTune();
     addParameterPercent("Humanize");
     addFileParameter();

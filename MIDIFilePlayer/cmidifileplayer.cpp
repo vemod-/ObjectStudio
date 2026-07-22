@@ -17,7 +17,7 @@ void CMIDIFilePlayer::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackMIDIOut(midiout);
     addParameterTrack();
-    addParameter(CParameter::ParameterTypes::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
+    addParameter(CParameterVars::Percent,"TempoAdjust","%",1,200,0,nullptr,100);
     addParameterPercent("Humanize");
     addFileParameter();
     mSecCount.reset();

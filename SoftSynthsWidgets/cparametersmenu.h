@@ -51,8 +51,8 @@ private slots:
                             {
                                 emit aboutToChange("Paste Parameters");
                                 d->unserializeDevice(&xml);
-                                emit updateControls();
                                 emit parametersChanged(d);
+                                emit updateControls();
                             }
                         }
                     }
@@ -112,8 +112,8 @@ private slots:
             emit aboutToChange("Load Preset");
             m_Device->unserializeDevice(Parameters);
             delete Parameters;
-            emit updateControls();
             emit parametersChanged(m_Device);
+            emit updateControls();
         }
     }
     void SavePresetAs()
@@ -132,8 +132,8 @@ private slots:
             //if (r == 1000) return;
         }
         m_Device->saveCurrentProgram(InputString);
-        emit updateControls();
         emit parametersChanged(m_Device);
+        emit updateControls();
     }
 
     void CopyParameters()

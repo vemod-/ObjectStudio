@@ -67,10 +67,28 @@ void CMacroBoxForm::unserializeCustom(const QDomLiteElement* xml)
     }
     fillList(m_Device->currentProgram());
     if (allowCustomParameters) {
+        /*
+        if (!m_CustomParameterList.empty()) {
+            for (const CCustomParameter& c : std::as_const(m_CustomParameterList)) {
+                qDebug() << "removeParameter" << c.masterParameter->Name;
+                DesktopComponent->deviceList()->removeCustomParameter(m_Device,c.masterParameter->Name);
+            }
+            m_CustomParameterList.clear();
+            m_Device->updateHostParameter();
+            //QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        }
+*/
         if (const QDomLiteElement* CustomParameters = xml->elementByTag("CustomParameters"))
         {
             m_CustomParameterList.unserialize(CustomParameters,DesktopComponent->deviceList(),m_Device);
+            /*
+            if (!m_CustomParameterList.empty()) {
+                m_Device->updateHostParameter();
+                //QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            }
+*/
         }
+        m_Device->updateHostParameter();
     }
     updateDeviceParameter(nullptr);
 }
@@ -161,7 +179,7 @@ bool CMacroBoxForm::event(QEvent *event)
         if (dynamic_cast<QMouseEvent*>(event)->button()==Qt::RightButton)
         {
             CParametersMenu* m = new CParametersMenu(m_Device,this,false);
-            m->setAttribute(Qt::WA_DeleteOnClose,true);
+            //m->setAttribute(Qt::WA_DeleteOnClose,true);
             connect(m,&CParametersMenu::aboutToChange,DesktopComponent->MainMenu->UndoMenu,&CUndoMenu::addItem,Qt::DirectConnection);
             connect(m,&CParametersMenu::parametersChanged,this,&CMacroBoxForm::PlugInIndexChanged);
             m->addSeparator();
@@ -204,8 +222,8 @@ void CMacroBoxForm::addParameterMenu(QMenu* m) {
         menu->addMenu(deviceMenu);
         connect(deviceMenu,qOverload<QString>(&QSignalMenu::menuClicked),this,qOverload<QString>(&CMacroBoxForm::addCustomParameter));
         for (int i = 0; i < d->parameterCount(); i++) {
-            QAction* a = deviceMenu->addAction(d->parameter(i)->Name,CParameterID::parameterID(d->deviceID(), d->parameter(i)));
-            if (m_CustomParameterList.containsAdditional(d->deviceID(), d->parameter(i)->Name)) a->setEnabled(false);
+            QAction* a = deviceMenu->addAction(d->parameter(i)->vars.Name,CParameterID::parameterID(d->deviceID(), d->parameter(i)));
+            if (m_CustomParameterList.containsAdditional(d->deviceID(), d->parameter(i)->vars.Name)) a->setEnabled(false);
         }
     }
 }
@@ -234,7 +252,9 @@ void CMacroBoxForm::addCustomParameter(QString id){
 void CMacroBoxForm::addCustomParameter(IDevice* d, CParameter* p)
 {
     CCustomParameter* c = m_CustomParameterList.append(d->deviceID(),p);
-    c->masterParameter = DesktopComponent->deviceList()->addCustomParameter(m_Device,p->Type,c->defaultCaption(),p->Unit,p->Min,p->Max,p->DecimalFactor,p->List,p->Value);
+    CParameterVars v = p->vars;
+    v.Name = c->defaultCaption();
+    c->masterParameter = DesktopComponent->deviceList()->addCustomParameter(m_Device,v,p->Value);
     m_Device->updateHostParameter();
 }
 

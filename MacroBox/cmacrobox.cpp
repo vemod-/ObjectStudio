@@ -39,6 +39,7 @@ void CMacroBox::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Trigger In");
 */
     m_Form = new CMacroBoxForm(this,MainWindow);
+    qDebug() << "Macroboxform parametecount" << m_Parameters.size() << m_Form->parameters.size();
     FORMFUNC(CMacroBoxForm)->allowCustomParameters = true;
     FORMFUNC(CMacroBoxForm)->allowCustomJacks = true;
     CDesktopComponent* d = FORMFUNC(CMacroBoxForm)->DesktopComponent;

@@ -108,33 +108,40 @@ public:
         QMutexLocker locker(&mutex);
         (VoiceIndex == 0) ? m_Jacks.removeJack(Jack->jackID()) : m_PolyDevices[VoiceIndex - 1]->removeJack(Jack);
     }
-    void updateParameter(const int DeviceIndex, const CParameter* parameter = nullptr)
+    void updatePolyParameter(const int DeviceIndex, const CParameter* parameter = nullptr)
     {
+        if (m_PolyDevices.empty()) return;
         QMutexLocker locker(&mutex);
         if (!parameter)
         {
-            if (m_PolyDevices.size())
+            IDevice* D = device(DeviceIndex);
+            QDomLiteElement e;
+            D->serializeParameters(&e);
+            QDomLiteElement e1;
+            m_PolyDevices.first()->device(DeviceIndex)->serializeParameters(&e1);
+            if (!e.compare(&e1))
             {
-                IDevice* D = device(DeviceIndex);
-                QDomLiteElement e;
-                D->serializeParameters(&e);
-                //removeVisibleAttribute(&e);
-                QDomLiteElement e1;
-                m_PolyDevices.first()->device(DeviceIndex)->serializeParameters(&e1);
-                //removeVisibleAttribute(&e1);
-                if (!e.compare(&e1))
+                qDebug() << e.toString();
+                qDebug() << e1.toString();
+                for (CDeviceList* l : std::as_const(m_PolyDevices))
                 {
-                    for (CDeviceList* l : std::as_const(m_PolyDevices))
-                    {
-                        l->device(DeviceIndex)->unserializeParameters(&e);
-                        l->hideForms();
-                    }
+                    l->device(DeviceIndex)->unserializeParameters(&e);
+                    l->hideForms();
                 }
             }
         }
         else
         {
-            for (CDeviceList* l : std::as_const(m_PolyDevices)) l->device(DeviceIndex)->parameter(parameter->Name)->setValue(parameter->Value);
+            for (CDeviceList* l : std::as_const(m_PolyDevices)) {
+                IDevice* d = l->device(DeviceIndex);
+                if (d) {
+                    QString n = parameter->vars.Name;
+                    CParameter* p = d->parameter(n);
+                    if (p) {
+                        p->setValue(parameter->Value);
+                    }
+                }
+            }
         }
     }
     IDevice* createDevice(const instancefunc InstanceFunction, const int ID, QWidget* MainWindow)
@@ -156,16 +163,16 @@ public:
         }
         return m_PolyDevices[VoiceIndex - 1]->addDevice(device,index,MainWindow);
     }
-    CParameter* addCustomParameter(IDevice* device, CParameter::ParameterTypes Type, const QString& Name, const QString& Unit, const int Min, const int Max, const int DecimalFactor, const QString& ListString,int Value,int VoiceIndex = 0) {
+    CParameter* addCustomParameter(IDevice* device, const CParameterVars& v,int Value,int VoiceIndex = 0) {
         QMutexLocker locker(&mutex);
         if (VoiceIndex == 0)
         {
             qDebug() << "addCustomParameter" << device->deviceID() << m_PolyDevices.size();
-            CParameter* p = device->addParameter(Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value);
+            CParameter* p = device->addParameter(v,Value);
             AutomationPlayer.addCustomParameter(device,p);
             return p;
         }
-        return m_PolyDevices[VoiceIndex - 1]->addCustomParameter(device,Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value);
+        return m_PolyDevices[VoiceIndex - 1]->addCustomParameter(device,v,Value);
     }
     void removeCustomParameter(IDevice* device, QString& Name, int VoiceIndex = 0) {
         QMutexLocker locker(&mutex);
@@ -223,7 +230,7 @@ public:
     {
         QMutexLocker locker(&mutex);
         device->unserializeDevice(parameters);
-        updateParameter(indexOfDevice(device));
+        updatePolyParameter(indexOfDevice(device));
     }
     void unserializeDevice(const QDomLiteElement* parameters, const int index) { unserializeDevice(parameters, device(index)); }
     bool moveDevice(IDevice* device, int move) {

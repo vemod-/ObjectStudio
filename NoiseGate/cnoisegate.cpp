@@ -8,6 +8,7 @@ void CNoiseGate::init(const int Index, QWidget* MainWindow) {
     m_Name=devicename;
     IDevice::init(Index,MainWindow);
     addJackMonoIn();
+    addJackMonoIn("Trigger Signal In");
     addJackMonoOut(monoout);
     addJackModulationOut(modulationout,"Envelope Out");
     addParameterPercent("Threshold");
@@ -39,18 +40,19 @@ float CNoiseGate::getNext(int) {
 }
 
 void CNoiseGate::process() {
-    const CMonoBuffer* InBuffer = FetchAMono(monoin);
+    CMonoBuffer* InBuffer = FetchAMono(monoin);
+    CMonoBuffer* TriggerSignalBuffer = FetchAMono(extmonoin);
+    if (!TriggerSignalBuffer->isValid()) TriggerSignalBuffer = InBuffer;
     if (!InBuffer->isValid())
     {
         CurrentVol=0;
         return;
     }
-    CMonoBuffer* OutBuffer=MonoBuffer(monoout);
-    OutBuffer->writeBuffer(InBuffer);
-    float Signal=0;
-    OutBuffer->peakBuffer(&Signal);
+    CMonoBuffer* OutBuffer = MonoBuffer(monoout);
+    float Signal = 0;
+    TriggerSignalBuffer->peakBuffer(&Signal);
     CurrentVol = glider.runVoltage(int(Signal > Threshold));
-    *OutBuffer *= CurrentVol;
+    OutBuffer->writeBuffer(InBuffer,CurrentVol);
 }
 
 void CNoiseGate::updateDeviceParameter(const CParameter* /*p*/) {

@@ -35,7 +35,7 @@ void CProgramBox::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Trigger In");
 */
     //addParameterMIDIChannel();
-    addParameter(CParameter::Numeric,"Program","",1,MaxPrograms,0,"",1);
+    addParameter(CParameterVars::Numeric,"Program","",1,MaxPrograms,0,"",1);
 
     m_Form=new CMacroBoxForm(this,MainWindow);
     form()->allowCustomJacks = true;

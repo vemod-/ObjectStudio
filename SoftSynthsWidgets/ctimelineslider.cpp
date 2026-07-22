@@ -10,7 +10,6 @@ CTimeLineSlider::CTimeLineSlider(QWidget *parent)
     setMidLineWidth(2);
     setFixedHeight(timelineheight+4+(frameWidth()*2));
     setBackgroundBrush(Qt::darkGray);
-    setScene(&Scene);
     setOptimizationFlags(QGraphicsView::DontSavePainterState | QGraphicsView::DontAdjustForAntialiasing);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     Scene.setItemIndexMethod(QGraphicsScene::NoIndex);

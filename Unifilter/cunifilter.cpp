@@ -13,7 +13,7 @@ void CUnifilter::init(const int Index, QWidget* MainWindow) {
     addParameterSelect("Filter Type","Low pass§Hi pass§Band pass 1§Band pass 2§Notch§All pass§Peaking§Low shelf§Hi shelf");
     addParameterVolume("Gain");
     makeParameterGroup(2,"Cutoff",Qt::green);
-    addParameter(CParameter::Percent,"Cutoff Modulation","%",0,200,0,"",0);
+    addParameter(CParameterVars::Percent,"Cutoff Modulation","%",0,200,0,"",0);
     addParameterCutOff();
     //AddParameter(Numeric,"Response Time","%",0,100,0,"",50);
     addParameterPercent("Resonance");

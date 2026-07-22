@@ -14,7 +14,7 @@ CJacksDevice::~CJacksDevice()
 void CJacksDevice::init(IDevice* device)
 {
     m_Device = device;
-    m_Left = 1160;
+    m_Left = 1260;
 }
 
 void CJacksDevice::paint(QGraphicsScene* scene, int index)

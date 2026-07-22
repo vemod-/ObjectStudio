@@ -13,7 +13,7 @@ public:
         DeviceID = deviceID;
         ParameterName = parameterName;
     }
-    CParameterID(const QString& deviceID, CParameter* p) : CParameterID(deviceID, p->Name) {}
+    CParameterID(const QString& deviceID, CParameter* p) : CParameterID(deviceID, p->vars.Name) {}
     CParameterID(const QString& id) {
         const QStringList s = id.split("&&&&&");
         DeviceID = s[0];
@@ -23,7 +23,7 @@ public:
         return deviceID + "&&&&&" + parameterName;
     }
     static const QString parameterID(const QString& deviceID, CParameter* p) {
-        return parameterID(deviceID, p->Name);
+        return parameterID(deviceID, p->vars.Name);
     }
     const QString parameterID() const {
         return parameterID(DeviceID, ParameterName);
@@ -50,7 +50,7 @@ public:
         return false;
     }
     bool containsAdditional(const QString& deviceID, CParameter* p) {
-        return containsAdditional(deviceID, p->Name);
+        return containsAdditional(deviceID, p->vars.Name);
     }
     bool containsAdditional(CDeviceList* l, CParameter* p) {
         for (CParameterID& ap : additionalParameters) {
@@ -71,7 +71,8 @@ public:
         }
     }
     void unserialize(const QDomLiteElement* xml, CDeviceList* l, IDevice* d) {
-        masterParameter = l->addCustomParameter(d,(CParameter::ParameterTypes)xml->attributeValueInt("Type"),xml->attribute("Name"),xml->attribute("Unit"),xml->attributeValueInt("Min"),xml->attributeValueInt("Max"),xml->attributeValueInt("DecimalFactor"),xml->attribute("ListString"),xml->attributeValueInt("Value"));
+        const CParameterVars v(xml);
+        masterParameter = l->addCustomParameter(d,v,xml->attributeValueInt("Value"));
         for (QDomLiteElement* p : xml->elementsByTag("Parameter")) {
             additionalParameters.append(CParameterID(p->attribute("ParameterID")));
         }
@@ -83,13 +84,14 @@ public:
         for (const CParameterEvent& e : masterParameter->events) {
             e.serialize(xml->appendChild("AutomationEvent"));
         }
-        xml->setAttribute("Type",masterParameter->Type);
-        xml->setAttribute("Name",masterParameter->Name);
-        xml->setAttribute("Unit",masterParameter->Unit);
-        xml->setAttribute("Min",masterParameter->Min);
-        xml->setAttribute("Max",masterParameter->Max);
-        xml->setAttribute("DecimalFactor",masterParameter->DecimalFactor);
-        xml->setAttribute("ListString",masterParameter->List);
+        masterParameter->vars.serialize(xml);
+        //xml->setAttribute("Type",masterParameter->vars.Type);
+        xml->setAttribute("Name",masterParameter->vars.Name);
+        //xml->setAttribute("Unit",masterParameter->vars.Unit);
+        //xml->setAttribute("Min",masterParameter->vars.Min);
+        //xml->setAttribute("Max",masterParameter->vars.Max);
+        //xml->setAttribute("DecimalFactor",masterParameter->vars.DecimalFactor);
+        //xml->setAttribute("ListString",masterParameter->vars.List);
         xml->setAttribute("Value",masterParameter->Value);
         for (const CParameterID& p : additionalParameters) {
             xml->appendChild("Parameter","ParameterID",p.parameterID());
@@ -138,10 +140,12 @@ public:
         }
     }
     void unserialize(const QDomLiteElement* xml, CDeviceList* l, IDevice* d) {
-        for (const CCustomParameter& c : std::as_const(*this)) {
-            l->removeCustomParameter(d,c.masterParameter->Name);
+        if (!empty()) {
+            for (const CCustomParameter& c : std::as_const(*this)) {
+                l->removeCustomParameter(d,c.masterParameter->vars.Name);
+            }
+            clear();
         }
-        clear();
         for (QDomLiteElement* p : xml->childElements) {
             push_back(CCustomParameter());
             last().unserialize(p,l,d);

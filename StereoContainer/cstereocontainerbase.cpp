@@ -119,8 +119,9 @@ void CStereoContainerBase::setDeviceType(const QString &Filter)
                             CParameterGroup* g = m_Devices[c]->parameterGroup(gi);
                             if (g->startIndex == i) makeParameterGroup(g->endIndex + 1 - i, g->Name, g->color);
                         }
-                        QString name = p->Name + ((c == 0) ? " L" : " R");
-                        m_OwnerList->addCustomParameter(this,p->Type,name,p->Unit,p->Min,p->Max,p->DecimalFactor,p->List,p->Value); //DesktopComponent->deviceList()->addCustomParameter(m_Device,p->Type,c->defaultCaption(),p->Unit,p->Min,p->Max,p->DecimalFactor,p->List,p->Value);
+                        CParameterVars v = p->vars;
+                        v.Name = p->vars.Name + ((c == 0) ? " L" : " R");
+                        m_OwnerList->addCustomParameter(this,v,p->Value);
                     }
 #endif
             }
@@ -132,7 +133,7 @@ void CStereoContainerBase::setDeviceType(const QString &Filter)
                         CParameterGroup* g = m_Devices[0]->parameterGroup(gi);
                         if (g->startIndex == i) makeParameterGroup(g->endIndex + 1 - i, g->Name, g->color);
                     }
-                    m_OwnerList->addCustomParameter(this,p->Type,p->Name,p->Unit,p->Min,p->Max,p->DecimalFactor,p->List,p->Value); //DesktopComponent->deviceList()->addCustomParameter(m_Device,p->Type,c->defaultCaption(),p->Unit,p->Min,p->Max,p->DecimalFactor,p->List,p->Value);
+                    m_OwnerList->addCustomParameter(this,p->vars,p->Value);
                 }
 #endif
             updateHostParameter();
@@ -165,7 +166,7 @@ void CStereoContainerBase::ClearDevice()
 
 #ifndef DUALMONO
             for (int i = 0; i < m_Devices[0]->parameterCount(); i++) {
-                m_OwnerList->removeCustomParameter(this,m_Devices[0]->parameter(i)->Name);
+                m_OwnerList->removeCustomParameter(this,m_Devices[0]->parameter(i)->vars.Name);
             }
             for (int c = 0; c < 2; c++) {
                 if (DeviceIn[c]) DeviceIn[c]->disconnectFrom(InsideIn[c]);
@@ -176,7 +177,7 @@ void CStereoContainerBase::ClearDevice()
 #else
             for (int c = 0; c < 2; c++) {
                 for (int i = 0; i < m_Devices[c]->parameterCount(); i++) {
-                    QString name = m_Devices[c]->parameter(i)->Name + ((c == 0) ? " L" : " R");
+                    QString name = m_Devices[c]->parameter(i)->vars.Name + ((c == 0) ? " L" : " R");
                     m_OwnerList->removeCustomParameter(this,name);
                 }
                 if (DeviceIn[c]) DeviceIn[c]->disconnectFrom(InsideIn[c]);

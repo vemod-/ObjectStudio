@@ -46,7 +46,7 @@ void CCustomParameterDialog::fill(CDeviceList *l, CCustomParameterList *p, IDevi
         ui->ConnectTree->addTopLevelItem(di);
         for (int i = 0; i < d->parameterCount(); i++) {
             QTreeWidgetItem* j = new QTreeWidgetItem();
-            j->setText(1,d->parameter(i)->Name);
+            j->setText(1,d->parameter(i)->vars.Name);
             j->setCheckState(1,Qt::Unchecked);
             di->addChild(j);
         }
@@ -195,7 +195,7 @@ void CCustomParameterDialog::addParameterClicked(){
         connect(deviceMenu,qOverload<QString>(&QSignalMenu::menuClicked),this,&CCustomParameterDialog::addParameter);
         for (int i = 0; i < d->parameterCount(); i++) {
             const QString pid = CParameterID::parameterID(d->deviceID(), d->parameter(i));
-            QAction* a = deviceMenu->addAction(d->parameter(i)->Name,pid);
+            QAction* a = deviceMenu->addAction(d->parameter(i)->vars.Name,pid);
             for (const QDomLiteElement* p : (const QDomLiteElementList)m_xml.elementsByTag("Parameter",true)) {
                 if (p->attribute("ParameterID") == pid) {
                     a->setEnabled(false);
@@ -212,12 +212,15 @@ void CCustomParameterDialog::addParameter(QString id){
     CParameter* parameter = m_DeviceList->device(pid.DeviceID)->parameter(pid.ParameterName);
     if (parameter) {
         QDomLiteElement* c = m_xml.appendChild("CustomParameter","Name",pid.defaultCaption());
-        c->setAttribute("Type",parameter->Type);
-        c->setAttribute("Unit",parameter->Unit);
-        c->setAttribute("Min",parameter->Min);
-        c->setAttribute("Max",parameter->Max);
-        c->setAttribute("DecimalFactor",parameter->DecimalFactor);
-        c->setAttribute("ListString",parameter->List);
+        parameter->vars.serialize(c);
+        /*
+        c->setAttribute("Type",parameter->vars.Type);
+        c->setAttribute("Unit",parameter->vars.Unit);
+        c->setAttribute("Min",parameter->vars.Min);
+        c->setAttribute("Max",parameter->vars.Max);
+        c->setAttribute("DecimalFactor",parameter->vars.DecimalFactor);
+        c->setAttribute("ListString",parameter->vars.List);
+*/
         c->appendChild("Parameter","ParameterID",id);
         QListWidgetItem* i = new QListWidgetItem(pid.defaultCaption());
         i->setFlags(i->flags() | Qt::ItemIsEditable);
@@ -255,16 +258,8 @@ void CCustomParameterDialog::reorderParameters(){
 }
 
 void CCustomParameterDialog::applyDialog(){
-    for (const CCustomParameter& c : *std::as_const(m_CustomParameters)) {
-        qDebug() << "removeParameter" << c.masterParameter->Name;
-        m_DeviceList->removeCustomParameter(m_ParentDevice,c.masterParameter->Name);
-    }
-    m_CustomParameters->clear();
-    m_ParentDevice->updateHostParameter();
-    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     m_CustomParameters->unserialize(&m_xml,m_DeviceList,m_ParentDevice);
     m_ParentDevice->updateHostParameter();
-    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
 QDomLiteElement *CCustomParameterDialog::customParameterElement(const QString &customParameterName) {

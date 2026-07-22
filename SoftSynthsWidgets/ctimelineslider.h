@@ -60,7 +60,7 @@ protected:
         }
         return QGraphicsView::event(e);
     }
-    void closeEvent(QCloseEvent* e) override {
+    void closeEvent(QCloseEvent* /*e*/) override {
         InfoLabel.hide();
     }
     void resizeEvent(QResizeEvent*) override;

@@ -26,9 +26,9 @@ void CStereoBox::init(const int Index, QWidget* MainWindow)
 
     m_Form=new CMacroBoxForm(this,MainWindow);
     CDesktopComponent* d = FORMFUNC(CMacroBoxForm)->DesktopComponent;
+    d->deviceList()->setPolyphony(2);
     addTickerDevice(d->deviceList());
     setDeviceParent(d->deviceList());
-    d->deviceList()->setPolyphony(2);
 
     WaveOutL = new CInJack("Out","This",IJack::Mono,IJack::In,this);
     d->JacksCreated.append(d->addJack(WaveOutL,0));

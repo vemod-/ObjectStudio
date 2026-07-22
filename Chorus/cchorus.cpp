@@ -22,7 +22,7 @@ void CChorus::init(const int Index, QWidget* MainWindow) {
     addJackStereoOut(stereoout);
     addJackStereoIn();
     addParameterRate("Rate",400);
-    addParameter(CParameter::Numeric,"Phase","Centigrades",0,180,0,"",100);
+    addParameter(CParameterVars::Numeric,"Phase","Centigrades",0,180,0,"",100);
     addParameterPercent("Depth",50);
     addParameterPercent("Delay",50);
     addParameterCutOff("Contour",19200);

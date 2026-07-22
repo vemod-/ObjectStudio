@@ -35,7 +35,7 @@ void CPresetBox::init(const int Index, QWidget* MainWindow)
     addJackModulationIn("Trigger In");
 */
     //addParameterMIDIChannel();
-    addParameter(CParameter::Numeric,"Preset","",1,MaxPresets,0,"",1);
+    addParameter(CParameterVars::Numeric,"Preset","",1,MaxPresets,0,"",1);
     m_Form = new CMacroBoxForm(this,MainWindow);
     FORMFUNC(CMacroBoxForm)->allowCustomJacks = true;
     CDesktopContainer* d = form()->DesktopContainer;
@@ -108,8 +108,8 @@ void CPresetBox::loadPreset(const int index)
             {
                 IDevice* d = deviceList()->device(i);
                 d->unserializeStandardParameters(XMLDevice);
-                deviceList()->updateParameter(i);
                 desktopContainer()->showParameters(d);
+                deviceList()->updatePolyParameter(i);
             }
         }
         desktopComponent()->DrawConnections();

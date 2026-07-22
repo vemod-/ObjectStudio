@@ -6,7 +6,7 @@
 #include "caddins.h"
 
 #define rackLeftWidth 68
-#define rackFrontWidth 1140
+#define rackFrontWidth 1240
 
 CParametersComponent::CParametersComponent(QGraphicsScene* s)
 {
@@ -198,7 +198,7 @@ void CParametersComponent::updateControl(const CParameter* Parameter)
 
 void CParametersComponent::showParameters(int index)
 {
-    qDebug() << "CParametersComåponent showParameters";
+    //qDebug() << "CParametersComåponent showParameters";
     m_UILabel->clear();
     m_PresetLabel->clear();
     m_FrameList.setPos(0, index * rackUnitHeight);
@@ -211,7 +211,15 @@ void CParametersComponent::showParameters(int index)
             m_NameLabel->setText(m_Device->alias() + "\n" + m_Device->name());
         }
         if (m_Device->parameterCount() != Dials.size()) init(m_Device);
-        for (int i = 0;i<m_Device->parameterCount();i++) Dials.at(i)->setValue(m_Device->parameter(i));
+        for (int i = 0; i < m_Device->parameterCount(); i++) {
+            if (!Dials[i]->match(m_Device->parameter(i))) {
+                init(m_Device);
+                break;
+            }
+        }
+        for (int i = 0; i < m_Device->parameterCount();i++) {
+            Dials.at(i)->setValue(m_Device->parameter(i));
+        }
         int dialOffset = rackLeftWidth + m_NameLabel->width() + 16;
 
         m_ProxyUILabel->setVisible(false);
@@ -241,7 +249,7 @@ void CParametersComponent::updateParameterValue(int i)
     m_PresetLabel->setText(m_Device->currentProgramMatches());
 }
 
-bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* item)
+bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* item, QWidget* parent)
 {
     if (event->button() == Qt::RightButton) {
         if (itemIsKnob(item)) {
@@ -250,7 +258,7 @@ bool CParametersComponent::swallowMousePress(QMouseEvent *event, QGraphicsItem* 
             k->popupMenu(event->globalPosition().toPoint());
         }
         else {
-            parametersMenu()->popup(event->globalPosition().toPoint());
+            parametersMenu(parent)->popup(event->globalPosition().toPoint());
         }
         return true;
     }
@@ -265,10 +273,10 @@ bool CParametersComponent::itemIsKnob(QGraphicsItem *item) {
     return m_ProxyDials.childItems().contains(item);
 }
 
-QMenu* CParametersComponent::parametersMenu()
+QMenu* CParametersComponent::parametersMenu(QWidget* parent)
 {
-    CParametersMenu* m = new CParametersMenu(m_Device,nullptr);
-    m->setAttribute(Qt::WA_DeleteOnClose,true);
+    CParametersMenu* m = new CParametersMenu(m_Device,parent);
+    //m->setAttribute(Qt::WA_DeleteOnClose,true);
     connect(m,&CParametersMenu::showAutomationRequested,this,&CParametersComponent::showDefaultAutomation);
     connect(m,&CParametersMenu::aboutToChange,this,&CParametersComponent::aboutToChange,Qt::DirectConnection);
     connect(m,&CParametersMenu::parametersChanged,this,&CParametersComponent::parametersChanged);

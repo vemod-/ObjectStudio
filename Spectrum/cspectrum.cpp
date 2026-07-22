@@ -11,7 +11,7 @@ void CSpectrum::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackMonoIn();
     addParameterVolume("Gain");
-    addParameter(CParameter::Numeric,"Rate","mSec",10,200,0,"",100);
+    addParameter(CParameterVars::Numeric,"Rate","mSec",10,200,0,"",100);
     addParameterSelect("Mode","Circular§Continuous§Diagram§Peak Diagram§Avg Diagram");
     addParameterSelect("Window","No Window§Hanning§Gauss§Flattop");
     addParameterSelect("Scale","Logaritmic§Linear");

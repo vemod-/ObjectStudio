@@ -4,7 +4,7 @@
 #include "idevice.h"
 #include "cfreqglider.h"
 
-#define devicejacks monoin,monoout,modulationout
+#define devicejacks monoin,extmonoin,monoout,modulationout
 #define devicecategory Effect
 
 class CNoiseGate : public IDevice

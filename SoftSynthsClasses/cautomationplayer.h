@@ -46,7 +46,7 @@ public:
         QMutexLocker locker(&mutex);
         CParameterEventList& l=m_Parameters[parameterID]->events;
         if (l.empty()) return CParameterEventList();
-        if ((m_Parameters[parameterID]->Type==CParameter::dB) || (m_Parameters[parameterID]->Type==CParameter::Percent) || (m_Parameters[parameterID]->Type==CParameter::Numeric)) {
+        if ((m_Parameters[parameterID]->vars.Type==CParameterVars::dB) || (m_Parameters[parameterID]->vars.Type==CParameterVars::Percent) || (m_Parameters[parameterID]->vars.Type==CParameterVars::Numeric)) {
             CParameterEventList l1;
             for (uint i = 0; i < l.size()-1; i++)
             {
@@ -197,8 +197,8 @@ private:
         return deviceID + " " + parameterName;
     }
     void clearParameters() { m_Parameters.clear(); }
-    void appendParameter(CParameter* p, const QString& deviceID) { m_Parameters[createId(deviceID, p->Name)]=p; }
-    void removeParameter(CParameter* p, const QString& deviceID) { m_Parameters.remove(createId(deviceID, p->Name)); }
+    void appendParameter(CParameter* p, const QString& deviceID) { m_Parameters[createId(deviceID, p->vars.Name)]=p; }
+    void removeParameter(CParameter* p, const QString& deviceID) { m_Parameters.remove(createId(deviceID, p->vars.Name)); }
     void sortEvents(CParameterEventList& l) {
         std::sort(l.begin(),l.end(), [] (const CParameterEvent& a, const CParameterEvent& b){ return (a.time < b.time); });
     }

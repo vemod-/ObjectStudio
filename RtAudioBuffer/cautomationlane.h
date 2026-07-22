@@ -47,7 +47,7 @@ public:
         m_ParameterIndex = i;
         m_ParameterMenu->clear();
         for (int i = 0; i < d->parameterCount(); i++) {
-            m_ParameterMenu->addAction(d->parameter(i)->Name,i);
+            m_ParameterMenu->addAction(d->parameter(i)->vars.Name,i);
         }
         m_ParameterMenu->addSeparator();
         m_ParameterMenu->addAction("Close",-1);
@@ -75,7 +75,7 @@ public:
                 QFont f = font();
                 f.setBold(true);
                 f.setPointSizeF(16);
-                QGraphicsTextItem* i = Scene.addText(m_Device->deviceID() + " " + currentParameter()->Name);
+                QGraphicsTextItem* i = Scene.addText(m_Device->deviceID() + " " + currentParameter()->vars.Name);
                 i->setPos(0,m_TimeLineHeight);
                 m_TimeLine.setSamples(m_Device->requestSamples());
                 //m_TimeLine.render(&Scene,zoomer->visibleRect().toRect());
@@ -101,7 +101,7 @@ public:
     }
     QGraphicsContainerItem* DrawLayer(CParameter* parameter, bool isTopLayer, QPointF delta = QPointF())
     {
-        qDebug() << parameter->Name;
+        qDebug() << parameter->vars.Name;
         QGraphicsContainerItem* retval = new QGraphicsContainerItem(&Scene);
         CParameterEventList& l = parameter->events;
         QColor noEdit = Qt::red;
@@ -121,7 +121,7 @@ public:
         }
         else
         {
-            if ((parameter->Type == CParameter::dB) || (parameter->Type == CParameter::Numeric) || (parameter->Type == CParameter::Percent))
+            if ((parameter->vars.Type == CParameterVars::dB) || (parameter->vars.Type == CParameterVars::Numeric) || (parameter->vars.Type == CParameterVars::Percent))
             {
                 QPointF oldPoint;
                 for (uint i = 0; i < l.size(); i++) {
@@ -202,8 +202,8 @@ protected:
     {
         QPointF p = QGraphicsView::mapToScene(event->pos());
         if (m_TimeLine.handleDoubleClick(p,m_Device)) return;
-        if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
-        if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) > currentParameter()->vars.Max) p.setY(valueToY(currentParameter()->vars.Max,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) < currentParameter()->vars.Min) p.setY(valueToY(currentParameter()->vars.Min,currentParameter()));
         const int i = insideEvent(p);
         if (i > -1) {
             currentParameter()->removeEvent(i);
@@ -213,12 +213,12 @@ protected:
             CParameterEventList& l = currentParameter()->events;
             if (l.empty())
             {
-                currentParameter()->appendEvent(0,currentParameter()->Value,deviceId() + " " + currentParameter()->Name);
-                currentParameter()->appendEvent(timeFromX(p.x()),valueFromY(p.y(),currentParameter()),deviceId() + " " + currentParameter()->Name);
+                currentParameter()->appendEvent(0,currentParameter()->Value,deviceId() + " " + currentParameter()->vars.Name);
+                currentParameter()->appendEvent(timeFromX(p.x()),valueFromY(p.y(),currentParameter()),deviceId() + " " + currentParameter()->vars.Name);
             }
             else
             {
-                currentParameter()->appendEvent(timeFromX(p.x()),valueFromY(p.y(),currentParameter()),deviceId() + " " + currentParameter()->Name);
+                currentParameter()->appendEvent(timeFromX(p.x()),valueFromY(p.y(),currentParameter()),deviceId() + " " + currentParameter()->vars.Name);
             }
             const int i = insideEvent(p);
             if (i > -1) {
@@ -249,8 +249,8 @@ protected:
             QGraphicsView::mousePressEvent(event);
             return;
         }
-        if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
-        if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) > currentParameter()->vars.Max) p.setY(valueToY(currentParameter()->vars.Max,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) < currentParameter()->vars.Min) p.setY(valueToY(currentParameter()->vars.Min,currentParameter()));
         m_Orig = p;
         m_MD=true;
         viewport()->grabMouse();
@@ -286,8 +286,8 @@ protected:
             return;
         }
         if (m_TimeLine.handleMouseMove(p, m_Device)) return;
-        if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
-        if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) > currentParameter()->vars.Max) p.setY(valueToY(currentParameter()->vars.Max,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) < currentParameter()->vars.Min) p.setY(valueToY(currentParameter()->vars.Min,currentParameter()));
         QPointF delta = p - m_Orig;
         QPointF textPoint = p;
         if (m_MD)
@@ -333,8 +333,8 @@ protected:
             return;
         }
         if (m_TimeLine.handleMouseRelease(p, m_Device)) return;
-        if (valueFromY(p.y(),currentParameter()) > currentParameter()->Max) p.setY(valueToY(currentParameter()->Max,currentParameter()));
-        if (valueFromY(p.y(),currentParameter()) < currentParameter()->Min) p.setY(valueToY(currentParameter()->Min,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) > currentParameter()->vars.Max) p.setY(valueToY(currentParameter()->vars.Max,currentParameter()));
+        if (valueFromY(p.y(),currentParameter()) < currentParameter()->vars.Min) p.setY(valueToY(currentParameter()->vars.Min,currentParameter()));
         QPointF delta = p - m_Orig;
         if (m_Marking)
         {
@@ -499,14 +499,14 @@ private:
     }
     int valueToY(int value, CParameter* p) {
         const double h = sceneRect().height() - m_TimeLineHeight;
-        return m_TimeLineHeight + h - ((h / double(p->Max - p->Min)) * (double(value)-p->Min));
+        return m_TimeLineHeight + h - ((h / double(p->vars.Max - p->vars.Min)) * (double(value)-p->vars.Min));
     }
     ulong64 timeFromX(int x) {
         return m_TimeLine.timeFromX(x);
     }
     int valueFromY(int y, CParameter* p) {
         const double h = sceneRect().height() - m_TimeLineHeight;
-        int v = (double(p->Max - p->Min) / h * double(h-(y-m_TimeLineHeight))) + p->Min;
+        int v = (double(p->vars.Max - p->vars.Min) / h * double(h-(y-m_TimeLineHeight))) + p->vars.Min;
         return v;
     }
     int insideEvent(QPointF p) {

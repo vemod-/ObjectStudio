@@ -432,17 +432,15 @@ void CDesktopComponent::parameterChange(IDevice* device, const CParameter* param
 {
     if (device)
     {
+        int i = DeviceList.indexOfDevice(device);
         if (parameter)
         {
             QMutexLocker locker(&mutex);
-            const int d = DeviceList.indexOfDevice(device);
-            if (d > -1) {
+            if (i > -1) {
                 emit controlChanged(device,parameter);
-                DeviceList.updateParameter(d,parameter);
             }
         }
         else {
-            int i = DeviceList.indexOfDevice(device);
             if (i > -1) {
                 qDebug() << "No parameter";
                 Devices[i]->getPic();
@@ -453,6 +451,7 @@ void CDesktopComponent::parameterChange(IDevice* device, const CParameter* param
                 //qDebug() << "after drawconnections";
             }
         }
+        DeviceList.updatePolyParameter(i,parameter);
     }
 }
 

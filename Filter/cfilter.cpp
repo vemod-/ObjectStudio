@@ -26,7 +26,7 @@ void CFilter::init(const int Index, QWidget* MainWindow) {
     addJackModulationIn();
     addParameterVolume("Gain");
     makeParameterGroup(2,"Cutoff",Qt::green);
-    addParameter(CParameter::Percent,"Cutoff Modulation","%",0,200,0,"",0);
+    addParameter(CParameterVars::Percent,"Cutoff Modulation","%",0,200,0,"",0);
     addParameterCutOff();
     addParameterPercent("Response Time",0);
     addParameterPercent("Resonance");

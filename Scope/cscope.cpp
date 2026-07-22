@@ -17,7 +17,7 @@ void CScope::init(const int Index, QWidget* MainWindow)
     addJackMonoIn();
     addJackModulationIn("Voltage In");
     addParameterVolume("Gain");
-    addParameter(CParameter::Numeric,"Rate","mSec",1,500,0,"",20);
+    addParameter(CParameterVars::Numeric,"Rate","mSec",1,500,0,"",20);
     startParameterGroup();
     addParameterFrequency("Frequency");
     addParameterSelect("Detect Pitch","Off§On");

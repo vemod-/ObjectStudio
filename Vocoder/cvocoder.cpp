@@ -32,7 +32,7 @@ void CVocoder::init(const int Index, QWidget* MainWindow)
     startParameterGroup();
     addParameterOffOn("AutoTune");
     addParameterPercent("Glide");
-    addParameter(CParameter::Numeric,"Slack","Cents",0,100,0,"",2);
+    addParameter(CParameterVars::Numeric,"Slack","Cents",0,100,0,"",2);
     addParameterPercent("Threshold",10);
     endParameterGroup();
     addParameterSelect("Oversampling","1§2§4§8§16§32",3);

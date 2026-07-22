@@ -16,11 +16,11 @@ void CPitchTracker::init(const int Index, QWidget* MainWindow) {
     addJackModulationOut(CPitchTracker::corrmodulationout,"Correction Out");
     addParameterPercent("Threshold");
     addParameterTune();
-    addParameter(CParameter::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",presets.HalfRate * 0.5);
-    addParameter(CParameter::Numeric,"Rate","mSec",10,1000,0,"",10);
+    addParameter(CParameterVars::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",presets.HalfRate * 0.5);
+    addParameter(CParameterVars::Numeric,"Rate","mSec",10,1000,0,"",10);
     startParameterGroup("Correction");
     addParameterPercent("Glide");
-    addParameter(CParameter::Numeric,"Slack","Cents",0,100,0,"",2);
+    addParameter(CParameterVars::Numeric,"Slack","Cents",0,100,0,"",2);
     endParameterGroup();
     //addParameter(CParameter::Numeric,"Overlap","Samples",0,240,0,"",0);
     tuneFactor=1;

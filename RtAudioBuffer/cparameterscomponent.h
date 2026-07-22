@@ -20,7 +20,7 @@ public:
     QString deviceID();
     void init(IDevice* Device);
     void showParameters(int index);
-    bool swallowMousePress(QMouseEvent *event, QGraphicsItem* item);
+    bool swallowMousePress(QMouseEvent *event, QGraphicsItem* item, QWidget* parent);
     bool itemIsKnob(QGraphicsItem* item);
 private:
     QList<CKnobControl*> Dials;
@@ -38,7 +38,7 @@ private:
     QGraphicsContainerItem m_GroupList;
     QGraphicsContainerItem m_FrameList;
     QGraphicsPathItem m_CategoryFrame;
-    QMenu* parametersMenu();
+    QMenu* parametersMenu(QWidget* parent);
     //QRecursiveMutex mutex;
     QGraphicsProxyWidget* createProxyItem(QWidget* w);
     /*

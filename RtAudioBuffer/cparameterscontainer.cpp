@@ -171,7 +171,7 @@ QList<QWidget *> CParametersContainer::ProxyWidgets() const {
 }
 
 void CParametersContainer::mousePressEvent(QMouseEvent *event) {
-    qDebug() << "parametersContainer mousePress" << event->button();
+    //qDebug() << "parametersContainer mousePress" << event->button();
     const QPoint scenePos = mapToScene(event->pos()).toPoint();
     if (hasAutomation(scenePos)) {
         QGraphicsView::mousePressEvent(event);
@@ -211,7 +211,7 @@ void CParametersContainer::mousePressEvent(QMouseEvent *event) {
         {
             if (auto proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(it)) item = proxy;
         }
-        if (parameterDevices[i]->swallowMousePress(event,item)) return;
+        if (parameterDevices[i]->swallowMousePress(event,item,this)) return;
         if (!parameterDevices[i]->itemIsKnob(item)) startDrag(m_DL->device(devices[i]->deviceID()),scenePos);
         QGraphicsView::mousePressEvent(event);
     }
@@ -236,7 +236,7 @@ void CParametersContainer::clear()
 
 void CParametersContainer::showParameters(IDevice* Device)
 {
-    qDebug() << "CParametersContainer showParameters";
+    //qDebug() << "CParametersContainer showParameters";
     const int i = deviceIndex(Device);
     if (i > -1) parameterDevices[i]->showParameters(i);
     if (((i * unitHeight()) > verticalScrollBar()->sliderPosition()) && (((i + 1) * unitHeight()) < verticalScrollBar()->sliderPosition()+height())) return;
@@ -431,7 +431,7 @@ QString CParametersContainer::MouseOverJack(const QPoint &Pos)
 
 void CParametersContainer::mouseMoveEvent(QMouseEvent* event)
 {
-    qDebug() << "parametersContainer mouseMove" << event->button();
+    //qDebug() << "parametersContainer mouseMove" << event->button();
     static QDPRPixmap plugPix = QDPRPixmap(rackJackSize,":/Plug.png").shadowedPixmap(10);
     const QPoint scenePos = mapToScene(event->pos()).toPoint();
     if (hasAutomation(scenePos)) {
@@ -472,7 +472,7 @@ void CParametersContainer::mouseMoveEvent(QMouseEvent* event)
 }
 
 void CParametersContainer::mouseReleaseEvent(QMouseEvent *event){
-    qDebug() << "parametersContainer mouseRelease" << event->button();
+    //qDebug() << "parametersContainer mouseRelease" << event->button();
     const QPoint scenePos = mapToScene(event->pos()).toPoint();
     if (hasAutomation(scenePos)) {
         QGraphicsView::mouseReleaseEvent(event);

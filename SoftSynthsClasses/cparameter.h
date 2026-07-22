@@ -42,21 +42,74 @@ typedef std::vector<CParameterEvent> CParameterEventList;
 
 #define ParameterListSeparator "§"
 
+class CParameterVars {
+public:
+    enum ParameterTypes {Numeric,SelectBox,dB,Percent};
+    CParameterVars(){}
+    CParameterVars(const QDomLiteElement* xml){
+        unserialize(xml);
+    }
+    int Min;
+    int Max;
+    ParameterTypes Type;
+    QString Name;
+    QString List;
+    QString Unit;
+    int DecimalFactor;
+    bool match(const CParameterVars& other) {
+        if (other.Name != Name) return false;
+        if (other.Type != Type) return false;
+        if (other.Unit != Unit) return false;
+        if (other.Min != Min) return false;
+        if (other.Max != Max) return false;
+        if (other.DecimalFactor != DecimalFactor) return false;
+        if (other.List != List) return false;
+        return true;
+    }
+    void serialize(QDomLiteElement* xml) const {
+        xml->setAttribute("Type",Type);
+        xml->setAttribute("Unit",Unit);
+        xml->setAttribute("Min",Min);
+        xml->setAttribute("Max",Max);
+        xml->setAttribute("DecimalFactor",DecimalFactor);
+        xml->setAttribute("ListString",List);
+    }
+    void unserialize(const QDomLiteElement* xml) {
+        Type = (CParameterVars::ParameterTypes)xml->attributeValueInt("Type");
+        Name = xml->attribute("Name"),
+        Unit = xml->attribute("Unit");
+        Min = xml->attributeValueInt("Min");
+        Max = xml->attributeValueInt("Max");
+        DecimalFactor = xml->attributeValueInt("DecimalFactor");
+        List = xml->attribute("ListString");
+    }
+};
+
 class CParameter : protected IPresetRef
 {
 public:
-    enum ParameterTypes {Numeric,SelectBox,dB,Percent};
-    CParameter(ParameterTypes type, const QString& name, const QString& unit, const int min, const int max, const int decimalFactor, const QString& listString, const int value, IParameterHost* owner /*, const int index*/){
+    //enum ParameterTypes {Numeric,SelectBox,dB,Percent};
+    CParameter(CParameterVars::ParameterTypes type, const QString& name, const QString& unit, const int min, const int max, const int decimalFactor, const QString& listString, const int value, IParameterHost* owner /*, const int index*/){
         //m_Wrapper = nullptr;
         m_OwnerDevice=owner;
-        Type=type;
-        Name=name;
-        Unit=unit;
-        Min=min;
-        Max=max;
-        DecimalFactor=decimalFactor;
-        if (DecimalFactor==0) DecimalFactor=1;
-        List=listString;
+        vars.Type=type;
+        vars.Name=name;
+        vars.Unit=unit;
+        vars.Min=min;
+        vars.Max=max;
+        vars.DecimalFactor=decimalFactor;
+        if (vars.DecimalFactor==0) vars.DecimalFactor=1;
+        vars.List=listString;
+        Value=value;
+        PercentValue = percentValue();
+        DryValue = dryValue();
+        //Index = index;
+    }
+    CParameter(const CParameterVars& v, const int value, IParameterHost* owner /*, const int index*/){
+        //m_Wrapper = nullptr;
+        m_OwnerDevice=owner;
+        vars = v;
+        if (vars.DecimalFactor==0) vars.DecimalFactor=1;
         Value=value;
         PercentValue = percentValue();
         DryValue = dryValue();
@@ -78,7 +131,7 @@ public:
     }
     void serialize(QDomLiteElement* xml) const
     {
-        xml->setAttribute(ParameterNameAttribute,Name);
+        xml->setAttribute(ParameterNameAttribute,vars.Name);
         xml->setAttribute(ParameterValueAttribute,Value,0);
         //xml->setAttribute("Index",Index);
         for (const CParameterEvent& e : events) {
@@ -86,6 +139,7 @@ public:
         }
     }
     //int Index;
+    /*
     int Min;
     int Max;
     ParameterTypes Type;
@@ -93,13 +147,15 @@ public:
     QString List;
     QString Unit;
     int DecimalFactor;
+*/
+    CParameterVars vars;
     int Value;
     float PercentValue;
     float DryValue;
-    inline const QStringList stringList() const { return List.split(ParameterListSeparator); }
+    inline const QStringList stringList() const { return vars.List.split(ParameterListSeparator); }
     inline float percentValue() const { return Value * 0.01f; }
     inline float dryValue() const { return 1.f - percentValue(); }
-    inline double decimalValue() const { return double(Value)/DecimalFactor; }
+    inline double decimalValue() const { return double(Value)/vars.DecimalFactor; }
     inline float scaleValue(const float s) const { return Value*s; }
     inline double dBValue() const { return lin2dB(Value * 0.01); }
     inline ulong64 mSec2samplesValue() const { return presets.mSecsToSamples(Value); }
@@ -155,21 +211,21 @@ public:
     QString valueText() { return valueText(Value); }
     QString valueText(int val) {
         QString v;
-        if (Type==CParameter::dB)
+        if (vars.Type==CParameterVars::dB)
         {
-            v=QString::number(lin2dB(val*0.01),'f',2)+" "+Unit;
+            v=QString::number(lin2dB(val*0.01),'f',2)+" "+vars.Unit;
         }
-        else if (Type==CParameter::SelectBox)
+        else if (vars.Type==CParameterVars::SelectBox)
         {
             const QStringList l=stringList();
             v=l[val];
         }
         else
         {
-            const int decimals = QString::number(DecimalFactor).length()-1;
-            v=QString::number(double(val)/DecimalFactor,'f',decimals);
+            const int decimals = QString::number(vars.DecimalFactor).length()-1;
+            v=QString::number(double(val)/vars.DecimalFactor,'f',decimals);
             v += QChar(QChar::Space);
-            v += Unit;
+            v += vars.Unit;
         }
         return v;
     }

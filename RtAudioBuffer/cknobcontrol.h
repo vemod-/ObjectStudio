@@ -28,6 +28,7 @@ public:
     void setLabels(CParameter* p);
     int value();
     void popupMenu(QPoint p);
+    bool match(CParameter* p);
 signals:
     void valueChanged(int Value);
     void requestAutomation(CParameter*);
@@ -38,6 +39,7 @@ private:
     QWidgetAction* spinboxAction;
     QDoubleSpinBox* spinbox;
     KnobType m_KnobType;
+    CParameterVars vars;
     //QRecursiveMutex mutex;
 private slots:
     void SetNumericValue(double Value);

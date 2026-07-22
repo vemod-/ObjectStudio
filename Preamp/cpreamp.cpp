@@ -13,12 +13,12 @@ void CPreamp::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackMonoIn();
     addJackMonoOut(monoout);
-    addParameter(CParameter::dB, "Gain", "dB", 100, 1000, 1, "", 100);
+    addParameter(CParameterVars::dB, "Gain", "dB", 100, 1000, 1, "", 100);
     startParameterGroup("EQ");
     addParameterVolume("Bass");
     addParameterVolume("Mid");
     addParameterVolume("Treble");
-    addParameter(CParameter::dB, "Presence", "dB", 100, 200, 1, "", 100);
+    addParameter(CParameterVars::dB, "Presence", "dB", 100, 200, 1, "", 100);
     endParameterGroup();
     addParameterPercent("Tube");
     addParameterVolume("Output");

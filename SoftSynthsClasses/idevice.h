@@ -60,7 +60,7 @@ public:
     virtual ~IDevice();
     inline CParameter* parameter(const int Index) const { return m_Parameters[uint(Index)]; }
     inline CParameter* parameter(const QString& Name) const {
-        for (CParameter* p : m_Parameters) if (p->Name == Name) return p;
+        for (CParameter* p : m_Parameters) if (p->vars.Name == Name) return p;
         return nullptr;
     }
     inline int parameterCount() const { return int(m_Parameters.size()); }
@@ -426,17 +426,24 @@ public:
     void showNativeMessage(QString messageText, QString informativeText) {
         nativeMessage(m_MainWindow,messageText,informativeText);
     }
-    CParameter* addParameter(CParameter::ParameterTypes Type, const QString& Name, const QString& Unit, const int Min, const int Max, const int DecimalFactor, const QString& ListString,int Value)
+    CParameter* addParameter(CParameterVars::ParameterTypes Type, const QString& Name, const QString& Unit, const int Min, const int Max, const int DecimalFactor, const QString& ListString,int Value)
     {
         QMutexLocker locker(&mutex);
         CParameter* p = new CParameter(Type,Name,Unit,Min,Max,DecimalFactor,ListString,Value,this/*,int(m_Parameters.size())*/);
         m_Parameters.push_back(p);
         return p;
     }
+    CParameter* addParameter(const CParameterVars& v,int Value)
+    {
+        QMutexLocker locker(&mutex);
+        CParameter* p = new CParameter(v,Value,this/*,int(m_Parameters.size())*/);
+        m_Parameters.push_back(p);
+        return p;
+    }
     void removeParameter(const QString& Name) {
         QMutexLocker locker(&mutex);
         for (uint i = 0; i < m_Parameters.size(); i++) {
-            if (Name == m_Parameters[i]->Name) {
+            if (Name == m_Parameters[i]->vars.Name) {
                 delete m_Parameters.takeAt(i);
                 return;
             }
@@ -666,28 +673,28 @@ protected:
     }
     void addParameterVolume(const QString& Name="Volume")
     {
-        addParameter(CParameter::dB,Name,"dB",0,200,0,"",100);
+        addParameter(CParameterVars::dB,Name,"dB",0,200,0,"",100);
     }
     void addParameterLevel(const QString& Name="Level")
     {
-        addParameter(CParameter::Numeric,Name,"V",0,200,100,"",100);
+        addParameter(CParameterVars::Numeric,Name,"V",0,200,100,"",100);
     }
     void addParameterBias(const QString& Name="Bias")
     {
-        addParameter(CParameter::Numeric,Name,"V",-100,100,100,"",0);
+        addParameter(CParameterVars::Numeric,Name,"V",-100,100,100,"",0);
     }
     void addParameterRectify(const QString& Name="Rectify")
     {
-        addParameter(CParameter::Numeric,Name,"%+/-",-100,100,0,"",0);
+        addParameter(CParameterVars::Numeric,Name,"%+/-",-100,100,0,"",0);
     }
     void addParameterSelect(const QString& Name, const QString& SelectString, const int Default = 0)
     {
         const int Max=SelectString.split(ParameterListSeparator).size();
-        addParameter(CParameter::SelectBox,Name,"",0,Max-1,0,SelectString,Default);
+        addParameter(CParameterVars::SelectBox,Name,"",0,Max-1,0,SelectString,Default);
     }
     void addParameterOffOn(const QString& Name)
     {
-        addParameter(CParameter::SelectBox,Name,"",0,1,0,"Off§On",0);
+        addParameter(CParameterVars::SelectBox,Name,"",0,1,0,"Off§On",0);
     }
     void addParameterPatchChange(const QString& Name="Patch Change")
     {
@@ -707,35 +714,35 @@ protected:
     }
     void addParameterTranspose(const QString& Name="Transpose")
     {
-        addParameter(CParameter::Numeric,Name,"Semitones",-24,24,0,"",0);
+        addParameter(CParameterVars::Numeric,Name,"Semitones",-24,24,0,"",0);
     }
     void addParameterTune(const QString& Name="Tune")
     {
-        addParameter(CParameter::Numeric,Name,"Hz",43600,44800,100,"",44000);
+        addParameter(CParameterVars::Numeric,Name,"Hz",43600,44800,100,"",44000);
     }
     void addParameterPercent(const QString& Name="Modulation", const int Default=0)
     {
-        addParameter(CParameter::Percent,Name,"%",0,100,0,"",Default);
+        addParameter(CParameterVars::Percent,Name,"%",0,100,0,"",Default);
     }
     void addParameterTime(const QString& Name="Time", const int Default=0)
     {
-        addParameter(CParameter::Numeric,Name,"mSec",1,20000,0,"",Default);
+        addParameter(CParameterVars::Numeric,Name,"mSec",1,20000,0,"",Default);
     }
     void addParameterCutOff(const QString& Name="Cutoff Frequency",const int Default=CPresets::presets().MaxCutoff)
     {
-        addParameter(CParameter::Numeric,Name,"Hz",20,presets.MaxCutoff,0,"",Default);
+        addParameter(CParameterVars::Numeric,Name,"Hz",20,presets.MaxCutoff,0,"",Default);
     }
     void addParameterRate(const QString& Name="Rate",const int Default=100)
     {
-        addParameter(CParameter::Numeric,Name,"Sweeps/sec",5,1000,100,"",Default);
+        addParameter(CParameterVars::Numeric,Name,"Sweeps/sec",5,1000,100,"",Default);
     }
     void addParameterFrequency(const QString& Name="Frequency",const int Default=44000)
     {
-        addParameter(CParameter::Numeric,Name,"Hz",100,int(presets.HalfRate)*100,100,"",Default);
+        addParameter(CParameterVars::Numeric,Name,"Hz",100,int(presets.HalfRate)*100,100,"",Default);
     }
     void addParameterPan(const QString& Name="Pan",const int Default=0)
     {
-        addParameter(CParameter::Percent,Name,"%",-100,100,0,"",Default);
+        addParameter(CParameterVars::Percent,Name,"%",-100,100,0,"",Default);
     }
     void addFileParameter(IFileLoader* loader = nullptr, const QString& basePath = QString())
     {

@@ -17,8 +17,8 @@ void CTuner::init(const int Index, QWidget* MainWindow)
     addJackMonoIn();
     addParameterTune("Calibration");
     addParameterOffOn("Silent");
-    addParameter(CParameter::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",5000);
-    addParameter(CParameter::Numeric,"Rate","mSec",10,1000,0,"",100);
+    addParameter(CParameterVars::Numeric,"Max Frequency","Hz",5000,presets.HalfRate,0,"",5000);
+    addParameter(CParameterVars::Numeric,"Rate","mSec",10,1000,0,"",100);
     QMutexLocker locker(&mutex);
     m_Form=new CTunerForm(this,MainWindow);
     updateDeviceParameter();

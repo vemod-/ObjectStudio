@@ -24,8 +24,8 @@ CDesktopContainer::CDesktopContainer(QWidget *parent) :
 
     Rack->Init(Desktop->deviceList());
 
-    connect(ui->DesktopComponent,&CDesktopComponent::parametersChanged,Rack,&CParametersContainer::showParameters,Qt::QueuedConnection);
-    connect(ui->DesktopComponent,&CDesktopComponent::controlChanged,Rack,&CParametersContainer::updateControl,Qt::QueuedConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::parametersChanged,Rack,&CParametersContainer::showParameters,Qt::DirectConnection);
+    connect(ui->DesktopComponent,&CDesktopComponent::controlChanged,Rack,&CParametersContainer::updateControl,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::deviceAdded,Rack,&CParametersContainer::addDevice,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::deviceRemoved,Rack,&CParametersContainer::removeDevice,Qt::DirectConnection);
     connect(ui->DesktopComponent,&CDesktopComponent::devicesReordered,Rack,&CParametersContainer::moveDevice,Qt::DirectConnection);

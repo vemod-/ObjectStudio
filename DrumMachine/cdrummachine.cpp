@@ -9,7 +9,7 @@ void CDrumMachine::init(const int Index, QWidget* MainWindow)
     IDevice::init(Index,MainWindow);
     addJackStereoOut(stereoout);
     addJackMIDIOut(midiout);
-    addParameter(CParameter::Numeric,"Tempo","BPM",20,300,0,"",100);
+    addParameter(CParameterVars::Numeric,"Tempo","BPM",20,300,0,"",100);
     addParameterVolume();
     addParameterPercent("Humanize");
     PatternLength=0;

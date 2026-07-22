@@ -18,7 +18,7 @@ void CPitchShifter::init(const int Index, QWidget* MainWindow) {
     endParameterGroup();
     makeParameterGroup(2,"Tune",Qt::green);
     addParameterPercent();
-    addParameter(CParameter::Numeric,"Tune","cent",-100,100,0,"",0);
+    addParameter(CParameterVars::Numeric,"Tune","cent",-100,100,0,"",0);
     //addParameterTune();
     addParameterPercent("Effect",100);
     Modulator.init(m_Jacks[modulationin],m_Parameters[pnModulation],m_Parameters[pnTune],CVoltageModulator::Cents);

@@ -14,7 +14,7 @@ void CSignalSplitter::init(const int Index, QWidget *MainWindow)
     addJackMonoIn();
     addJackModulationIn();
     addParameterSelect("Type","Frequency§Volume");
-    addParameter(CParameter::Numeric,"Split Frequency","Hz",20,presets.MaxCutoff/2,0,"",440);
+    addParameter(CParameterVars::Numeric,"Split Frequency","Hz",20,presets.MaxCutoff/2,0,"",440);
     addParameterPercent("Split Volume",50);
     addParameterPercent();
     addParameterPercent("X-fade",10);
